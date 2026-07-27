@@ -1,7 +1,7 @@
 /**
  * Shared path list for local Nest API rewrite (D11–D15).
  * Keep in sync with backend/api Nest rewrite top-level list (PAGES_API_TOP_LEVEL).
- * /api/auth and /api/ws stay on Next (D2).
+ * /api/auth stays on Next (D2). /api/ws is Nest-owned (SSE).
  */
 
 /** @type {readonly string[]} */
@@ -45,8 +45,9 @@ const NEST_API_REWRITE_TOP_LEVEL = [
     "metrics",
 ];
 
-/** Top-level segments that must NOT be rewritten to Nest. */
-const NEST_API_REWRITE_KEEP_ON_NEXT = new Set(["auth", "ws"]);
+    // Nest owns SSE — rewrite /api/ws when local Nest rewrite is on.
+    // /api/auth stays on Next (D2 cookie bridge until Amplify-only auth).
+    const NEST_API_REWRITE_KEEP_ON_NEXT = new Set(["auth"]);
 
 /**
  * @returns {boolean}
@@ -92,6 +93,16 @@ function buildNestApiRewrites() {
             destination: `${target}/api/${top}/:path*`,
         });
     }
+
+    // Nest SSE realtime
+    rules.push({
+        source: "/api/ws",
+        destination: `${target}/api/ws`,
+    });
+    rules.push({
+        source: "/api/ws/:path*",
+        destination: `${target}/api/ws/:path*`,
+    });
 
     return rules;
 }

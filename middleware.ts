@@ -49,16 +49,27 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(url, 301);
     }
 
-    // Amplify UI-only: product APIs live on Nest. Keep NextAuth `/api/auth` for the
-    // Nest-JWT→session bridge (prisma-free stub). Soft-disable `/api/ws`.
+    // Amplify UI-only: product APIs + SSE live on Nest. Keep NextAuth `/api/auth`
+    // for the Nest-JWT→session bridge (prisma-free stub). Relative `/api/ws` hits
+    // here only if the client was misconfigured — prefer Nest absolute SSE URL.
     if (amplifyUi && pathname.startsWith("/api/")) {
         if (pathname.startsWith("/api/auth")) {
             return NextResponse.next();
         }
         if (pathname.startsWith("/api/ws")) {
+            const nest =
+                process.env.NEXT_PUBLIC_NEST_API_BASE_URL?.replace(/\/$/, "") ||
+                "";
+            if (nest && process.env.NEXT_PUBLIC_ENABLE_WS !== "false") {
+                const target = new URL(
+                    `${pathname}${request.nextUrl.search}`,
+                    nest
+                );
+                return NextResponse.redirect(target);
+            }
             return NextResponse.json(
                 {
-                    error: "WebSockets unavailable on Amplify UI until Nest owns realtime.",
+                    error: "Realtime is served by Nest. Set NEXT_PUBLIC_NEST_API_BASE_URL and NEXT_PUBLIC_ENABLE_WS=true.",
                 },
                 { status: 404 }
             );

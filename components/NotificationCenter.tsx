@@ -39,7 +39,8 @@ import { useTranslation } from "react-i18next";
 
 import { ToolbarDropdownFilter } from "@/shared/components/ToolbarDropdownFilter";
 import { markNotificationRead } from "@/shared/services/notificationService";
-import { isWebSocketEnabled } from "@/utils/amplifyMode";
+import { isWebSocketEnabled, resolveNotificationsSseUrl } from "@/utils/amplifyMode";
+import { getNestAccessToken } from "@/utils/nestAuth";
 import { getLocalizedNotificationText } from "@/utils/notificationDisplayText";
 
 interface Notification {
@@ -220,7 +221,10 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
             }
 
             try {
-                eventSource = new EventSource("/api/ws/notifications");
+                const sseUrl = resolveNotificationsSseUrl(getNestAccessToken());
+                eventSource = new EventSource(sseUrl, {
+                    withCredentials: true,
+                });
 
                 eventSource.onopen = () => {
                     // Connection successful - reset reconnect attempts

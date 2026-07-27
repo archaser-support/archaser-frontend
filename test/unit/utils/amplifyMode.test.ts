@@ -4,6 +4,7 @@ import {
     isAmplifySsrBuild,
     isNestUiMode,
     isWebSocketEnabled,
+    resolveNotificationsSseUrl,
     resolveProductApiBaseUrl,
     shouldAttachNestBearer,
 } from "@/utils/amplifyMode";
@@ -34,11 +35,29 @@ describe("amplifyMode", () => {
         expect(isAmplifySsrBuild()).toBe(true);
     });
 
-    it("disables websockets by default on Amplify", () => {
+    it("enables websockets on Amplify when Nest base URL is set", () => {
         process.env.NEXT_PUBLIC_AMPLIFY_UI = "true";
         expect(isWebSocketEnabled()).toBe(false);
+        process.env.NEXT_PUBLIC_NEST_API_BASE_URL =
+            "https://staging.example.com";
+        expect(isWebSocketEnabled()).toBe(true);
+        process.env.NEXT_PUBLIC_ENABLE_WS = "false";
+        expect(isWebSocketEnabled()).toBe(false);
+    });
+
+    it("honors explicit NEXT_PUBLIC_ENABLE_WS=true on Amplify", () => {
+        process.env.NEXT_PUBLIC_AMPLIFY_UI = "true";
         process.env.NEXT_PUBLIC_ENABLE_WS = "true";
         expect(isWebSocketEnabled()).toBe(true);
+    });
+
+    it("builds Nest SSE URL with access_token for Amplify", () => {
+        process.env.NEXT_PUBLIC_NEST_API_BASE_URL =
+            "https://staging.example.com/";
+        process.env.NEXT_PUBLIC_USE_NEST_AUTH = "true";
+        expect(resolveNotificationsSseUrl("tok-abc")).toBe(
+            "https://staging.example.com/api/ws/notifications?access_token=tok-abc"
+        );
     });
 
     it("resolves Nest product API base URL in Nest UI mode", () => {

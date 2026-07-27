@@ -9,9 +9,10 @@
 #   NEXT_PUBLIC_BASE_URL=https://<amplify-app-domain>
 #   NEXTAUTH_SECRET=<shared with Nest JWT verify; omit DATABASE_URL>
 #   JWT_SECRET=<same secret Nest uses to sign access tokens>
-#   NEXT_PUBLIC_ENABLE_WS=false
+#   NEXT_PUBLIC_ENABLE_WS=true
 #
 # Nest must allow this origin in NEST_CORS_ORIGINS and Authorization header.
+# SSE uses EventSource against Nest /api/ws/* with ?access_token=.
 
 version: 1
 frontend:
