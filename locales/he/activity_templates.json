@@ -1,0 +1,93 @@
+{
+  "activityTemplates": {
+    "create_activity_template": "יצירת תבנית פעילות",
+    "create_automated_description": "צור תבנית פעילות אוטומטית חדשה כדי לייעל את תהליכי התקשורת."
+  },
+  "fields": {
+    "activity_templates_activity_templates": "תבניות פעילות",
+    "activity_templates_dispute": "מחלוקת",
+    "activity_templates_email_content": "תוכן מייל",
+    "activity_templates_email_subject": "נושא מייל",
+    "activity_templates_language_overview": "סקירת שפות",
+    "activity_templates_languages": "שפות",
+    "activity_templates_name": "שם",
+    "activity_templates_no_automated_templates": "אין תבניות אוטומטיות",
+    "activity_templates_promise_to_pay": "הבטחת תשלום",
+    "activity_templates_sections_multi_language_content": "תוכן רב-לשוני",
+    "activity_templates_sms_content": "תוכן SMS",
+    "activity_templates_tabs_email": "מייל",
+    "activity_templates_tabs_sms": "SMS",
+    "activity_templates_tabs_whatsapp": "WhatsApp",
+    "activity_templates_template_not_found": "תבנית פעילות לא נמצאה",
+    "activity_templates_unnamed_template": "תבנית ללא שם",
+    "activity_templates_whatsapp_content": "תוכן WhatsApp",
+    "activity_templates_dispute_resolution": "פתרון מחלוקת",
+    "activity_templates_select_dispute_resolution": "בחר פתרון מחלוקת",
+    "automated_description": "נהל תבניות תקשורת למעקבים אוטומטיים ואינטראקציות עם סוכנים. תבניות אלו תומכות בתקשורת SMS, WhatsApp ומייל.",
+    "placeholder_sms_content": "הזן תוכן הודעת SMS...",
+    "placeholder_whatsapp_content": "הזן תוכן הודעת WhatsApp...",
+    "placeholder_email_subject": "הזן נושא מייל..."
+  },
+  "actions": {
+    "activity_templates_actions": "פעולות",
+    "activity_templates_activity_template_deleted_success": "תבנית הפעילות נמחקה בהצלחה!",
+    "activity_templates_add_activity_template": "הוסף תבנית",
+    "activity_templates_add_language": "הוסף שפה",
+    "activity_templates_add_template": "הוסף תבנית",
+    "activity_templates_cannot_delete_active": "לא ניתן למחוק תבנית פעילה",
+    "activity_templates_create_activity_template": "יצירת תבנית",
+    "activity_templates_delete_confirm_cancel": "ביטול",
+    "activity_templates_delete_confirm_confirm": "מחק",
+    "activity_templates_delete_confirm_description": "האם אתה בטוח שברצונך למחוק תבנית זו? פעולה זו לא ניתנת לביטול.",
+    "activity_templates_delete_confirm_title": "מחק תבנית",
+    "activity_templates_delete_language_confirmation": "מחק שפה",
+    "activity_templates_delete_language_message": "האם אתה בטוח שברצונך למחוק {{language}}?",
+    "activity_templates_edit_activity_template": "עריכת תבנית",
+    "activity_templates_multi_language_info": "ניתן ליצור תבניות במספר שפות. לכל שפה תוכן מייל, SMS ו-WhatsApp משלה. המערכת תשתמש אוטומטית בשפה המתאימה בהתבסס על העדפת הלקוח.",
+    "activity_templates_no_automated_templates_description": "צור את התבנית האוטומטית הראשונה שלך כדי להתחיל עם תקשורת אוטומטית למעקבים ופעילויות אחרות.",
+    "activity_templates_success_template_created": "התבנית נוצרה בהצלחה",
+    "test_email": "שלח מייל בדיקה"
+  },
+  "messages": {
+    "activity_templates_delete_language_warning": "פעולה זו תמחק לצמיתות את כל התוכן עבור שפה זו ולא ניתן לבטלה.",
+    "activity_templates_error_error_checking_template_usage": "שגיאה בבדיקת שימוש בתבנית",
+    "activity_templates_error_error_updating_status": "שגיאה בעדכון סטטוס התבנית",
+    "activity_templates_error_template_save_error": "שגיאה בשמירת התבנית",
+    "activity_templates_error_fetching_templates": "שגיאה בטעינת תבניות",
+    "activity_templates_success_template_updated": "התבנית עודכנה בהצלחה",
+    "activity_templates_edit_description": "ערוך תוכן תבנית פעילות ונהל גרסאות רב-לשוניות לתקשורת SMS, WhatsApp ודוא\"ל.",
+    "activity_templates_error_error_deleting_activity_template": "שגיאה במחיקת תבנית פעילות",
+    "activity_templates_status_updated_successfully": "הסטטוס עודכן בהצלחה",
+    "template_in_use_error": "תבנית זו נמצאת כרגע בשימוש ב-{{count}} רצף (רצפים). אנא הסר אותה מכל הרצפים לפני המחיקה.",
+    "delete_confirmation": "מחק תבנית",
+    "delete_activity_template_confirmation": "האם אתה בטוח שברצונך למחוק תבנית זו? פעולה זו לא ניתנת לביטול.",
+    "activity_templates_test_email_sent": "דוא\"ל בדיקה נשלח בהצלחה לכתובת הדוא\"ל שלך ({{language}})",
+    "activity_templates_test_email_error": "שליחת דוא\"ל בדיקה נכשלה",
+    "activity_templates_no_email_content_for_language": "אין תוכן דוא\"ל זמין לשפה {{language}}"
+  },
+  "values": {
+    "activity_templates_active": "פעיל",
+    "activity_templates_automated": "אוטומטי",
+    "activity_templates_category": "קטגוריה",
+    "activity_templates_inactive": "לא פעיל",
+    "activity_templates_accepted": "מאושר",
+    "activity_templates_denied": "נדחה",
+    "activity_templates_pending": "ממתין",
+    "activity_templates_cancelled": "בוטל"
+  },
+  "sections": {
+    "activity_templates_basic_information": "מידע בסיסי",
+    "activity_templates_multi_language_content": "תוכן רב-לשוני"
+  },
+  "validation": {
+    "fields": {
+      "name": "נדרש שם תבנית",
+      "sms_content": "נדרש תוכן SMS",
+      "whatsapp_content": "נדרש תוכן WhatsApp",
+      "email_subject": "נדרש נושא מייל",
+      "email_content": "נדרש תוכן מייל"
+    },
+    "please_fix_errors": "אנא תקן את השגיאות לפני השליחה",
+    "at_least_one_language": "נדרש לפחות תבנית שפה אחת"
+  }
+}

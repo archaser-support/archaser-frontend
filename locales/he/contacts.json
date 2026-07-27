@@ -1,0 +1,71 @@
+{
+    "fields": {
+        "contacts": "אנשי קשר",
+        "name": "שם",
+        "full_name": "שם מלא",
+        "first_name": "שם פרטי",
+        "last_name": "שם משפחה",
+        "email": "מייל",
+        "phone": "טלפון",
+        "mobile": "נייד",
+        "role": "תפקיד",
+        "country_code_notice": "אם קוד המדינה לא מוזן, אז מדינת הלקוח מוגדרת כמדינת איש הקשר.",
+        "mobile_format_hint": "הזן מספר נייד תקין עם קוד מדינה (למשל, +1 234 567 8900)",
+        "phone_format_hint": "הזן מספר טלפון תקין (למשל, +1 (123) 456-7890)",
+        "escalated_reminders": "תזכורות להסלמה",
+        "standard_reminders": "תזכורות רגילות",
+        "standard_reminder_description": "קבל תזכורות תשלום רגילות",
+        "escalated_reminder_description": "קבל תזכורות תשלום להסלמה",
+        "receiving_standard_reminders": "מקבל תזכורות רגילות",
+        "receiving_escalated_reminders": "מקבל תזכורות להסלמה",
+        "receiving": "מקבל",
+        "not_receiving": "לא מקבל",
+        "company_name": "שם החברה",
+        "company_wide_address": "כתובת מייל של החברה",
+        "not_company_wide_address": "לא כתובת מייל של החברה"
+    },
+    "actions": {
+        "add_contact": "הוסף איש קשר",
+        "edit_contact": "ערוך איש קשר",
+        "delete_contact": "מחק איש קשר",
+        "deactivate": "נטרל",
+        "deactivate_contact": "נטרל איש קשר",
+        "view_contact": "צפה באיש קשר",
+        "update": "עדכן"
+    },
+    "messages": {
+        "no_contacts_found": "לא נמצאו אנשי קשר",
+        "no_contacts_description": "הוסף אנשי קשר לניהול תקשורת בארגון הלקוח שלך. אתה יכול להוסיף אנשים או כתובות רחבות של החברה (למשל, ar@sample.com) כדי להבטיח שעדכונים חשובים יגיעו למוטבים הנכונים.",
+        "save_success": "איש הקשר נשמר בהצלחה",
+        "delete_success": "איש הקשר נמחק בהצלחה",
+        "deactivate_success": "איש הקשר נוטרל בהצלחה",
+        "processing_mobile": "מעבד מספר נייד ומזהה מדינה...",
+        "contact_information": "מידע ליצירת קשר",
+        "personal_information": "מידע אישי",
+        "warning_email_bounced": "כתובת מייל זו נדחתה וייתכן שלא ניתן למסור אותה.",
+        "warning_email_failure": "כתובת מייל זו נכשלה במסירה.",
+        "warning_mobile_failure": "מספר נייד זה נכשל במסירה."
+    },
+    "values": {
+        "status": "סטטוס",
+        "active": "פעיל",
+        "state": "מדינה",
+        "select_state": "בחר מדינה"
+    },
+    "sections": {
+        "notification_settings": "הגדרות התראה",
+        "contact_details": "פרטי איש קשר"
+    },
+    "tooltips": {
+        "receives_standard_reminder": "האם איש הקשר מקבל תזכורות רגילות",
+        "receives_escalated_reminder": "האם איש הקשר מקבל תזכורות להסלמה"
+    },
+    "validation": {
+        "invalid_email_format": "אנא הזן כתובת מייל תקינה",
+        "invalid_phone_format": "אנא הזן מספר טלפון תקין",
+        "invalid_phone_format_error": "אנא הזן מספר טלפון תקין",
+        "warning_invalid_email": "כתובת המייל אינה תקינה.",
+        "warning_invalid_mobile": "מספר הנייד אינו תקין.",
+        "at_least_one_contact_method": "נדרש לפחות אמצעי קשר אחד (מייל, טלפון או נייד)"
+    }
+}

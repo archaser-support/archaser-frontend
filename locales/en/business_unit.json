@@ -1,0 +1,42 @@
+{
+    "fields": {
+        "business_unit": "Business Unit",
+        "name": "Name",
+        "parent_business_unit": "Parent Business Unit",
+        "external_id": "External ID",
+        "primary": "Primary",
+        "select_business_unit": "Select Business Unit",
+        "select_parent": "Select Parent Business Unit",
+        "primary_business_unit_no_parent": "Primary business units cannot have a parent",
+        "reassign_to_business_unit": "Reassign to Business Unit",
+        "level": "Level"
+    },
+    "messages": {
+        "no_business_units": "No business units found",
+        "no_business_units_description": "No business units have been created for this account yet",
+        "delete_confirm_title": "Delete Business Unit",
+        "delete_confirm_description": "Are you sure you want to delete this business unit? This action cannot be undone and will affect users and customers assigned to this unit.",
+        "delete_has_users": "This business unit has {{count}} user(s) assigned. Please select a business unit to reassign them to.",
+        "delete_success": "Business unit deleted successfully",
+        "delete_error": "Failed to delete business unit",
+        "create_success": "Business unit created successfully",
+        "create_error": "Failed to create business unit",
+        "update_success": "Business unit updated successfully",
+        "update_error": "Failed to update business unit",
+        "status_update_success": "Business unit status updated successfully",
+        "status_update_error": "Failed to update business unit status",
+        "cannot_disable_with_active_users": "Cannot disable business unit. This business unit has {{count}} active user(s) assigned. Please reassign or deactivate these users first."
+    },
+    "sections": {
+        "add_business_unit": "Add Business Unit",
+        "edit_business_unit": "Edit Business Unit"
+    },
+    "tooltips": {
+        "cannot_delete_primary": "Cannot delete primary business unit",
+        "delete": "Delete business unit"
+    },
+    "validation": {
+        "name_required": "Name is required",
+        "parent_required": "Parent business unit is required for non-primary business units"
+    }
+}

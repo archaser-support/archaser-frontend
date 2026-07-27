@@ -1,0 +1,71 @@
+{
+    "fields": {
+        "contacts": "contacts",
+        "name": "Name",
+        "full_name": "Full Name",
+        "first_name": "First Name",
+        "last_name": "Last Name",
+        "email": "Email",
+        "phone": "Phone",
+        "mobile": "Mobile",
+        "role": "Role",
+        "country_code_notice": "If the country code is not entered, then the customer's country is set as the contact's country.",
+        "mobile_format_hint": "Enter a valid mobile number with country code (e.g., +1 234 567 8900)",
+        "phone_format_hint": "Enter a valid phone number (e.g., +1 (123) 456-7890)",
+        "escalated_reminders": "Escalated Reminders",
+        "standard_reminders": "Standard Reminders",
+        "standard_reminder_description": "Receive standard payment reminders",
+        "escalated_reminder_description": "Receive escalated payment reminders",
+        "receiving_standard_reminders": "Receiving Standard Reminders",
+        "receiving_escalated_reminders": "Receiving Escalated Reminders",
+        "receiving": "Receiving",
+        "not_receiving": "Not Receiving",
+        "company_name": "Company Name",
+        "company_wide_address": "Company Wide Address",
+        "not_company_wide_address": "Not Company Wide Address"
+    },
+    "actions": {
+        "add_contact": "Add Contact",
+        "edit_contact": "Edit Contact",
+        "delete_contact": "Delete Contact",
+        "deactivate": "Deactivate",
+        "deactivate_contact": "Deactivate Contact",
+        "view_contact": "View Contact",
+        "update": "Update"
+    },
+    "messages": {
+        "no_contacts_found": "No Contacts Found",
+        "no_contacts_description": "Add contacts to manage communication within your customer's organization. You can add individuals or company-wide addresses (e.g., ar@sample.com) to ensure important updates reach the right recipients.",
+        "save_success": "Contact saved successfully",
+        "delete_success": "Contact deleted successfully",
+        "deactivate_success": "Contact deactivated successfully",
+        "processing_mobile": "Processing mobile number and identifying country...",
+        "contact_information": "Contact Information",
+        "personal_information": "Personal Information",
+        "warning_email_bounced": "This email address has bounced and may not be deliverable.",
+        "warning_email_failure": "This email address has delivery failures.",
+        "warning_mobile_failure": "This mobile number has delivery failures."
+    },
+    "values": {
+        "status": "Status",
+        "active": "Active",
+        "state": "State",
+        "select_state": "Select State"
+    },
+    "sections": {
+        "notification_settings": "Notification Settings",
+        "contact_details": "Contact Details"
+    },
+    "tooltips": {
+        "receives_standard_reminder": "Whether the contact receives standard reminders",
+        "receives_escalated_reminder": "Whether the contact receives escalated reminders"
+    },
+    "validation": {
+        "invalid_email_format": "Please enter a valid email address",
+        "invalid_phone_format": "Please enter a valid phone number",
+        "invalid_phone_format_error": "Please enter a valid phone number",
+        "warning_invalid_email": "The email address is not valid.",
+        "warning_invalid_mobile": "The mobile number is not valid.",
+        "at_least_one_contact_method": "At least one contact method is required (email, phone, or mobile)"
+    }
+}

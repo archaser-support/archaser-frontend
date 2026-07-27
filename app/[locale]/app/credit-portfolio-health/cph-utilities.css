@@ -1,0 +1,7 @@
+/**
+ * Page-scoped Tailwind utilities for the portfolio-health island.
+ * The app shell does not load `@tailwind utilities` globally (MUI/Bootstrap),
+ * so this route imports them explicitly. No `@tailwind base` — avoids resetting
+ * the rest of the app.
+ */
+@tailwind utilities;

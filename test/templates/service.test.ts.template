@@ -1,0 +1,90 @@
+/**
+ * Unit Test: {ServiceName}
+ * 
+ * Tests: {Brief description of what this service does}
+ * 
+ * 📚 Documentation:
+ * - Unit Testing Guide: docs/unit-testing-guide.md
+ * - Best Practices: docs/development-guides/unit-testing-best-practices.md
+ * - Quick Reference: docs/development-guides/unit-testing-quick-reference.md
+ * 
+ * 🚨 CRITICAL: Don't mock the class you're testing! Mock only dependencies.
+ */
+
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { createPrismaMock } from "@/tests/mocks/prisma";
+// Import fixtures as needed
+// import { mockActivityData } from "@/tests/fixtures/services/activity";
+// import { createMockActivity } from "@/tests/fixtures/services/activity";
+
+// 1. Mock dependencies first (NOT the class under test)
+vi.mock("@/lib/prisma", () => ({
+    prisma: createPrismaMock(),
+}));
+
+vi.mock("@/server/services/DependencyService", () => ({
+    DependencyService: vi.fn().mockImplementation(() => ({
+        method: vi.fn(),
+    })),
+}));
+
+// 2. Import real class after mocks
+import { ServiceName } from "@/server/services/ServiceName";
+
+describe("ServiceName", () => {
+    let service: ServiceName;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        service = new ServiceName(); // Real instance
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    describe("methodName", () => {
+        describe("success cases", () => {
+            it("should {behavior} when {condition}", async () => {
+                // Arrange
+                // const input = mockServiceData.validInput;
+                const input = {};
+
+                // Act
+                const result = await service.methodName(input);
+
+                // Assert
+                expect(result).toBeDefined();
+                // expect(result).toEqual(expectedResult);
+            });
+        });
+
+        describe("error cases", () => {
+            it("should throw error when {condition}", async () => {
+                // Arrange
+                // const invalidInput = mockServiceData.invalidInput;
+                const invalidInput = {};
+
+                // Act & Assert
+                await expect(service.methodName(invalidInput)).rejects.toThrow(
+                    "Expected error message"
+                );
+            });
+        });
+
+        describe("edge cases", () => {
+            it("should handle {edge case}", async () => {
+                // Arrange
+                // const edgeCaseInput = mockServiceData.edgeCase;
+                const edgeCaseInput = {};
+
+                // Act
+                const result = await service.methodName(edgeCaseInput);
+
+                // Assert
+                expect(result).toBeDefined();
+            });
+        });
+    });
+});
+

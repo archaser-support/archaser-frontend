@@ -1,0 +1,26 @@
+{
+  "fields": {
+    "amount_overdue": "סכום בפיגור",
+    "current_time": "שעה נוכחית",
+    "customer": "לקוח",
+    "customer_code": "קוד לקוח",
+    "date_moved_to_legal": "תאריך העברה למשפטי",
+    "days": "ימים",
+    "days_past_due": "ימים בפיגור",
+    "last_call": "שיחה אחרונה",
+    "last_call_result": "תוצאת השיחה האחרונה",
+    "unknown": "לא ידוע"
+  },
+  "messages": {
+    "error_fetching_data": "שגיאה בטעינת הנתונים",
+    "no_calls": "לא בוצעו שיחות",
+    "no_data_available": "לא נמצאו תיקים משפטיים",
+    "no_data_available_description": "אין תיקים משפטיים התואמים לקריטריונים שלך"
+  },
+  "sections": {
+    "title": "תיקים משפטיים",
+    "description": "נהל תיקי גבייה משפטיים ואת הפעילויות שלהם",
+    "total_cases": "סה״כ תיקים",
+    "legal_overdue_amount": "סכום תיקים משפטיים"
+  }
+}

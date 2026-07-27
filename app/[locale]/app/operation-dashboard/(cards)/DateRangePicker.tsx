@@ -1,0 +1,485 @@
+"use client";
+import { CalendarToday as CalendarTodayIcon } from "@mui/icons-material";
+import { Box, InputAdornment, useTheme } from "@mui/material";
+
+import { ToolbarDropdownFilter } from "@/shared/components/ToolbarDropdownFilter";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import moment from "moment";
+import { useSession } from "next-auth/react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+
+import { getDatePickerFormat } from "@/utils/datetimeOperations";
+
+type DatePreset =
+    | "today"
+    | "yesterday"
+    | "this_week"
+    | "last_week"
+    | "this_month"
+    | "last_month"
+    | "custom";
+
+interface PresetOption {
+    value: DatePreset;
+    label: string;
+}
+
+interface DateRangePickerProps {
+    startDate: Date;
+    endDate: Date;
+    onStartDateChange: (date: Date) => void;
+    onEndDateChange: (date: Date) => void;
+}
+
+/** Slightly wider than default toolbar (22.5) for Hebrew preset labels + calendar icon. */
+const DATE_RANGE_FILTER_WIDTH_SPACING = 24;
+
+const DateRangePicker: React.FC<DateRangePickerProps> = ({
+    startDate,
+    endDate,
+    onStartDateChange,
+    onEndDateChange,
+}) => {
+    const { t, i18n } = useTranslation(["dashboard"]);
+    const { data: session } = useSession();
+    const theme = useTheme();
+    const [preset, setPreset] = useState<DatePreset>("today");
+    const [showCustomDates, setShowCustomDates] = useState(false);
+
+    const [tempStartDate, setTempStartDate] = useState<moment.Moment | null>(moment(startDate));
+    const [tempEndDate, setTempEndDate] = useState<moment.Moment | null>(moment(endDate));
+
+    useEffect(() => {
+        setTempStartDate(moment(startDate));
+    }, [startDate]);
+
+    useEffect(() => {
+        setTempEndDate(moment(endDate));
+    }, [endDate]);
+
+    const datePickerFormat = useMemo(
+        () =>
+            i18n.language === "he"
+                ? "DD/MM/YYYY"
+                : getDatePickerFormat(session ?? null, "DD/MM/YYYY"),
+        [session, i18n.language]
+    );
+
+    const isRTL = i18n.language === "he";
+    const isHebrew = i18n.language === "he";
+
+    /** Custom start/end pickers — wide enough for DD/MM/YYYY + calendar adornment. */
+    const betweenRangePickerLayoutSx = useMemo(() => {
+        // Hebrew labels (e.g. תאריך התחלה) need a bit more notch room.
+        const pickerWidthPx = isHebrew ? 184 : 168;
+        return {
+            row: {
+                display: "flex",
+                gap: 2.5,
+                alignItems: "center",
+                width: "auto",
+                flexWrap: "nowrap" as const,
+                flexShrink: 0,
+            },
+            item: {
+                flex: `0 0 ${pickerWidthPx}px`,
+                width: pickerWidthPx,
+                minWidth: pickerWidthPx,
+                maxWidth: pickerWidthPx,
+            },
+            /** Zero FormControl margin; keep picker inside the fixed item width. */
+            textField: {
+                margin: 0,
+                width: "100%",
+                maxWidth: "100%",
+                "& .MuiFormControl-root": {
+                    margin: 0,
+                    marginBottom: 0,
+                    width: "100%",
+                    maxWidth: "100%",
+                },
+                "& .MuiPickersOutlinedInput-root, & .MuiOutlinedInput-root, & .MuiInputBase-root":
+                    {
+                        width: "100%",
+                        maxWidth: "100%",
+                    },
+            },
+        };
+    }, [isHebrew]);
+
+    /** Preset dropdown only — compact toolbar icon (custom dates use global picker styles like LogActivity). */
+    const toolbarPresetIconSx = useMemo(
+        () => ({
+            fontSize: "1.125rem",
+            color: "rgb(var(--secondary))",
+        }),
+        []
+    );
+
+    /** Toolbar labeled pickers — same 32px / legend layout as preset date-range filter. */
+    const customRangeDatePickerSlotProps = useMemo(
+        () => ({
+            textField: {
+                fullWidth: true,
+                size: "small" as const,
+                required: true,
+                InputLabelProps: { shrink: true },
+                ...(isHebrew && { "data-hebrew": true }),
+                dir: (isRTL ? "rtl" : "ltr") as "rtl" | "ltr",
+                sx: betweenRangePickerLayoutSx.textField,
+            },
+        }),
+        [isHebrew, isRTL, betweenRangePickerLayoutSx.textField]
+    );
+
+    const presetOptions: PresetOption[] = useMemo(
+        () => [
+            { value: "today", label: t("fields.date_preset_today") },
+            { value: "yesterday", label: t("fields.date_preset_yesterday") },
+            { value: "this_week", label: t("fields.date_preset_this_week") },
+            { value: "last_week", label: t("fields.date_preset_last_week") },
+            { value: "this_month", label: t("fields.date_preset_this_month") },
+            { value: "last_month", label: t("fields.date_preset_last_month") },
+            { value: "custom", label: t("fields.date_preset_custom") },
+        ],
+        [t]
+    );
+
+    const selectedOption = useMemo(() => {
+        return (
+            presetOptions.find((opt) => opt.value === preset) ||
+            presetOptions[0]
+        );
+    }, [preset, presetOptions]);
+
+    const calculateDateRange = (
+        presetValue: DatePreset
+    ): { start: Date; end: Date } => {
+        const now = new Date();
+        const today = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate()
+        );
+
+        switch (presetValue) {
+            case "today": {
+                const start = new Date(today);
+                const end = new Date(today);
+                end.setHours(23, 59, 59, 999);
+                return { start, end };
+            }
+            case "yesterday": {
+                const start = new Date(today);
+                start.setDate(start.getDate() - 1);
+                const end = new Date(start);
+                end.setHours(23, 59, 59, 999);
+                return { start, end };
+            }
+            case "this_week": {
+                const start = new Date(today);
+                start.setDate(today.getDate() - today.getDay());
+                const end = new Date(start);
+                end.setDate(start.getDate() + 6);
+                end.setHours(23, 59, 59, 999);
+                return { start, end };
+            }
+            case "last_week": {
+                const start = new Date(today);
+                start.setDate(today.getDate() - today.getDay() - 7);
+                const end = new Date(start);
+                end.setDate(start.getDate() + 6);
+                end.setHours(23, 59, 59, 999);
+                return { start, end };
+            }
+            case "this_month": {
+                const start = new Date(
+                    today.getFullYear(),
+                    today.getMonth(),
+                    1
+                );
+                const end = new Date(
+                    today.getFullYear(),
+                    today.getMonth() + 1,
+                    0,
+                    23,
+                    59,
+                    59,
+                    999
+                );
+                return { start, end };
+            }
+            case "last_month": {
+                const start = new Date(
+                    today.getFullYear(),
+                    today.getMonth() - 1,
+                    1
+                );
+                const end = new Date(
+                    today.getFullYear(),
+                    today.getMonth(),
+                    0,
+                    23,
+                    59,
+                    59,
+                    999
+                );
+                return { start, end };
+            }
+            default:
+                return { start: startDate, end: endDate };
+        }
+    };
+
+    useEffect(() => {
+        const detectPreset = (): DatePreset => {
+            const now = new Date();
+            const today = new Date(
+                now.getFullYear(),
+                now.getMonth(),
+                now.getDate()
+            );
+            const todayEnd = new Date(today);
+            todayEnd.setHours(23, 59, 59, 999);
+
+            const yesterday = new Date(today);
+            yesterday.setDate(today.getDate() - 1);
+            const yesterdayEnd = new Date(yesterday);
+            yesterdayEnd.setHours(23, 59, 59, 999);
+
+            const thisWeekStart = new Date(today);
+            thisWeekStart.setDate(today.getDate() - today.getDay());
+            thisWeekStart.setHours(0, 0, 0, 0);
+
+            const lastWeekStart = new Date(today);
+            lastWeekStart.setDate(today.getDate() - today.getDay() - 7);
+            lastWeekStart.setHours(0, 0, 0, 0);
+            const lastWeekEnd = new Date(lastWeekStart);
+            lastWeekEnd.setDate(lastWeekStart.getDate() + 6);
+            lastWeekEnd.setHours(23, 59, 59, 999);
+
+            const thisMonthStart = new Date(
+                today.getFullYear(),
+                today.getMonth(),
+                1
+            );
+            thisMonthStart.setHours(0, 0, 0, 0);
+
+            const lastMonthStart = new Date(
+                today.getFullYear(),
+                today.getMonth() - 1,
+                1
+            );
+            lastMonthStart.setHours(0, 0, 0, 0);
+            const lastMonthEnd = new Date(
+                today.getFullYear(),
+                today.getMonth(),
+                0,
+                23,
+                59,
+                59,
+                999
+            );
+
+            const startTime = new Date(startDate);
+            startTime.setHours(0, 0, 0, 0);
+            const endTime = new Date(endDate);
+
+            if (
+                startTime.getTime() === today.getTime() &&
+                endTime.getTime() <= todayEnd.getTime() &&
+                endTime.getTime() >= today.getTime()
+            ) {
+                return "today";
+            }
+            if (
+                startTime.getTime() === yesterday.getTime() &&
+                endTime.getTime() >= yesterday.getTime() &&
+                endTime.getTime() <= yesterdayEnd.getTime()
+            ) {
+                return "yesterday";
+            }
+            if (
+                startTime.getTime() === thisWeekStart.getTime() &&
+                endTime.getTime() >= thisWeekStart.getTime() &&
+                (endTime.getTime() <= now.getTime() ||
+                    endTime.getTime() ===
+                        new Date(
+                            thisWeekStart.getTime() +
+                                6 * 24 * 60 * 60 * 1000 +
+                                86399999
+                        ).getTime())
+            ) {
+                return "this_week";
+            }
+            if (
+                startTime.getTime() === lastWeekStart.getTime() &&
+                endTime.getTime() >= lastWeekStart.getTime() &&
+                endTime.getTime() <= lastWeekEnd.getTime()
+            ) {
+                return "last_week";
+            }
+            if (
+                startTime.getTime() === thisMonthStart.getTime() &&
+                (endTime.getTime() <= now.getTime() ||
+                    endTime.getTime() ===
+                        new Date(
+                            today.getFullYear(),
+                            today.getMonth() + 1,
+                            0,
+                            23,
+                            59,
+                            59,
+                            999
+                        ).getTime())
+            ) {
+                return "this_month";
+            }
+            if (
+                startTime.getTime() === lastMonthStart.getTime() &&
+                endTime.getTime() >= lastMonthStart.getTime() &&
+                endTime.getTime() <= lastMonthEnd.getTime()
+            ) {
+                return "last_month";
+            }
+            return "custom";
+        };
+
+        const detectedPreset = detectPreset();
+        setPreset(detectedPreset);
+        setShowCustomDates(detectedPreset === "custom");
+    }, [startDate, endDate]);
+
+    const handlePresetChange = (_: unknown, newValue: PresetOption | null) => {
+        if (!newValue) return;
+
+        const newPreset = newValue.value;
+        setPreset(newPreset);
+
+        if (newPreset === "custom") {
+            setShowCustomDates(true);
+        } else {
+            setShowCustomDates(false);
+            const { start, end } = calculateDateRange(newPreset);
+            onStartDateChange(start);
+            onEndDateChange(end);
+        }
+    };
+
+    const presetFilterSx = useMemo(
+        () => ({
+            minWidth: {
+                xs: "100%",
+                sm: theme.spacing(DATE_RANGE_FILTER_WIDTH_SPACING),
+            },
+            width: {
+                xs: "100%",
+                sm: theme.spacing(DATE_RANGE_FILTER_WIDTH_SPACING),
+            },
+            flexShrink: 0,
+        }),
+        [theme]
+    );
+
+    return (
+        <Box
+            sx={{
+                display: "flex",
+                gap: 1,
+                alignItems: "center",
+                flexWrap: "nowrap",
+            }}
+        >
+                <Box
+                    className="endless-scroll-toolbar"
+                    sx={{ flexShrink: 0, display: "inline-flex" }}
+                >
+                    <ToolbarDropdownFilter<PresetOption>
+                        value={selectedOption}
+                        onChange={(newValue) =>
+                            handlePresetChange(null, newValue)
+                        }
+                        options={presetOptions}
+                        getOptionLabel={(option) => option.label}
+                        isOptionEqualToValue={(option, value) =>
+                            option.value === value.value
+                        }
+                        label={t("fields.toolbar_date_range_label")}
+                        sx={presetFilterSx}
+                        startAdornment={
+                            <InputAdornment position="start">
+                                <CalendarTodayIcon sx={toolbarPresetIconSx} />
+                            </InputAdornment>
+                        }
+                    />
+                </Box>
+
+                {showCustomDates && (
+                    <Box
+                        className="endless-scroll-toolbar"
+                        sx={betweenRangePickerLayoutSx.row}
+                    >
+                        <Box sx={betweenRangePickerLayoutSx.item}>
+                            <DatePicker
+                                label={t(
+                                    "fields.analytics_filters_start_date"
+                                )}
+                                value={tempStartDate}
+                                onChange={(newValue) => {
+                                    setTempStartDate(newValue);
+                                }}
+                                onAccept={(newValue) => {
+                                    if (newValue && newValue.isValid()) {
+                                        onStartDateChange(newValue.toDate());
+                                    }
+                                }}
+                                maxDate={tempEndDate || undefined}
+                                format={datePickerFormat}
+                                slotProps={{
+                                    ...customRangeDatePickerSlotProps,
+                                    textField: {
+                                        ...customRangeDatePickerSlotProps.textField,
+                                        onBlur: () => {
+                                            if (tempStartDate && tempStartDate.isValid()) {
+                                                onStartDateChange(tempStartDate.toDate());
+                                            }
+                                        }
+                                    }
+                                }}
+                            />
+                        </Box>
+                        <Box sx={betweenRangePickerLayoutSx.item}>
+                            <DatePicker
+                                label={t("fields.analytics_filters_end_date")}
+                                value={tempEndDate}
+                                onChange={(newValue) => {
+                                    setTempEndDate(newValue);
+                                }}
+                                onAccept={(newValue) => {
+                                    if (newValue && newValue.isValid()) {
+                                        onEndDateChange(newValue.toDate());
+                                    }
+                                }}
+                                minDate={tempStartDate || undefined}
+                                format={datePickerFormat}
+                                slotProps={{
+                                    ...customRangeDatePickerSlotProps,
+                                    textField: {
+                                        ...customRangeDatePickerSlotProps.textField,
+                                        onBlur: () => {
+                                            if (tempEndDate && tempEndDate.isValid()) {
+                                                onEndDateChange(tempEndDate.toDate());
+                                            }
+                                        }
+                                    }
+                                }}
+                            />
+                        </Box>
+                    </Box>
+                )}
+        </Box>
+    );
+};
+
+export default DateRangePicker;

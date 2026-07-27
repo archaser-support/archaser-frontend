@@ -1,0 +1,163 @@
+{
+  "fields": {
+    "filters_activities": "פעילויות",
+    "filters_all_priorities": "כל רמות הדחיפות",
+    "filters_all_types": "כל הסוגים",
+    "filters_assignments": "שיוכים",
+    "filters_control_center": "מרכז הבקרה",
+    "filters_disputes": "מחלוקות",
+    "filters_invoices": "חשבוניות",
+    "filters_overdue": "פיגורים",
+    "filters_payments": "תשלומים",
+    "filters_system": "מערכת",
+    "filter_by": "סינון לפי",
+    "notifications": "התראות",
+    "total": "סה\"כ",
+    "time": "זמן",
+    "type": "סוג",
+    "unread": "לא נקראו"
+  },
+  "actions": {
+    "clear_all": "נקה הכל",
+    "dismiss": "סגור",
+    "load_more": "טען עוד",
+    "mark_all_as_read": "סמן הכל כנקראו",
+    "mark_as_read": "סמן כנקראה",
+    "mute_channel": "השתק ערוץ",
+    "open_settings": "פתח הגדרות",
+    "refresh": "רענן",
+    "snooze": "נמנם",
+    "unmute_channel": "בטל השתקה",
+    "unsnooze": "בטל נמנום",
+    "view_all": "צפה בכל"
+  },
+  "account_lock": {
+    "message": "חשבון המשתמש {{lockedUserEmail}} ננעל עקב {{failedAttempts}} ניסיונות התחברות כושלים ב-{{lockTime}}. נא לבדוק ולפעול בהתאם.",
+    "title": "חשבון ננעל - ניסיונות התחברות כושלים מרובים"
+  },
+  "activity": {
+    "completed": "פעילות הושלמה",
+    "completed_message": "פעילות {{activityType}} הושלמה עבור לקוח {{customerId}}",
+    "delivered": "פעילות נמסרה",
+    "delivered_message": "פעילות {{activityType}} נמסרה ללקוח {{customerId}}",
+    "failed": "פעילות נכשלה",
+    "failed_message": "פעילות {{activityType}} נכשלה עבור לקוח {{customerId}}",
+    "scheduled": "פעילות מתוזמנת",
+    "scheduled_message": "פעילות {{activityType}} מתוזמנת עבור לקוח {{customerId}}"
+  },
+  "customer_assignment": {
+    "assigned": "לקוח שויך",
+    "assigned_message": "לקוח {{customerId}} שויך אליך",
+    "reassigned": "לקוח שויך מחדש",
+    "reassigned_message": "לקוח {{customerId}} שויך מחדש אליך",
+    "unassigned": "שיוך לקוח הוסר",
+    "unassigned_message": "שיוך לקוח {{customerId}} הוסר ממך"
+  },
+  "dispute": {
+    "assigned": "מחלוקת הוקצתה אליך",
+    "assigned_message": "מחלוקה מספר {{disputeId}} הוקצתה אליך",
+    "assigned_to_other_message": "מחלוקה מספר {{disputeId}} הוקצתה ל-{{assigneeName}} על ידי {{assignedBy}}",
+    "assigned_to_other_title": "{{assignedBy}} הקצה מחלוקה ל-{{assigneeName}} תחת {{customerName}}",
+    "assigned_to_you_message": "מחלוקה מספר {{disputeId}} הוקצתה אליך על ידי {{assignedBy}}",
+    "assigned_to_you_title": "{{assignedBy}} הקצה לך מחלוקה תחת {{customerName}}",
+    "created": "מחלוקה חדשה הוגשה",
+    "created_message": "מחלוקה חדשה הוגשה עבור {{customerName}}",
+    "resolved": "מחלוקה נסגרה",
+    "resolved_message": "מחלוקה מספר {{disputeId}} נסגרה",
+    "updated": "מחלוקה עודכנה",
+    "updated_message": "מחלוקה מספר {{disputeId}} עודכנה"
+  },
+  "follow_up": {
+    "complete_by_agent_title": "מעקב סומן כהושלם על ידי {{agentName}}",
+    "complete_message": "מעקב סומן כהושלם עבור {{customerName}}",
+    "complete_title": "מעקב סומן כהושלם",
+    "customer_fallback": "לקוח",
+    "dismissed_message": "מעקב בוטל עבור {{customerName}}",
+    "dismissed_title": "תזכורת מעקב בוטלה",
+    "scheduled_by_agent_title": "מעקב מתוזמן על ידי {{agentName}}",
+    "scheduled_message": "מעקב מתוזמן ל-{{followUpTime}}",
+    "scheduled_message_with_owner": "מעקב מתוזמן ל-{{followUpTime}} ({{ownerName}})",
+    "scheduled_title": "מעקב מתוזמן",
+    "snoozed_message": "נדחה עד {{snoozedUntil}}",
+    "snoozed_title": "תזכורת מעקב הושהתה"
+  },
+  "invoice": {
+    "assigned": "חשבונית שויכה",
+    "assigned_message": "חשבונית {{invoiceNumber}} עבור {{customerName}} שויכה אליך",
+    "disputed": "חשבונית במחלוקת",
+    "disputed_message": "חשבונית {{invoiceNumber}} עבור {{customerName}} במחלוקת",
+    "overdue": "חשבונית בפיגור",
+    "overdue_message": "חשבונית {{invoiceNumber}} עבור {{customerName}} בפיגור",
+    "paid": "חשבונית שולמה",
+    "paid_message": "חשבונית {{invoiceNumber}} עבור {{customerName}} שולמה"
+  },
+  "overdue": {
+    "message": "ללקוח {{customerId}} יש {{overdueCount}} חשבוניות בפיגור בסך ${{totalAmount}}",
+    "title": "התראת חשבוניות בפיגור"
+  },
+  "payment": {
+    "message": "התקבל תשלום של ${{paymentAmount}} עבור {{invoiceCount}} חשבונית/ות מלקוח {{customerId}}",
+    "title": "תשלום התקבל"
+  },
+  "template_missing": {
+    "message": "לא ניתן ליצור פעילות {{channel}} עבור {{customerName}} ב-{{customerLanguage}} כי אין תבנית עבור {{customerLanguage}}.",
+    "title": "תבנית חסרה לפעילות"
+  },
+  "messages": {
+    "all_caught_up": "הכל מעודכן!",
+    "error_loading": "שגיאה בטעינת ההתראות",
+    "error_updating": "שגיאה בעדכון ההתראה",
+    "showing": "מציג {{filtered}} מתוך {{total}}",
+    "marked_all_as_read": "כל ההתראות סומנו כנקראו",
+    "marked_as_read": "ההתראה סומנה כנקראה",
+    "no_notifications": "אין התראות להצגה",
+    "notifications_cleared": "ההתראות נוקו",
+    "permission_denied": "אין הרשאה לצפות בהתראות",
+    "preferences_saved": "ההעדפות נשמרו"
+  },
+  "values": {
+    "priority_high": "גבוה",
+    "priority_low": "נמוך",
+    "priority_medium": "בינוני",
+    "priority_urgent": "דחוף",
+    "channel_email": "מייל",
+    "channel_sms": "SMS",
+    "channel_system": "מערכת",
+    "snooze_15m": "15 דקות",
+    "snooze_1h": "שעה",
+    "snooze_24h": "24 שעות",
+    "snooze_8h": "8 שעות",
+    "status_read": "נקרא",
+    "status_unread": "לא נקרא",
+    "type_error": "שגיאה",
+    "type_info": "מידע",
+    "type_success": "הצלחה",
+    "type_warning": "אזהרה"
+  },
+  "sections": {
+    "empty_state": "מצב ריק",
+    "filters": "מסננים",
+    "footer": "כותרת תחתונה",
+    "header": "כותרת",
+    "list": "רשימת התראות",
+    "settings": "הגדרות"
+  },
+  "tooltips": {
+    "clear_all": "מחק את כל ההתראות",
+    "mark_all_as_read": "סמן את כל ההתראות כנקראו",
+    "mark_as_read": "סמן התראה זו כנקראה",
+    "mute": "השתק התראות מערוץ זה",
+    "open_settings": "פתח את הגדרות ההתראות",
+    "refresh": "רענן רשימה",
+    "snooze": "השהה התראות לפרק זמן",
+    "unmute": "בטל השתקה לערוץ זה",
+    "unsnooze": "בטל השהיית התראות",
+    "view_all": "פתח את עמוד ההתראות"
+  },
+  "validation": {
+    "invalid_snooze_duration": "משך השהיה אינו תקין",
+    "max_message_length": "הודעה ארוכה מדי",
+    "required_channel": "נדרש לבחור ערוץ",
+    "required_type": "נדרש לבחור סוג"
+  }
+}

@@ -1,0 +1,345 @@
+@charset "UTF-8";
+/*------------------------------------------------------------------
+[Minimal Stylesheet - Extracted Used Classes Only]
+Project: Archaser - Debt Collection Management System
+Created Date: 29/05/2024
+Author: Spruko Technologies Private Limited
+------------------------------------------------------------------*/
+
+/* CSS Variables */
+:root {
+    --primary: 107, 70, 193;
+    --primary-rgb: 107, 70, 193;
+    --secondary: 139, 92, 246;
+    --success: 34, 197, 94;
+    --info: 59, 130, 246;
+    --warning: 251, 191, 36;
+    --danger: 239, 68, 68;
+    --light: 248, 250, 252;
+    --dark: 15, 23, 42;
+    --body-bg: 255, 255, 255;
+    --dark-bg: 15, 23, 42;
+    --default-text-color: 47, 59, 82;
+    --default-border: 220, 227, 235;
+    --default-background: 255, 255, 255;
+    --menu-prime-color: 107, 70, 193;
+    --menu-border-color: 220, 227, 235;
+    --header-prime-color: 107, 70, 193;
+    --header-border-color: 220, 227, 235;
+    --list-hover-focus-bg: 242, 246, 251;
+    --text-muted: 124, 141, 161;
+    --input-border: 220, 227, 235;
+    --orange: 251, 146, 60;
+    --pink: 236, 72, 153;
+    --teal: 20, 184, 166;
+    --purple: 139, 92, 246;
+    --red: 239, 68, 68;
+    --blue: 59, 130, 246;
+    --green: 34, 197, 94;
+    --cyan: 6, 182, 212;
+    --indigo: 99, 102, 241;
+    --yellow: 234, 179, 8;
+    --facebook: 66, 103, 178;
+    --twitter: 29, 161, 242;
+    --github: 36, 41, 46;
+    --google: 234, 67, 53;
+    --youtube: 255, 0, 0;
+}
+
+/* Dark mode variables */
+.dark {
+    --body-bg: 15, 23, 42;
+    --dark-bg: 15, 23, 42;
+    --default-text-color: 248, 250, 252;
+    --default-border: 51, 65, 85;
+    --default-background: 15, 23, 42;
+    --menu-prime-color: 139, 92, 246;
+    --menu-border-color: 51, 65, 85;
+    --header-prime-color: 139, 92, 246;
+    --header-border-color: 51, 65, 85;
+    --list-hover-focus-bg: 30, 41, 59;
+    --text-muted: 148, 163, 184;
+    --input-border: 51, 65, 85;
+}
+
+/* Box Component */
+.box {
+    background: rgb(var(--default-background));
+    border: 1px solid rgb(var(--default-border));
+    border-radius: 0.5rem;
+    box-shadow: 0 0.125rem 0 rgba(10, 10, 10, 0.04);
+    margin-bottom: 1.5rem;
+}
+
+.box-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid rgb(var(--default-border));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.box-body {
+    padding: 1.5rem;
+}
+
+.box-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid rgb(var(--default-border));
+}
+
+.box-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: rgb(var(--default-text-color));
+    margin: 0;
+}
+
+/* Button Component */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.5;
+    border-radius: 0.375rem;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    text-decoration: none;
+    user-select: none;
+}
+
+.btn:hover {
+    text-decoration: none;
+}
+
+.btn:focus {
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary), 0.25);
+}
+
+.btn:disabled,
+.btn.disabled {
+    opacity: 0.65;
+    pointer-events: none;
+}
+
+.btn-primary {
+    color: #ffffff;
+    background-color: rgb(var(--primary));
+    border-color: rgb(var(--primary));
+}
+
+.btn-primary:hover {
+    color: #ffffff;
+    background-color: rgb(var(--primary));
+    border-color: rgb(var(--primary));
+    filter: brightness(0.9);
+}
+
+.btn-primary:focus {
+    color: #ffffff;
+    background-color: rgb(var(--primary));
+    border-color: rgb(var(--primary));
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary), 0.25);
+}
+
+/* Form Control */
+.form-control {
+    display: block;
+    width: 100%;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: rgb(var(--default-text-color));
+    background-color: rgb(var(--default-background));
+    background-clip: padding-box;
+    border: 1px solid rgb(var(--input-border));
+    border-radius: 0.375rem;
+    transition:
+        border-color 0.15s ease-in-out,
+        box-shadow 0.15s ease-in-out;
+}
+
+.form-control:focus {
+    color: rgb(var(--default-text-color));
+    background-color: rgb(var(--default-background));
+    border-color: rgb(var(--primary));
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary), 0.25);
+}
+
+.form-control.is-invalid {
+    border-color: rgb(var(--danger));
+}
+
+.form-control.is-invalid:focus {
+    border-color: rgb(var(--danger));
+    box-shadow: 0 0 0 0.2rem rgba(var(--danger), 0.25);
+}
+
+/* Card Components */
+.card-icon {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: #ffffff;
+    background: linear-gradient(135deg,
+            rgb(var(--primary)) 0%,
+            rgb(var(--secondary)) 100%);
+}
+
+.card-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: rgb(var(--default-text-color));
+    line-height: 1.2;
+}
+
+.card-decoration {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 100px;
+    height: 100px;
+    opacity: 0.1;
+    background: linear-gradient(135deg,
+            rgb(var(--primary)) 0%,
+            rgb(var(--secondary)) 100%);
+    border-radius: 0 0.5rem 0 0.5rem;
+}
+
+/* Table Components */
+.table {
+    width: 100%;
+    margin-bottom: 1rem;
+    color: rgb(var(--default-text-color));
+    border-collapse: collapse;
+}
+
+.table th,
+.table td {
+    padding: 0.75rem;
+    vertical-align: top;
+    border-top: 1px solid rgb(var(--default-border));
+}
+
+.table thead th {
+    vertical-align: bottom;
+    border-bottom: 2px solid rgb(var(--default-border));
+    background-color: rgb(242, 246, 251);
+    font-weight: 600;
+}
+
+.table-responsive {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.table-responsive-inline {
+    overflow-x: auto;
+}
+
+/* Footer Component */
+.footer {
+    padding: 1rem 0;
+    margin-top: auto;
+    background-color: rgb(var(--default-background));
+    border-top: 1px solid rgb(var(--default-border));
+    text-align: center;
+    color: rgb(var(--text-muted));
+    font-size: 0.875rem;
+}
+
+/* Portal Footer */
+.portal-footer-text {
+    color: rgb(var(--text-muted));
+    font-size: 0.875rem;
+}
+
+.portal-footer-link {
+    color: rgb(var(--primary));
+    text-decoration: none;
+}
+
+.portal-footer-link:hover {
+    text-decoration: underline;
+}
+
+/* Menu Icon */
+.menu-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgb(var(--default-text-color));
+}
+
+/* Activity Sequence Table */
+.activity-sequence-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.activity-sequence-table th,
+.activity-sequence-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid rgb(var(--default-border));
+    text-align: left;
+}
+
+/* Border Utilities */
+.border-defaultborder {
+    border-color: rgb(var(--default-border)) !important;
+}
+
+/* Animation */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+/* Responsive Utilities */
+@media (max-width: 768px) {
+    .box-header {
+        padding: 0.75rem 1rem;
+    }
+
+    .box-body {
+        padding: 1rem;
+    }
+
+    .box-footer {
+        padding: 0.75rem 1rem;
+    }
+
+    .card-icon {
+        width: 2.5rem;
+        height: 2.5rem;
+        font-size: 1.25rem;
+    }
+
+    .card-value {
+        font-size: 1.5rem;
+    }
+}

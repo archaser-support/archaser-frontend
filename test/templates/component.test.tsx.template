@@ -1,0 +1,109 @@
+/**
+ * Unit Test: {ComponentName}
+ * 
+ * Tests: {Brief description}
+ * 
+ * 📚 Documentation:
+ * - Unit Testing Guide: docs/unit-testing-guide.md
+ * - Best Practices: docs/development-guides/unit-testing-best-practices.md
+ * - Quick Reference: docs/development-guides/unit-testing-quick-reference.md
+ */
+
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { ComponentName } from "@/components/ComponentName";
+// Import fixtures as needed
+// import { mockComponentProps } from "@/tests/fixtures/components/componentName";
+
+// Mocks
+vi.mock("@/hooks/useTranslation", () => ({
+    useTranslation: () => ({
+        t: (key: string) => key,
+        i18n: {
+            language: "en",
+        },
+    }),
+}));
+
+// Mock other dependencies as needed
+// vi.mock("@/hooks/useRouter", () => ({
+//     useRouter: () => ({
+//         push: vi.fn(),
+//         replace: vi.fn(),
+//     }),
+// }));
+
+describe("ComponentName", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    describe("rendering", () => {
+        it("should render {element} when {condition}", () => {
+            // Arrange
+            // const props = mockComponentProps.valid;
+            const props = {};
+
+            // Act
+            render(<ComponentName {...props} />);
+
+            // Assert
+            // expect(screen.getByText("Expected Text")).toBeInTheDocument();
+            expect(screen.getByRole("button")).toBeInTheDocument();
+        });
+
+        it("should render loading state when data is loading", () => {
+            // Arrange
+            const props = { loading: true };
+
+            // Act
+            render(<ComponentName {...props} />);
+
+            // Assert
+            expect(screen.getByText("Loading...")).toBeInTheDocument();
+        });
+    });
+
+    describe("interactions", () => {
+        it("should call {handler} when {action}", async () => {
+            // Arrange
+            const mockHandler = vi.fn();
+            const user = userEvent.setup();
+            render(<ComponentName onAction={mockHandler} />);
+
+            // Act
+            await user.click(screen.getByRole("button"));
+
+            // Assert
+            expect(mockHandler).toHaveBeenCalledTimes(1);
+        });
+
+        it("should update state when user interacts", async () => {
+            // Arrange
+            const user = userEvent.setup();
+            render(<ComponentName />);
+
+            // Act
+            const input = screen.getByRole("textbox");
+            await user.type(input, "test input");
+
+            // Assert
+            expect(input).toHaveValue("test input");
+        });
+    });
+
+    describe("error handling", () => {
+        it("should display error message when error occurs", () => {
+            // Arrange
+            const props = { error: "Test error" };
+
+            // Act
+            render(<ComponentName {...props} />);
+
+            // Assert
+            expect(screen.getByText("Test error")).toBeInTheDocument();
+        });
+    });
+});
+

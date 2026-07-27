@@ -1,0 +1,163 @@
+{
+  "fields": {
+    "filters_activities": "Activities",
+    "filters_all_priorities": "All priorities",
+    "filters_all_types": "All types",
+    "filters_assignments": "Assignments",
+    "filters_control_center": "Control Center",
+    "filters_disputes": "Disputes",
+    "filters_invoices": "Invoices",
+    "filters_overdue": "Overdue",
+    "filters_payments": "Payments",
+    "filters_system": "System",
+    "filter_by": "Filter by",
+    "notifications": "Notifications",
+    "total": "Total",
+    "time": "Time",
+    "type": "Type",
+    "unread": "Unread"
+  },
+  "actions": {
+    "clear_all": "Clear all",
+    "dismiss": "Dismiss",
+    "load_more": "Load more",
+    "mark_all_as_read": "Mark all as read",
+    "mark_as_read": "Mark as read",
+    "mute_channel": "Mute channel",
+    "open_settings": "Open settings",
+    "refresh": "Refresh",
+    "snooze": "Snooze",
+    "unmute_channel": "Unmute channel",
+    "unsnooze": "Unsnooze",
+    "view_all": "View all"
+  },
+  "account_lock": {
+    "message": "User account {{lockedUserEmail}} has been locked due to {{failedAttempts}} failed login attempts at {{lockTime}}. Please review and take appropriate action.",
+    "title": "Account Locked - Multiple Failed Login Attempts"
+  },
+  "activity": {
+    "completed": "Activity Completed",
+    "completed_message": "{{activityType}} activity completed for customer {{customerId}}",
+    "delivered": "Activity Delivered",
+    "delivered_message": "{{activityType}} activity delivered to customer {{customerId}}",
+    "failed": "Activity Failed",
+    "failed_message": "{{activityType}} activity failed for customer {{customerId}}",
+    "scheduled": "Activity Scheduled",
+    "scheduled_message": "{{activityType}} activity scheduled for customer {{customerId}}"
+  },
+  "customer_assignment": {
+    "assigned": "Customer Assigned",
+    "assigned_message": "Customer {{customerId}} has been assigned to you",
+    "reassigned": "Customer Reassigned",
+    "reassigned_message": "Customer {{customerId}} has been reassigned to you",
+    "unassigned": "Customer Unassigned",
+    "unassigned_message": "Customer {{customerId}} has been unassigned from you"
+  },
+  "dispute": {
+    "assigned": "Dispute Assigned to You",
+    "assigned_message": "Dispute #{{disputeId}} has been assigned to you",
+    "assigned_to_other_message": "Dispute #{{disputeId}} has been assigned to {{assigneeName}} by {{assignedBy}}",
+    "assigned_to_other_title": "{{assignedBy}} assigned a dispute to {{assigneeName}} under {{customerName}}",
+    "assigned_to_you_message": "Dispute #{{disputeId}} has been assigned to you by {{assignedBy}}",
+    "assigned_to_you_title": "{{assignedBy}} assigned a dispute to you under {{customerName}}",
+    "created": "New Dispute Filed",
+    "created_message": "A new dispute has been filed for {{customerName}}",
+    "resolved": "Dispute Resolved",
+    "resolved_message": "Dispute #{{disputeId}} has been resolved",
+    "updated": "Dispute Updated",
+    "updated_message": "Dispute #{{disputeId}} has been updated"
+  },
+  "follow_up": {
+    "complete_by_agent_title": "Follow up marked as complete by {{agentName}}",
+    "complete_message": "Marked follow-up complete for {{customerName}}",
+    "complete_title": "Follow-up marked complete",
+    "customer_fallback": "customer",
+    "dismissed_message": "Dismissed follow-up for {{customerName}}",
+    "dismissed_title": "Follow-up reminder dismissed",
+    "scheduled_by_agent_title": "Follow up scheduled by {{agentName}}",
+    "scheduled_message": "Follow-up scheduled for {{followUpTime}}",
+    "scheduled_message_with_owner": "Follow-up scheduled for {{followUpTime}} ({{ownerName}})",
+    "scheduled_title": "Follow up scheduled",
+    "snoozed_message": "Snoozed until {{snoozedUntil}}",
+    "snoozed_title": "Follow-up reminder snoozed"
+  },
+  "invoice": {
+    "assigned": "Invoice Assigned",
+    "assigned_message": "Invoice {{invoiceNumber}} for {{customerName}} has been assigned to you",
+    "disputed": "Invoice Disputed",
+    "disputed_message": "Invoice {{invoiceNumber}} for {{customerName}} has been disputed",
+    "overdue": "Invoice Overdue",
+    "overdue_message": "Invoice {{invoiceNumber}} for {{customerName}} is now overdue",
+    "paid": "Invoice Paid",
+    "paid_message": "Invoice {{invoiceNumber}} for {{customerName}} has been paid"
+  },
+  "overdue": {
+    "message": "Customer {{customerId}} has {{overdueCount}} overdue invoices totaling ${{totalAmount}}",
+    "title": "Overdue Invoices Alert"
+  },
+  "payment": {
+    "message": "Payment of ${{paymentAmount}} received for {{invoiceCount}} invoice(s) from customer {{customerId}}",
+    "title": "Payment Received"
+  },
+  "template_missing": {
+    "message": "Could not create {{channel}} activity for {{customerName}} in {{customerLanguage}} because there is no template for {{customerLanguage}}.",
+    "title": "Template Missing for Activity"
+  },
+  "messages": {
+    "all_caught_up": "You're all caught up",
+    "error_loading": "Error loading notifications",
+    "error_updating": "Error updating notification",
+    "showing": "Showing {{filtered}} of {{total}}",
+    "marked_all_as_read": "All notifications marked as read",
+    "marked_as_read": "Notification marked as read",
+    "no_notifications": "No notifications to show",
+    "notifications_cleared": "Notifications cleared",
+    "permission_denied": "You do not have permission to view notifications",
+    "preferences_saved": "Notification preferences saved"
+  },
+  "values": {
+    "priority_high": "High",
+    "priority_low": "Low",
+    "priority_medium": "Medium",
+    "priority_urgent": "Urgent",
+    "channel_email": "Email",
+    "channel_sms": "SMS",
+    "channel_system": "System",
+    "snooze_15m": "15 minutes",
+    "snooze_1h": "1 hour",
+    "snooze_24h": "24 hours",
+    "snooze_8h": "8 hours",
+    "status_read": "Read",
+    "status_unread": "Unread",
+    "type_error": "Error",
+    "type_info": "Info",
+    "type_success": "Success",
+    "type_warning": "Warning"
+  },
+  "sections": {
+    "empty_state": "Empty state",
+    "filters": "Filters",
+    "footer": "Footer",
+    "header": "Header",
+    "list": "Notification list",
+    "settings": "Settings"
+  },
+  "tooltips": {
+    "clear_all": "Delete all notifications",
+    "mark_all_as_read": "Mark all notifications as read",
+    "mark_as_read": "Mark this notification as read",
+    "mute": "Mute notifications from this channel",
+    "open_settings": "Open notification settings",
+    "refresh": "Refresh list",
+    "snooze": "Pause notifications for a duration",
+    "unmute": "Unmute this channel",
+    "unsnooze": "Turn notifications back on",
+    "view_all": "Open notifications page"
+  },
+  "validation": {
+    "invalid_snooze_duration": "Invalid snooze duration",
+    "max_message_length": "Message is too long",
+    "required_channel": "Channel is required",
+    "required_type": "Type is required"
+  }
+}

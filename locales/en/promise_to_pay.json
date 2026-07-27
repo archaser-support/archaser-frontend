@@ -1,0 +1,25 @@
+{
+  "fields": {
+    "title": "Promise to Pay",
+    "customer": "Customer",
+    "customer_number": "Customer Number",
+    "amount_overdue": "Amount Overdue",
+    "days_past_due": "Days Past Due",
+    "days": "days",
+    "promise_date": "Promise Date",
+    "unknown": "Unknown",
+    "total_promises": "Total Promises",
+    "total_customers": "Total Customers",
+    "total_invoices": "Total Invoices",
+    "total_amount": "Total Amount",
+    "promise_to_pay_description": "Manage communication templates specifically for promise to pay activities. These templates are used for automated communications when customers make payment promises.",
+    "promise_to_pay_templates_empty": "No promise to pay templates found",
+    "promise_to_pay_templates_description": "Create your first promise to pay template to get started with automated communications for payment promises."
+  },
+  "messages": {
+    "error_fetching_data": "Error fetching data",
+    "no_data_available": "No Promise to Pay Data Available",
+    "no_data_available_description": "There are currently no customers with active payment promises in the system. Payment promises will appear here once customers commit to future payment dates.",
+    "description": "Track and manage customer payment promises. Monitor promise dates, amounts, and follow-up activities."
+  }
+}

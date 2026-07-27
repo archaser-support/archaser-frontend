@@ -1,0 +1,78 @@
+{
+    "fields": {
+        "total_jobs": "סה\"כ משימות",
+        "overdue_jobs": "משימות מאוחרות",
+        "running_jobs": "משימות רצות",
+        "success_rate": "שיעור הצלחה",
+        "success_rate_30d": "שיעור הצלחה (30 יום)",
+        "last_run": "ריצה אחרונה",
+        "next_run": "ריצה הבאה",
+        "avg_duration": "משך ממוצע",
+        "min_duration": "משך מינימלי",
+        "max_duration": "משך מקסימלי",
+        "timeout_period": "תקופת timeout",
+        "last_run_duration": "משך הריצה האחרונה",
+        "last_status": "סטטוס אחרון",
+        "last_success": "הצלחה אחרונה",
+        "last_failure": "כשלון אחרון",
+        "last_timeout": "Timeout אחרון",
+        "no_status_history": "אין היסטוריית סטטוס",
+        "failure_rate_30d": "שיעור כשלונות (30 יום)",
+        "timeout_rate_30d": "שיעור timeout (30 יום)",
+        "performance_baseline": "קו בסיס ביצועים",
+        "performance_degradation_alert": "התראת הידרדרות ביצועים",
+        "activities": "פעילויות",
+        "sent": "נשלח",
+        "generated": "נוצר",
+        "stuck_activities": "פעילויות תקועות",
+        "reason": "סיבה",
+        "count": "כמות",
+        "no_reason_specified": "לא צוינה סיבה",
+        "type": "סוג",
+        "pending": "ממתין",
+        "total": "סה\"כ",
+        "total_imports": "סה\"כ ייבואים",
+        "pending_imports": "ייבואים ממתינים",
+        "records_per_hour": "רשומות/שעה",
+        "import_type": "סוג",
+        "count_24h": "24 שעות",
+        "count_7d": "7 ימים",
+        "count_30d": "30 יום",
+        "time_period": "תקופת זמן",
+        "last_24h": "24 השעות האחרונות",
+        "last_7d": "7 הימים האחרונים",
+        "last_30d": "30 הימים האחרונים",
+        "last_hour": "1 שעה",
+        "last_6_hours": "6 שעות",
+        "last_24_hours": "24 שעות",
+        "total_records": "סה\"כ רשומות",
+        "avg_duration_seconds": "משך ממוצע (שניות)",
+        "status": "סטטוס",
+        "name": "שם"
+    },
+    "actions": {
+        "refresh_data": "רענון נתונים",
+        "refresh": "רענון"
+    },
+    "messages": {
+        "refreshing_in": "מתעדכן בעוד {{count}} שניות"
+    },
+    "values": {
+        "running": "רץ",
+        "idle": "ממתין",
+        "success": "הצלחה",
+        "failed": "כשלון",
+        "timeout": "Timeout"
+    },
+    "sections": {
+        "system_health_title": "בריאות המערכת",
+        "system_health_description": "ניטור ביצועי המערכת, משימות cron, פעילויות וייבואים",
+        "cron_jobs_overview": "סקירת משימות Cron",
+        "imports_overview": "סקירת ייבואים",
+        "imports_by_type": "ייבואים לפי סוג"
+    },
+    "tooltips": {
+        "system_health": "ניטור מדדי בריאות המערכת וביצועים"
+    },
+    "validation": {}
+}

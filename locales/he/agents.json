@@ -1,0 +1,53 @@
+{
+    "fields": {
+        "amount_overdue": "סכום בפיגור",
+        "clear_follow_up_time": "נקה זמן מעקב",
+        "days": "ימים",
+        "days_past_due": "ימים בפיגור",
+        "customer": "לקוח",
+        "customer_country": "מדינת הלקוח",
+        "customer_current_time": "השעה הנוכחית של הלקוח",
+        "customer_number": "מספר לקוח",
+        "follow_up_date_range_all": "הכל",
+        "follow_up_date_range_next_week": "שבוע הבא",
+        "follow_up_date_range_this_month": "החודש",
+        "follow_up_date_range_this_week": "השבוע",
+        "follow_up_date_range_today": "היום",
+        "follow_up_list": "רשימת מעקבים",
+        "last_call": "שיחה אחרונה",
+        "last_call_result": "תוצאת השיחה האחרונה",
+        "no_calls": "אין שיחות",
+        "no_follow_ups_scheduled": "אין מעקבים מתוכננים",
+        "open_customer": "פתח לקוח",
+        "scheduled_follow_ups_due_today": "מעקבים מתוכננים שצריכים להתבצע היום",
+        "select_country": "בחר מדינה",
+        "select_date_range": "בחר טווח תאריכים",
+        "select_outcome": "בחר תוצאה",
+        "snooze_5_min": "דחה 5 דק׳",
+        "mark_follow_up_complete": "סמן כמושלם",
+        "unknown": "לא ידוע",
+        "all_customers": "כל הלקוחות",
+        "scheduled_follow_ups": "מעקבים מתוכננים"
+    },
+    "messages": {
+        "follow_up_reminder_title": "תזכורת מעקב",
+        "follow_up_reminder_in_10_min_prefix": "מעקב בעוד 10 דקות: ",
+        "follow_up_reminder_overdue_before": "מעקב התרחש לפני ",
+        "follow_up_reminder_overdue_after": ": ",
+        "follow_up_reminder_min_ago": "{{count}} דק'",
+        "follow_up_reminder_hours_ago": "{{count}} שעות",
+        "follow_up_reminder_days_ago": "{{count}} יום",
+        "error_fetching_data": "שגיאה בטעינת הנתונים",
+        "failed_to_update_status": "נכשל בעדכון הסטטוס",
+        "try_adjusting_your_filters": "נסה להתאים את המסננים או מונחי החיפוש כדי למצוא את מה שאתה מחפש.",
+        "status_updated_successfully": "הסטטוס עודכן בהצלחה",
+        "no_follow_ups_description": "כרגע אין שיחות מעקב מתוכננות. מעקבים יופיעו כאן כאשר סוכנים מתכננים אותם."
+    },
+    "sections": {
+        "title": "סוכנים",
+        "description": "נהל את הסוכנים שלך ואת הפעילויות שלהם",
+        "follow_up_description": "עקוב אחר מעקבים בפיגור וקרובים (3 ימים)",
+        "total_invoices": "סה״כ חשבוניות",
+        "total_amount": "סכום כולל"
+    }
+}

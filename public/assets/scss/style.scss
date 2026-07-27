@@ -1,0 +1,100 @@
+/*------------------------------------------------------------------
+[Master Stylesheet]
+Project                        :   Ynex - Nextjs Typescript (App Router) TailwindCss Admin & Dashboard Template)
+
+Created Date                   :   29/05/2024
+
+Author & Copyright Ownership   :   Spruko Technologies Private Limited 
+
+Author URL                     :   https://themeforest.net/user/spruko
+
+Support	                       :   https://support.spruko.com/
+
+License Details                :   https://spruko.com/licenses-details
+
+-------------------------------------------------------------------*/
+
+/*--- Start Table of Content ---
+Font-family
+Icons
+Variables
+Authentication
+Dashboard_styles
+Error
+Header
+Landing
+Job_landing
+Horizontal
+Icon_click
+Icon_hover
+Menu_click
+Menu_hover
+Vertical
+Chat
+Pages_styles
+Task
+Calendar
+Datatable
+Plugins
+Bg-img-styles
+Boxed
+Classic-page-styles
+Closed_menu
+Detached_menu
+Double_menu
+Header-scrollable
+Header-styles
+Icon-overlay
+Icontext
+Loader
+Menu-scrollable
+Menu-styles
+Accordion
+Alerts
+Avatars
+Breadcrumb
+Buttons
+Cards
+Carousels
+Components
+Custom
+Dropdown
+Forms
+Modal
+Offcanvas
+Pagination
+Progress
+Tables
+Tailwind
+Tooltip
+Toast
+--- End Table of Content ---*/
+
+/* Start FontFamily Styles */
+/* inter */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
+/* Montserrat */
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&display=swap");
+
+/* End Tailwind Styles Styles */
+
+@import "./icons";
+@import "./variables";
+
+/* CUSTOM STYLES */
+/* Removed unused custom styles */
+/* CUSTOM STYLES */
+
+/* PAGES STYLES */
+/* Removed unused page styles */
+/* PAGES STYLES */
+
+/* PLUGINS STYLES */
+/* Removed unused plugin styles */
+/* PLUGINS STYLES */
+
+@import "./global/custom-styles";
+@import "./global/date-picker";
+@import "./global/react-datepicker";
+@import "./global/select2";

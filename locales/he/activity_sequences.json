@@ -1,0 +1,87 @@
+{
+    "fields": {
+        "activity_sequences_activity_template_name": "שם תבנית פעילות",
+        "activity_sequences_activity_type": "סוג פעילות",
+        "activity_sequences_category": "קטגוריה",
+        "activity_sequences_days_before_due": "ימים לפני מועד",
+        "activity_sequences_days_from_prev_step": "תזמון",
+        "activity_sequences_step_type": "סוג שלב",
+        "activity_sequences_send_to_escalated_contacts": "אנשי קשר להסלמה",
+        "activity_sequences_send_to_standard_contacts": "אנשי קשר רגילים",
+        "activity_sequences_sequence_container_name": "שם הרצף",
+        "activity_sequences_sequence_container_replacement_sequence": "רצף חלופי",
+        "activity_sequences_sequence_container_sequence_details": "פרטי רצף",
+        "activity_sequences_sequence_container_sequence_name": "שם הרצף",
+        "activity_sequences_status": "סטטוס",
+        "activity_sequences_step": "שלב",
+        "activity_sequences_time_of_day": "שעת היום"
+    },
+    "actions": {
+        "activity_sequences_add_activity_sequence": "הוסף שלב ברצף פעילות",
+        "activity_sequences_edit_activity_sequence": "עריכת שלב ברצף פעילות",
+        "activity_sequences_edit_activity_template": "ערוך תבנית פעילות",
+        "activity_sequences_sequence_container_clone": "שכפל רצף",
+        "activity_sequences_sequence_container_clone_sequence": "שכפול רצף",
+        "activity_sequences_sequence_container_delete": "מחק רצף",
+        "activity_sequences_sequence_container_manage": "נהל רצפים"
+    },
+    "messages": {
+        "activity_sequences_activity_sequence_create_success": "שלב ברצף הפעילות נוצר בהצלחה",
+        "activity_sequences_activity_sequence_deleted_success": "רצף הפעילות נמחק בהצלחה",
+        "activity_sequences_cannot_delete_active": "לא ניתן למחוק רצף פעיל",
+        "activity_sequences_delete_activity_sequence_confirmation": "האם אתה בטוח שברצונך למחוק את רצף הפעילות הזה?",
+        "activity_sequences_delete_activity_sequence_warning": "לא ניתן לבטל פעולה זו.",
+        "activity_sequences_error_deleting_activity_sequence": "שגיאה במחיקת רצף הפעילות",
+        "activity_sequences_no_results": "לא נמצאו תוצאות",
+        "activity_sequences_sequence_container_cannot_deactivate_default": "לא ניתן לבטל רצף ברירת מחדל",
+        "activity_sequences_sequence_container_cannot_delete_default": "לא ניתן למחוק רצף ברירת מחדל",
+        "activity_sequences_sequence_container_clone_description": "הזן שם עבור הרצף המשוכפל:",
+        "activity_sequences_sequence_container_clone_success": "הרצף שוכפל בהצלחה",
+        "activity_sequences_sequence_container_delete_confirmation": "רצף זה נמצא בשימוש על ידי לקוחות. כדי למחוק אותו בבטחה, אנא בחר רצף חלופי שיוקצה לאותם לקוחות.",
+        "activity_sequences_sequence_container_delete_confirmation_simple": "האם אתה בטוח שברצונך למחוק רצף זה?",
+        "activity_sequences_sequence_container_delete_success": "הרצף נמחק בהצלחה",
+        "activity_sequences_sequence_container_delete_with_replacement_success": "הרצף נמחק ולקוחות הועברו בהצלחה",
+        "activity_sequences_sequence_container_error_cloning_sequence": "שגיאה בשכפול רצף",
+        "activity_sequences_sequence_container_error_deleting_sequence": "שגיאה במחיקת רצף",
+        "activity_sequences_sequence_container_error_loading_sequences": "שגיאה בטעינת רצפים",
+        "activity_sequences_sequence_container_error_setting_default": "שגיאה בהגדרת רצף ברירת מחדל",
+        "activity_sequences_sequence_container_error_updating_sequence": "שגיאה בעדכון רצף",
+        "activity_sequences_sequence_container_no_sequences": "אין רצפים זמינים",
+        "activity_sequences_sequence_container_set_default_success": "רצף ברירת המחדל עודכן",
+        "activity_sequences_sequence_container_update_success": "הרצף עודכן בהצלחה",
+        "cannot_delete_first_step": "לא ניתן למחוק את השלב הראשון",
+        "cannot_move_due_below_overdue": "לא ניתן להעביר שלב לפני מועד מתחת לשלב אחרי מועד",
+        "cannot_move_overdue_above_due": "לא ניתן להעביר שלב אחרי מועד מעל לשלב לפני מועד",
+        "due_steps_must_be_descending": "שלבים לפני מועד חייבים להיות בסדר יורד של ימים לפני המועד"
+    },
+    "sections": {
+        "activity_sequences_description": "צור רצפים של פעילויות (SMS, מייל, WhatsApp, שיחה) שמופעלות על פי כללי תזמון ספציפיים, עוזרות לייעל את תהליך הגבייה שלך ולשמור על תקשורת עקבית עם הלקוח.",
+        "activity_sequences_sequence_container_delete_sequence_title": "מחק רצף",
+        "activity_sequences_title": "רצפי פעילות"
+    },
+    "tooltips": {
+        "activity_sequences_activity_template_name_tooltip": "תבנית פעילות לשימוש",
+        "activity_sequences_days_from_prev_step_tooltip": "הפרש התזמון עבור שלב זה (ימים לפני המועד או השהייה מהשלב הקודם)",
+        "activity_sequences_drag_to_reorder": "גרור לסידור מחדש",
+        "activity_sequences_send_to_escalated_contacts_tooltip": "שלח לאנשי קשר להסלמה",
+        "activity_sequences_send_to_standard_contacts_tooltip": "שלח לאנשי קשר רגילים"
+    },
+    "values": {
+        "activity_sequences_agent": "סוכן",
+        "activity_sequences_automated": "אוטומטי",
+        "activity_sequences_dispute": "מחלוקת",
+        "activity_sequences_legal": "משפטי",
+        "activity_sequences_due": "לפני מועד",
+        "activity_sequences_overdue": "אחרי מועד",
+        "activity_sequences_promise_to_pay": "הבטחת תשלום",
+        "activity_sequences_sequence_container_default": "ברירת מחדל",
+        "activity_sequences_sequence_container_not_default": "לא ברירת מחדל",
+        "activity_sequences_days_before_due_short": "ימים לפני תאריך חשבונית",
+        "activity_sequences_days_from_prev_short": "ימים משלב קודם",
+        "activity_sequences_overdue_date_short": "ימים מתאריך חשבונית"
+    },
+    "validation": {
+        "activity_sequences_sequence_container_name_required": "שם הרצף נדרש",
+        "activity_sequences_sequence_container_replacement_sequence_required": "אנא בחר רצף חלופי"
+    }
+}

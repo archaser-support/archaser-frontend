@@ -1,0 +1,42 @@
+{
+    "fields": {
+        "business_unit": "יחידה עסקית",
+        "name": "שם",
+        "parent_business_unit": "יחידת עסקים אב",
+        "external_id": "מזהה חיצוני",
+        "primary": "ראשי",
+        "select_business_unit": "בחר יחידה עסקית",
+        "select_parent": "בחר יחידת אב עסקית",
+        "primary_business_unit_no_parent": "יחידות עסקים ראשיות לא יכולות להיות בעלות יחידת אב",
+        "reassign_to_business_unit": "העבר ליחידה עסקית",
+        "level": "רמה"
+    },
+    "messages": {
+        "no_business_units": "לא נמצאו יחידות עסקים",
+        "no_business_units_description": "עדיין לא נוצרו יחידות עסקים לחשבון זה",
+        "delete_confirm_title": "מחק יחידת עסקים",
+        "delete_confirm_description": "האם אתה בטוח שברצונך למחוק יחידת עסקים זו? פעולה זו לא ניתנת לביטול ותשפיע על משתמשים ולקוחות המשויכים ליחידה זו.",
+        "delete_has_users": "ליחידת עסקים זו יש {{count}} משתמש(ים) משויכים. אנא בחר יחידת עסקים להעברתם אליה.",
+        "delete_success": "יחידה עסקית נמחקה בהצלחה",
+        "delete_error": "מחיקת יחידת עסקים נכשלה",
+        "create_success": "יחידה עסקית נוצרה בהצלחה",
+        "create_error": "יצירת יחידה עסקית נכשלה",
+        "update_success": "יחידה עסקית עודכנה בהצלחה",
+        "update_error": "עדכון יחידת עסקים נכשל",
+        "status_update_success": "סטטוס יחידת עסקים עודכן בהצלחה",
+        "status_update_error": "עדכון סטטוס יחידת עסקים נכשל",
+        "cannot_disable_with_active_users": "לא ניתן לבטל יחידת עסקים. ליחידת עסקים זו יש {{count}} משתמש(ים) פעיל(ים) משויכים. אנא העבר או בטל את המשתמשים הללו תחילה."
+    },
+    "sections": {
+        "add_business_unit": "הוסף יחידה עסקית",
+        "edit_business_unit": "ערוך יחידה עסקית"
+    },
+    "tooltips": {
+        "cannot_delete_primary": "לא ניתן למחוק יחידה עסקית ראשית",
+        "delete": "מחק יחידה עסקית"
+    },
+    "validation": {
+        "name_required": "נדרש שם",
+        "parent_required": "נדרשת יחידה אב עסקית עבור יחידות עסקית לא ראשיות"
+    }
+}

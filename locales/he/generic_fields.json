@@ -1,0 +1,52 @@
+{
+    "fields": {
+        "column_entity": "ישות",
+        "column_field_type": "סוג שדה",
+        "column_label": "תווית",
+        "column_status": "סטטוס",
+        "column_read_only": "לקריאה בלבד",
+        "modal_label": "תווית",
+        "modal_status": "סטטוס",
+        "modal_read_only": "לקריאה בלבד",
+        "default_text_1": "טקסט מותאם 1",
+        "default_text_2": "טקסט מותאם 2",
+        "default_number_1": "מספר מותאם 1",
+        "default_number_2": "מספר מותאם 2",
+        "default_date_1": "תאריך מותאם 1",
+        "default_date_2": "תאריך מותאם 2"
+    },
+    "values": {
+        "status_active": "פעיל",
+        "status_inactive": "לא פעיל",
+        "read_only_yes": "ניתן לעריכה",
+        "read_only_no": "לקריאה בלבד",
+        "read_only_editable": "ניתן לעריכה",
+        "read_only_read_only": "לקריאה בלבד",
+        "entity_customer": "לקוח",
+        "entity_contact": "איש קשר",
+        "entity_invoice": "חשבונית",
+        "entity_payment": "תשלום",
+        "field_type_text": "טקסט",
+        "field_type_number": "מספר",
+        "field_type_date": "תאריך"
+    },
+    "sections": {
+        "custom_fields": "שדות מותאמים",
+        "edit_field_title": "עריכת שדה כללי"
+    },
+    "actions": {
+        "edit": "ערוך",
+        "save": "שמור"
+    },
+    "messages": {
+        "save_success": "שדה כללי עודכן בהצלחה",
+        "save_error": "שגיאה בעדכון שדה כללי"
+    },
+    "tooltips": {
+        "edit_field": "ערוך תווית וסטטוס של שדה"
+    },
+    "validation": {
+        "label_required": "תווית נדרשת",
+        "label_max_length": "התווית חייבת להיות עד 100 תווים"
+    }
+}

@@ -1,0 +1,58 @@
+{
+  "fields": {
+    "account_number": "מספר חשבון",
+    "bank_name": "שם הבנק",
+    "beneficiary_name": "שם בעל החשבון",
+    "city": "עיר",
+    "primary": "חשבון ראשי",
+    "not_primary": "לא ראשי",
+    "active": "פעיל",
+    "description": "נהל פרטי חשבונות בנק לקבלת תשלומי לקוחות. חשבונות אלו משמשים בתזכורות תשלום, פורטל לקוחות ותהליכי גביית תשלומים. כל חשבון יכול להיות מסומן כראשי לניתוב תשלומים ברירת מחדל, ואפשר לשמור מספר חשבונות למטבעות או אזורים שונים.",
+    "branch_name": "שם סניף",
+    "branch_number": "מספר סניף",
+    "comments": "הערות",
+    "iban": "IBAN",
+    "postal_code": "מיקוד",
+    "swift": "קוד SWIFT",
+    "address_line1": "כתובת שורה 1",
+    "address_line2": "כתובת שורה 2",
+    "state": "מדינה/מחוז",
+    "form_label": "טופס חשבון בנק"
+  },
+  "actions": {
+    "add_account": "הוסף חשבון בנק",
+    "edit_account": "ערוך חשבון בנק"
+  },
+  "messages": {
+    "no_accounts": "לא נמצאו חשבונות בנק",
+    "no_accounts_description": "לא נמצאו חשבונות בנק מסוימים ללקוח זה",
+    "try_adjusting_filters": "נסה להתאים את הפילטרים או קריטריוני החיפוש שלך",
+    "delete_confirm_description": "האם אתה בטוח שברצונך למחוק את חשבון הבנק הזה? לא ניתן לבטל פעולה זו.",
+    "delete_confirm_title": "מחק חשבון בנק",
+    "delete_success": "חשבון הבנק נמחק בהצלחה",
+    "delete_error": "מחיקת חשבון הבנק נכשלה",
+    "create_success": "חשבון הבנק נוצר בהצלחה",
+    "create_error": "יצירת חשבון הבנק נכשלה",
+    "update_success": "חשבון הבנק עודכן בהצלחה",
+    "update_error": "עדכון חשבון הבנק נכשל"
+  },
+  "sections": {
+    "additional_info": "מידע נוסף",
+    "address": "כתובת",
+    "bank_info": "פרטי בנק",
+    "status": "סטטוס",
+    "international_banking": "בנקאות בינלאומית"
+  },
+  "tooltips": {
+    "cannot_delete_primary": "לא ניתן למחוק חשבון בנק ראשי",
+    "delete": "מחק חשבון בנק"
+  },
+  "validation": {
+    "account_number_required": "מספר החשבון הוא שדה חובה",
+    "address_line1_required": "כתובת שורה 1 היא שדה חובה",
+    "bank_name_required": "שם הבנק הוא שדה חובה",
+    "beneficiary_name_required": "שם בעל החשבון הוא שדה חובה",
+    "city_required": "העיר היא שדה חובה",
+    "country_required": "המדינה היא שדה חובה"
+  }
+}

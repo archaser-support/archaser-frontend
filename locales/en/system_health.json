@@ -1,0 +1,78 @@
+{
+    "fields": {
+        "total_jobs": "Total Jobs",
+        "overdue_jobs": "Overdue Jobs",
+        "running_jobs": "Running Jobs",
+        "success_rate": "Success Rate",
+        "success_rate_30d": "Success Rate (30d)",
+        "last_run": "Last Run",
+        "next_run": "Next Run",
+        "avg_duration": "Avg Duration",
+        "min_duration": "Min Duration",
+        "max_duration": "Max Duration",
+        "timeout_period": "Timeout Period",
+        "last_run_duration": "Last Run Duration",
+        "last_status": "Last Status",
+        "last_success": "Last Success",
+        "last_failure": "Last Failure",
+        "last_timeout": "Last Timeout",
+        "no_status_history": "No status history",
+        "failure_rate_30d": "Failure Rate (30d)",
+        "timeout_rate_30d": "Timeout Rate (30d)",
+        "performance_baseline": "Performance Baseline",
+        "performance_degradation_alert": "Performance Degradation Alert",
+        "activities": "Activities",
+        "sent": "Sent",
+        "generated": "Generated",
+        "stuck_activities": "Stuck Activities",
+        "reason": "Reason",
+        "count": "Count",
+        "no_reason_specified": "No reason specified",
+        "type": "Type",
+        "pending": "Pending",
+        "total": "Total",
+        "total_imports": "Total Imports",
+        "pending_imports": "Pending Imports",
+        "records_per_hour": "Records/Hour",
+        "import_type": "Type",
+        "count_24h": "24h",
+        "count_7d": "7d",
+        "count_30d": "30d",
+        "time_period": "Time Period",
+        "last_24h": "Last 24 Hours",
+        "last_7d": "Last 7 Days",
+        "last_30d": "Last 30 Days",
+        "last_hour": "1h",
+        "last_6_hours": "6h",
+        "last_24_hours": "24h",
+        "total_records": "Total Records",
+        "avg_duration_seconds": "Avg Duration (s)",
+        "status": "Status",
+        "name": "Name"
+    },
+    "actions": {
+        "refresh_data": "Refresh Data",
+        "refresh": "Refresh"
+    },
+    "messages": {
+        "refreshing_in": "Refreshing in {{count}}s"
+    },
+    "values": {
+        "running": "Running",
+        "idle": "Idle",
+        "success": "Success",
+        "failed": "Failed",
+        "timeout": "Timeout"
+    },
+    "sections": {
+        "system_health_title": "System Health",
+        "system_health_description": "Monitor system performance, cron jobs, activities, and imports",
+        "cron_jobs_overview": "Cron Jobs Overview",
+        "imports_overview": "Import Jobs Overview",
+        "imports_by_type": "Imports by Type"
+    },
+    "tooltips": {
+        "system_health": "Monitor system health metrics and performance"
+    },
+    "validation": {}
+}

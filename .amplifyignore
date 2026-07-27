@@ -1,0 +1,48 @@
+# Amplify Hosting — ignore non-app paths (app root = frontend).
+# Do NOT ignore app/, pages/, components/, package-lock.json, or configs needed to build.
+
+# Dependencies / VCS
+node_modules/
+.git/
+.github/
+.vscode/
+.cursor/
+.agents/
+.agent/
+.scratch/
+
+# Logs & caches
+*.log
+*.tmp
+*.temp
+.cache/
+.temp/
+.tmp/
+tsconfig.tsbuildinfo
+
+# Tests & Playwright
+test/
+test-results/
+coverage/
+playwright/
+playwright-report/
+vitest.config.*
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+
+# Local env (set secrets in Amplify Console)
+.env
+.env.*
+!.env.example
+
+# Heavy / unused static assets
+public/assets/iconfonts/
+public/assets/video/
+public/uploads/
+public/assets/scss/
+
+# Docs
+*.md
+!AGENTS.md

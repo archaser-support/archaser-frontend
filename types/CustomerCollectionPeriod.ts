@@ -1,0 +1,48 @@
+import { Activity } from "./Activity";
+import { Customer } from "./Customer";
+import { CustomerDispute } from "./CustomerDispute";
+import { Category, Priority } from "./enums";
+import { Invoice } from "./Invoice";
+
+export interface CustomerCollectionPeriod {
+    id: number;
+    created_at: Date;
+    modified_at: Date;
+    customer_id: number;
+    period_start_date: Date;
+    period_end_date?: Date;
+    last_automated_step?: number;
+    previous_category?: Category;
+    current_category?: Category;
+    priority?: Priority;
+    total_outstanding_amount?: number;
+    no_of_overdue_invoices?: number;
+    currency?: string;
+    promise_to_pay_date?: Date;
+    last_dispute_date?: Date;
+    customer_outstanding_amount1?: number;
+    customer_outstanding_amount2?: number;
+    customer_currency1?: string;
+    customer_currency2?: string;
+    last_call?: Date;
+    last_call_result?: string;
+    follow_up_time?: Date;
+    promise_to_pay_amount?: number;
+    next_category?: Category;
+    next_category_date?: Date;
+    create_next_activity: boolean;
+    next_activity_date?: Date;
+    promise_to_pay_count: number;
+    is_last_automated_step_delivered: boolean;
+    risk_score?: number;
+    risk_factors?: any;
+    last_risk_calculation?: Date;
+    risk_category?: string;
+    lawyer_assigned: boolean;
+    activeDisputeId?: number;
+    activities: Activity[];
+    activeDispute?: CustomerDispute;
+    customer: Customer;
+    relatedDisputes: CustomerDispute[];
+    invoices: Invoice[];
+}

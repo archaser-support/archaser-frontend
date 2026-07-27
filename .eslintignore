@@ -1,0 +1,16 @@
+# Ignore Test config files
+vitest.config.*
+playwright.config.ts
+
+# Ignore generated/build files
+.next/
+out/
+dist/
+build/
+coverage/
+node_modules/
+*.tsbuildinfo
+
+# Ignore public uploads
+public/uploads/
+

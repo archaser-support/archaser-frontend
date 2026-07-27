@@ -1,0 +1,51 @@
+{
+  "actions": {
+    "title": "מרכז הבקרה",
+    "description": "עקוב אחר פרטי בריאות המערכת וניהול",
+    "view_details": "הצג פרטים",
+    "assign_credit_title": "הקצאת זיכוי לחשבונית",
+    "assign_customer": "הקצאת לקוח",
+    "select_customer": "בחר לקוח",
+    "selected_invoices": "חשבוניות שנבחרו",
+    "selected_invoices_count": "{{count}} חשבוניות נבחרו"
+  },
+  "sections": {
+    "customers_without_contact_title": "לקוחות ללא אנשי קשר",
+    "customers_without_contact_description": "אנשי קשר חיוניים לתקשורת, מאמצי גבייה ופעילויות מעקב.",
+    "customers_with_invalid_contacts_title": "לקוחות עם פרטי קשר לא תקינים",
+    "customers_with_invalid_contacts_description": "פרטי קשר לא תקינים מונעים משלוח הודעות מוצלח, מה שמוביל לכישלון במאמצי גבייה והחמצת הזדמנויות.",
+    "invoices_without_customer_title": "חשבוניות ללא לקוח",
+    "invoices_without_customer_description": "חשבוניות ללא לקוח לא ניתן לעקוב אחריהן, מה שמונע מאמצי גבייה ודיווח מדויק.",
+    "orphan_credit_invoices_title": "חשבוניות זיכוי יתומות",
+    "orphan_credit_invoices_description": "חשבוניות זיכוי ללא חשבונית יעד לא ניתן ליישם, מה שמונע חישובי יתרה מדויקים."
+  },
+  "messages": {
+    "error": "אירעה שגיאה",
+    "loading": "טוען נתוני מרכז הבקרה...",
+    "email_bounced": "כתובת הדוא\"ל התקזצה",
+    "email_failure": "משלוח דוא\"ל נכשל",
+    "mobile_failure": "משלוח נייד נכשל",
+    "error_description": "תיאור השגיאה",
+    "no_customers_found": "לא נמצאו לקוחות",
+    "assign_credit_description": "בחר חשבונית להקצאת הזיכוי הזה.",
+    "error_invalid_customer_id": "מזהה לקוח לא תקין",
+    "error_fetching_available_invoices": "נכשל בטעינת החשבוניות הזמינות",
+    "error_please_select_invoice": "אנא בחר חשבונית",
+    "error_assigning_credit": "נכשל בהקצאת זיכוי לחשבונית",
+    "success_credit_assigned": "זיכוי הוקצה בהצלחה",
+    "bulk_customer_updated_successfully": "{{count}} חשבוניות עודכנו בהצלחה",
+    "no_invoices": "לא נמצאו חשבוניות",
+    "customer_required": "אנא בחר לקוח"
+  },
+  "tooltips": {
+    "assign_credit": "הקצאת זיכוי לחשבונית",
+    "customers_with_invalid_contacts_active": "מספר לקוחות פעילים עם פרטי קשר לא תקינים",
+    "customers_with_invalid_contacts_inactive": "מספר לקוחות לא פעילים עם פרטי קשר לא תקינים",
+    "customers_without_contacts_active": "מספר לקוחות פעילים ללא פרטי קשר",
+    "customers_without_contacts_inactive": "מספר לקוחות לא פעילים ללא פרטי קשר",
+    "invoices_without_customer_active": "מספר חשבוניות פעילות ללא לקוח",
+    "invoices_without_customer_inactive": "מספר חשבוניות לא פעילות ללא לקוח",
+    "orphan_credit_invoices_active": "מספר חשבוניות זיכוי יתומות פעילות",
+    "orphan_credit_invoices_inactive": "מספר חשבוניות זיכוי יתומות לא פעילות"
+  }
+}

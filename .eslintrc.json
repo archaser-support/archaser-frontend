@@ -1,0 +1,196 @@
+{
+    "env": {
+        "browser": true,
+        "es2021": true,
+        "node": true
+    },
+    "extends": [
+        "eslint:recommended",
+        "plugin:react/recommended",
+        "plugin:react-hooks/recommended",
+        "next/core-web-vitals",
+        "plugin:@typescript-eslint/recommended",
+        "plugin:jsx-a11y/recommended",
+        "prettier"
+    ],
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": {
+        "ecmaVersion": "latest",
+        "sourceType": "module",
+        "ecmaFeatures": {
+            "jsx": true
+        }
+    },
+    "plugins": [
+        "react",
+        "react-hooks",
+        "@typescript-eslint",
+        "jsx-a11y",
+        "import"
+    ],
+    "rules": {
+        "indent": "off",
+        "quotes": "off",
+        "semi": "off",
+        "comma-dangle": "off",
+        "no-multiple-empty-lines": "off",
+        "eol-last": "off",
+        "block-spacing": "off",
+        "object-curly-spacing": "off",
+        "array-bracket-spacing": "off",
+        "comma-spacing": "off",
+        "key-spacing": "off",
+        "keyword-spacing": "off",
+        "space-before-blocks": "off",
+        "space-before-function-paren": "off",
+        "space-in-parens": "off",
+        "space-infix-ops": "off",
+        "space-unary-ops": "off",
+        "spaced-comment": "off",
+        "template-tag-spacing": "off",
+        "arrow-spacing": "off",
+        "rest-spread-spacing": "off",
+        "object-property-newline": "off",
+        "array-element-newline": "off",
+        "function-paren-newline": "off",
+        "object-curly-newline": "off",
+        "implicit-arrow-linebreak": "off",
+        "operator-linebreak": "off",
+        "no-case-declarations": "error",
+        "prefer-const": "error",
+        "no-var": "error",
+        "vars-on-top": "off",
+        "no-console": ["warn", { "allow": ["error", "warn"] }],
+        "no-unused-vars": "off",
+        "no-undef": "off",
+        "no-redeclare": "error",
+        "no-unreachable": "error",
+        "no-duplicate-imports": "error",
+        "no-useless-return": "error",
+        "no-useless-concat": "error",
+        "prefer-template": "error",
+        "prefer-arrow-callback": "warn",
+        "prefer-spread": "warn",
+        "react/prop-types": "off",
+        "react/react-in-jsx-scope": "off",
+        "react/jsx-uses-react": "off",
+        "react/jsx-uses-vars": "error",
+        "react/jsx-key": "error",
+        "react/jsx-no-duplicate-props": "error",
+        "react/jsx-no-undef": "error",
+        "react/jsx-no-useless-fragment": "warn",
+        "react/self-closing-comp": "warn",
+        "react-hooks/rules-of-hooks": "error",
+        "react-hooks/exhaustive-deps": "warn",
+        "@typescript-eslint/no-unused-vars": [
+            "warn",
+            {
+                "argsIgnorePattern": "^_",
+                "varsIgnorePattern": "^_",
+                "caughtErrorsIgnorePattern": "^_"
+            }
+        ],
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/explicit-function-return-type": "off",
+        "@typescript-eslint/explicit-module-boundary-types": "off",
+        "@typescript-eslint/no-inferrable-types": "off",
+        "@typescript-eslint/no-non-null-assertion": "warn",
+        "import/order": [
+            "warn",
+            {
+                "groups": [
+                    "builtin",
+                    "external",
+                    "internal",
+                    "parent",
+                    "sibling",
+                    "index"
+                ],
+                "newlines-between": "always",
+                "alphabetize": {
+                    "order": "asc",
+                    "caseInsensitive": true
+                }
+            }
+        ],
+        "import/no-duplicates": "error",
+        "import/no-unresolved": "off",
+        "jsx-a11y/alt-text": "warn",
+        "jsx-a11y/anchor-is-valid": "warn",
+        "jsx-a11y/click-events-have-key-events": "warn",
+        "jsx-a11y/no-noninteractive-element-interactions": "warn"
+    },
+    "settings": {
+        "react": {
+            "version": "detect"
+        },
+        "import/resolver": {
+            "typescript": {
+                "alwaysTryTypes": true
+            }
+        }
+    },
+    "globals": {
+        "process": "readonly",
+        "global": "readonly",
+        "NodeJS": "readonly"
+    },
+    "overrides": [
+        {
+            "files": [
+                "test/**/*.test.ts",
+                "test/**/*.test.tsx",
+                "test/**/*.spec.ts",
+                "test/**/*.spec.tsx"
+            ],
+            "parserOptions": {
+                "sourceType": "module",
+                "ecmaVersion": "latest"
+            },
+            "env": {
+                "node": true,
+                "es2021": true
+            },
+            "rules": {
+                "@typescript-eslint/no-explicit-any": "off",
+                "no-console": "off",
+                "@typescript-eslint/no-non-null-assertion": "off",
+                "import/no-unresolved": "off",
+                "import/no-commonjs": "off"
+            },
+            "globals": {
+                "vi": "readonly",
+                "describe": "readonly",
+                "it": "readonly",
+                "expect": "readonly",
+                "beforeEach": "readonly",
+                "afterEach": "readonly",
+                "beforeAll": "readonly",
+                "afterAll": "readonly"
+            }
+        },
+        {
+            "files": ["scripts/**/*.js"],
+            "parserOptions": {
+                "sourceType": "module",
+                "ecmaVersion": "latest"
+            },
+            "rules": {
+                "@typescript-eslint/no-require-imports": "off",
+                "no-console": "off"
+            }
+        },
+        {
+            "files": [
+                "next.config.js",
+                "playwright.config.*",
+                "vitest.config.*",
+                "postcss.config.js"
+            ],
+            "rules": {
+                "@typescript-eslint/no-var-requires": "off",
+                "no-console": "off"
+            }
+        }
+    ]
+}

@@ -1,0 +1,87 @@
+{
+    "fields": {
+        "activity_sequences_activity_template_name": "Activity Template Name",
+        "activity_sequences_activity_type": "Activity Type",
+        "activity_sequences_category": "Category",
+        "activity_sequences_days_before_due": "Days Before Due",
+        "activity_sequences_days_from_prev_step": "Timing",
+        "activity_sequences_step_type": "Step Type",
+        "activity_sequences_send_to_escalated_contacts": "Escalated Contacts",
+        "activity_sequences_send_to_standard_contacts": "Standard Contacts",
+        "activity_sequences_sequence_container_name": "Sequence Name",
+        "activity_sequences_sequence_container_replacement_sequence": "Replacement Sequence",
+        "activity_sequences_sequence_container_sequence_details": "Sequence Details",
+        "activity_sequences_sequence_container_sequence_name": "Sequence Name",
+        "activity_sequences_status": "Status",
+        "activity_sequences_step": "Step",
+        "activity_sequences_time_of_day": "Time of Day"
+    },
+    "actions": {
+        "activity_sequences_add_activity_sequence": "Add Activity Sequence Step",
+        "activity_sequences_edit_activity_sequence": "Edit Activity Sequence Step",
+        "activity_sequences_edit_activity_template": "Edit Activity Template",
+        "activity_sequences_sequence_container_clone": "Clone Sequence",
+        "activity_sequences_sequence_container_clone_sequence": "Clone Sequence",
+        "activity_sequences_sequence_container_delete": "Delete Sequence",
+        "activity_sequences_sequence_container_manage": "Manage Sequences"
+    },
+    "messages": {
+        "activity_sequences_activity_sequence_create_success": "Activity sequence step created successfully",
+        "activity_sequences_activity_sequence_deleted_success": "Activity sequence deleted successfully",
+        "activity_sequences_cannot_delete_active": "Cannot delete active sequence",
+        "activity_sequences_delete_activity_sequence_confirmation": "Are you sure you want to delete this activity sequence?",
+        "activity_sequences_delete_activity_sequence_warning": "This action cannot be undone.",
+        "activity_sequences_error_deleting_activity_sequence": "Error deleting activity sequence",
+        "activity_sequences_no_results": "No results found",
+        "activity_sequences_sequence_container_cannot_deactivate_default": "Cannot deactivate default sequence",
+        "activity_sequences_sequence_container_cannot_delete_default": "Cannot delete default sequence",
+        "activity_sequences_sequence_container_clone_description": "Enter a name for the cloned sequence:",
+        "activity_sequences_sequence_container_clone_success": "Sequence cloned successfully",
+        "activity_sequences_sequence_container_delete_confirmation": "This sequence is currently being used by customers. To delete it safely, please select a replacement sequence that will be assigned to those customers.",
+        "activity_sequences_sequence_container_delete_confirmation_simple": "Are you sure you want to delete this sequence?",
+        "activity_sequences_sequence_container_delete_success": "Sequence deleted successfully",
+        "activity_sequences_sequence_container_delete_with_replacement_success": "Sequence deleted and customers migrated successfully",
+        "activity_sequences_sequence_container_error_cloning_sequence": "Error cloning sequence",
+        "activity_sequences_sequence_container_error_deleting_sequence": "Error deleting sequence",
+        "activity_sequences_sequence_container_error_loading_sequences": "Error loading sequences",
+        "activity_sequences_sequence_container_error_setting_default": "Error setting default sequence",
+        "activity_sequences_sequence_container_error_updating_sequence": "Error updating sequence",
+        "activity_sequences_sequence_container_no_sequences": "No sequences available",
+        "activity_sequences_sequence_container_set_default_success": "Default sequence updated",
+        "activity_sequences_sequence_container_update_success": "Sequence updated successfully",
+        "cannot_delete_first_step": "Cannot delete first step",
+        "cannot_move_due_below_overdue": "Cannot move Due step below Overdue step",
+        "cannot_move_overdue_above_due": "Cannot move Overdue step above Due step",
+        "due_steps_must_be_descending": "Due steps must be in descending order of days before due"
+    },
+    "sections": {
+        "activity_sequences_description": "Design and manage automated communication workflows for different collection phases. Create sequences of activities (SMS, Email, WhatsApp, Call) that trigger based on specific timing rules, helping streamline your collection process and maintain consistent customer communication.",
+        "activity_sequences_sequence_container_delete_sequence_title": "Delete Sequence",
+        "activity_sequences_title": "Activity Sequences"
+    },
+    "tooltips": {
+        "activity_sequences_activity_template_name_tooltip": "Activity template to be used",
+        "activity_sequences_days_from_prev_step_tooltip": "Timing offset for this step (Days before due or delay from previous)",
+        "activity_sequences_drag_to_reorder": "Drag to reorder",
+        "activity_sequences_send_to_escalated_contacts_tooltip": "Send to escalated contacts",
+        "activity_sequences_send_to_standard_contacts_tooltip": "Send to standard contacts"
+    },
+    "values": {
+        "activity_sequences_agent": "Agent",
+        "activity_sequences_automated": "Automated",
+        "activity_sequences_dispute": "Dispute",
+        "activity_sequences_legal": "Legal",
+        "activity_sequences_due": "Due",
+        "activity_sequences_overdue": "Overdue",
+        "activity_sequences_promise_to_pay": "Promise to Pay",
+        "activity_sequences_sequence_container_default": "Default",
+        "activity_sequences_sequence_container_not_default": "Not Default",
+        "activity_sequences_days_before_due_short": "d before",
+        "activity_sequences_days_from_prev_short": "day(s) from prev",
+        "activity_sequences_overdue_date_short": "day(s) from due date"
+    },
+    "validation": {
+        "activity_sequences_sequence_container_name_required": "Sequence name is required",
+        "activity_sequences_sequence_container_replacement_sequence_required": "Please select a replacement sequence"
+    }
+}

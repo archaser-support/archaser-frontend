@@ -1,0 +1,58 @@
+{
+  "fields": {
+    "account_number": "Account Number",
+    "bank_name": "Bank Name",
+    "beneficiary_name": "Beneficiary Name",
+    "city": "City",
+    "primary": "Primary",
+    "not_primary": "Not Primary",
+    "active": "Active",
+    "description": "Manage bank account details for receiving customer payments. These accounts are used in payment reminders, customer portal, and payment collection processes. Each account can be marked as primary for default payment routing, and you can maintain multiple accounts for different currencies or regions.",
+    "branch_name": "Branch Name",
+    "branch_number": "Branch Number",
+    "comments": "Comments",
+    "iban": "IBAN",
+    "postal_code": "Postal Code",
+    "swift": "SWIFT Code",
+    "address_line1": "Address Line 1",
+    "address_line2": "Address Line 2",
+    "state": "State",
+    "form_label": "Bank Account Form"
+  },
+  "actions": {
+    "add_account": "Add Bank Account",
+    "edit_account": "Edit Bank Account"
+  },
+  "messages": {
+    "no_accounts": "No bank accounts found",
+    "no_accounts_description": "No specific bank accounts found for this customer",
+    "try_adjusting_filters": "Try adjusting your filters or search criteria",
+    "delete_confirm_description": "Are you sure you want to delete this bank account? This action cannot be undone.",
+    "delete_confirm_title": "Delete Bank Account",
+    "delete_success": "Bank account deleted successfully",
+    "delete_error": "Failed to delete bank account",
+    "create_success": "Bank account created successfully",
+    "create_error": "Failed to create bank account",
+    "update_success": "Bank account updated successfully",
+    "update_error": "Failed to update bank account"
+  },
+  "sections": {
+    "additional_info": "Additional Information",
+    "address": "Address",
+    "bank_info": "Bank Information",
+    "status": "Status",
+    "international_banking": "International Banking"
+  },
+  "tooltips": {
+    "cannot_delete_primary": "Cannot delete primary bank account",
+    "delete": "Delete bank account"
+  },
+  "validation": {
+    "account_number_required": "Account number is required",
+    "address_line1_required": "Address line 1 is required",
+    "bank_name_required": "Bank name is required",
+    "beneficiary_name_required": "Beneficiary name is required",
+    "city_required": "City is required",
+    "country_required": "Country is required"
+  }
+}

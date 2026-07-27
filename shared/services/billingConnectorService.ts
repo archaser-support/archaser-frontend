@@ -1,0 +1,244 @@
+import api from "@/app/api";
+import type { ConnectorAuthType, BillingProvider, ImportType } from "@prisma/client";
+
+import type { MappingRule } from "@/shared/constants/importEntityFields";
+
+export interface BillingConnectorConfig {
+    id: number;
+    account_id: number;
+    provider: BillingProvider;
+    status: string;
+    base_url: string | null;
+    auth_type: ConnectorAuthType;
+    has_credentials: boolean;
+    sync_enabled: boolean;
+    sync_cron_expression: string;
+    sync_mode: string;
+    enabled_entities: ImportType[];
+    sync_overlap_minutes: number;
+    consecutive_auth_failures: number;
+    last_connection_test_at: string | null;
+    last_connection_error: string | null;
+    created_at: string;
+    modified_at: string;
+    schedule_summary?: string;
+    schedule_preset?:
+        | "every_4h"
+        | "every_6h"
+        | "every_12h"
+        | "daily"
+        | "weekly"
+        | "custom"
+        | null;
+    daily_time_utc?: string;
+    weekly_day?: number;
+    next_scheduled_sync_at_utc?: string | null;
+    schedule_warning?: string | null;
+    sync_states?: ConnectorSyncStatePublic[];
+}
+
+export interface ConnectorSyncStatePublic {
+    entity_type: ImportType;
+    backfill_completed: boolean;
+    backfill_completed_at: string | null;
+    backfill_cursor_present: boolean;
+    backfill_records_pulled: number;
+    backfill_total_records: number | null;
+    last_max_updated_at: string | null;
+    last_successful_run_at: string | null;
+    last_attempt_at: string | null;
+    last_error: string | null;
+}
+
+export interface SyncRunSummary {
+    id: string;
+    trigger: string;
+    sync_mode: string;
+    status: string;
+    started_at: string;
+    completed_at: string | null;
+    duration_seconds: number | null;
+    entity_stats: Record<
+        string,
+        { pulled: number; success: number; failed: number; skipped: number }
+    >;
+    error_message: string | null;
+    error_type: string | null;
+}
+
+export interface UpsertBillingConnectorPayload {
+    provider?: BillingProvider;
+    base_url?: string | null;
+    auth_type?: ConnectorAuthType;
+    credentials?: Record<string, unknown> | null;
+    sync_enabled?: boolean;
+    sync_cron_expression?: string;
+    schedule_preset?:
+        | "every_4h"
+        | "every_6h"
+        | "every_12h"
+        | "daily"
+        | "weekly"
+        | "custom";
+    daily_time_utc?: string;
+    weekly_day?: number;
+    enabled_entities?: ImportType[];
+}
+
+const basePath = (accountId: number) =>
+    `/api/entities/accounts/${accountId}/billing-connector`;
+
+export async function fetchBillingConnectorConfig(
+    accountId: number
+): Promise<BillingConnectorConfig | null> {
+    const response = await api.get<{ config: BillingConnectorConfig | null }>(
+        basePath(accountId)
+    );
+    return response.data.config;
+}
+
+export async function saveBillingConnectorConfig(
+    accountId: number,
+    payload: UpsertBillingConnectorPayload
+): Promise<BillingConnectorConfig> {
+    const response = await api.put<{ config: BillingConnectorConfig }>(
+        basePath(accountId),
+        payload
+    );
+    return response.data.config;
+}
+
+export async function testBillingConnectorConnection(
+    accountId: number,
+    payload?: {
+        base_url?: string;
+        auth_type?: ConnectorAuthType;
+        credentials?: Record<string, unknown>;
+    }
+): Promise<{ success: boolean; error?: string; tested_at?: string }> {
+    const response = await api.post(
+        `${basePath(accountId)}/test`,
+        payload ?? {}
+    );
+    return response.data;
+}
+
+export interface ConnectorFieldMappingResponse {
+    import_type: ImportType;
+    mapping: MappingRule[];
+    is_complete: boolean;
+    modified_at: string | null;
+    modified_by: string | null;
+}
+
+export interface DiscoverFieldsResponse {
+    import_type: ImportType;
+    raw_headers: string[];
+    example_values: Record<string, unknown>;
+    sample_count: number;
+    archaser_fields: string[];
+    required_fields: string[];
+    highlighted_fields: string[];
+}
+
+export interface PreviewSyncEntityResult {
+    import_type: ImportType;
+    pulled: number;
+    sample_rows: Record<string, unknown>[];
+    validation_errors: string[];
+    sorted_preview: boolean;
+}
+
+export interface PreviewSyncResponse {
+    mode: "preview";
+    started_at: string;
+    completed_at: string;
+    entities: PreviewSyncEntityResult[];
+    go_no_go: {
+        required_field_errors: number;
+        passed: boolean;
+        checks: Array<{
+            id: string;
+            label: string;
+            passed: boolean;
+            detail: string;
+        }>;
+    };
+}
+
+export async function fetchBillingConnectorMapping(
+    accountId: number,
+    importType: ImportType
+): Promise<ConnectorFieldMappingResponse | null> {
+    const response = await api.get<{
+        mapping: ConnectorFieldMappingResponse | null;
+    }>(`${basePath(accountId)}/mappings/${importType}`);
+    return response.data.mapping;
+}
+
+export async function saveBillingConnectorMapping(
+    accountId: number,
+    importType: ImportType,
+    mapping: MappingRule[]
+): Promise<ConnectorFieldMappingResponse> {
+    const response = await api.put<{ mapping: ConnectorFieldMappingResponse }>(
+        `${basePath(accountId)}/mappings/${importType}`,
+        { mapping }
+    );
+    return response.data.mapping;
+}
+
+export async function discoverBillingConnectorFields(
+    accountId: number,
+    importType: ImportType
+): Promise<DiscoverFieldsResponse> {
+    const response = await api.post<DiscoverFieldsResponse>(
+        `${basePath(accountId)}/discover-fields/${importType}`
+    );
+    return response.data;
+}
+
+export async function runBillingConnectorPreviewSync(
+    accountId: number
+): Promise<PreviewSyncResponse> {
+    const response = await api.post<{ result: PreviewSyncResponse }>(
+        `${basePath(accountId)}/sync`,
+        {},
+        { params: { mode: "preview" } }
+    );
+    return response.data.result;
+}
+
+export async function runBillingConnectorBackfill(accountId: number) {
+    const response = await api.post(`${basePath(accountId)}/sync`, {}, {
+        params: { mode: "backfill" },
+    });
+    return response.data.result;
+}
+
+export async function runBillingConnectorIncrementalSync(accountId: number) {
+    const response = await api.post(`${basePath(accountId)}/sync`, {}, {
+        params: { mode: "incremental" },
+    });
+    return response.data.result;
+}
+
+export async function fetchBillingConnectorSyncRuns(
+    accountId: number,
+    limit = 25
+): Promise<SyncRunSummary[]> {
+    const response = await api.get<{ runs: SyncRunSummary[] }>(
+        `${basePath(accountId)}/sync-runs`,
+        { params: { limit } }
+    );
+    return response.data.runs;
+}
+
+export async function resetBillingConnectorEntityBackfill(
+    accountId: number,
+    entityType: ImportType
+): Promise<void> {
+    await api.post(`${basePath(accountId)}/backfill/reset`, {
+        entity_type: entityType,
+    });
+}

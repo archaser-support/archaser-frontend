@@ -1,0 +1,26 @@
+{
+  "fields": {
+    "amount_overdue": "Amount Overdue",
+    "current_time": "Current Time",
+    "customer": "Customer",
+    "customer_code": "Customer Code",
+    "date_moved_to_legal": "Date Moved to Legal",
+    "days": "days",
+    "days_past_due": "Days Past Due",
+    "last_call": "Last Call",
+    "last_call_result": "Last Call Result",
+    "unknown": "Unknown"
+  },
+  "messages": {
+    "error_fetching_data": "Error fetching data",
+    "no_calls": "No calls made",
+    "no_data_available": "No legal cases found",
+    "no_data_available_description": "There are no legal cases matching your criteria"
+  },
+  "sections": {
+    "title": "Legal Cases",
+    "description": "Manage legal collection cases and their activities",
+    "total_cases": "Total Cases",
+    "legal_overdue_amount": "Legal Cases Amount"
+  }
+}

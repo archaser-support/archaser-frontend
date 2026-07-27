@@ -1,0 +1,102 @@
+/**
+ * Unit Test: API {EndpointName}
+ * 
+ * Tests: {Brief description}
+ * 
+ * 📚 Documentation:
+ * - Unit Testing Guide: docs/unit-testing-guide.md
+ * - Best Practices: docs/development-guides/unit-testing-best-practices.md
+ * - Quick Reference: docs/development-guides/unit-testing-quick-reference.md
+ */
+
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { createMocks } from "node-mocks-http";
+import { NextApiRequest, NextApiResponse } from "next";
+import { getToken } from "next-auth/jwt";
+import handler from "@/pages/api/resource/endpoint";
+import { createPrismaMock } from "@/tests/mocks/prisma";
+// Import fixtures as needed
+// import { mockApiData } from "@/tests/fixtures/api/requests";
+
+// Mocks
+vi.mock("next-auth/jwt", () => ({
+    getToken: vi.fn(),
+}));
+
+vi.mock("@/lib/prisma", () => ({
+    prisma: createPrismaMock(),
+}));
+
+describe("API /api/resource/endpoint", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        
+        // Default: valid admin authentication
+        vi.mocked(getToken).mockResolvedValue({
+            id: "1",
+            email: "admin@test.com",
+            role: "Admin",
+            account_id: 1,
+        } as any);
+    });
+
+    describe("POST", () => {
+        it("should return 200 when {condition}", async () => {
+            // Arrange
+            const { req, res } = createMocks<NextApiRequest, NextApiResponse>({
+                method: "POST",
+                body: {}, // Use mockApiData.validRequest from fixtures
+            });
+
+            // Act
+            await handler(req, res);
+
+            // Assert
+            expect(res._getStatusCode()).toBe(200);
+            // expect(JSON.parse(res._getData())).toEqual(expectedResponse);
+        });
+
+        it("should return 401 when unauthenticated", async () => {
+            // Arrange
+            vi.mocked(getToken).mockResolvedValue(null);
+            const { req, res } = createMocks({ method: "POST" });
+
+            // Act
+            await handler(req, res);
+
+            // Assert
+            expect(res._getStatusCode()).toBe(401);
+        });
+
+        it("should return 400 when request is invalid", async () => {
+            // Arrange
+            const { req, res } = createMocks<NextApiRequest, NextApiResponse>({
+                method: "POST",
+                body: {}, // Invalid request data
+            });
+
+            // Act
+            await handler(req, res);
+
+            // Assert
+            expect(res._getStatusCode()).toBe(400);
+        });
+    });
+
+    describe("GET", () => {
+        it("should return 200 with data when {condition}", async () => {
+            // Arrange
+            const { req, res } = createMocks<NextApiRequest, NextApiResponse>({
+                method: "GET",
+                query: {},
+            });
+
+            // Act
+            await handler(req, res);
+
+            // Assert
+            expect(res._getStatusCode()).toBe(200);
+        });
+    });
+});
+

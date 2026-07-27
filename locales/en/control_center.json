@@ -1,0 +1,51 @@
+{
+  "actions": {
+    "title": "Control Center",
+    "description": "Monitor and manage system health issues",
+    "view_details": "View Details",
+    "assign_credit_title": "Assign Credit to Invoice",
+    "assign_customer": "Assign Customer",
+    "select_customer": "Select Customer",
+    "selected_invoices": "Selected Invoices",
+    "selected_invoices_count": "{{count}} invoice(s) selected"
+  },
+  "sections": {
+    "customers_without_contact_title": "Customers Without Contact",
+    "customers_without_contact_description": "Contact information is essential for communication, collection efforts, and follow-up activities.",
+    "customers_with_invalid_contacts_title": "Customers With Invalid Contacts",
+    "customers_with_invalid_contacts_description": "Invalid contact information prevents successful message delivery, leading to failed collection efforts and missed opportunities.",
+    "invoices_without_customer_title": "Invoices Without Customer",
+    "invoices_without_customer_description": "Invoices without a customer cannot be tracked, preventing collection efforts and accurate reporting.",
+    "orphan_credit_invoices_title": "Orphan Credit Invoices",
+    "orphan_credit_invoices_description": "Credit invoices without a target invoice cannot be applied, preventing accurate balance calculations."
+  },
+  "messages": {
+    "error": "An error occurred",
+    "loading": "Loading control center data...",
+    "email_bounced": "Email address has bounced",
+    "email_failure": "Email delivery has failed",
+    "mobile_failure": "Mobile delivery has failed",
+    "error_description": "Error Description",
+    "no_customers_found": "No customers found",
+    "assign_credit_description": "Select an invoice to assign this credit to.",
+    "error_invalid_customer_id": "Invalid customer ID",
+    "error_fetching_available_invoices": "Failed to fetch available invoices",
+    "error_please_select_invoice": "Please select an invoice",
+    "error_assigning_credit": "Failed to assign credit to invoice",
+    "success_credit_assigned": "Credit assigned successfully",
+    "bulk_customer_updated_successfully": "{{count}} invoice(s) updated successfully",
+    "no_invoices": "No invoices found",
+    "customer_required": "Please select a customer"
+  },
+  "tooltips": {
+    "assign_credit": "Assign credit to an invoice",
+    "customers_with_invalid_contacts_active": "Number of active customers with invalid contacts",
+    "customers_with_invalid_contacts_inactive": "Number of inactive customers with invalid contacts",
+    "customers_without_contacts_active": "Number of active customers without contacts",
+    "customers_without_contacts_inactive": "Number of inactive customers without contacts",
+    "invoices_without_customer_active": "Number of active invoices without customers",
+    "invoices_without_customer_inactive": "Number of inactive invoices without customers",
+    "orphan_credit_invoices_active": "Number of active orphan credit invoices",
+    "orphan_credit_invoices_inactive": "Number of inactive orphan credit invoices"
+  }
+}

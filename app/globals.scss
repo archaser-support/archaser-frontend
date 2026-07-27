@@ -1,0 +1,169 @@
+@use "../public/assets/css/style-minimal.css" as *;
+@use "../public/assets/scss/_icons.scss" as *;
+//Packages css
+
+// Hide scrollbars globally
+html,
+body {
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* Internet Explorer 10+ */
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+    display: none;
+    /* Chrome, Safari, Opera */
+}
+
+/* Hide scrollbars for all elements with overflow */
+* {
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* Internet Explorer 10+ */
+}
+
+*::-webkit-scrollbar {
+    display: none;
+    /* Chrome, Safari, Opera */
+}
+
+/* Override scrollbar hiding for report builder tables section */
+.report-builder-tables-scrollable {
+    scrollbar-width: thin !important;
+    scrollbar-gutter: stable !important; /* Reserve space for scrollbar */
+    -ms-overflow-style: auto !important; /* Show scrollbar when needed in IE/Edge */
+}
+
+.report-builder-tables-scrollable::-webkit-scrollbar {
+    display: block !important;
+    width: 12px !important;
+    -webkit-appearance: none !important;
+}
+
+.report-builder-tables-scrollable::-webkit-scrollbar-track {
+    border-radius: 6px !important;
+    background-color: rgba(30, 27, 75, 0.1) !important;
+    -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.1) !important;
+}
+
+.report-builder-tables-scrollable::-webkit-scrollbar-thumb {
+    border-radius: 6px !important;
+    background-color: rgba(30, 27, 75, 0.6) !important;
+    -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3) !important;
+}
+
+.report-builder-tables-scrollable::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(30, 27, 75, 1) !important;
+}
+
+// Toast animations
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+// Environment Indicator Styles
+.environment-indicator {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    z-index: 9999;
+    pointer-events: none;
+}
+
+.environment-indicator.localhost {
+    background-color: #10B981; // Green
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+}
+
+.environment-indicator.preprod {
+    background-color: #F59E0B; // Yellow/Orange
+    box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+}
+
+/* Restore scrollbar for YearCalendar and style the year select grid UI layout */
+.MuiYearCalendar-root {
+    scrollbar-width: thin !important;
+    -ms-overflow-style: auto !important;
+    max-height: 280px !important;
+    padding: 12px !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+    
+    &::-webkit-scrollbar {
+        display: block !important;
+        width: 6px !important;
+    }
+    
+    &::-webkit-scrollbar-track {
+        background: rgba(var(--secondary), 0.05) !important;
+        border-radius: 3px !important;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+        background: rgba(var(--secondary), 0.3) !important;
+        border-radius: 3px !important;
+        
+        &:hover {
+            background: rgba(var(--secondary), 0.5) !important;
+        }
+    }
+}
+
+.MuiPickersYear-root, .MuiYearCalendar-button {
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    padding: 6px 0 !important;
+    height: auto !important;
+    min-height: 36px !important;
+    border-radius: 8px !important;
+    transition: all 0.2s ease !important;
+    color: rgb(var(--foreground)) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 !important;
+    
+    &:hover {
+        background-color: rgba(var(--primary), 0.08) !important;
+    }
+    
+    &.Mui-selected {
+        background-color: rgb(var(--primary)) !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 10px rgba(var(--primary), 0.3) !important;
+        
+        &:hover {
+            background-color: rgb(var(--primary)) !important;
+        }
+    }
+}
