@@ -180,6 +180,7 @@
         "pages_invalid_contacts_title": "לקוחות עם פרטי קשר לא תקינים",
         "error_invalid_customer_id": "מזהה לקוח לא תקין",
         "error_fetching_data": "שגיאה בטעינת הנתונים",
+        "loading": "טוען...",
         "error_loading": "שגיאה בטעינת הנתונים",
         "never_synced": "מעולם לא סונכרן",
         "last_synced": "סונכרן לאחרונה",

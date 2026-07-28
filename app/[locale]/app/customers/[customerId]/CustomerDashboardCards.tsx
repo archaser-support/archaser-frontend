@@ -710,7 +710,7 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                             label={creditInsuranceLabels.healthIndex}
                             value={
                                 kpiCardsLoading || !creditKpis
-                                    ? t("loading", { ns: "common" })
+                                    ? t("messages.loading", { ns: "common" })
                                     : formatHealthIndexPercent(
                                         creditKpis.healthIndex,
                                         locale
@@ -723,7 +723,7 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                             label={creditInsuranceLabels.atRiskExposure}
                             value={
                                 kpiCardsLoading || !creditKpis
-                                    ? t("loading", { ns: "common" })
+                                    ? t("messages.loading", { ns: "common" })
                                     : formatCreditInsuranceAmount(
                                         creditKpis.atRiskExposure,
                                         creditKpis.atRiskExposureSecondary
@@ -736,7 +736,7 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                             label={creditInsuranceLabels.policyUsage}
                             value={
                                 kpiCardsLoading || !creditKpis
-                                    ? t("loading", { ns: "common" })
+                                    ? t("messages.loading", { ns: "common" })
                                     : formatUsagePct(creditKpis.policyUsagePct)
                             }
                         />
@@ -746,7 +746,7 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                             label={creditInsuranceLabels.activePolicies}
                             value={
                                 kpiCardsLoading || !creditKpis
-                                    ? t("loading", { ns: "common" })
+                                    ? t("messages.loading", { ns: "common" })
                                     : String(creditKpis.activePolicyCount)
                             }
                         />
@@ -756,7 +756,7 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                             label={creditInsuranceLabels.termsBreach}
                             value={
                                 kpiCardsLoading || !creditKpis
-                                    ? t("loading", { ns: "common" })
+                                    ? t("messages.loading", { ns: "common" })
                                     : formatCreditInsuranceAmount(
                                         creditKpis.termsBreachOutstanding,
                                         creditKpis.termsBreachOutstandingSecondary
@@ -769,7 +769,7 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                             label={creditInsuranceLabels.capacityGap}
                             value={
                                 capacityGapCardLoading
-                                    ? t("loading", { ns: "common" })
+                                    ? t("messages.loading", { ns: "common" })
                                     : formatCreditInsuranceAmount(
                                         capacityGapDisplay.primary,
                                         capacityGapDisplay.secondary,
@@ -785,7 +785,7 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                 label={creditInsuranceLabels.dailyCostChangeTitle}
                                 value={
                                     dailyCostTrendLoading
-                                        ? t("loading", { ns: "common" })
+                                        ? t("messages.loading", { ns: "common" })
                                         : dailyCostKpiDisplay.primaryValue
                                 }
                                 secondaryLine={
@@ -808,7 +808,7 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                     label={creditInsuranceLabels.topUpValue}
                                     value={
                                         kpiCardsLoading || !creditKpis
-                                            ? t("loading", { ns: "common" })
+                                            ? t("messages.loading", { ns: "common" })
                                             : formatCreditInsuranceAmount(
                                                 creditKpis.topUpTotal
                                             )
@@ -820,7 +820,7 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                     label={creditInsuranceLabels.topUpUsage}
                                     value={
                                         kpiCardsLoading || !creditKpis
-                                            ? t("loading", { ns: "common" })
+                                            ? t("messages.loading", { ns: "common" })
                                             : formatUsagePct(
                                                 creditKpis.topUpUsagePct
                                             )
@@ -832,7 +832,7 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                     label={creditInsuranceLabels.effectiveUsage}
                                     value={
                                         kpiCardsLoading || !creditKpis
-                                            ? t("loading", { ns: "common" })
+                                            ? t("messages.loading", { ns: "common" })
                                             : formatUsagePct(
                                                 creditKpis.effectiveUsagePct
                                             )

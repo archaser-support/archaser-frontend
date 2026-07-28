@@ -1564,7 +1564,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                     })}
                                     value={
                                         creditKpiQuery.isPending || !creditKpiCards
-                                            ? t("loading", { ns: "common" })
+                                            ? t("messages.loading", { ns: "common" })
                                             : formatHeaderAmount(
                                                   capacityGapDisplay.primary,
                                                   capacityGapDisplay.secondary
@@ -1583,7 +1583,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                     })}
                                     value={
                                         creditKpiQuery.isPending || !creditKpiCards
-                                            ? t("loading", { ns: "common" })
+                                            ? t("messages.loading", { ns: "common" })
                                             : formatHeaderAmount(
                                                   creditKpiCards.uninsuredAmount,
                                                   creditKpiCards.uninsuredAmountSecondary

@@ -617,7 +617,7 @@ export function CreditPolicyLimitUsageTrendChart({
                 >
                     {isLoading ? (
                         <Typography color="text.secondary" variant="body2">
-                            {t("common.loading", { ns: "common" })}
+                            {t("messages.loading", { ns: "common" })}
                         </Typography>
                     ) : empty ? (
                         <Typography color="text.secondary" variant="body2">

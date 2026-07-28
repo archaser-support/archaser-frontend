@@ -2111,7 +2111,7 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                             "fields.no_search_results",
                             "No matches"
                         )}
-                        loadingLabel={t("common.loading", "Loading…")}
+                        loadingLabel={t("messages.loading", { ns: "common", defaultValue: "Loading…" })}
                         options={inOptions}
                         value={nameList}
                         onChange={(next) =>
@@ -2231,7 +2231,7 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                             "fields.no_search_results",
                             "No matches"
                         )}
-                        loadingLabel={t("common.loading", "Loading…")}
+                        loadingLabel={t("messages.loading", { ns: "common", defaultValue: "Loading…" })}
                         options={inOptions}
                         value={nameList}
                         onChange={(next) =>
@@ -2347,7 +2347,7 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                             "fields.no_search_results",
                             "No matches"
                         )}
-                        loadingLabel={t("common.loading", "Loading…")}
+                        loadingLabel={t("messages.loading", { ns: "common", defaultValue: "Loading…" })}
                         options={inOptions}
                         value={nameList}
                         onChange={(next) =>
@@ -2465,7 +2465,7 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                             "fields.no_search_results",
                             "No matches"
                         )}
-                        loadingLabel={t("common.loading", "Loading…")}
+                        loadingLabel={t("messages.loading", { ns: "common", defaultValue: "Loading…" })}
                         options={inOptions}
                         value={nameList}
                         onChange={(next) =>
@@ -2581,7 +2581,7 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                             "fields.no_search_results",
                             "No matches"
                         )}
-                        loadingLabel={t("common.loading", "Loading…")}
+                        loadingLabel={t("messages.loading", { ns: "common", defaultValue: "Loading…" })}
                         options={inOptions}
                         value={codeList}
                         onChange={(next) =>
@@ -2696,7 +2696,7 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                             "fields.no_search_results",
                             "No matches"
                         )}
-                        loadingLabel={t("common.loading", "Loading…")}
+                        loadingLabel={t("messages.loading", { ns: "common", defaultValue: "Loading…" })}
                         options={inOptions}
                         value={numberList}
                         onChange={(next) =>
@@ -3977,7 +3977,7 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                                 "fields.no_search_results",
                                 "No matches"
                             )}
-                            loadingLabel={t("common.loading", "Loading…")}
+                            loadingLabel={t("messages.loading", { ns: "common", defaultValue: "Loading…" })}
                             options={inOptions}
                             value={selectedUserIds}
                             onChange={(next) =>

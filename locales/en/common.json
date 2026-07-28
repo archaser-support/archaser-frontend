@@ -180,6 +180,7 @@
         "pages_invalid_contacts_title": "Customers With Invalid Contact",
         "error_invalid_customer_id": "Invalid customer ID",
         "error_fetching_data": "Error fetching data",
+        "loading": "Loading...",
         "error_loading": "Error loading data",
         "never_synced": "Never synced",
         "last_synced": "Last synced",
