@@ -1,6 +1,7 @@
 import { describe, expect, it, afterEach, vi } from "vitest";
 
 import {
+    apiFetch,
     normalizeProductApiPath,
     resolveProductRequestUrl,
 } from "@/utils/apiFetch";
@@ -32,6 +33,35 @@ describe("apiFetch URL helpers", () => {
         expect(resolveProductRequestUrl("/api/operations/notifications")).toBe(
             "https://api.example.com/api/operations/notifications"
         );
+    });
+
+    it("clears session and redirects to login on 401 in Nest mode", async () => {
+        process.env.NEXT_PUBLIC_USE_NEST_AUTH = "true";
+        process.env.NEXT_PUBLIC_NEST_API_BASE_URL = "https://api.example.com";
+
+        vi.spyOn(globalThis, "fetch").mockResolvedValue(
+                new Response(JSON.stringify({ error: "Unauthorized" }), {
+                    status: 401,
+                    headers: { "Content-Type": "application/json" },
+                })
+            );
+
+        const signOut = vi.fn().mockResolvedValue(undefined);
+        vi.doMock("next-auth/react", () => ({ signOut }));
+
+        const assignMock = vi.fn();
+        Object.defineProperty(window, "location", {
+            value: {
+                pathname: "/en/app/dashboard",
+                assign: assignMock,
+            },
+            configurable: true,
+        });
+
+        await apiFetch("/api/operations/notifications");
+
+        expect(signOut).toHaveBeenCalledWith({ redirect: false });
+        expect(assignMock).toHaveBeenCalledWith("/en/login");
     });
 });
 

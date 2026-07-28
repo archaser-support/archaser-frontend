@@ -378,4 +378,99 @@ describe("ReportQueryBuilder BusinessUnit select", () => {
             },
         });
     });
+
+    it("includes nested joined relation fields for Company state/country", () => {
+        const config: ReportConfig = {
+            tables: ["Customer", "Company"],
+            fields: [
+                { table: "Company", field: "State.name" },
+                { table: "Company", field: "Country.name" },
+            ],
+        };
+
+        const { select } = builder.buildQuery(config, 1);
+
+        expect(select).toMatchObject({
+            id: true,
+            Company: {
+                select: {
+                    id: true,
+                    State: {
+                        select: {
+                            name: true,
+                        },
+                    },
+                    Country: {
+                        select: {
+                            name: true,
+                        },
+                    },
+                },
+            },
+        });
+    });
+
+    it("maps legacy Customer country/state fields to relation selects", () => {
+        const config: ReportConfig = {
+            tables: ["Customer"],
+            fields: [
+                { table: "Customer", field: "country" },
+                { table: "Customer", field: "state" },
+            ],
+        };
+
+        const { select } = builder.buildQuery(config, 1);
+
+        expect(select).toMatchObject({
+            Country: {
+                select: {
+                    name: true,
+                },
+            },
+            State: {
+                select: {
+                    name: true,
+                },
+            },
+        });
+    });
+
+    it("includes Company Country/State fallback for Customer Country/State fields", () => {
+        const config: ReportConfig = {
+            tables: ["Customer"],
+            fields: [
+                { table: "Customer", field: "Country.name" },
+                { table: "Customer", field: "State.name" },
+            ],
+        };
+
+        const { select } = builder.buildQuery(config, 1);
+
+        expect(select).toMatchObject({
+            Country: {
+                select: {
+                    name: true,
+                },
+            },
+            State: {
+                select: {
+                    name: true,
+                },
+            },
+            Company: {
+                select: {
+                    Country: {
+                        select: {
+                            name: true,
+                        },
+                    },
+                    State: {
+                        select: {
+                            name: true,
+                        },
+                    },
+                },
+            },
+        });
+    });
 });

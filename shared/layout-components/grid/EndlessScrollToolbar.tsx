@@ -227,10 +227,42 @@ const EndlessScrollToolbarComponent: React.FC<EndlessScrollToolbarProps> = ({
                     ? userDefaultReportId === r.id
                     : Boolean(r.is_default),
                 group: r.is_system === true ? "system" : "custom",
+                uniqueName: (r as any).unique_name || null,
             })) || [];
 
+        // Some accounts can return duplicate report rows (same system seed/name
+        // repeated, sometimes once as system and once as custom). De-dupe by a
+        // normalized key and prefer custom over system for the same logical report.
+        const normalizeReportName = (name: string) =>
+            String(name || "")
+                .trim()
+                .toLowerCase()
+                .replace(/\s+/g, " ");
+        const dedupeMap = new Map<string, (typeof reports)[number]>();
+        for (const report of reports) {
+            const normalizedName = normalizeReportName(report.name);
+            const keyBase = report.isSystem
+                ? `system:${normalizedName}`
+                : `${report.context || "global"}:${report.uniqueName || normalizedName}`;
+            const key = keyBase.trim();
+            if (!key) {
+                dedupeMap.set(`id:${report.id}`, report);
+                continue;
+            }
+            const existing = dedupeMap.get(key);
+            if (!existing) {
+                dedupeMap.set(key, report);
+                continue;
+            }
+            // Prefer non-system entries when duplicate names collide.
+            if (existing.isSystem && !report.isSystem) {
+                dedupeMap.set(key, report);
+            }
+        }
+        const dedupedReports = Array.from(dedupeMap.values());
+
         // Sort: custom views first, then system views
-        const sortedReports = reports.sort((a, b) => {
+        const sortedReports = dedupedReports.sort((a, b) => {
             if (a.isSystem === b.isSystem) return 0;
             return a.isSystem ? 1 : -1;
         });

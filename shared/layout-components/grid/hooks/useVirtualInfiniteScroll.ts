@@ -44,6 +44,30 @@ export function useVirtualInfiniteScroll<T>({
         [queryKey, currentPage, pageSize]
     );
 
+    const getStableRowKey = useCallback((item: any, index: number): string => {
+        if (item == null || typeof item !== "object") {
+            return `primitive:${String(item)}:${index}`;
+        }
+        if (item.id !== undefined && item.id !== null && item.id !== "") {
+            return `id:${String(item.id)}`;
+        }
+        if (
+            item.__rowKey !== undefined &&
+            item.__rowKey !== null &&
+            item.__rowKey !== ""
+        ) {
+            return `rowKey:${String(item.__rowKey)}`;
+        }
+        if (
+            item.___rowKey !== undefined &&
+            item.___rowKey !== null &&
+            item.___rowKey !== ""
+        ) {
+            return `formattedRowKey:${String(item.___rowKey)}`;
+        }
+        return `fallback:${JSON.stringify(item)}:${index}`;
+    }, []);
+
     // Detect query key changes and reset page if needed (before data update)
     useEffect(() => {
         const isNewQuery = queryKeyString !== queryKeyForResetRef.current;
@@ -136,9 +160,16 @@ export function useVirtualInfiniteScroll<T>({
         } else if (currentPage > 1) {
             // Append data for pagination
             setAllData((prev) => {
-                const existingIds = new Set(prev.map((item: any) => item.id));
+                const existingRowKeys = new Set(
+                    prev.map((item: any, index: number) =>
+                        getStableRowKey(item, index)
+                    )
+                );
                 const newItems = data.data.filter(
-                    (item: any) => !existingIds.has(item.id)
+                    (item: any, index: number) =>
+                        !existingRowKeys.has(
+                            getStableRowKey(item, prev.length + index)
+                        )
                 );
                 return [...prev, ...newItems];
             });
@@ -182,7 +213,14 @@ export function useVirtualInfiniteScroll<T>({
         }
 
         setIsLoadingMore(false);
-    }, [data, currentPage, paginatedQueryKey, queryKeyString, allData.length]);
+    }, [
+        data,
+        currentPage,
+        paginatedQueryKey,
+        queryKeyString,
+        allData.length,
+        getStableRowKey,
+    ]);
 
     // Load more function
     const loadMore = useCallback(() => {

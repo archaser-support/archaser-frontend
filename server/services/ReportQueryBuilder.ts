@@ -91,6 +91,24 @@ export class ReportQueryBuilder {
         this.logService = logService;
     }
 
+    private isLegacyLocationField(table: string, field: string): boolean {
+        return (
+            (table === "Customer" || table === "Company") &&
+            (field === "country" || field === "state")
+        );
+    }
+
+    private addLegacyLocationSelect(select: any, field: string): void {
+        const relationName = field === "country" ? "Country" : "State";
+        if (!select[relationName]) {
+            select[relationName] = { select: {} };
+        }
+        if (!select[relationName].select) {
+            select[relationName].select = {};
+        }
+        select[relationName].select.name = true;
+    }
+
     /**
      * Build complete Prisma query from report config
      */
@@ -1888,6 +1906,11 @@ export class ReportQueryBuilder {
         field: FieldConfig,
         primaryTable: string
     ): void {
+        if (this.isLegacyLocationField(primaryTable, field.field)) {
+            this.addLegacyLocationSelect(select, field.field);
+            return;
+        }
+
         if (primaryTable === "Invoice") {
             select.policy_id = true;
         }
@@ -2251,11 +2274,52 @@ export class ReportQueryBuilder {
             return;
         }
 
-        const [relationName, relationField] = field.field.split(".", 2);
+        const [relationName, ...relationFieldParts] = field.field.split(".");
+        const relationFieldPath = relationFieldParts.join(".");
         if (!select[relationName]) {
             select[relationName] = { select: {} };
         }
-        select[relationName].select[relationField] = true;
+        this.addNestedSelectField(
+            select[relationName].select,
+            relationFieldPath
+        );
+
+        // Customer location is often stored under Company in existing datasets.
+        // When a report asks for Customer.Country/State, include Company fallback.
+        if (
+            primaryTable === "Customer" &&
+            (relationName === "Country" || relationName === "State") &&
+            relationFieldPath === "name"
+        ) {
+            if (!select.Company) {
+                select.Company = { select: {} };
+            }
+            if (!select.Company.select[relationName]) {
+                select.Company.select[relationName] = { select: {} };
+            }
+            select.Company.select[relationName].select.name = true;
+        }
+    }
+
+    private addNestedSelectField(targetSelect: any, fieldPath: string): void {
+        const parts = fieldPath.split(".").filter(Boolean);
+        if (parts.length === 0) {
+            return;
+        }
+        if (parts.length === 1) {
+            targetSelect[parts[0]] = true;
+            return;
+        }
+        const [relationName, ...remaining] = parts;
+        if (!targetSelect[relationName]) {
+            targetSelect[relationName] = { select: {} };
+        } else if (!targetSelect[relationName].select) {
+            targetSelect[relationName].select = {};
+        }
+        this.addNestedSelectField(
+            targetSelect[relationName].select,
+            remaining.join(".")
+        );
     }
 
     /**
@@ -2477,7 +2541,19 @@ export class ReportQueryBuilder {
             }
             select[relationName].select[field.field] = true;
         } else {
-            select[relationName].select[field.field] = true;
+            if (this.isLegacyLocationField(field.table, field.field)) {
+                this.addLegacyLocationSelect(
+                    select[relationName].select,
+                    field.field
+                );
+            } else if (field.field.includes(".")) {
+                this.addNestedSelectField(
+                    select[relationName].select,
+                    field.field
+                );
+            } else {
+                select[relationName].select[field.field] = true;
+            }
         }
 
         // Always select policy_id for joined Invoice records to support historic matching

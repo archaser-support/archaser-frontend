@@ -6,6 +6,7 @@
 import { isNestUiMode } from "@/utils/amplifyMode";
 
 const NEST_TOKEN_KEY = "archaser_nest_access_token";
+let handlingExpiredSession = false;
 
 export function isNestAuthEnabled(): boolean {
     return isNestUiMode();
@@ -45,6 +46,36 @@ export function clearNestAccessToken(): void {
     }
     sessionStorage.removeItem(NEST_TOKEN_KEY);
     localStorage.removeItem(NEST_TOKEN_KEY);
+}
+
+function resolveLoginPathname(pathname: string): string {
+    const localeMatch = pathname.match(/^\/([a-z]{2})(?:\/|$)/i);
+    const locale = localeMatch?.[1] || "en";
+    return `/${locale}/login`;
+}
+
+/**
+ * Global expired-session handler for Nest bearer auth.
+ * Clears local bearer token, signs out NextAuth cookie session, then routes to login.
+ */
+export async function handleExpiredNestSession(): Promise<void> {
+    if (typeof window === "undefined" || handlingExpiredSession) {
+        return;
+    }
+    handlingExpiredSession = true;
+    clearNestAccessToken();
+    try {
+        const { signOut } = await import("next-auth/react");
+        await signOut({ redirect: false });
+    } catch {
+        // NextAuth may be unavailable depending on deploy mode.
+    } finally {
+        const target = resolveLoginPathname(window.location.pathname || "/");
+        if (window.location.pathname !== target) {
+            window.location.assign(target);
+        }
+        handlingExpiredSession = false;
+    }
 }
 
 /** Re-apply token after login clears storage. */
@@ -133,7 +164,11 @@ export async function nestFetch(
     const url = path.startsWith("http")
         ? path
         : `${getNestApiBaseUrl()}${path.startsWith("/") ? path : `/${path}`}`;
-    return fetch(url, { ...init, headers });
+    const response = await fetch(url, { ...init, headers });
+    if (response.status === 401) {
+        await handleExpiredNestSession();
+    }
+    return response;
 }
 
 export type NestMeProfile = {

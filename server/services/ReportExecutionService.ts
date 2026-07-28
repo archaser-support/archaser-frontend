@@ -512,7 +512,8 @@ export class ReportExecutionService {
             return row[fieldPath];
         }
 
-        const [relationName, relationField] = fieldPath.split(".", 2);
+        const [relationName, ...relationFieldParts] = fieldPath.split(".");
+        const relationFieldPath = relationFieldParts.join(".");
         const relationData = row[relationName];
 
         if (!relationData) {
@@ -522,12 +523,68 @@ export class ReportExecutionService {
         // Handle array (one-to-many)
         if (Array.isArray(relationData)) {
             return relationData.length > 0
-                ? relationData[0][relationField]
+                ? this.extractNestedValueFromObject(
+                      relationData[0],
+                      relationFieldPath
+                  )
                 : null;
         }
 
         // Handle object (one-to-one or many-to-one)
-        return relationData[relationField] || null;
+        // Keep falsy-but-valid values (0/false/"") instead of collapsing to null.
+        return (
+            this.extractNestedValueFromObject(relationData, relationFieldPath) ??
+            null
+        );
+    }
+
+    private extractNestedValueFromObject(
+        value: any,
+        path: string
+    ): any {
+        if (value == null) {
+            return null;
+        }
+        if (!path) {
+            return value;
+        }
+        return path
+            .split(".")
+            .reduce(
+                (current: any, segment: string) =>
+                    current == null ? null : current[segment],
+                value
+            );
+    }
+
+    private isLegacyLocationField(table: string, field: string): boolean {
+        return (
+            (table === "Customer" || table === "Company") &&
+            (field === "country" || field === "state")
+        );
+    }
+
+    private extractLegacyLocationValue(row: any, field: string): any {
+        if (!row) {
+            return null;
+        }
+        if (field === "country") {
+            return (
+                row.Country?.name ??
+                row.country?.name ??
+                row["Country.name"] ??
+                null
+            );
+        }
+        if (field === "state") {
+            return (
+                row.State?.name ??
+                row.state?.name ??
+                row["State.name"] ??
+                null
+            );
+        }
+        return null;
     }
 
     /**
@@ -3332,8 +3389,9 @@ export class ReportExecutionService {
                     fieldConfig.field.includes(".") &&
                     fieldConfig.table === primaryTable
                 ) {
-                    const [relationName, relationField] =
-                        fieldConfig.field.split(".", 2);
+                    const [relationName, ...relationFieldParts] =
+                        fieldConfig.field.split(".");
+                    const relationFieldPath = relationFieldParts.join(".");
                     if (
                         primaryTable === "Customer" &&
                         isCustomerPolicyBackedReportField(fieldConfig.field)
@@ -3365,7 +3423,10 @@ export class ReportExecutionService {
                             relationName === "Company")
                     ) {
                         if (row[relationName]) {
-                            fieldValue = row[relationName][relationField];
+                            fieldValue = this.extractNestedValueFromObject(
+                                row[relationName],
+                                relationFieldPath
+                            );
                         }
                     } else if (row[relationName]) {
                         // General handling for other relation fields (Country, State, Owner, BusinessUnit, ParentCustomer)
@@ -3373,7 +3434,29 @@ export class ReportExecutionService {
                             ? row[relationName][0]
                             : row[relationName];
                         if (relationData) {
-                            fieldValue = relationData[relationField];
+                            fieldValue = this.extractNestedValueFromObject(
+                                relationData,
+                                relationFieldPath
+                            );
+                        }
+                    }
+
+                    // Customer address fields can be stored on Company.
+                    if (
+                        fieldValue == null &&
+                        primaryTable === "Customer" &&
+                        relationFieldPath === "name"
+                    ) {
+                        if (relationName === "Country") {
+                            fieldValue =
+                                row.Company?.Country?.name ??
+                                row.Company?.country?.name ??
+                                null;
+                        } else if (relationName === "State") {
+                            fieldValue =
+                                row.Company?.State?.name ??
+                                row.Company?.state?.name ??
+                                null;
                         }
                     }
                 } else if (fieldConfig.table === primaryTable) {
@@ -3385,6 +3468,16 @@ export class ReportExecutionService {
                         fieldValue = this.extractUserName(
                             row,
                             primaryTable,
+                            fieldConfig.field
+                        );
+                    } else if (
+                        this.isLegacyLocationField(
+                            primaryTable,
+                            fieldConfig.field
+                        )
+                    ) {
+                        fieldValue = this.extractLegacyLocationValue(
+                            row,
                             fieldConfig.field
                         );
                     } else if (fieldConfig.field === "parent_customer_name") {
@@ -3510,14 +3603,14 @@ export class ReportExecutionService {
                         fieldConfig.field === "dispute_reason"
                     ) {
                         // Special handling: dispute_reason comes from DisputeReason relation
-                        fieldValue = row.DisputeReason?.name || null;
+                        fieldValue = row.DisputeReason?.name ?? null;
                     } else if (
                         primaryTable === "Dispute" &&
                         fieldConfig.field === "assigned_to"
                     ) {
                         // Special handling: assigned_to comes from User relation via owner_id
                         fieldValue =
-                            row.User_CustomerDispute_owner_idToUser?.name ||
+                            row.User_CustomerDispute_owner_idToUser?.name ??
                             null;
                     } else if (
                         primaryTable === "Dispute" &&
@@ -3727,7 +3820,18 @@ export class ReportExecutionService {
                                 );
                                 fieldValue = joinedVirtualConfig
                                     ? joinedVirtualConfig.extractor(relationData)
-                                    : relationData[fieldConfig.field];
+                                    : this.isLegacyLocationField(
+                                            fieldConfig.table,
+                                            fieldConfig.field
+                                        )
+                                      ? this.extractLegacyLocationValue(
+                                            relationData,
+                                            fieldConfig.field
+                                        )
+                                    : this.extractNestedValueFromObject(
+                                          relationData,
+                                          fieldConfig.field
+                                      );
                             }
                         }
                     } else if (

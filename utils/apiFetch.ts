@@ -3,7 +3,7 @@ import {
     resolveAuthorizationHeader,
 } from "@/utils/apiClientConfig";
 import { shouldAttachNestBearer } from "@/utils/amplifyMode";
-import { getNestAccessToken } from "@/utils/nestAuth";
+import { getNestAccessToken, handleExpiredNestSession } from "@/utils/nestAuth";
 
 /**
  * Join Nest product API base (`…/api`) with a path that may be `/api/foo` or `/foo`.
@@ -73,11 +73,15 @@ export async function apiFetch(
         }
     }
 
-    return fetch(url, {
+    const response = await fetch(url, {
         ...init,
         headers,
         credentials: shouldAttachNestBearer()
             ? init.credentials ?? "omit"
             : init.credentials ?? "include",
     });
+    if (shouldAttachNestBearer() && response.status === 401) {
+        await handleExpiredNestSession();
+    }
+    return response;
 }

@@ -239,6 +239,49 @@ describe("viewColumnGenerator", () => {
         expect(screen.getByText("65")).toBeInTheDocument();
     });
 
+    it("renders placeholder when value is null/blank", () => {
+        const viewConfig = {
+            fields: [{ table: "Customer", field: "name", aggregation: undefined }],
+        };
+        const tablesMetadata = [
+            {
+                name: "Customer",
+                fields: [{ name: "name", type: "string", label: "Name" }],
+            },
+        ];
+        const rows = [{ id: 1, "Customer.name": null }];
+        const columns = generateViewColumns({
+            viewConfig,
+            rows,
+            tablesMetadata,
+            context: "customers",
+            tableName: "Customer",
+            theme,
+            router: {} as any,
+            i18n: { language: "en" },
+            t: t as any,
+        });
+
+        const nameCol = columns.find((c) => c.field === "Customer.name" || c.field === "name");
+        const renderCell = nameCol?.renderCell as (p: {
+            row: (typeof rows)[0];
+            field: string;
+            value: unknown;
+        }) => React.ReactNode;
+
+        render(
+            <>
+                {renderCell({
+                    row: rows[0],
+                    field: nameCol!.field,
+                    value: rows[0]["Customer.name"],
+                })}
+            </>
+        );
+
+        expect(screen.getByText("—")).toBeInTheDocument();
+    });
+
     it("renders em dash for category when hideCollectionCategoryDisplay is true", () => {
         const viewConfig = {
             fields: [{ table: "Customer", field: "category", aggregation: undefined }],

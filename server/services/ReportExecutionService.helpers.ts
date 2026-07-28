@@ -92,7 +92,7 @@ export class SpecialFieldHandler {
             }
             return null;
         }
-        return row.Company?.[field] || null;
+        return row.Company?.[field] ?? null;
     }
 
     static shouldMapToCompany(table: string, field: string): boolean {
@@ -121,9 +121,9 @@ export class SpecialFieldHandler {
                     return personName;
                 }
             }
-            return relationData.customer_number || null;
+            return relationData.customer_number ?? null;
         }
-        return relationData.Company?.[field] || null;
+        return relationData.Company?.[field] ?? null;
     }
 
     /**
@@ -141,10 +141,10 @@ export class SpecialFieldHandler {
             const fullName = parentCustomer.Person?.full_name;
             const name = fullName || `${firstName} ${lastName}`.trim() || "";
             // Only return name if we have one - don't fall back to customer_number
-            return name || null;
+            return name ?? null;
         } else {
             // Only return company name - don't fall back to customer_number
-            return parentCustomer.Company?.name || null;
+            return parentCustomer.Company?.name ?? null;
         }
     }
 }

@@ -32,6 +32,8 @@ import {
     translateEnumValue,
 } from "./viewFieldHelpers";
 
+const EMPTY_CELL_PLACEHOLDER = "—";
+
 /** Maps report metadata table `name` to `reports.tables.*` i18n slug. */
 const REPORT_TABLE_NAME_TO_I18N_SLUG: Record<string, string> = {
     Customer: "customers",
@@ -111,6 +113,28 @@ function getReportTableHeaderLabel(
     }
     const table = tablesMetadata.find((tbl: any) => tbl.name === tableName);
     return table?.label || tableName;
+}
+
+function humanizeFieldKey(key: string): string {
+    const fieldOnly = key.includes(".") ? key.split(".").pop() || key : key;
+    return fieldOnly
+        .replace(/_/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function shouldHumanizeLabel(label: string): boolean {
+    const trimmed = String(label || "").trim();
+    if (!trimmed) {
+        return false;
+    }
+    // Normalize legacy/report-config snake_case labels like "modified_by".
+    if (trimmed.includes("_")) {
+        return true;
+    }
+    // Also catch all-lowercase labels that are likely raw keys.
+    return /^[a-z0-9 ]+$/.test(trimmed);
 }
 
 interface GenerateViewColumnsOptions {
@@ -506,7 +530,7 @@ export function generateViewColumns(
                         params.row?.raw?.[formattedKey] ??
                         params.value;
                     return display === null || display === undefined
-                        ? ""
+                        ? EMPTY_CELL_PLACEHOLDER
                         : String(display);
                 },
             } as GridColDef;
@@ -627,9 +651,13 @@ export function generateViewColumns(
                 );
                 // Final fallback: use key as label
                 if (!label) {
-                    label = key;
+                    label = humanizeFieldKey(key);
                 }
             }
+        }
+
+        if (label && shouldHumanizeLabel(label)) {
+            label = humanizeFieldKey(label);
         }
 
         // Check field types
@@ -1214,12 +1242,12 @@ export function generateViewColumns(
                 }
 
                 // Don't render anything if displayValue is empty
-                if (
-                    !displayValue ||
-                    displayValue === "" ||
-                    displayValue === "-"
-                ) {
-                    return null;
+                if (!displayValue || displayValue === "" || displayValue === "-") {
+                    return (
+                        <Typography variant="body2">
+                            {EMPTY_CELL_PLACEHOLDER}
+                        </Typography>
+                    );
                 }
 
                 return <Typography variant="body2">{displayValue}</Typography>;
