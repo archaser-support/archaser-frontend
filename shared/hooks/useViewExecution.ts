@@ -401,8 +401,10 @@ export function useViewExecution(
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({}));
                     throw new Error(
-                        errorData.error ||
-                        `HTTP error! status: ${response.status}`
+                        (typeof errorData.message === "string" &&
+                        errorData.message) ||
+                            errorData.error ||
+                            `HTTP error! status: ${response.status}`
                     );
                 }
 

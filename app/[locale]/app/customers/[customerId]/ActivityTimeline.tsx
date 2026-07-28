@@ -83,6 +83,10 @@ import { ToolbarDropdownFilter } from "@/shared/components/ToolbarDropdownFilter
 import ActivityAttachmentViewer from "@/shared/layout-components/activity/ActivityAttachmentViewer";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import { fetchCustomerTimeLineData } from "@/shared/services/customerService";
+import {
+    resolveI18nPlaceholders,
+    translateStoredI18nKey,
+} from "@/shared/utils/resolveI18nPlaceholders";
 import { Customer } from "@/types/Customer";
 import { ActivityStatus } from "@/types/enums";
 // Local Components and Types
@@ -161,6 +165,7 @@ interface TimelineItem {
 interface TimelineDetail {
     id: string;
     title?: string;
+    title_params?: Record<string, unknown> | string | null;
     description: string;
     time?: Date;
     badgeType?: string;
@@ -213,7 +218,7 @@ interface TimelineTimeProps {
 
 interface TimelineDescriptionProps {
     details: TimelineDetail[];
-    t: (_key: string, _params?: Record<string, string>) => string;
+    t: (_key: string, _params?: Record<string, unknown>) => string;
     triggerRefresh: () => void;
     expandedDetails: Set<string>;
     onToggleDetail: (detailId: string) => void;
@@ -221,7 +226,7 @@ interface TimelineDescriptionProps {
 
 interface CollapsibleDetailProps {
     detail: TimelineDetail;
-    t: (_key: string, _params?: Record<string, string>) => string;
+    t: (_key: string, _params?: Record<string, unknown>) => string;
     triggerRefresh: () => void;
     isExpanded: boolean;
     onToggle: (detailId: string) => void;
@@ -243,29 +248,34 @@ const showHtmlContentForBadges: string[] = [
     "Promise_to_pay",
 ];
 
-// Function to format activity title with contact and call information
-// Note: Titles are now fully translated on the server side via ActivityService.formatTitle()
+// Function to format activity title with contact and call information.
+// Nest returns raw {{activities.fields.*}} keys; resolve them client-side.
+const parseTitleParams = (
+    raw?: Record<string, unknown> | string | null
+): Record<string, unknown> | undefined => {
+    if (!raw) return undefined;
+    if (typeof raw === "string") {
+        try {
+            return JSON.parse(raw) as Record<string, unknown>;
+        } catch {
+            return undefined;
+        }
+    }
+    return raw;
+};
+
 const formatActivityTitle = (
     detail: TimelineDetail,
-    t: (_key: string, _params?: Record<string, string>) => string
+    t: (_key: string, _params?: Record<string, unknown>) => string
 ): string => {
-    // Content is now fully translated on the server side
-    if (detail.title) {
-        const rawTitle = String(detail.title).trim();
-        const wrappedKeyMatch = rawTitle.match(/^\{\{\s*([^}]+)\s*\}\}$/);
-        const key = wrappedKeyMatch ? wrappedKeyMatch[1].trim() : rawTitle;
-        const looksLikeI18nKey = /^[a-z_]+\.[a-z0-9_]+\.[a-z0-9_.]+$/i.test(key);
-        if (looksLikeI18nKey) {
-            const translated = t(key);
-            if (translated && translated !== key) {
-                return translated;
-            }
-            return wrappedKeyMatch ? rawTitle : translated;
-        }
-        return rawTitle;
+    if (!detail.title) {
+        return "";
     }
-
-    return "";
+    return translateStoredI18nKey(
+        String(detail.title),
+        t,
+        parseTitleParams(detail.title_params)
+    );
 };
 
 // Function to detect if an activity is failed
@@ -808,9 +818,13 @@ const CollapsibleDetail = memo(
         }, [detail.time, session]);
 
         const translatedContent = useMemo(() => {
-            // Content is now fully translated on the server side
-            return detail.description || "";
-        }, [detail.description]);
+            if (!detail.description) return "";
+            return resolveI18nPlaceholders(
+                detail.description,
+                t,
+                parseTitleParams(detail.title_params)
+            );
+        }, [detail.description, detail.title_params, t]);
 
         const hasContent = translatedContent && translatedContent.trim();
         // Use explicit px — numeric sx borderRadius is multiplied by theme.shape.borderRadius (4),
@@ -1556,9 +1570,9 @@ const ActivityTimeline: React.FC<CustomerProp> = ({
 
     // Combined translation function that tries both namespaces
     const t = useCallback(
-        (key: string, params?: Record<string, string>) => {
+        (key: string, params?: Record<string, unknown>) => {
             // First try translation namespace
-            const translationResult = translationT(key, params);
+            const translationResult = translationT(key, params as any);
             if (translationResult !== key) {
                 return translationResult;
             }
@@ -1698,6 +1712,7 @@ const ActivityTimeline: React.FC<CustomerProp> = ({
             details: (item.details || []).map((detail: TimelineDetail) => ({
                 id: detail.id,
                 title: detail.title,
+                title_params: (detail as TimelineDetail).title_params ?? (item as any).title_params,
                 description: detail.description,
                 time: scheduleTime,
                 badgeType: detail.badgeType,

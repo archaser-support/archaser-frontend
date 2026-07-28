@@ -538,10 +538,12 @@ export const fetchCustomerTimeLineData = async (params: {
                     actual_delivery_time: actualDeliveryTime,
                     type: activity.type,
                     title: activity.title || "",
+                    title_params: activity.title_params || null,
                     details: [
                         {
                             id: activity.id.toString(),
                             title: activity.title || "",
+                            title_params: activity.title_params || null,
                             description: activity.content || "",
                             time: scheduleTime,
                             badgeType: badgeText,

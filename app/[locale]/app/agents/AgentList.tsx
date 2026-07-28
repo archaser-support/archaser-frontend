@@ -38,6 +38,7 @@ import { useTranslation } from "react-i18next";
 import { useDebounce } from "use-debounce";
 
 import PageHeader from "@/components/PageHeader";
+import { translateStoredI18nKey } from "@/shared/utils/resolveI18nPlaceholders";
 
 // Dynamically import modal to prevent CSS chunking issues
 const MassUpdateCategoryModal = dynamic(
@@ -900,24 +901,15 @@ const AgentList: React.FC<AgentListProps> = ({
                 lastCallResult.startsWith("{{") &&
                 lastCallResult.endsWith("}}")
             ) {
-                // Extract translation key (e.g., "{{activities.values.outcomes_open_dispute}}" -> "activities.values.outcomes_open_dispute")
-                const translationKey = lastCallResult.slice(2, -2);
-                // If key starts with "activities.", use the part after it for namespace lookup
-                let keyToUse = translationKey;
-                if (translationKey.startsWith("activities.")) {
-                    keyToUse = translationKey.replace("activities.", "");
-                }
-                const translation = t(keyToUse, { ns: "activities" });
-
-                // Return translation if found, otherwise return the key as fallback
+                const translated = translateStoredI18nKey(lastCallResult, t);
                 if (
-                    translation &&
-                    !translation.startsWith("values.outcomes_") &&
-                    translation !== keyToUse
+                    translated &&
+                    translated !== lastCallResult &&
+                    !translated.startsWith("{{")
                 ) {
-                    return translation;
+                    return translated;
                 }
-                // Fallback: extract outcome value and format nicely
+                const translationKey = lastCallResult.slice(2, -2);
                 const outcomeMatch = translationKey.match(
                     /activities\.values\.outcomes_(.+)/
                 );

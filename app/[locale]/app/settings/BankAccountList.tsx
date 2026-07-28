@@ -199,7 +199,7 @@ export function BankAccountList({ accountId }: BankAccountListProps) {
     } = useVirtualInfiniteScroll({
         queryKey,
         queryFn: async (page: number) => {
-            const response = await fetch(
+            const response = await apiFetch(
                 `/api/entities/accounts/${accountId}/bank-accounts?${new URLSearchParams(
                     {
                         page: page.toString(),
@@ -207,6 +207,9 @@ export function BankAccountList({ accountId }: BankAccountListProps) {
                         sortField: sortModel[0]?.field || "bank_name",
                         sortDirection: sortModel[0]?.sort || "asc",
                         include: "Country",
+                        ...(debouncedSearch
+                            ? { query: debouncedSearch }
+                            : {}),
                     }
                 )}`
             );

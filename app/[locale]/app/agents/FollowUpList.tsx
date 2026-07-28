@@ -36,34 +36,23 @@ import {
     getCurrentTimeForCountry,
 } from "@/utils/datetimeOperations";
 import { formatAmountWithoutSymbol } from "@/utils/stringFormatters";
+import { translateStoredI18nKey } from "@/shared/utils/resolveI18nPlaceholders";
 
 const rowsPerPage = 5;
 
 const formatLastCallResult = (lastCallResult: string | null, t: any) => {
     if (!lastCallResult) return null;
 
-    // Handle double bracket translation keys (same pattern as Activity title/content)
     if (lastCallResult.startsWith("{{") && lastCallResult.endsWith("}}")) {
-        // Extract translation key (e.g., "{{activities.values.outcomes_open_dispute}}" -> "activities.values.outcomes_open_dispute")
-        const translationKey = lastCallResult.slice(2, -2);
-
-        // If key starts with "activities.", extract the part after it for namespace lookup
-        let keyToUse = translationKey;
-        if (translationKey.startsWith("activities.")) {
-            keyToUse = translationKey.replace("activities.", "");
-        }
-
-        const translation = t(keyToUse, { ns: "activities" });
-
-        // Return translation if found, otherwise return the key as fallback
+        const translated = translateStoredI18nKey(lastCallResult, t);
         if (
-            translation &&
-            !translation.startsWith("values.outcomes_") &&
-            translation !== keyToUse
+            translated &&
+            translated !== lastCallResult &&
+            !translated.startsWith("{{")
         ) {
-            return translation;
+            return translated;
         }
-        // Fallback: extract outcome value and format nicely
+        const translationKey = lastCallResult.slice(2, -2);
         const outcomeMatch = translationKey.match(
             /activities?\.values\.outcomes_(.+)/
         );

@@ -12,15 +12,16 @@ import {
 } from "@mui/material";
 import Slide from "@mui/material/Slide";
 import { alpha, useTheme } from "@mui/material/styles";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
 import api from "@/app/api";
 
 import ModalScrollBox from "@/shared/layout-components/modal/ModalScrollBox";
+import { resolveI18nPlaceholders } from "@/shared/utils/resolveI18nPlaceholders";
 
 import type { FollowUpReminderItem } from "../hooks/useFollowUpReminders";
 import { useFollowUpReminders } from "../hooks/useFollowUpReminders";
@@ -37,18 +38,7 @@ function resolveContentKeys(
     raw: string,
     t: (key: string, opts?: { ns?: string }) => string
 ): string {
-    return raw.replace(/\{\{([^}]+)\}\}/g, (_match, key: string) => {
-        const k = key.trim();
-        if (k.includes(".") && k.split(".").length >= 3) {
-            const parts = k.split(".");
-            const ns = parts[0];
-            const actualKey = parts.slice(1).join(".");
-            const translated = t(actualKey, { ns });
-            return translated !== actualKey ? translated : k;
-        }
-        const translated = t(k, { ns: "activities" });
-        return translated !== k ? translated : k;
-    });
+    return resolveI18nPlaceholders(raw, t as any);
 }
 
 /**

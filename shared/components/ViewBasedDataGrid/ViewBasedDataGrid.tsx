@@ -1048,7 +1048,15 @@ export const ViewBasedDataGrid: React.FC<ViewBasedDataGridProps> = ({
                 <Typography color="error" gutterBottom>
                     {t("messages.error_fetching_data", { ns: "common" })}
                 </Typography>
-                <Typography variant="body2" sx={{ mb: 2 }}>{error.message}</Typography>
+                <Typography variant="body2" sx={{ mb: 2 }}>
+                    {error.message === "Forbidden"
+                        ? t("messages.access_denied_subtitle", {
+                              ns: "common",
+                              defaultValue:
+                                  "You don't have permission to view this resource.",
+                          })
+                        : error.message}
+                </Typography>
                 <button onClick={reset}>
                     {t("actions.retry", { ns: "common" })}
                 </button>
