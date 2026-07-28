@@ -447,4 +447,45 @@ describe("viewColumnGenerator", () => {
         const link = screen.getByText("Acme");
         expect(link).toHaveAttribute("data-cell-link", "true");
     });
+
+    it("humanizes snake_case headers like modified_by to Modified By", () => {
+        const tRaw = vi.fn((key: string) => key);
+        const viewConfig = {
+            fields: [{ table: "Customer", field: "modified_by", alias: "modified_by" }],
+        };
+        const tablesMetadata = [
+            {
+                name: "Customer",
+                fields: [
+                    {
+                        name: "modified_by",
+                        type: "user",
+                        label: "modified_by",
+                        translationKey: "modified_by",
+                        translationNamespace: "common",
+                    },
+                ],
+            },
+        ];
+
+        const columns = generateViewColumns({
+            viewConfig,
+            rows: [],
+            tablesMetadata,
+            context: "customers",
+            tableName: "Customer",
+            theme,
+            router: {} as any,
+            i18n: { language: "en" },
+            t: tRaw as any,
+        });
+
+        const col = columns.find(
+            (c) =>
+                c.field === "modified_by" ||
+                c.field === "Customer.modified_by"
+        );
+        expect(col).toBeDefined();
+        expect(String(col?.headerName)).toBe("Modified By");
+    });
 });
