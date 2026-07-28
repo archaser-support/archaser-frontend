@@ -588,18 +588,20 @@ const AgentList: React.FC<AgentListProps> = ({
 
                 const country =
                     agent.Customer?.Country?.name ?? t("fields.unknown");
+                const stateName = agent.Customer?.State?.name;
+                const stateCode = agent.Customer?.State?.iso2;
                 const currentTime =
                     country !== t("fields.unknown")
                         ? getCurrentTimeForCountry(
                             country,
-                            undefined,
+                            stateCode || stateName,
                             "en-US",
                             true
                         )
                         : t("fields.unknown");
                 const timezone =
                     country !== t("fields.unknown")
-                        ? getCountryTimezone(country)
+                        ? getCountryTimezone(country, stateCode || stateName)
                         : "UTC";
 
                 const daysPastDue = agent?.Customer?.oldest_invoice_overdue_date
@@ -791,18 +793,20 @@ const AgentList: React.FC<AgentListProps> = ({
                 const normalizedDaysPastDue = Math.max(0, daysPastDue);
 
                 // Calculate customer current time
+                const stateCode =
+                    agent.Customer?.State?.iso2 || agent.Customer?.State?.name;
                 const currentTime =
                     country !== t("fields.unknown")
                         ? getCurrentTimeForCountry(
                             country,
-                            undefined,
+                            stateCode,
                             "en-US",
                             true
                         )
                         : t("fields.unknown");
                 const timezone =
                     country !== t("fields.unknown")
-                        ? getCountryTimezone(country)
+                        ? getCountryTimezone(country, stateCode)
                         : "UTC";
 
                 // Format last call date
@@ -1183,7 +1187,9 @@ const AgentList: React.FC<AgentListProps> = ({
             minWidth: 120,
             sortable: false,
             valueGetter: (params: any) =>
-                params.row.Customer?.BusinessUnit?.name || "-",
+                params.row.raw?.Customer?.BusinessUnit?.name ||
+                params.row.Customer?.BusinessUnit?.name ||
+                "-",
             renderCell: (params: GridRenderCellParams) => (
                 <Box
                     sx={{

@@ -8,6 +8,21 @@ export type CustomerAgent = Prisma.CustomerCollectionPeriodGetPayload<{
                 customer_number: true;
                 Country: {
                     select: {
+                        id: true;
+                        name: true;
+                        iso2: true;
+                    };
+                };
+                State: {
+                    select: {
+                        id: true;
+                        name: true;
+                        iso2: true;
+                    };
+                };
+                BusinessUnit: {
+                    select: {
+                        id: true;
                         name: true;
                     };
                 };

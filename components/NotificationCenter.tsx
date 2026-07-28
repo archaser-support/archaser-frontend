@@ -248,12 +248,20 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
                                 message.userId === "";
 
                             if (isRelevantUpdate) {
-                                // For broadcast updates, we need to fetch fresh stats for the current user
-                                if (!message.userId || message.userId === "") {
-                                    fetchStats(); // This will get the current user's stats
+                                // Nest SSE payloads often omit stats (`data: {}`).
+                                // Only apply message.data when it includes byPriority;
+                                // otherwise refetch so the UI never renders a partial shape.
+                                const incoming = message.data;
+                                if (
+                                    incoming &&
+                                    typeof incoming === "object" &&
+                                    incoming.byPriority &&
+                                    typeof incoming.byPriority.urgent ===
+                                        "number"
+                                ) {
+                                    setStats(incoming);
                                 } else {
-                                    // Update stats immediately for user-specific updates
-                                    setStats(message.data);
+                                    fetchStats();
                                 }
 
                                 // If the popover is open, also refresh the notifications list
@@ -437,7 +445,9 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
             );
             if (response.ok) {
                 const data = await response.json();
-                setStats(data);
+                if (data?.byPriority) {
+                    setStats(data);
+                }
             }
         } catch (error) {
             console.error("Error fetching notification stats:", error);
@@ -788,14 +798,14 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
                     </Box>
 
                     {/* Stats Summary */}
-                    {stats && (
+                    {stats?.byPriority && (
                         <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
                             <Box sx={{ flex: 1, textAlign: "center" }}>
                                 <Typography
                                     variant="h6"
                                     sx={{ fontWeight: 600 }}
                                 >
-                                    {stats.total}
+                                    {stats.total ?? 0}
                                 </Typography>
                                 <Typography
                                     variant="caption"
@@ -812,7 +822,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
                                         color: "error.main",
                                     }}
                                 >
-                                    {stats.byPriority.urgent}
+                                    {stats.byPriority.urgent ?? 0}
                                 </Typography>
                                 <Typography
                                     variant="caption"
@@ -829,7 +839,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
                                         color: "warning.main",
                                     }}
                                 >
-                                    {stats.byPriority.high}
+                                    {stats.byPriority.high ?? 0}
                                 </Typography>
                                 <Typography
                                     variant="caption"
@@ -846,7 +856,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
                                         color: "primary.main",
                                     }}
                                 >
-                                    {stats.byPriority.medium}
+                                    {stats.byPriority.medium ?? 0}
                                 </Typography>
                                 <Typography
                                     variant="caption"
