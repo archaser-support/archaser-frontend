@@ -1,4 +1,4 @@
-import { describe, expect, it, afterEach } from "vitest";
+import { describe, expect, it, afterEach, beforeEach } from "vitest";
 
 import {
     isAmplifySsrBuild,
@@ -23,11 +23,16 @@ describe("amplifyMode", () => {
         "NEXT_PUBLIC_NEST_API_BASE_URL",
     ] as const;
 
-    afterEach(() => {
+    // A developer shell that exported AMPLIFY_SSR (e.g. after a local Amplify
+    // build) must not change what these assertions see.
+    const clearKeys = () => {
         for (const key of keys) {
             delete process.env[key];
         }
-    });
+    };
+
+    beforeEach(clearKeys);
+    afterEach(clearKeys);
 
     it("detects Amplify SSR build flags", () => {
         expect(isAmplifySsrBuild()).toBe(false);

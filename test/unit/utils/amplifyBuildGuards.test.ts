@@ -50,7 +50,7 @@ describe("amplify build guards", () => {
         });
         expect(result.status).toBe(1);
         expect(result.stderr + result.stdout).toContain(
-            "Relative product /api calls found"
+            "relative product /api calls found"
         );
         fs.rmSync(tmpRoot, { recursive: true, force: true });
     });
