@@ -16,6 +16,10 @@
 # makes /api/auth/session fail. Nest must list this exact origin in
 # NEST_CORS_ORIGINS. SSE uses EventSource against Nest /api/ws/* with
 # ?access_token=.
+#
+# Amplify does not forward Console variables to the SSR runtime, so
+# `build:amplify` writes the server-side ones into .env.production before
+# building. `.env*` is gitignored, so the Console is the only source.
 
 version: 1
 frontend:
