@@ -727,38 +727,12 @@ function LoginPageContent() {
         setOrganizationError("");
 
         try {
-            if (isNestAuthEnabled()) {
-                const data = await nestAccountBySubdomain(subdomain);
-                if (!data) {
-                    setOrganizationError(t("messages.organization_not_found"));
-                    setAccountInfo(null);
-                    return;
-                }
-                setAccountInfo({
-                    accountId: data.accountId,
-                    name: data.name,
-                    ssoEnabled: data.ssoEnabled,
-                    ssoProviders: data.ssoProviders || [],
-                });
+            const data = await nestAccountBySubdomain(subdomain);
+            if (!data) {
+                setOrganizationError(t("messages.organization_not_found"));
+                setAccountInfo(null);
                 return;
             }
-
-            const response = await fetch(
-                `/api/auth/account-by-subdomain?subdomain=${encodeURIComponent(subdomain)}`
-            );
-
-            if (!response.ok) {
-                if (response.status === 404) {
-                    setOrganizationError(t("messages.organization_not_found"));
-                    setAccountInfo(null);
-                } else {
-                    setOrganizationError(t("messages.error"));
-                    setAccountInfo(null);
-                }
-                return;
-            }
-
-            const data = await response.json();
             setAccountInfo({
                 accountId: data.accountId,
                 name: data.name,

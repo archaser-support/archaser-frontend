@@ -22,6 +22,7 @@ import EndlessScrollDataGrid, {
     createApiQueryFn,
 } from "@/shared/layout-components/grid/EndlessScrollDataGrid";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
+import { useAccountClientType } from "@/shared/hooks/useAccountClientType";
 import api from "@/app/api";
 import { getMetricStatCardBorderRadius } from "@/app/theme/metricStatCard";
 import { Contact, InvalidContact } from "@/types/contact";
@@ -80,10 +81,6 @@ const StyledHelpIcon = styled(HelpOutlineIcon)(({ theme }) => ({
     color: theme.palette.text.secondary,
 }));
 
-interface CustomerListProps {
-    clientType: "All" | "Person" | "Company";
-}
-
 // Status filter component for the toolbar
 const StatusFilterComponent = ({
     filterStatus,
@@ -140,9 +137,8 @@ const StatusFilterComponent = ({
     );
 };
 
-const CustomerWithInvalidContactList: React.FC<CustomerListProps> = ({
-    clientType,
-}) => {
+const CustomerWithInvalidContactList: React.FC = () => {
+    const clientType = useAccountClientType();
     const { t, i18n } = useTranslation([
         "control_center",
         "contacts",

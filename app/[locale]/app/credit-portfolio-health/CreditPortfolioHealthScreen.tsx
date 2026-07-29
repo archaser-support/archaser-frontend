@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Box, CircularProgress, Typography, useTheme } from "@mui/material";
 import { useTranslation } from "react-i18next";
@@ -12,7 +12,7 @@ import {
 import { CreditDashboardExcludedCustomersFilter } from "@/app/[locale]/app/credit-dashboard/CreditDashboardExcludedCustomersFilter";
 import BusinessUnitDashboardFilter from "@/shared/components/BusinessUnitDashboardFilter";
 import Seo from "@/shared/layout-components/seo/seo";
-import type { CreditPortfolioHealthResponse } from "@/server/services/creditInsurance/creditPortfolioHealthService";
+import type { CreditPortfolioHealthResponse } from "@/types/creditInsurance";
 
 import { CostsSectionView } from "./CostsSectionView";
 import { CPH } from "./designTokens";

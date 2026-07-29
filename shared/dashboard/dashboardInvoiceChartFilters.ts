@@ -9,7 +9,7 @@
  * dashboard_invoices — they are intentionally not part of this client-safe filter set.
  */
 
-import type { Filter } from "@/server/services/ReportExecutionService.types";
+import type { Filter } from "@/types/reports";
 
 export const DASHBOARD_INVOICES_CONTEXT = "dashboard_invoices";
 

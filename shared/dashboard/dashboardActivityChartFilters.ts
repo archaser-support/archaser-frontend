@@ -8,7 +8,7 @@
  * execute for dashboard_activities — encoded here as markers, not client IDs.
  */
 
-import type { Filter } from "@/server/services/ReportExecutionService.types";
+import type { Filter } from "@/types/reports";
 
 export const DASHBOARD_ACTIVITIES_CONTEXT = "dashboard_activities";
 

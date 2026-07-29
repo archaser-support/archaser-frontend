@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
     Alert,
@@ -35,7 +35,7 @@ import {
     Settings as SettingsIcon,
     Sync as SyncIcon,
 } from "@mui/icons-material";
-import type { ConnectorAuthType, ImportType } from "@prisma/client";
+import type { ConnectorAuthType, ImportType } from "@/types/db";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -283,7 +283,7 @@ export default function BillingIntegrationSettings({
                 success("Preview sync passed go/no-go checks");
             } else {
                 showError(
-                    "Preview sync completed with validation issues — review results below"
+                    "Preview sync completed with validation issues â€” review results below"
                 );
             }
         },
@@ -598,7 +598,7 @@ export default function BillingIntegrationSettings({
                                         !canManage || saveMutation.isPending
                                     }
                                 >
-                                    {saveMutation.isPending ? "Saving…" : "Save"}
+                                    {saveMutation.isPending ? "Savingâ€¦" : "Save"}
                                 </Button>
                             </Box>
                         </Grid>
@@ -738,7 +738,7 @@ export default function BillingIntegrationSettings({
                         </Typography>
                     ) : syncEnabled ? (
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                            Next scheduled sync (UTC): —
+                            Next scheduled sync (UTC): â€”
                         </Typography>
                     ) : null}
 
@@ -883,7 +883,7 @@ export default function BillingIntegrationSettings({
                             sx={{ mb: 2 }}
                         >
                             Pulls sample rows from Priority, applies mappings and
-                            transforms, validates required fields — no database
+                            transforms, validates required fields â€” no database
                             writes and no watermark changes. Run go/no-go checks
                             before starting backfill.
                         </Typography>
@@ -906,7 +906,7 @@ export default function BillingIntegrationSettings({
                             sx={{ mb: 2 }}
                         >
                             {previewMutation.isPending
-                                ? "Running preview…"
+                                ? "Running previewâ€¦"
                                 : "Run preview sync"}
                         </Button>
 
@@ -964,7 +964,7 @@ export default function BillingIntegrationSettings({
                                             variant="subtitle2"
                                             sx={{ mb: 1 }}
                                         >
-                                            {entity.import_type} — {entity.pulled}{" "}
+                                            {entity.import_type} â€” {entity.pulled}{" "}
                                             row(s) pulled,{" "}
                                             {entity.sample_rows.length} sample(s)
                                         </Typography>
@@ -1015,7 +1015,7 @@ export default function BillingIntegrationSettings({
 
                         {syncInProgress && (
                             <Alert severity="info" sx={{ mb: 2 }}>
-                                Sync in progress — actions are disabled until the
+                                Sync in progress â€” actions are disabled until the
                                 current run finishes.
                             </Alert>
                         )}
@@ -1071,13 +1071,13 @@ export default function BillingIntegrationSettings({
                                             primary={state.entity_type}
                                             secondary={`Pulled: ${state.backfill_records_pulled}${
                                                 state.backfill_completed
-                                                    ? " — backfill complete"
+                                                    ? " â€” backfill complete"
                                                     : state.backfill_cursor_present
-                                                      ? " — in progress"
-                                                      : " — not started"
+                                                      ? " â€” in progress"
+                                                      : " â€” not started"
                                             }${
                                                 state.last_successful_run_at
-                                                    ? ` — last success ${new Date(state.last_successful_run_at).toLocaleString()}`
+                                                    ? ` â€” last success ${new Date(state.last_successful_run_at).toLocaleString()}`
                                                     : ""
                                             }`}
                                         />
@@ -1100,14 +1100,14 @@ export default function BillingIntegrationSettings({
                             {syncRuns.map((run) => (
                                 <ListItem key={run.id}>
                                     <ListItemText
-                                        primary={`${run.sync_mode} (${run.trigger}) — ${run.status}`}
+                                        primary={`${run.sync_mode} (${run.trigger}) â€” ${run.status}`}
                                         secondary={`${new Date(run.started_at).toLocaleString()}${
                                             run.duration_seconds
-                                                ? ` — ${run.duration_seconds}s`
+                                                ? ` â€” ${run.duration_seconds}s`
                                                 : ""
                                         }${
                                             run.error_message
-                                                ? ` — ${run.error_message}`
+                                                ? ` â€” ${run.error_message}`
                                                 : ""
                                         }`}
                                     />

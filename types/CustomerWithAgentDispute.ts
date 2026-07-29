@@ -1,58 +1,29 @@
-import { Prisma } from "@prisma/client";
+import type {
+    Activity,
+    BusinessUnit,
+    Company,
+    Country,
+    Customer,
+    CustomerCollectionPeriod,
+    Person,
+    State,
+} from "@/types/db";
 
-export type CustomerAgent = Prisma.CustomerCollectionPeriodGetPayload<{
-    include: {
-        Customer: {
-            select: {
-                id: true;
-                customer_number: true;
-                Country: {
-                    select: {
-                        id: true;
-                        name: true;
-                        iso2: true;
-                    };
-                };
-                State: {
-                    select: {
-                        id: true;
-                        name: true;
-                        iso2: true;
-                    };
-                };
-                BusinessUnit: {
-                    select: {
-                        id: true;
-                        name: true;
-                    };
-                };
-                Person: {
-                    select: {
-                        first_name: true;
-                        last_name: true;
-                    };
-                };
-                Activity: {
-                    select: {
-                        modified_at: true;
-                        type: true;
-                        ActivityStatus: {
-                            select: {
-                                name: true;
-                            };
-                        };
-                    };
-                };
-                Company: {
-                    select: {
-                        name: true;
-                    };
-                };
-                oldest_invoice_overdue_date: true;
-            };
-        };
+/** Latest activity summary returned alongside collection-period rows. */
+export type CustomerActivitySummary = Pick<Activity, "modified_at" | "type"> & {
+    ActivityStatus?: { name: string | null } | null;
+};
+
+export type CustomerAgent = CustomerCollectionPeriod & {
+    Customer: Pick<Customer, "id" | "customer_number" | "oldest_invoice_overdue_date"> & {
+        Country: Pick<Country, "id" | "name" | "iso2"> | null;
+        State: Pick<State, "id" | "name" | "iso2"> | null;
+        BusinessUnit: Pick<BusinessUnit, "id" | "name"> | null;
+        Person: Pick<Person, "first_name" | "last_name"> | null;
+        Activity: CustomerActivitySummary[];
+        Company: Pick<Company, "name"> | null;
     };
-}>;
+};
 
 export interface DisputeAgentResponse {
     agents: CustomerAgent[];

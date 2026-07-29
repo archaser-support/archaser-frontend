@@ -12,14 +12,11 @@ export default defineConfig({
         include: ["test/**/*.test.{ts,tsx}"],
         exclude: [
             "test/e2e/**/*",
-            // Exclude DB-dependent integration tests by default
-            "test/integration/**",
             "test/**/*.spec.ts",
             "**/node_modules/**",
             "**/dist/**",
             "**/.next/**",
             // Exclude tests with EMFILE and module resolution issues
-            "test/integration/table-height-integration.test.tsx",
             "test/unit/components/auth/ForgetPasswordPage.test.tsx",
             "test/unit/components/auth/LoginPage.test.tsx",
             "test/unit/components/auth/LogoutFunctionality.test.tsx",
@@ -58,7 +55,6 @@ export default defineConfig({
             "@/shared": fileURLToPath(new URL("./shared", import.meta.url)),
             "@/lib": fileURLToPath(new URL("./lib", import.meta.url)),
             "@/utils": fileURLToPath(new URL("./utils", import.meta.url)),
-            "@/server": fileURLToPath(new URL("./server", import.meta.url)),
             "@/types": fileURLToPath(new URL("./types", import.meta.url)),
             "@/test": fileURLToPath(new URL("./test", import.meta.url)),
             "@/pages": fileURLToPath(new URL("./pages", import.meta.url)),

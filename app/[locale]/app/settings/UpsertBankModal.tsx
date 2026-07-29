@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { apiFetch } from "@/utils/apiFetch";
 
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
@@ -11,7 +11,7 @@ import {
     Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { State } from "@prisma/client";
+import { State } from "@/types/db";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

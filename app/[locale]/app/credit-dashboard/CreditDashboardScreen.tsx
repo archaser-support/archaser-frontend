@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
     AccountBalance as AccountBalanceIcon,
@@ -25,9 +25,9 @@ import { Trans, useTranslation } from "react-i18next";
 import PageHeader from "@/components/PageHeader";
 import BusinessUnitDashboardFilter from "@/shared/components/BusinessUnitDashboardFilter";
 import { CreditInsuranceNavIcon } from "@/shared/components/CreditInsuranceNavIcon";
-import type { CreditDashboardHistoryDelta, CreditDashboardHistoryInterval, CreditDashboardHistoryPoint, CreditDashboardMonthPct } from "@/server/services/creditInsurance/creditDashboardSnapshotService";
-import type { CustomerPolicyUsageTrendResponse } from "@/server/services/creditInsurance/customerPolicyTrendService";
-import type { CreditDashboardSummary } from "@/server/services/creditInsurance/creditInsuranceDashboardService";
+import type { CreditDashboardHistoryDelta, CreditDashboardHistoryInterval, CreditDashboardHistoryPoint, CreditDashboardMonthPct } from "@/types/creditInsurance";
+import type { CustomerPolicyUsageTrendResponse } from "@/types/creditInsurance";
+import type { CreditDashboardSummary } from "@/types/creditInsurance";
 import Seo from "@/shared/layout-components/seo/seo";
 import {
     formatDateForDisplay,
@@ -574,7 +574,7 @@ export function CreditDashboardScreen({
                                     gap: 2,
                                     width: "100%",
                                     minWidth: 0,
-                                    /** Mirror column placement only — do not swap track sizes (RTL + swapped cols double-inverts widths). */
+                                    /** Mirror column placement only â€” do not swap track sizes (RTL + swapped cols double-inverts widths). */
                                     direction: isRtl ? "rtl" : "ltr",
                                 }}
                             >

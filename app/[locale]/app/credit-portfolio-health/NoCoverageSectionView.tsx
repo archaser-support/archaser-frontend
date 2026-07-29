@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -14,7 +14,7 @@ import {
     YAxis,
 } from "recharts";
 
-import type { NoCoverageReasonKey, PortfolioNoCoverageSection } from "@/server/services/creditInsurance/creditPortfolioHealthService";
+import type { NoCoverageReasonKey, PortfolioNoCoverageSection } from "@/types/creditInsurance";
 
 import { BigNumber } from "./BigNumber";
 import { ChartTooltip } from "./ChartTooltip";

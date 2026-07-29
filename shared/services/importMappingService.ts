@@ -1,4 +1,4 @@
-import { ImportType } from "@prisma/client";
+﻿import { ImportType } from "@/types/db";
 
 export interface UserImportMapping {
     id: string;

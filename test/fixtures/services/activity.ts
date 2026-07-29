@@ -1,10 +1,10 @@
-/**
+﻿/**
  * Activity Service Fixtures
  * 
  * Test data fixtures for activity-related tests
  */
 
-import { delivery_status } from "@prisma/client";
+import { delivery_status } from "@/types/db";
 
 export const mockActivityData = {
     validActivity: {

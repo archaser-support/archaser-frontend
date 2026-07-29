@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
     DndContext,
@@ -47,7 +47,7 @@ import FormulaColumnEditor, {
 } from "@/components/reports/FormulaColumnEditor";
 import GroupingBuilder from "@/components/reports/GroupingBuilder";
 import { useSessionState } from "@/hooks/useSessionState";
-import type { ReportConfig } from "@/server/services/ReportService";
+import type { ReportConfig } from "@/types/reports";
 import { findFormulasReferencingOperand } from "@/shared/reportFormula/findFormulasReferencingOperand";
 import { MAX_FORMULAS_PER_REPORT } from "@/shared/reportFormula/types";
 import {
@@ -629,7 +629,7 @@ const ReportBuilderPage: React.FC = () => {
 
             // Aggregated columns must not appear in GROUP BY (legacy `table.field` can linger
             // because cleanedGrouping keeps unknown keys when the table is still selected).
-            // Uses all aggregation suffix variants so SUM→MAX (etc.) does not leave stale keys.
+            // Uses all aggregation suffix variants so SUMâ†’MAX (etc.) does not leave stale keys.
             const groupingKeysFromAggregatedFields =
                 getForbiddenGroupingKeysForAggregatedFields(normalizedFields);
             const cleanedGroupingWithoutAggregatedSources = cleanedGrouping.filter(
@@ -844,7 +844,7 @@ const ReportBuilderPage: React.FC = () => {
         setSelectedTables(mappedTables);
     }, [existingReport, metadata, isClone, reportId, relationships]);
 
-    // Update joins when auto-detected joins change — new reports only.
+    // Update joins when auto-detected joins change â€” new reports only.
     // Edit mode: joins + grouping are set atomically in the hydrate effect above.
     useEffect(() => {
         if (reportId) {
@@ -1691,7 +1691,7 @@ const ReportBuilderPage: React.FC = () => {
                     >
                         {t(
                             "messages.chart_under_construction",
-                            "📈 Our charts are still collecting data! 💸"
+                            "ðŸ“ˆ Our charts are still collecting data! ðŸ’¸"
                         )}
                     </Typography>
                     <Typography
@@ -1701,7 +1701,7 @@ const ReportBuilderPage: React.FC = () => {
                     >
                         {t(
                             "messages.chart_funny",
-                            "We're working on making your collection data look as beautiful as a fully paid invoice. The charts are coming soon - and unlike some payments, they'll arrive on time! 🎯"
+                            "We're working on making your collection data look as beautiful as a fully paid invoice. The charts are coming soon - and unlike some payments, they'll arrive on time! ðŸŽ¯"
                         )}
                     </Typography>
                 </Box>

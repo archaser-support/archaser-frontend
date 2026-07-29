@@ -2,7 +2,7 @@
  * Server-side Nest portal data helpers (Amplify RSC — no Prisma).
  */
 
-function nestOrigin(): string {
+export function nestOrigin(): string {
     const configured =
         process.env.NEST_API_BASE_URL?.trim() ||
         process.env.NEXT_PUBLIC_NEST_API_BASE_URL?.trim();

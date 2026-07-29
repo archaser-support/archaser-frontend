@@ -1,120 +1,109 @@
-import { Prisma, dispute_resolution, dispute_status } from "@prisma/client";
+import type {
+    Account,
+    Activity,
+    Company,
+    Country,
+    Customer as CustomerRow,
+    CustomerCollectionPeriod,
+    Invoice,
+    Person,
+    SequenceContainer,
+    State,
+    User,
+    dispute_resolution,
+    dispute_status,
+} from "@/types/db";
 
-export type Customer = Prisma.CustomerGetPayload<{
-    select: {
-        id: true;
-        account_id: true;
-        created_at: true;
-        modified_at: true;
-        customer_number: true;
-        crn: true;
-        phone: true;
-        email: true;
-        address_line1: true;
-        address_line2: true;
-        city: true;
-        postal_code: true;
-        country_id: true;
-        state_id: true;
-        owner_id: true;
-        collection_status: true;
-        language: true;
-        first_activity_delay_days: true;
-        category_for_new_collection: true;
-        total_invoices_overdue: true;
-        number_of_overdue_invoices: true;
-        type: true;
-        company_id: true;
-        person_id: true;
-        total_due_amount: true;
-        no_of_due_invoices: true;
-        customer_due_amount1: true;
-        customer_due_currency1: true;
-        customer_due_amount2: true;
-        customer_due_currency2: true;
-        total_overdue_amount: true;
-        customer_overdue_amount1: true;
-        customer_overdue_currency1: true;
-        customer_overdue_amount2: true;
-        customer_overdue_currency2: true;
-        sequence_container_id: true;
-        parent_customer_id: true;
-        business_unit_id: true;
-        generic_text1: true;
-        generic_text2: true;
-        generic_number1: true;
-        generic_number2: true;
-        generic_date1: true;
-        generic_date2: true;
-        oldest_invoice_overdue_date: true;
-        overdue_block: true;
-        zero_limit_alert_exist: true;
-    };
-    include: {
-        Person: true;
-        Company: true;
-        Account: true;
-        ChildCustomers: {
-            select: {
-                id: true;
-            };
-        };
-        SequenceContainer: {
-            select: {
-                id: true;
-                name: true;
-                category: true;
-                is_default: true;
-                active: true;
-            };
-        };
-        CustomerCollectionPeriod: {
-            where: {
-                period_end_date: null;
-            };
-            include: Record<string, never>;
-            select: {
-                id: true;
-                created_at: true;
-                modified_at: true;
-                customer_id: true;
-                period_start_date: true;
-                period_end_date: true;
-                last_automated_step: true;
-                previous_category: true;
-                current_category: true;
-                priority: true;
-                total_outstanding_amount: true;
-                no_of_overdue_invoices: true;
-                currency: true;
-                customer_due_amount1: true;
-                customer_due_currency1: true;
-                customer_due_amount2: true;
-                customer_due_currency2: true;
-                customer_outstanding_amount1: true;
-                customer_currency1: true;
-                customer_outstanding_amount2: true;
-                customer_currency2: true;
-                promise_to_pay_date: true;
-                promise_to_pay_count: true; // Add this missing field
-                last_call_result: true;
-                follow_up_time: true;
-            };
-        };
-        Country: true;
-        State: true;
-        Invoice: true;
-        Activity: true;
-        Owner: {
-            select: {
-                id: true;
-                first_name: true;
-                last_name: true;
-                email: true;
-            };
-        };
-    };
-}> & {
+type CustomerCollectionPeriodSummary = Pick<
+    CustomerCollectionPeriod,
+    | "id"
+    | "created_at"
+    | "modified_at"
+    | "customer_id"
+    | "period_start_date"
+    | "period_end_date"
+    | "last_automated_step"
+    | "previous_category"
+    | "current_category"
+    | "priority"
+    | "total_outstanding_amount"
+    | "no_of_overdue_invoices"
+    | "currency"
+    | "customer_outstanding_amount1"
+    | "customer_currency1"
+    | "customer_outstanding_amount2"
+    | "customer_currency2"
+    | "promise_to_pay_date"
+    | "promise_to_pay_count"
+    | "last_call_result"
+    | "follow_up_time"
+>;
+
+export type Customer = Pick<
+    CustomerRow,
+    | "id"
+    | "account_id"
+    | "created_at"
+    | "modified_at"
+    | "customer_number"
+    | "crn"
+    | "phone"
+    | "email"
+    | "address_line1"
+    | "address_line2"
+    | "city"
+    | "postal_code"
+    | "country_id"
+    | "state_id"
+    | "owner_id"
+    | "collection_status"
+    | "language"
+    | "first_activity_delay_days"
+    | "category_for_new_collection"
+    | "total_invoices_overdue"
+    | "number_of_overdue_invoices"
+    | "type"
+    | "company_id"
+    | "person_id"
+    | "total_due_amount"
+    | "no_of_due_invoices"
+    | "customer_due_amount1"
+    | "customer_due_currency1"
+    | "customer_due_amount2"
+    | "customer_due_currency2"
+    | "total_overdue_amount"
+    | "customer_overdue_amount1"
+    | "customer_overdue_currency1"
+    | "customer_overdue_amount2"
+    | "customer_overdue_currency2"
+    | "sequence_container_id"
+    | "parent_customer_id"
+    | "business_unit_id"
+    | "generic_text1"
+    | "generic_text2"
+    | "generic_number1"
+    | "generic_number2"
+    | "generic_date1"
+    | "generic_date2"
+    | "oldest_invoice_overdue_date"
+    | "overdue_block"
+    | "zero_limit_alert_exist"
+> & {
+    Person: Person | null;
+    Company: Company | null;
+    Account: Account;
+    ChildCustomers: Pick<CustomerRow, "id">[];
+    SequenceContainer: Pick<
+        SequenceContainer,
+        "id" | "name" | "category" | "is_default" | "active"
+    > | null;
+    CustomerCollectionPeriod: CustomerCollectionPeriodSummary[];
+    Country: Country | null;
+    State: State | null;
+    Invoice: Invoice[];
+    Activity: Activity[];
+    Owner: Pick<User, "id" | "first_name" | "last_name" | "email"> | null;
+} & {
     customer_number: string | null;
     /** From GET /customers/:id — computed aggregates */
     total_ar?: number | null;
@@ -153,21 +142,14 @@ export interface CustomerResponse {
     totalRecords: number;
 }
 
-export type CustomerWithActiveDispute = Prisma.CustomerGetPayload<{
-    include: {
-        Account: true;
-        Person: true;
-        Company: true;
-        Country: true;
-        State: true;
-        CustomerCollectionPeriod: {
-            where: {
-                period_end_date: null;
-            };
-            include: Record<string, never>;
-        };
-    };
-}>;
+export type CustomerWithActiveDispute = CustomerRow & {
+    Account: Account;
+    Person: Person | null;
+    Company: Company | null;
+    Country: Country | null;
+    State: State | null;
+    CustomerCollectionPeriod: CustomerCollectionPeriod[];
+};
 
 export type DisputeDetails = {
     id: number;
@@ -195,12 +177,6 @@ export type DisputeDetails = {
         };
     }[];
 };
-
-// Type for the active dispute that we extract from CustomerWithActiveDispute
-// Removed: export type ActiveDispute = NonNullable<
-//     CustomerWithActiveDispute["CustomerCollectionPeriod"][number]["CustomerDispute_CustomerCollectionPeriod_active_dispute_idToCustomerDispute"]
-// > &
-//     DisputeDetails;
 
 /** Active/history policy rows returned from customer detail API during migration. */
 export type CustomerPolicyHistoryItem = {

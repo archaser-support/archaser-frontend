@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { BarChart as BarChartIcon } from "@mui/icons-material";
 import { alpha, Box, Card, CardContent, Typography, useTheme } from "@mui/material";
@@ -15,7 +15,7 @@ import {
     type PolicyUsageChartCategory,
 } from "./creditPolicyUsageChartViewModel";
 
-import type { PolicyLimitUsageCategoryTotals } from "@/server/services/creditInsurance/portfolioPolicyLimitUsage";
+import type { PolicyLimitUsageCategoryTotals } from "@/types/creditInsurance";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -159,7 +159,7 @@ export function CreditPolicyUsageChart(props: {
             labels.push(
                 t("credit_insurance_dashboard.policy_usage_bar_top_up_cover_short", {
                     ...nsDashboard,
-                    defaultValue: isRtl ? "השלמה" : "Top-Up",
+                    defaultValue: isRtl ? "×”×©×œ×ž×”" : "Top-Up",
                 })
             );
         }
@@ -410,7 +410,7 @@ export function CreditPolicyUsageChart(props: {
         ]
     );
 
-    /** Stacked bottom→top: used, remaining, top-up covered excess, uncovered. */
+    /** Stacked bottomâ†’top: used, remaining, top-up covered excess, uncovered. */
     const series = useMemo(
         () => [
             {
@@ -468,7 +468,7 @@ export function CreditPolicyUsageChart(props: {
     );
 
     const policyUsageCaption = useMemo(
-        () => categoryFullLabels.join(" · "),
+        () => categoryFullLabels.join(" Â· "),
         [categoryFullLabels]
     );
 

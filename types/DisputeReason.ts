@@ -1,12 +1,15 @@
-import { Prisma } from "@prisma/client";
+import type {
+    Account,
+    CustomerDispute,
+    DisputeReason as DisputeReasonRow,
+    DisputeReasonLanguage as DisputeReasonLanguageRow,
+} from "@/types/db";
 
-export type DisputeReason = Prisma.DisputeReasonGetPayload<{
-    include: {
-        Account: true;
-        CustomerDispute: true;
-        DisputeReasonLanguage: true;
-    };
-}>;
+export type DisputeReason = DisputeReasonRow & {
+    Account: Account;
+    CustomerDispute: CustomerDispute[];
+    DisputeReasonLanguage: DisputeReasonLanguageRow[];
+};
 
 export interface DisputeReasonLanguage {
     language: string;

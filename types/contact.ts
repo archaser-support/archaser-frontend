@@ -1,11 +1,14 @@
-import { Prisma } from "@prisma/client";
+import type {
+    Activity,
+    Company,
+    Contact as ContactRow,
+    Customer,
+} from "@/types/db";
 
-export type Contact = Prisma.ContactGetPayload<{
-    include: {
-        Company: true;
-        Activity: true;
-    };
-}> & {
+export type Contact = ContactRow & {
+    Company: Company;
+    Activity: Activity[];
+} & {
     Country?: {
         id: number;
         name: string;
@@ -25,34 +28,26 @@ export interface ContactResponse {
     totalRecords: number;
 }
 
-export type InvalidContact = Prisma.ContactGetPayload<{
-    include: {
-        Company: {
-            select: {
-                id: true;
-                name: true;
-                created_by: true;
-                modified_by: true;
-                Customer: true;
-            };
-        };
+export type InvalidContact = Pick<
+    ContactRow,
+    | "id"
+    | "first_name"
+    | "last_name"
+    | "email"
+    | "mobile"
+    | "phone"
+    | "role"
+    | "status"
+    | "company_id"
+    | "email_status"
+    | "mobile_status"
+    | "receives_standard_reminder"
+    | "receives_escalated_reminder"
+> & {
+    Company: Pick<Company, "id" | "name" | "created_by" | "modified_by"> & {
+        Customer: Customer[];
     };
-    select: {
-        id: true;
-        first_name: true;
-        last_name: true;
-        email: true;
-        mobile: true;
-        phone: true;
-        role: true;
-        status: true;
-        company_id: true;
-        email_status: true;
-        mobile_status: true;
-        receives_standard_reminder: true;
-        receives_escalated_reminder: true;
-    };
-}>;
+};
 
 export interface InvalidContactResponse {
     contacts: InvalidContact[];

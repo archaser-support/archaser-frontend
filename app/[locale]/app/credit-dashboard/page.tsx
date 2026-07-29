@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { apiFetch } from "@/utils/apiFetch";
 
 import { useQuery } from "@tanstack/react-query";
@@ -6,9 +6,9 @@ import { useParams, usePathname, useRouter, useSearchParams } from "next/navigat
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { parseDashboardBusinessUnitIdFromUrl } from "@/shared/dashboard/dashboardBusinessUnitParams";
-import type { CreditDashboardSummary } from "@/server/services/creditInsurance/creditInsuranceDashboardService";
-import type { CreditDashboardHistoryInterval, CreditDashboardSummaryHistory } from "@/server/services/creditInsurance/creditDashboardSnapshotService";
-import type { CustomerPolicyUsageTrendResponse } from "@/server/services/creditInsurance/customerPolicyTrendService";
+import type { CreditDashboardSummary } from "@/types/creditInsurance";
+import type { CreditDashboardHistoryInterval, CreditDashboardSummaryHistory } from "@/types/creditInsurance";
+import type { CustomerPolicyUsageTrendResponse } from "@/types/creditInsurance";
 
 import { CreditDashboardScreen } from "./CreditDashboardScreen";
 import {
@@ -203,7 +203,7 @@ export default function CreditDashboardPage() {
             }
             const body = (await res.json()) as CreditDashboardSummary;
             // Incomplete Nest stubs (missing reportingCountdown) must not reach
-            // CreditDashboardScreen — that path throws on invoiceCount.
+            // CreditDashboardScreen â€” that path throws on invoiceCount.
             if (
                 body == null ||
                 typeof body !== "object" ||

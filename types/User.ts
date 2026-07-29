@@ -1,14 +1,17 @@
-import { Prisma } from "@prisma/client";
+import type {
+    Account,
+    CustomerDispute,
+    Log,
+    Session,
+    User as UserRow,
+} from "@/types/db";
 
-export type User = Prisma.UserGetPayload<{
-    include: {
-        Account: true;
-        CustomerDispute: true;
-        Language: true;
-        Log: true;
-        Session: true;
-    };
-}>;
+export type User = UserRow & {
+    Account: Account | null;
+    CustomerDispute: CustomerDispute[];
+    Log: Log[];
+    Session: Session[];
+};
 
 export interface UserResponse {
     users: User[];

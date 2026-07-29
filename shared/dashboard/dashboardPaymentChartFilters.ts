@@ -5,7 +5,7 @@
  * collected-mtd (and legacy alias collected-vs-promise).
  */
 
-import type { Filter } from "@/server/services/ReportExecutionService.types";
+import type { Filter } from "@/types/reports";
 
 export const DASHBOARD_PAYMENTS_CONTEXT = "dashboard_payments";
 

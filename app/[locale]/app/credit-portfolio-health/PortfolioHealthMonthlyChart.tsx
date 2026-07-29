@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -13,7 +13,7 @@ import {
     YAxis,
 } from "recharts";
 
-import type { PortfolioHealthMonthlyPoint } from "@/server/services/creditInsurance/creditPortfolioHealthService";
+import type { PortfolioHealthMonthlyPoint } from "@/types/creditInsurance";
 
 import { ChartTooltip } from "./ChartTooltip";
 import { Eyebrow } from "./Eyebrow";
@@ -90,7 +90,7 @@ export function PortfolioHealthMonthlyChart({
                     {t("credit_portfolio_health.monthly_chart_title", {
                         ...ns,
                         defaultValue:
-                            "Monthly trend — total exposure, covered vs. uncovered",
+                            "Monthly trend â€” total exposure, covered vs. uncovered",
                     })}
                 </Eyebrow>
                 <div

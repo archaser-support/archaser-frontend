@@ -1,4 +1,4 @@
-import { ActivityContact } from "@prisma/client";
+import type { ActivityContact } from "@/types/db";
 
 export type LineDetails = {
     id: string;

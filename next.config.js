@@ -33,17 +33,6 @@ const nextConfig = {
     // Amplify Hosting SSR expects default `.next`; EC2 deploy scripts use `frontend/build`.
     ...(isAmplifySsr ? {} : { distDir: "build" }),
 
-    // Externalize heavy server packages from App Router server bundles
-    serverExternalPackages: [
-        "@prisma/client",
-        "prisma",
-        "bcryptjs",
-        "formidable",
-        "mongoose",
-        "prom-client",
-        "pdfkit",
-    ],
-
     modularizeImports: {
         "@mui/material": {
             transform: "@mui/material/{{member}}",
@@ -146,20 +135,6 @@ const nextConfig = {
             ...config.resolve.alias,
             "@": path.resolve(__dirname),
         };
-
-        if (isAmplifySsr) {
-            config.resolve.alias = {
-                ...config.resolve.alias,
-                "@/lib/prisma": path.resolve(
-                    __dirname,
-                    "lib/prisma.amplify-stub.ts"
-                ),
-                "@/server/auth/authOptions": path.resolve(
-                    __dirname,
-                    "server/auth/authOptions.amplify-stub.ts"
-                ),
-            };
-        }
 
         return config;
     },

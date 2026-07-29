@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { ShowChart as ShowChartIcon } from "@mui/icons-material";
 import {
@@ -14,7 +14,7 @@ import { useSession } from "next-auth/react";
 import { memo, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { CreditDashboardHistoryDelta, CreditDashboardHistoryInterval, CreditDashboardHistoryPoint } from "@/server/services/creditInsurance/creditDashboardSnapshotService";
+import type { CreditDashboardHistoryDelta, CreditDashboardHistoryInterval, CreditDashboardHistoryPoint } from "@/types/creditInsurance";
 import {
     getUserDateLocale,
     getUserTimezone,

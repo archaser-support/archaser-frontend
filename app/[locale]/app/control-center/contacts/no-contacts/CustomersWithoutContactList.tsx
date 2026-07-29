@@ -28,15 +28,11 @@ import {
     ExportFormat,
 } from "@/shared/utility/exportToExcel";
 import { getNestedValue } from "@/shared/utility/helpers";
+import { useAccountClientType } from "@/shared/hooks/useAccountClientType";
 import { formatAmountWithoutSymbol } from "@/utils/stringFormatters";
 
-interface CustomerListProps {
-    clientType: "All" | "Person" | "Company";
-}
-
-const CustomersWithoutContactList: React.FC<CustomerListProps> = ({
-    clientType,
-}) => {
+const CustomersWithoutContactList: React.FC = () => {
+    const clientType = useAccountClientType();
     const { t, i18n } = useTranslation([
         "control_center",
         "customers",

@@ -1,4 +1,5 @@
-import type { CustomerPolicyCustomerTrendResponse } from "@/server/services/creditInsurance/customerPolicyTrendService";
+﻿import type { CustomerPolicyCustomerTrendResponse } from "@/types/creditInsurance";
+import { apiFetch } from "@/utils/apiFetch";
 
 export function customerPolicyTrendQueryKey(
     customerId: number,
@@ -29,7 +30,7 @@ export async function fetchCustomerPolicyTrend(
     }
     const url = `/api/credit-insurance/customer-policy-trend?${params.toString()}`;
 
-    const res = await fetch(url);
+    const res = await apiFetch(url);
     if (!res.ok) {
         const errorBody = await res.text().catch(() => "");
         let parsedError: string | null = null;

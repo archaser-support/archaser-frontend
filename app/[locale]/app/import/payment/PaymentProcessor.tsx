@@ -1,8 +1,8 @@
-"use client";
+﻿"use client";
 import { apiFetch } from "@/utils/apiFetch";
 
 import { Box } from "@mui/material";
-import { ImportType } from "@prisma/client";
+import { ImportType } from "@/types/db";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";

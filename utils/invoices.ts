@@ -1,4 +1,4 @@
-import { CustomerCollectionPeriod } from "@prisma/client";
+﻿import { CustomerCollectionPeriod } from "@/types/db";
 
 import { Invoice } from "@/types/Invoice";
 

@@ -3,16 +3,6 @@ import "@testing-library/jest-dom/vitest";
 import React from "react";
 import { vi, beforeEach, afterEach } from "vitest";
 
-// Set dummy DATABASE_URL to prevent lib/prisma.ts initialization errors during tests
-process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test_db";
-
-// REMOVED: Global Prisma mock - each test file should mock Prisma individually
-// This prevents conflicts and allows tests to use createPrismaMock() for consistency
-// See test/mocks/prisma.ts for the standard mock factory
-
-// REMOVED: Global service mocks - these should be mocked in individual test files
-// to allow testing real business logic with mocked dependencies
-
 // Mock Next.js router
 vi.mock("next/router", () => ({
     useRouter: () => ({

@@ -1,30 +1,32 @@
-import { Prisma } from "@prisma/client";
+import type {
+    Company,
+    Customer,
+    CustomerCollectionPeriod,
+    CustomerDispute as CustomerDisputeRow,
+    DisputeInvoice,
+    DisputeReason,
+    Invoice,
+    Person,
+    User,
+} from "@/types/db";
 
-export type CustomerDispute = Prisma.CustomerDisputeGetPayload<{
-    include: {
-        DisputeReason: true;
-        CustomerCollectionPeriod: true;
-        User_CustomerDispute_owner_idToUser: true;
-        Customer: {
-            include: {
-                Person: true;
-                Company: true;
-            };
-        };
-        DisputeInvoice: {
-            include: {
-                Invoice: {
-                    select: {
-                        invoice_number: true;
-                        amount: true;
-                        outstanding_debt: true;
-                        due_date: true;
-                    };
-                };
-            };
-        };
+export type CustomerDispute = CustomerDisputeRow & {
+    DisputeReason: DisputeReason | null;
+    CustomerCollectionPeriod: CustomerCollectionPeriod | null;
+    User_CustomerDispute_owner_idToUser: User | null;
+    Customer: Customer & {
+        Person: Person | null;
+        Company: Company | null;
     };
-}>;
+    DisputeInvoice: Array<
+        DisputeInvoice & {
+            Invoice: Pick<
+                Invoice,
+                "invoice_number" | "amount" | "outstanding_debt" | "due_date"
+            >;
+        }
+    >;
+};
 
 export interface OpenDisputeResponse {
     disputes: CustomerDispute[];

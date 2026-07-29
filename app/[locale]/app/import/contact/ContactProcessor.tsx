@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 import { Box } from "@mui/material";
-import { ImportType } from "@prisma/client";
+import { ImportType } from "@/types/db";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";

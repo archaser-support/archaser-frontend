@@ -1,13 +1,17 @@
-import { Prisma } from "@prisma/client";
+import type {
+    Account,
+    ActivitiesSequence,
+    ActivitiesTemplate,
+    Activity,
+    ActivityTemplateLanguage,
+} from "@/types/db";
 
-export type ActivityTemplate = Prisma.ActivitiesTemplateGetPayload<{
-    include: {
-        ActivitiesSequence: true;
-        Activity: true;
-        Account: true;
-        ActivityTemplateLanguage: true;
-    };
-}> & {
+export type ActivityTemplate = ActivitiesTemplate & {
+    ActivitiesSequence: ActivitiesSequence[];
+    Activity: Activity[];
+    Account: Account;
+    ActivityTemplateLanguage: ActivityTemplateLanguage[];
+} & {
     dispute_resolution?: string; // Add dispute_resolution field for frontend compatibility
     lockedFields?: string[]; // Add lockedFields for frontend form handling
 };

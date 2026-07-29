@@ -6,7 +6,7 @@
  * Customer owner scope are applied server-side on execute.
  */
 
-import type { Filter } from "@/server/services/ReportExecutionService.types";
+import type { Filter } from "@/types/reports";
 
 export const DASHBOARD_DISPUTES_CONTEXT = "dashboard_disputes";
 

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Gavel as GavelIcon } from "@mui/icons-material";
 import { alpha, Box, Card, CardContent, Typography, useTheme } from "@mui/material";
@@ -7,7 +7,7 @@ import dynamic from "next/dynamic";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { TermsBreachCountByReason } from "@/server/services/creditInsurance/creditInsuranceDashboardService";
+import type { TermsBreachCountByReason } from "@/types/creditInsurance";
 
 import { CreditDashboardTitleInfoIcon } from "./creditDashboardTitleTooltip";
 
