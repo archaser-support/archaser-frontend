@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { isEnvironmentHost } from "@/utils/domainUtils";
+
 interface SubdomainRedirectProps {
     customerUUID: string;
     customerSubdomain: string | null;
@@ -21,11 +23,12 @@ export default function SubdomainRedirect({
             const currentHostname = window.location.hostname;
             const expectedSubdomain = customerSubdomain;
 
-            // Only implement subdomain redirects in production (not localhost or staging)
+            // Only implement subdomain redirects in production (not localhost,
+            // staging or dev, where tenant subdomains are not configured)
             const isProduction =
                 !currentHostname.includes("localhost") &&
                 !currentHostname.includes("127.0.0.1") &&
-                !currentHostname.includes("staging.archaser.com");
+                !isEnvironmentHost(currentHostname);
 
             // Check if we're already on the correct subdomain
             const isOnCorrectSubdomain = currentHostname.startsWith(

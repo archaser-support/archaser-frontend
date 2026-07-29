@@ -4,7 +4,19 @@ import { getToken } from "next-auth/jwt";
 import { parse } from "tldts";
 
 import { getCustomerPortalUrl } from "@/utils/appUrls";
+import { getEnvironmentLabel } from "@/utils/domainUtils";
 import { serializeBigInt } from "@/utils/serializeBigInt";
+
+/** Checked against SERVICE_NAME, which is set per deployment (e.g. archaser-staging). */
+const ENVIRONMENT_LABELS = ["staging", "dev", "preprod"] as const;
+
+function hostnameOf(url: string): string {
+    try {
+        return new URL(url).hostname;
+    } catch {
+        return "";
+    }
+}
 
 interface Token {
     account_id: number;
@@ -119,10 +131,12 @@ export const getCookieName = (isSecure: boolean, name: string = "session-token",
     const serviceName = process.env.SERVICE_NAME || "";
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || "";
 
-    // If it's staging, append .staging to the cookie name to isolate it from production
-    // This prevents decryption failures when production cookies are sent to staging
-    const isStaging = serviceName.includes("staging") || baseUrl.includes("staging.archaser.com");
-    const suffix = isStaging ? ".staging" : "";
+    // Non-production deployments get their own cookie name so a cookie issued
+    // by another environment cannot reach them and fail decryption.
+    const envLabel =
+        ENVIRONMENT_LABELS.find((label) => serviceName.includes(label)) ??
+        getEnvironmentLabel(hostnameOf(baseUrl));
+    const suffix = envLabel ? `.${envLabel}` : "";
     const result = `${prefix}${baseName}${suffix}`;
 
     return result;
