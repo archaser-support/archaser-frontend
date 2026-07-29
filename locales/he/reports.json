@@ -266,9 +266,10 @@
         "field_formula_required": "נדרש שם נוסחה",
         "object": "אובייקט",
         "expression": "ביטוי",
-        "expression_hint": "השתמש ב־[Table.field], מספרים, + - * / וסוגריים",
+        "expression_hint": "השתמש ב־[Table.field], מספרים, + - * / וסוגריים. שיעור פרמיה ודמי רישום הם אחוזים אוטומטית (אין לחלק ב־100).",
         "insert": "הוסף",
         "insert_field": "הוסף שדה",
+        "formulas_object": "נוסחאות",
         "no_operands_hint": "בחר תחילה שדות מספריים בדוח, ואז בנה את הביטוי.",
         "no_operands_for_format": "אין שדות התואמים לפורמט הנבחר עבור אובייקט זה.",
         "format": "פורמט",
@@ -283,6 +284,7 @@
         "no_fields": "הוסף לפחות שדה אחד לפני יצירת נוסחה",
         "delete_title": "מחק נוסחה",
         "delete_confirm": "האם אתה בטוח שברצונך למחוק את \"{{label}}\"?",
+        "delete_dependency_blocked": "לא ניתן למחוק נוסחה זו כי נוסחאות אחרות תלויות בה: {{labels}}",
         "label_required": "נדרשת תווית",
         "duplicate_label": "תווית הנוסחה חייבת להיות ייחודית",
         "invalid_reference": "הפניה לשדה לא חוקית או לא נבחרה: {{ref}}",
@@ -290,6 +292,7 @@
         "aggregation_required": "נדרשת צבירה לדוחות מקובצים",
         "aggregation_not_allowed": "הסר צבירה לדוחות שאינם מקובצים",
         "remove_dependency_blocked": "לא ניתן להסיר שדה זה כי נוסחאות תלויות בו: {{labels}}",
+        "redundant_percent_division_warning": "שיעור פרמיה ודמי רישום כבר מטופלים כאחוזים בנוסחאות. הסר /100 אחרת התוצאה תהיה קטנה פי 100.",
         "warning_summary": "{{label}}: {{count}} חישובים לא חוקיים",
         "errors": {
             "empty_expression": "נדרש ביטוי",
@@ -301,7 +304,12 @@
             "missing_operand": "חסר אופרנד בביטוי",
             "overflow": "הביטוי מורכב מדי",
             "prohibited_token": "הביטוי מכיל טוקן אסור",
-            "no_field_reference": "הנוסחה חייבת להפנות לפחות לשדה אחד בדוח"
+            "no_field_reference": "הנוסחה חייבת להפנות בסופו של דבר לפחות לשדה אחד בדוח",
+            "label_collides_with_field": "תווית נוסחה לא יכולה להתאים לשם שדה מותר ({{field}})",
+            "unknown_formula_reference": "הפניה לנוסחה לא ידועה: {{ref}}",
+            "formula_cycle": "הפניות לנוסחאות יוצרות מעגל תלויות",
+            "formula_self_reference": "נוסחה לא יכולה להפנות לעצמה",
+            "formula_label_reference": "השתמש ב־[formula:<id>] במקום התווית \"{{label}}\""
         }
     }
 }

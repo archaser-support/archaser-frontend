@@ -2,6 +2,7 @@ import { Prisma, type customer_limit_type } from "@prisma/client";
 
 import { type DbClient, prisma } from "@/lib/prisma";
 import { InsurancePolicyService } from "@/server/services/InsurancePolicyService";
+import { startOfTodayUtc } from "@/shared/creditInsurance/insurancePolicyLifecycle";
 
 import { getPolicyCountryDefaultsForCustomer } from "./applyPolicyCountryDefaults";
 import {
@@ -78,6 +79,41 @@ export class CustomerPolicyService {
     ): Promise<EffectiveCustomerPolicyFields | null> {
         const active = await getActiveCustomerPolicyRow(customerId);
         return active ? mapCustomerPolicyRow(active) : null;
+    }
+
+    /**
+     * Enqueue an as-of rewrite for a customer whose policy limit/config changed.
+     * Limits are not effective-dated, so the corrected limit applies across the
+     * customer's whole history: anchor at the earliest invoice_date through today.
+     * Runs on the caller's client so it is atomic with the change, and never
+     * throws into the mutation.
+     */
+    private static async enqueuePolicyHistoryRewrite(
+        client: DbClient,
+        accountId: number,
+        customerId: number
+    ): Promise<void> {
+        try {
+            const agg = await client.invoice.aggregate({
+                where: { customer_id: customerId },
+                _min: { invoice_date: true },
+            });
+            const fromDate = agg._min.invoice_date;
+            if (!fromDate) {
+                return;
+            }
+            const { enqueueAsOfRewriteInTransaction } = await import(
+                "./asOfRewriteQueue"
+            );
+            await enqueueAsOfRewriteInTransaction(client, {
+                accountId,
+                customerIds: [customerId],
+                fromDate,
+                toDate: startOfTodayUtc(),
+            });
+        } catch {
+            // Non-fatal: enqueue must never break a policy save
+        }
     }
 
     /** Apply credit-insurance patch to active CustomerPolicy (creates row if missing). */
@@ -484,6 +520,11 @@ export class CustomerPolicyService {
                         { dbClient }
                     );
                 }
+                await CustomerPolicyService.enqueuePolicyHistoryRewrite(
+                    dbClient,
+                    args.accountId,
+                    args.customerId
+                );
                 return refreshTermsBreachFlags
                     ? { refreshTermsBreachFlags: true }
                     : {};
@@ -547,6 +588,12 @@ export class CustomerPolicyService {
                 dbClient,
             });
         }
+
+        await CustomerPolicyService.enqueuePolicyHistoryRewrite(
+            dbClient,
+            args.accountId,
+            args.customerId
+        );
 
         return refreshTermsBreachFlags
             ? { refreshTermsBreachFlags: true }
@@ -676,6 +723,12 @@ export class CustomerPolicyService {
                 skipPolicyAggregate: false,
             });
         }
+
+        await CustomerPolicyService.enqueuePolicyHistoryRewrite(
+            dbClient,
+            args.accountId,
+            args.customerId
+        );
 
         return {};
     }
@@ -833,6 +886,11 @@ export class CustomerPolicyService {
             });
 
             await syncCreditInsuranceGapPipelineForCustomer(c.id);
+            await CustomerPolicyService.enqueuePolicyHistoryRewrite(
+                prisma,
+                args.accountId,
+                c.id
+            );
             updatedCount += 1;
         }
 

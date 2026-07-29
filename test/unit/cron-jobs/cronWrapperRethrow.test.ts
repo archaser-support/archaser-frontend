@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const takeInsurancePolicyTrendSnapshots = vi.fn();
 const takeCustomerPolicyTrendSnapshots = vi.fn();
 const takeCreditDashboardDailySnapshots = vi.fn();
+const drainAsOfRewriteQueue = vi.fn();
 const fetchAndStoreCurrencyRates = vi.fn();
 const syncAllCustomerPolicyGapAmounts = vi.fn();
 const processDueNotificationsService = vi.fn();
@@ -16,6 +17,10 @@ vi.mock("@/server/services/creditInsurance/insurancePolicyTrendService", () => (
 
 vi.mock("@/server/services/creditInsurance/customerPolicyTrendService", () => ({
     takeCustomerPolicyTrendSnapshots,
+}));
+
+vi.mock("@/server/services/creditInsurance/asOfRewriteQueue", () => ({
+    drainAsOfRewriteQueue,
 }));
 
 vi.mock("@/server/services/creditInsurance/creditDashboardSnapshotService", () => ({
@@ -72,6 +77,14 @@ const serviceError = new Error("underlying service failed");
 describe("cron wrappers re-throw on failure", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        // CPT job always attempts drain after today-write; keep drain clean so
+        // rethrow assertions target the underlying snapshot failure.
+        drainAsOfRewriteQueue.mockResolvedValue({
+            itemsProcessed: 0,
+            daysRewritten: 0,
+            failures: 0,
+            skippedForBackfill: 0,
+        });
     });
 
     it.each([

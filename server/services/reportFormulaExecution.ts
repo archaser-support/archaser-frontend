@@ -12,40 +12,117 @@ import {
     getFormulaOperandReferencesFromTables,
     isFormulaOperandFieldType,
     isGroupedReportConfig,
-    withResolvedFormulaCurrencySource,
+    resolveAllFormulaCurrencySources,
 } from "@/shared/reportFormula/columnOrder";
-import { extractFieldReferences } from "@/shared/reportFormula/parser";
+import {
+    getDirectFieldReferences,
+    validateFormulaDependencyGraph,
+    topologicalSortFormulas,
+} from "@/shared/reportFormula/formulaDependencies";
+import {
+    extractFieldReferences,
+    isFormulaOperandReference,
+} from "@/shared/reportFormula/parser";
 import {
     getFormulaOutputKey,
     type FormulaWarningSummary,
     type ReportFormula,
 } from "@/shared/reportFormula/types";
 import { formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
+import {
+    getFieldOutputKey,
+    getLegacyFieldOutputKey,
+    REPORT_AGGREGATION_TYPES,
+    type Field,
+} from "@/utils/reportTableUtils";
 
 export interface ApplyFormulasResult {
     rows: any[];
     warnings: FormulaWarningSummary[];
 }
 
-function getRowFieldValue(row: any, reference: string): unknown {
-    if (row[reference] !== undefined) {
-        return row[reference];
+function collectOperandCandidateKeys(
+    reference: string,
+    fields: Field[]
+): string[] {
+    const keys: string[] = [];
+    const add = (key: string) => {
+        if (key && !keys.includes(key)) {
+            keys.push(key);
+        }
+    };
+
+    add(reference);
+    for (const agg of REPORT_AGGREGATION_TYPES) {
+        add(`${reference}__${agg}`);
     }
-    const formattedKey = `___formatted_${reference}`;
-    if (row[formattedKey] !== undefined) {
-        return row[formattedKey];
+
+    for (const field of fields) {
+        const canonical = `${field.table}.${field.field}`;
+        if (canonical !== reference) {
+            continue;
+        }
+        add(getFieldOutputKey(field));
+        add(getLegacyFieldOutputKey(field));
+        if (field.aggregation) {
+            add(`${canonical}__${field.aggregation}`);
+        }
     }
+
+    return keys;
+}
+
+/**
+ * Resolve a canonical formula operand (`Invoice.amount`) from a report row.
+ * Values may live under aggregated keys (`Invoice.amount__SUM`), field aliases,
+ * or `row.raw` — the same places grouping already reads from.
+ */
+function getRowFieldValue(
+    row: any,
+    reference: string,
+    fields: Field[] = []
+): unknown {
+    const keys = collectOperandCandidateKeys(reference, fields);
+    const sources = [row, row?.raw].filter(Boolean);
+
+    for (const source of sources) {
+        for (const key of keys) {
+            const value = source[key];
+            // Explicit null must not block fallback to aggregated/alias keys.
+            if (value !== undefined && value !== null && value !== "") {
+                return value;
+            }
+        }
+    }
+
+    for (const source of sources) {
+        for (const key of keys) {
+            const formattedKey = `___formatted_${key}`;
+            const value = source[formattedKey];
+            if (value !== undefined && value !== null && value !== "") {
+                return value;
+            }
+        }
+    }
+
     return undefined;
 }
 
 function resolveCurrencyFromRow(
     row: any,
     currencySource: string,
-    accountCurrency: string
+    accountCurrency: string,
+    fields: Field[] = []
 ): string {
-    const currencyKey = `__currency_${currencySource}`;
-    if (row[currencyKey]) {
-        return String(row[currencyKey]);
+    const operandKeys = collectOperandCandidateKeys(currencySource, fields);
+    const candidates = operandKeys.map((key) => `__currency_${key}`);
+    for (const currencyKey of candidates) {
+        if (row[currencyKey]) {
+            return String(row[currencyKey]);
+        }
+        if (row?.raw?.[currencyKey]) {
+            return String(row.raw[currencyKey]);
+        }
     }
     if (row.currency) {
         return String(row.currency);
@@ -59,7 +136,8 @@ function formatFormulaValue(
     row: any,
     locale: string,
     i18nLanguage: string,
-    accountCurrency: string
+    accountCurrency: string,
+    fields: Field[] = []
 ): { raw: number | null; formatted: string | null } {
     const num = decimalToNumberOrNull(value);
     if (num === null) {
@@ -68,7 +146,12 @@ function formatFormulaValue(
     switch (formula.format) {
         case "currency": {
             const currency = formula.currencySource
-                ? resolveCurrencyFromRow(row, formula.currencySource, accountCurrency)
+                ? resolveCurrencyFromRow(
+                      row,
+                      formula.currencySource,
+                      accountCurrency,
+                      fields
+                  )
                 : accountCurrency;
             return {
                 raw: num,
@@ -81,13 +164,15 @@ function formatFormulaValue(
             };
         }
         case "percentage":
+            // Raw value is a fraction (0.03 = 3%). Auto-scaled rate fields
+            // are already divided by 100 when read into the expression.
             return {
                 raw: num,
                 formatted: new Intl.NumberFormat(locale, {
                     style: "percent",
                     minimumFractionDigits: 0,
                     maximumFractionDigits: 4,
-                }).format(num / 100),
+                }).format(num),
             };
         case "number":
         default:
@@ -97,6 +182,28 @@ function formatFormulaValue(
                     maximumFractionDigits: 10,
                 }).format(num),
             };
+    }
+}
+
+function graphErrorMessage(
+    formulas: ReportFormula[],
+    error: NonNullable<ReturnType<typeof validateFormulaDependencyGraph>>
+): string {
+    const labelFor = (id: string) =>
+        formulas.find((f) => f.id === id)?.label || id;
+    switch (error.code) {
+        case "self_reference":
+            return `Formula "${labelFor(error.formulaId)}" cannot reference itself`;
+        case "cycle":
+            return `Formula dependency cycle detected: ${error.path
+                .map(labelFor)
+                .join(" → ")}`;
+        case "unknown_formula":
+            return `Formula "${labelFor(error.formulaId)}" references unknown formula id: ${error.missingId}`;
+        case "no_transitive_field":
+            return `Formula "${labelFor(error.formulaId)}" must eventually reference at least one report field`;
+        default:
+            return "Invalid formula dependency graph";
     }
 }
 
@@ -114,15 +221,27 @@ export function validateReportFormulas(
         metadataTables
     );
     const isGrouped = isGroupedReportConfig(config);
+    const knownFormulaIds = new Set(formulas.map((f) => f.id));
+    const formulaLabelsLower = new Map(
+        formulas.map((f) => [f.label.trim().toLowerCase(), f.label.trim()])
+    );
+
+    const graphError = validateFormulaDependencyGraph(formulas);
+    if (graphError) {
+        throw new Error(graphErrorMessage(formulas, graphError));
+    }
+
+    const resolvedFormulas = resolveAllFormulaCurrencySources(
+        formulas,
+        metadataTables
+    );
     const labels = new Set<string>();
 
-    for (const formula of formulas) {
-        const normalizedFormula = withResolvedFormulaCurrencySource(
-            formula,
-            metadataTables
-        );
-        validateFormulaDefinition(normalizedFormula, {
+    for (const formula of resolvedFormulas) {
+        validateFormulaDefinition(formula, {
             allowedFieldReferences: allowedRefs,
+            knownFormulaIds,
+            formulaLabelsLower,
             isGroupedReport: isGrouped,
             existingLabelsLower: labels,
         });
@@ -161,7 +280,7 @@ export function mergeFormulaOperandFieldsIntoConfig(
     };
 
     for (const formula of formulas) {
-        for (const ref of extractFieldReferences(formula.expression)) {
+        for (const ref of getDirectFieldReferences(formula.expression)) {
             const dot = ref.indexOf(".");
             if (dot <= 0) {
                 continue;
@@ -198,30 +317,52 @@ export function applyFormulasToRows(
     const locale = options.locale || "en-US";
     const i18nLanguage = locale.startsWith("he") ? "he" : "en";
     const accountCurrency = options.accountCurrency || "USD";
+    const fields = (config.fields || []) as Field[];
     const invalidCounts = new Map<string, number>();
+    const resolvedFormulas = resolveAllFormulaCurrencySources(
+        formulas,
+        options.metadataTables
+    );
+    const orderedFormulas = topologicalSortFormulas(resolvedFormulas);
 
     const enriched = rows.map((row) => {
         const out = { ...row };
-        for (const formula of formulas) {
+        for (const formula of orderedFormulas) {
             const outputKey = getFormulaOutputKey(formula.id);
-            const result = evaluateFormulaExpression(formula.expression, {
-                getFieldValue: (ref) => getRowFieldValue(row, ref),
+            const evaluated = evaluateFormulaExpression(formula.expression, {
+                getFieldValue: (ref) => {
+                    if (isFormulaOperandReference(ref)) {
+                        // Row-level formula output already written in topo order.
+                        // Null upstream → missing operand (no double-count warning).
+                        const value = out[ref];
+                        return value === undefined ? null : value;
+                    }
+                    return getRowFieldValue(out, ref, fields);
+                },
             });
-            if (result === null) {
-                invalidCounts.set(
-                    formula.id,
-                    (invalidCounts.get(formula.id) || 0) + 1
-                );
+            if (evaluated.value === null) {
+                // Missing/null operands are expected blanks — do not warn.
+                // Warn only for real calculation failures (div-by-zero, non-finite, etc.).
+                if (
+                    evaluated.nullReason &&
+                    evaluated.nullReason !== "missing_operand"
+                ) {
+                    invalidCounts.set(
+                        formula.id,
+                        (invalidCounts.get(formula.id) || 0) + 1
+                    );
+                }
                 out[outputKey] = null;
                 out[`___formatted_${outputKey}`] = null;
             } else {
                 const { raw, formatted } = formatFormulaValue(
-                    result,
+                    evaluated.value,
                     formula,
-                    row,
+                    out,
                     locale,
                     i18nLanguage,
-                    accountCurrency
+                    accountCurrency,
+                    fields
                 );
                 out[outputKey] = raw;
                 out[`___formatted_${outputKey}`] = formatted;
@@ -248,6 +389,7 @@ export function aggregateFormulaColumnsInGroupedRows(
         locale?: string;
         accountCurrency?: string;
         sampleRow: any;
+        fields?: Field[];
     }
 ): { groupedValues: Record<string, number | null>; warnings: FormulaWarningSummary[] } {
     const locale = options.locale || "en-US";
@@ -264,11 +406,12 @@ export function aggregateFormulaColumnsInGroupedRows(
         }
 
         const decimals: Prisma.Decimal[] = [];
-        let invalidInGroup = 0;
+        // Null/undefined formula values were already counted in applyFormulasToRows.
+        // Only count additional failures introduced during group aggregation.
+        let additionalInvalidInGroup = 0;
         for (const row of groupRows) {
             const raw = row[outputKey];
             if (raw === null || raw === undefined) {
-                invalidInGroup += 1;
                 continue;
             }
             try {
@@ -279,10 +422,10 @@ export function aggregateFormulaColumnsInGroupedRows(
                 if (d.isFinite()) {
                     decimals.push(d);
                 } else {
-                    invalidInGroup += 1;
+                    additionalInvalidInGroup += 1;
                 }
             } catch {
-                invalidInGroup += 1;
+                additionalInvalidInGroup += 1;
             }
         }
 
@@ -297,7 +440,8 @@ export function aggregateFormulaColumnsInGroupedRows(
                     resolveCurrencyFromRow(
                         row,
                         formula.currencySource,
-                        accountCurrency
+                        accountCurrency,
+                        options.fields || []
                     )
                 );
             }
@@ -316,11 +460,11 @@ export function aggregateFormulaColumnsInGroupedRows(
         const num = decimalToNumberOrNull(aggregated);
         groupedValues[outputKey] = num;
 
-        if (invalidInGroup > 0) {
+        if (additionalInvalidInGroup > 0) {
             warnings.push({
                 formulaId: formula.id,
                 label: formula.label,
-                invalidCount: invalidInGroup,
+                invalidCount: additionalInvalidInGroup,
             });
         }
 
@@ -331,7 +475,8 @@ export function aggregateFormulaColumnsInGroupedRows(
                 options.sampleRow,
                 locale,
                 i18nLanguage,
-                accountCurrency
+                accountCurrency,
+                options.fields || []
             );
             groupedValues[`___formatted_${outputKey}`] = formatted as any;
         } else {
@@ -347,10 +492,7 @@ export function getFormulaDependencyReferences(
 ): Map<string, string[]> {
     const map = new Map<string, string[]>();
     for (const formula of formulas) {
-        const refs =
-            formula.expression.match(/\[([^\]]+)\]/g)?.map((t) => t.slice(1, -1)) ||
-            [];
-        map.set(formula.id, refs);
+        map.set(formula.id, extractFieldReferences(formula.expression));
     }
     return map;
 }
@@ -361,8 +503,8 @@ export function findFormulasReferencingOperand(
 ): ReportFormula[] {
     const needle = operandReference.toLowerCase();
     return formulas.filter((f) =>
-        (f.expression.match(/\[([^\]]+)\]/g) || []).some(
-            (token) => token.slice(1, -1).toLowerCase() === needle
+        extractFieldReferences(f.expression).some(
+            (ref) => ref.toLowerCase() === needle
         )
     );
 }

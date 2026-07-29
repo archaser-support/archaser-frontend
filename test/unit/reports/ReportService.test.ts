@@ -364,7 +364,7 @@ describe('ReportService', () => {
                 ],
             };
             expect(() => validateConfig(invalidConfig)).toThrow(
-                "must reference at least one report field"
+                /must (eventually )?reference at least one report field/
             );
         });
 
@@ -389,6 +389,182 @@ describe('ReportService', () => {
             expect(() => validateConfig(invalidConfig)).toThrow(
                 "requires an aggregation for grouped reports"
             );
+        });
+
+        it("should accept formula→formula references via [formula:<id>]", () => {
+            const validConfig: ReportConfig = {
+                ...mockReportConfig,
+                fields: [
+                    { table: "Invoice", field: "amount" },
+                    { table: "Customer", field: "cost_percent" },
+                ],
+                formulas: [
+                    {
+                        id: "premium",
+                        label: "Premium",
+                        expression: "[Invoice.amount]*[Customer.cost_percent]",
+                        format: "number",
+                    },
+                    {
+                        id: "total",
+                        label: "Total",
+                        expression: "[formula:premium]+1",
+                        format: "number",
+                    },
+                ],
+            };
+            expect(() => validateConfig(validConfig)).not.toThrow();
+        });
+
+        it("should reject display-label formula references in persisted expressions", () => {
+            const invalidConfig: ReportConfig = {
+                ...mockReportConfig,
+                fields: [
+                    { table: "Invoice", field: "amount" },
+                    { table: "Customer", field: "cost_percent" },
+                ],
+                formulas: [
+                    {
+                        id: "premium",
+                        label: "Premium",
+                        expression: "[Invoice.amount]*[Customer.cost_percent]",
+                        format: "number",
+                    },
+                    {
+                        id: "total",
+                        label: "Total",
+                        expression: "[Premium]+1",
+                        format: "number",
+                    },
+                ],
+            };
+            expect(() => validateConfig(invalidConfig)).toThrow(
+                'Formula references must use [formula:<id>] (not label "Premium")'
+            );
+        });
+
+        it("should reject formula labels that match an allowed field name", () => {
+            const invalidConfig: ReportConfig = {
+                ...mockReportConfig,
+                fields: [{ table: "Invoice", field: "amount" }],
+                formulas: [
+                    {
+                        id: "spoof",
+                        label: "Invoice.amount",
+                        expression: "[Invoice.amount]*2",
+                        format: "number",
+                    },
+                ],
+            };
+            expect(() => validateConfig(invalidConfig)).toThrow(
+                "Formula label cannot match an allowed field name: Invoice.amount"
+            );
+        });
+
+        it("should reject formula cycles and self-references", () => {
+            const cycleConfig: ReportConfig = {
+                ...mockReportConfig,
+                fields: [{ table: "Invoice", field: "amount" }],
+                formulas: [
+                    {
+                        id: "a",
+                        label: "A",
+                        expression: "[formula:b]",
+                        format: "number",
+                    },
+                    {
+                        id: "b",
+                        label: "B",
+                        expression: "[formula:a]",
+                        format: "number",
+                    },
+                ],
+            };
+            expect(() => validateConfig(cycleConfig)).toThrow(
+                /dependency cycle|cannot reference itself/
+            );
+
+            const selfRefConfig: ReportConfig = {
+                ...mockReportConfig,
+                fields: [{ table: "Invoice", field: "amount" }],
+                formulas: [
+                    {
+                        id: "a",
+                        label: "A",
+                        expression: "[formula:a]+[Invoice.amount]",
+                        format: "number",
+                    },
+                ],
+            };
+            expect(() => validateConfig(selfRefConfig)).toThrow(
+                "cannot reference itself"
+            );
+        });
+
+        it("should reject compose-only Currency formulas with disagreeing currency sources", () => {
+            const invalidConfig: ReportConfig = {
+                tables: ["Invoice", "Payment"],
+                joins: [],
+                fields: [
+                    { table: "Invoice", field: "amount" },
+                    { table: "Payment", field: "amount" },
+                ],
+                filters: [],
+                formulas: [
+                    {
+                        id: "inv",
+                        label: "Invoice Amt",
+                        expression: "[Invoice.amount]",
+                        format: "currency",
+                    },
+                    {
+                        id: "pay",
+                        label: "Payment Amt",
+                        expression: "[Payment.amount]",
+                        format: "currency",
+                    },
+                    {
+                        id: "total",
+                        label: "Total",
+                        expression: "[formula:inv]+[formula:pay]",
+                        format: "currency",
+                    },
+                ],
+            };
+            expect(() => validateConfig(invalidConfig)).toThrow(
+                "Currency formulas require an amount field"
+            );
+        });
+
+        it("should accept compose-only Currency formulas that inherit a shared source", () => {
+            const validConfig: ReportConfig = {
+                ...mockReportConfig,
+                fields: [
+                    { table: "Invoice", field: "amount" },
+                    { table: "Customer", field: "cost_percent" },
+                ],
+                formulas: [
+                    {
+                        id: "premium",
+                        label: "Premium",
+                        expression: "[Invoice.amount]*[Customer.cost_percent]",
+                        format: "currency",
+                    },
+                    {
+                        id: "fee",
+                        label: "Fee",
+                        expression: "[Invoice.amount]*0.01",
+                        format: "currency",
+                    },
+                    {
+                        id: "total",
+                        label: "Total",
+                        expression: "[formula:premium]+[formula:fee]",
+                        format: "currency",
+                    },
+                ],
+            };
+            expect(() => validateConfig(validConfig)).not.toThrow();
         });
 
         it("should accept two identical aggregations on the same field when output keys differ", () => {

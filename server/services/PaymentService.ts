@@ -71,6 +71,23 @@ export class PaymentService {
                 invoiceId: data.invoice_id,
             });
 
+            // A settlement dated in the past changes open AR on the days from the
+            // payment date forward; rewrite that window overnight.
+            if (data.account_id != null) {
+                const { enqueueAsOfRewrite } = await import(
+                    "@/server/services/creditInsurance/asOfRewriteQueue"
+                );
+                const { startOfTodayUtc } = await import(
+                    "@/shared/creditInsurance/insurancePolicyLifecycle"
+                );
+                await enqueueAsOfRewrite({
+                    accountId: data.account_id,
+                    customerIds: [data.customer_id],
+                    fromDate: data.payment_date,
+                    toDate: startOfTodayUtc(),
+                }).catch(() => {});
+            }
+
             return { invoicePayment, updatedInvoice };
         } catch (error: any) {
             await this.logService.logMessage(

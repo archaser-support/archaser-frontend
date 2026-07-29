@@ -6,6 +6,7 @@ import {
     startOfTodayUtc,
 } from "@/shared/creditInsurance/insurancePolicyLifecycle";
 
+import { enqueueAsOfRewrite } from "./asOfRewriteQueue";
 import { syncCreditInsuranceGapPipelineForCustomer } from "./syncCreditInsuranceGapPipeline";
 
 type TopUpInsurancePolicyRow = {
@@ -205,6 +206,15 @@ export class CustomerTopUpService {
 
         await this.triggerGapRecompute(customerId);
 
+        // Late-entered cover must appear on the past days it spans:
+        // rewrite from the top-up start through today.
+        await enqueueAsOfRewrite({
+            accountId: insurancePolicy.account_id,
+            customerIds: [customerId],
+            fromDate: startDate,
+            toDate: startOfTodayUtc(),
+        }).catch(() => {});
+
         return created;
     }
 
@@ -283,13 +293,30 @@ export class CustomerTopUpService {
 
         await this.triggerGapRecompute(existing.customer_id);
 
+        // Rewrite from the earliest of the previous and new start so both the days
+        // it used to span and the days it now spans recompute.
+        const previousStart = existing.start_date;
+        const nextStart = input.startDate ?? existing.start_date;
+        const fromDate = nextStart < previousStart ? nextStart : previousStart;
+        await enqueueAsOfRewrite({
+            accountId: existing.InsurancePolicy.account_id,
+            customerIds: [existing.customer_id],
+            fromDate,
+            toDate: startOfTodayUtc(),
+        }).catch(() => {});
+
         return updated;
     }
 
     static async cancel(topUpId: number, userId?: string | null): Promise<boolean> {
         const existing = await prisma.customerTopUp.findUnique({
             where: { id: topUpId },
-            select: { id: true, customer_id: true },
+            select: {
+                id: true,
+                customer_id: true,
+                start_date: true,
+                InsurancePolicy: { select: { account_id: true } },
+            },
         });
         if (!existing) {
             return false;
@@ -301,6 +328,15 @@ export class CustomerTopUpService {
         });
 
         await this.triggerGapRecompute(existing.customer_id);
+
+        // Cancelling clears the top-up from every day it spanned under current
+        // cancelled_at rules: rewrite from its start through today.
+        await enqueueAsOfRewrite({
+            accountId: existing.InsurancePolicy.account_id,
+            customerIds: [existing.customer_id],
+            fromDate: existing.start_date,
+            toDate: startOfTodayUtc(),
+        }).catch(() => {});
 
         return true;
     }

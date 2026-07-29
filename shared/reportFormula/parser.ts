@@ -35,16 +35,35 @@ export type FormulaAstNode =
           right: FormulaAstNode;
       };
 
-const FIELD_REF_PATTERN = /^\[([A-Za-z][A-Za-z0-9_.]*)\]$/;
+/** Field refs (`Invoice.amount`) or persisted formula refs (`formula:<id>`). */
+const OPERAND_REF_TOKEN_PATTERN = /^\[(?:formula:[A-Za-z0-9][A-Za-z0-9_-]*|[A-Za-z][A-Za-z0-9_.]*)\]$/;
+const OPERAND_REF_EXTRACT_PATTERN =
+    /\[(formula:[A-Za-z0-9][A-Za-z0-9_-]*|[A-Za-z][A-Za-z0-9_.]*)\]/g;
 const PROHIBITED_TOKENS = /\b(eval|function|return|new|typeof|window|global|import|require)\b/i;
+
+export function isFormulaOperandReference(reference: string): boolean {
+    return reference.startsWith("formula:");
+}
+
+export function getFormulaIdFromOperandReference(reference: string): string | null {
+    if (!isFormulaOperandReference(reference)) {
+        return null;
+    }
+    const id = reference.slice("formula:".length);
+    return id || null;
+}
 
 export function buildCanonicalFieldReference(table: string, field: string): string {
     return `[${table}.${field}]`;
 }
 
+export function buildCanonicalFormulaReference(formulaId: string): string {
+    return `[formula:${formulaId}]`;
+}
+
 export function extractFieldReferences(expression: string): string[] {
     const refs: string[] = [];
-    const re = /\[([A-Za-z][A-Za-z0-9_.]*)\]/g;
+    const re = new RegExp(OPERAND_REF_EXTRACT_PATTERN.source, "g");
     let match: RegExpExecArray | null;
     while ((match = re.exec(expression)) !== null) {
         refs.push(match[1]);
@@ -155,7 +174,7 @@ class Tokenizer {
             );
         }
         const token = this.input.slice(this.pos, end + 1);
-        if (!FIELD_REF_PATTERN.test(token)) {
+        if (!OPERAND_REF_TOKEN_PATTERN.test(token)) {
             throw new FormulaParseError(
                 "invalid_reference",
                 `Invalid field reference: ${token}`

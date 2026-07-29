@@ -9,7 +9,10 @@ import React, {
 } from "react";
 import { useTranslation } from "react-i18next";
 
-import FormulaUpsertModal from "@/components/reports/FormulaUpsertModal";
+import FormulaUpsertModal, {
+    FORMULA_OPERAND_OBJECT_NAME,
+    type FormulaOperandOption,
+} from "@/components/reports/FormulaUpsertModal";
 import type { ReportConfig } from "@/server/services/ReportService";
 import {
     findFormulasDependingOnField,
@@ -17,6 +20,10 @@ import {
     isFormulaOperandFieldType,
     resolveReportColumnOrder,
 } from "@/shared/reportFormula/columnOrder";
+import {
+    findFormulasDependingOnFormula,
+    wouldCreateFormulaCycle,
+} from "@/shared/reportFormula/formulaDependencies";
 import {
     getFormulaOutputKey,
     MAX_FORMULAS_PER_REPORT,
@@ -51,9 +58,8 @@ export function getNumericOperandOptions(
     tableNames: string[],
     tablesMetadata: FormulaColumnEditorProps["tablesMetadata"],
     t?: (key: string, options?: Record<string, unknown>) => string
-): Array<{ reference: string; label: string; outputKey: string }> {
-    const options: Array<{ reference: string; label: string; outputKey: string }> =
-        [];
+): FormulaOperandOption[] {
+    const options: FormulaOperandOption[] = [];
     for (const tableName of tableNames) {
         const tableMeta = tablesMetadata.find((tm) => tm.name === tableName);
         if (!tableMeta) {
@@ -84,6 +90,25 @@ export function getNumericOperandOptions(
     return options;
 }
 
+export function getFormulaOperandOptions(
+    formulas: ReportFormula[],
+    editingId: string | null
+): FormulaOperandOption[] {
+    return formulas
+        .filter(
+            (formula) =>
+                formula.id !== editingId &&
+                !wouldCreateFormulaCycle(formulas, editingId, formula.id)
+        )
+        .map((formula) => ({
+            reference: `formula:${formula.id}`,
+            label: formula.label,
+            outputKey: getFormulaOutputKey(formula.id),
+            kind: "formula" as const,
+            formulaFormat: formula.format,
+        }));
+}
+
 const FormulaColumnEditor = forwardRef<
     FormulaColumnEditorHandle,
     FormulaColumnEditorProps
@@ -107,9 +132,19 @@ const FormulaColumnEditor = forwardRef<
         (reportConfig.grouping?.length ?? 0) > 0 ||
         selectedFields.some((f) => !!f.aggregation);
 
-    const operandOptions = useMemo(
+    const fieldOperandOptions = useMemo(
         () => getNumericOperandOptions(reportTableNames, tablesMetadata, t),
         [reportTableNames, tablesMetadata, t]
+    );
+
+    const formulaOperandOptions = useMemo(
+        () => getFormulaOperandOptions(formulas, editingFormula?.id ?? null),
+        [formulas, editingFormula?.id]
+    );
+
+    const operandOptions = useMemo(
+        () => [...fieldOperandOptions, ...formulaOperandOptions],
+        [fieldOperandOptions, formulaOperandOptions]
     );
 
     const TABLE_TRANSLATION_KEY: Record<string, string> = {
@@ -126,9 +161,9 @@ const FormulaColumnEditor = forwardRef<
 
     const tableOptions = useMemo(() => {
         const tableNames = new Set(
-            operandOptions.map((o) => o.reference.split(".")[0])
+            fieldOperandOptions.map((o) => o.reference.split(".")[0])
         );
-        return tablesMetadata
+        const options = tablesMetadata
             .filter((table) => tableNames.has(table.name))
             .map((table) => {
                 const key = TABLE_TRANSLATION_KEY[table.name];
@@ -143,7 +178,16 @@ const FormulaColumnEditor = forwardRef<
                             : table.label || table.name,
                 };
             });
-    }, [operandOptions, tablesMetadata, t]);
+        if (formulaOperandOptions.length > 0) {
+            options.push({
+                name: FORMULA_OPERAND_OBJECT_NAME,
+                label: t("formulas.formulas_object", {
+                    defaultValue: "Formulas",
+                }),
+            });
+        }
+        return options;
+    }, [fieldOperandOptions, formulaOperandOptions.length, tablesMetadata, t]);
 
     const defaultLabel = t("formulas.default_label", {
         n: formulas.length + 1,
@@ -180,11 +224,23 @@ const FormulaColumnEditor = forwardRef<
     const requestDelete = useCallback(
         (formulaId: string) => {
             const formula = formulas.find((entry) => entry.id === formulaId);
-            if (formula) {
-                setFormulaPendingDelete(formula);
+            if (!formula) {
+                return;
             }
+            const block = blockFormulaRemovalForDependents(formulaId, formulas);
+            if (block.blocked) {
+                window.alert(
+                    t("formulas.delete_dependency_blocked", {
+                        defaultValue:
+                            "Cannot delete this formula because other formulas depend on it: {{labels}}",
+                        labels: block.dependentLabels.join(", "),
+                    })
+                );
+                return;
+            }
+            setFormulaPendingDelete(formula);
         },
-        [formulas]
+        [formulas, t]
     );
 
     useImperativeHandle(
@@ -274,6 +330,17 @@ export function blockFieldRemovalForFormulas(
 ): { blocked: boolean; dependentLabels: string[] } {
     const ref = getFormulaOperandReference(field);
     const dependents = findFormulasDependingOnField(formulas, ref);
+    return {
+        blocked: dependents.length > 0,
+        dependentLabels: dependents.map((f) => f.label),
+    };
+}
+
+export function blockFormulaRemovalForDependents(
+    formulaId: string,
+    formulas: ReportFormula[] = []
+): { blocked: boolean; dependentLabels: string[] } {
+    const dependents = findFormulasDependingOnFormula(formulas, formulaId);
     return {
         blocked: dependents.length > 0,
         dependentLabels: dependents.map((f) => f.label),

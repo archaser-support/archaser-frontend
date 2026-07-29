@@ -2,24 +2,33 @@ import { Prisma } from "@prisma/client";
 
 import {
     collectFieldRefsFromAst,
+    isFormulaOperandReference,
     parseFormulaExpression,
     type FormulaAstNode,
 } from "@/shared/reportFormula/parser";
+import { formulaLabelCollidesWithField } from "@/shared/reportFormula/editTimeExpression";
 import {
     type FormulaAggregation,
     type ReportFormula,
 } from "@/shared/reportFormula/types";
+import { isFormulaAutoScalePercentReference } from "@/shared/reportFormula/autoScalePercentFields";
 
 export {
     buildCanonicalFieldReference,
+    buildCanonicalFormulaReference,
     extractFieldReferences,
     FormulaParseError,
+    isFormulaOperandReference,
     normalizeFormulaExpression,
     parseFormulaExpression,
 } from "@/shared/reportFormula/parser";
 
 export interface ValidateFormulaOptions {
     allowedFieldReferences: Set<string>;
+    /** Known formula ids in the same report (for `[formula:<id>]` operands). */
+    knownFormulaIds: Set<string>;
+    /** Formula labels (lowercased) — used to reject label-form references. */
+    formulaLabelsLower: Map<string, string>;
     isGroupedReport: boolean;
     existingLabelsLower: Set<string>;
 }
@@ -37,6 +46,15 @@ export function validateFormulaDefinition(
     const labelLower = formula.label.trim().toLowerCase();
     if (options.existingLabelsLower.has(labelLower)) {
         throw new Error(`Duplicate formula label: ${formula.label}`);
+    }
+    const collidingField = formulaLabelCollidesWithField(
+        formula.label,
+        options.allowedFieldReferences
+    );
+    if (collidingField) {
+        throw new Error(
+            `Formula label cannot match an allowed field name: ${collidingField}`
+        );
     }
 
     if (
@@ -81,9 +99,30 @@ export function validateFormulaDefinition(
         );
     }
     for (const ref of refs) {
-        if (ref.startsWith("formula:")) {
-            throw new Error("Formula-to-formula references are not supported");
+        if (isFormulaOperandReference(ref)) {
+            const formulaId = ref.slice("formula:".length);
+            if (formulaId === formula.id) {
+                throw new Error(
+                    `Formula "${formula.label}" cannot reference itself`
+                );
+            }
+            if (!options.knownFormulaIds.has(formulaId)) {
+                throw new Error(
+                    `Formula references unknown formula id: ${formulaId}`
+                );
+            }
+            continue;
         }
+
+        // Reject display-label formula refs (e.g. [Premium]) — only [formula:<id>] is allowed.
+        // Allowed field names win when a formula label collides (slice 02 hardens label creation).
+        const labelMatch = options.formulaLabelsLower.get(ref.toLowerCase());
+        if (labelMatch && !options.allowedFieldReferences.has(ref)) {
+            throw new Error(
+                `Formula references must use [formula:<id>] (not label "${labelMatch}")`
+            );
+        }
+
         if (!options.allowedFieldReferences.has(ref)) {
             throw new Error(`Formula references unavailable field: ${ref}`);
         }
@@ -92,68 +131,106 @@ export function validateFormulaDefinition(
 
 export type FormulaRowValue = Prisma.Decimal | null;
 
+export type FormulaNullReason =
+    | "missing_operand"
+    | "div_by_zero"
+    | "non_finite"
+    | "error";
+
+export type FormulaEvalResult = {
+    value: FormulaRowValue;
+    /** Set when value is null — missing operands are expected blanks, not warnings. */
+    nullReason?: FormulaNullReason;
+};
+
 export interface EvaluateFormulaRowContext {
     getFieldValue: (reference: string) => unknown;
+}
+
+function evalNull(reason: FormulaNullReason): FormulaEvalResult {
+    return { value: null, nullReason: reason };
+}
+
+function evalValue(value: Prisma.Decimal): FormulaEvalResult {
+    return { value };
 }
 
 export function evaluateFormulaAst(
     node: FormulaAstNode,
     ctx: EvaluateFormulaRowContext
-): FormulaRowValue {
+): FormulaEvalResult {
     if (node.type === "number") {
         try {
             const d = new Prisma.Decimal(node.value);
-            return d.isFinite() ? d : null;
+            return d.isFinite() ? evalValue(d) : evalNull("non_finite");
         } catch {
-            return null;
+            return evalNull("error");
         }
     }
     if (node.type === "field") {
-        return coerceToDecimal(ctx.getFieldValue(node.reference));
+        const value = coerceToDecimal(ctx.getFieldValue(node.reference));
+        if (value === null) {
+            return evalNull("missing_operand");
+        }
+        if (isFormulaAutoScalePercentReference(node.reference)) {
+            const scaled = value.div(100);
+            return scaled.isFinite() ? evalValue(scaled) : evalNull("non_finite");
+        }
+        return evalValue(value);
     }
     if (node.type === "unary") {
-        const val = evaluateFormulaAst(node.operand, ctx);
-        if (val === null) {
-            return null;
+        const operand = evaluateFormulaAst(node.operand, ctx);
+        if (operand.value === null) {
+            return evalNull(operand.nullReason || "error");
         }
-        return node.operator === "-" ? val.neg() : val;
+        return evalValue(
+            node.operator === "-" ? operand.value.neg() : operand.value
+        );
     }
     const left = evaluateFormulaAst(node.left, ctx);
     const right = evaluateFormulaAst(node.right, ctx);
-    if (left === null || right === null) {
-        return null;
+    if (left.value === null || right.value === null) {
+        if (
+            left.nullReason === "missing_operand" ||
+            right.nullReason === "missing_operand"
+        ) {
+            return evalNull("missing_operand");
+        }
+        return evalNull(
+            left.nullReason || right.nullReason || "error"
+        );
     }
     try {
         let result: Prisma.Decimal;
         switch (node.operator) {
             case "+":
-                result = left.add(right);
+                result = left.value.add(right.value);
                 break;
             case "-":
-                result = left.sub(right);
+                result = left.value.sub(right.value);
                 break;
             case "*":
-                result = left.mul(right);
+                result = left.value.mul(right.value);
                 break;
             case "/":
-                if (right.isZero()) {
-                    return null;
+                if (right.value.isZero()) {
+                    return evalNull("div_by_zero");
                 }
-                result = left.div(right);
+                result = left.value.div(right.value);
                 break;
             default:
-                return null;
+                return evalNull("error");
         }
-        return result.isFinite() ? result : null;
+        return result.isFinite() ? evalValue(result) : evalNull("non_finite");
     } catch {
-        return null;
+        return evalNull("error");
     }
 }
 
 export function evaluateFormulaExpression(
     expression: string,
     ctx: EvaluateFormulaRowContext
-): FormulaRowValue {
+): FormulaEvalResult {
     return evaluateFormulaAst(parseFormulaExpression(expression), ctx);
 }
 

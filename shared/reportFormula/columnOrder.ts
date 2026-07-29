@@ -1,4 +1,11 @@
-import { extractFieldReferences } from "@/shared/reportFormula/parser";
+import {
+    getDirectFormulaDependencyIds,
+    topologicalSortFormulas,
+} from "@/shared/reportFormula/formulaDependencies";
+import {
+    extractFieldReferences,
+    isFormulaOperandReference,
+} from "@/shared/reportFormula/parser";
 import {
     getFormulaOutputKey,
     isFormulaOutputKey,
@@ -18,7 +25,8 @@ export function isFormulaOperandFieldType(fieldType?: string): boolean {
         t === "decimal" ||
         t === "integer" ||
         t === "amount" ||
-        t === "currency"
+        t === "currency" ||
+        t === "percentage"
     );
 }
 
@@ -99,6 +107,10 @@ export function filterFormulaOperandOptionsForFormat<
     }>
 ): T[] {
     return options.filter((option) => {
+        // Formula operands are format-filtered by the caller (Currency/Percentage/Number).
+        if (isFormulaOperandReference(option.reference)) {
+            return true;
+        }
         const dot = option.reference.indexOf(".");
         if (dot <= 0) {
             return false;
@@ -120,9 +132,14 @@ export function resolveFormulaCurrencySourceFromExpression(
     metadataTables: Array<{
         name: string;
         fields: Array<{ name: string; type: string }>;
-    }>
+    }>,
+    formulas: ReportFormula[] = [],
+    resolvedCurrencyByFormulaId: Map<string, string> = new Map()
 ): string | null {
     for (const ref of extractFieldReferences(expression)) {
+        if (isFormulaOperandReference(ref)) {
+            continue;
+        }
         const dot = ref.indexOf(".");
         if (dot <= 0) {
             continue;
@@ -133,6 +150,22 @@ export function resolveFormulaCurrencySourceFromExpression(
             return ref;
         }
     }
+
+    // Compose-only Currency: inherit when all formula operands that contribute
+    // a currency source agree on one field.
+    const sources = new Set<string>();
+    const formulaById = new Map(formulas.map((f) => [f.id, f]));
+    for (const depId of getDirectFormulaDependencyIds(expression)) {
+        const inherited =
+            resolvedCurrencyByFormulaId.get(depId) ||
+            formulaById.get(depId)?.currencySource;
+        if (inherited) {
+            sources.add(inherited);
+        }
+    }
+    if (sources.size === 1) {
+        return Array.from(sources)[0];
+    }
     return null;
 }
 
@@ -141,7 +174,9 @@ export function withResolvedFormulaCurrencySource(
     metadataTables: Array<{
         name: string;
         fields: Array<{ name: string; type: string }>;
-    }>
+    }>,
+    formulas: ReportFormula[] = [],
+    resolvedCurrencyByFormulaId: Map<string, string> = new Map()
 ): ReportFormula {
     if (formula.format !== "currency") {
         return formula;
@@ -149,11 +184,45 @@ export function withResolvedFormulaCurrencySource(
     const currencySource =
         resolveFormulaCurrencySourceFromExpression(
             formula.expression,
-            metadataTables
+            metadataTables,
+            formulas,
+            resolvedCurrencyByFormulaId
         ) || undefined;
     return currencySource
         ? { ...formula, currencySource }
         : { ...formula, currencySource: undefined };
+}
+
+/**
+ * Resolve currencySource for every Currency formula in dependency order,
+ * including compose-only inheritance from formula operands.
+ */
+export function resolveAllFormulaCurrencySources(
+    formulas: ReportFormula[],
+    metadataTables: Array<{
+        name: string;
+        fields: Array<{ name: string; type: string }>;
+    }>
+): ReportFormula[] {
+    const ordered = topologicalSortFormulas(formulas);
+    const resolvedCurrencyByFormulaId = new Map<string, string>();
+    const resolvedById = new Map<string, ReportFormula>();
+
+    for (const formula of ordered) {
+        const resolved = withResolvedFormulaCurrencySource(
+            formula,
+            metadataTables,
+            formulas,
+            resolvedCurrencyByFormulaId
+        );
+        if (resolved.currencySource) {
+            resolvedCurrencyByFormulaId.set(formula.id, resolved.currencySource);
+        }
+        resolvedById.set(formula.id, resolved);
+    }
+
+    // Preserve original list order for callers that care about display order.
+    return formulas.map((f) => resolvedById.get(f.id) || f);
 }
 
 export function getFormulaOperandReference(field: Field): string {

@@ -1068,6 +1068,7 @@ export class ReportExecutionService {
                         locale: userLocale,
                         accountCurrency,
                         sampleRow,
+                        fields: config.fields || [],
                     });
                 for (const [key, value] of Object.entries(groupedValues)) {
                     groupedRow[key] = value;

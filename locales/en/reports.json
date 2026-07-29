@@ -266,9 +266,10 @@
         "field_formula_required": "Formula name is required",
         "object": "Object",
         "expression": "Expression",
-        "expression_hint": "Use [Table.field], numbers, + - * / and parentheses",
+        "expression_hint": "Use [Table.field], numbers, + - * / and parentheses. Insurance Premium Rate and Registration Fee are percentages automatically (do not divide by 100).",
         "insert": "Insert",
         "insert_field": "Insert field",
+        "formulas_object": "Formulas",
         "no_operands_hint": "Select numeric report fields first, then build your expression.",
         "no_operands_for_format": "No fields match the selected format for this object.",
         "format": "Format",
@@ -283,6 +284,7 @@
         "no_fields": "Add at least one field before creating a formula",
         "delete_title": "Delete formula",
         "delete_confirm": "Are you sure you want to delete \"{{label}}\"?",
+        "delete_dependency_blocked": "Cannot delete this formula because other formulas depend on it: {{labels}}",
         "label_required": "Label is required",
         "duplicate_label": "Formula label must be unique",
         "invalid_reference": "Invalid or unselected field reference: {{ref}}",
@@ -290,6 +292,7 @@
         "aggregation_required": "Aggregation is required for grouped reports",
         "aggregation_not_allowed": "Remove aggregation for ungrouped reports",
         "remove_dependency_blocked": "Cannot remove this field because formulas depend on it: {{labels}}",
+        "redundant_percent_division_warning": "Insurance Premium Rate and Registration Fee are already treated as percentages in formulas. Remove /100 or results will be 100× too small.",
         "warning_summary": "{{label}}: {{count}} invalid calculation(s)",
         "errors": {
             "empty_expression": "Expression is required",
@@ -301,7 +304,12 @@
             "missing_operand": "Expression is missing an operand",
             "overflow": "Expression is too complex",
             "prohibited_token": "Expression contains a prohibited token",
-            "no_field_reference": "Formula must reference at least one report field"
+            "no_field_reference": "Formula must eventually reference at least one report field",
+            "label_collides_with_field": "Formula label cannot match an allowed field name ({{field}})",
+            "unknown_formula_reference": "Unknown formula reference: {{ref}}",
+            "formula_cycle": "Formula references create a dependency cycle",
+            "formula_self_reference": "A formula cannot reference itself",
+            "formula_label_reference": "Use [formula:<id>] instead of label \"{{label}}\""
         }
     }
 }

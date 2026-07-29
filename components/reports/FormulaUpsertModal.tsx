@@ -3,6 +3,7 @@
 import { Functions } from "@mui/icons-material";
 import {
     Autocomplete,
+    Alert,
     Box,
     Button,
     Stack,
@@ -13,8 +14,21 @@ import {
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { buildCanonicalFieldReference } from "@/shared/reportFormula/parser";
-import { filterFormulaOperandOptionsForFormat } from "@/shared/reportFormula/columnOrder";
+import {
+    buildEditTimeFormulaReference,
+    expressionToEditTime,
+    expressionToStorage,
+} from "@/shared/reportFormula/editTimeExpression";
+import {
+    filterFormulaOperandOptionsForFormat,
+    getFormulaOperandReferencesFromTables,
+} from "@/shared/reportFormula/columnOrder";
+import { expressionHasRedundantAutoScalePercentDivision } from "@/shared/reportFormula/autoScalePercentFields";
+import {
+    buildCanonicalFieldReference,
+    isFormulaOperandReference,
+    normalizeFormulaExpression,
+} from "@/shared/reportFormula/parser";
 import {
     resolveFormulaValidationMessage,
     validateFormulaDraft,
@@ -31,10 +45,15 @@ import { OUTLINED_LABEL_HELPER_OFFSET } from "@/app/theme/appButton";
 const SCROLL_CONTAINER_ID = "formula-upsert-modal-scroll";
 const DIALOG_HEIGHT_FRACTION = 0.62;
 
+/** Pseudo object name for formula operands in the insert picker. */
+export const FORMULA_OPERAND_OBJECT_NAME = "__formulas__";
+
 export type FormulaOperandOption = {
     reference: string;
     label: string;
     outputKey: string;
+    kind?: "field" | "formula";
+    formulaFormat?: FormulaResultFormat;
 };
 
 type FormatOption = {
@@ -68,6 +87,13 @@ export interface FormulaUpsertModalProps {
 
 function appendExpressionToken(prev: string, token: string): string {
     return prev ? `${prev} ${token}` : token;
+}
+
+function isFormulaOperandOption(option: FormulaOperandOption): boolean {
+    return (
+        option.kind === "formula" ||
+        isFormulaOperandReference(option.reference)
+    );
 }
 
 function themeSpacingToPx(value: string): number {
@@ -196,6 +222,9 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
         ReportFormula["aggregation"] | ""
     >("");
     const [validationError, setValidationError] = useState<string | null>(null);
+    const [validationWarning, setValidationWarning] = useState<string | null>(
+        null
+    );
     const [selectedOperandReference, setSelectedOperandReference] =
         useState("");
     const [selectedTableName, setSelectedTableName] = useState("");
@@ -209,7 +238,7 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
         () =>
             aggregationOptions.find(
                 (option) => option.value === aggregationDraft
-            ),
+            ) ?? null,
         [aggregationDraft, aggregationOptions]
     );
 
@@ -217,20 +246,34 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
         if (!selectedTableName) {
             return operandOptions;
         }
+        if (selectedTableName === FORMULA_OPERAND_OBJECT_NAME) {
+            return operandOptions.filter(isFormulaOperandOption);
+        }
         return operandOptions.filter((o) =>
             o.reference.startsWith(`${selectedTableName}.`)
         );
     }, [operandOptions, selectedTableName]);
 
-    const formatFilteredOperandOptions = useMemo(
-        () =>
-            filterFormulaOperandOptionsForFormat(
-                filteredOperandOptions,
-                formatDraft,
-                tablesMetadata
-            ),
-        [filteredOperandOptions, formatDraft, tablesMetadata]
-    );
+    const formatFilteredOperandOptions = useMemo(() => {
+        const fieldOptions = filterFormulaOperandOptionsForFormat(
+            filteredOperandOptions.filter((o) => !isFormulaOperandOption(o)),
+            formatDraft,
+            tablesMetadata
+        );
+        const formulaOptions = filteredOperandOptions.filter((o) => {
+            if (!isFormulaOperandOption(o)) {
+                return false;
+            }
+            if (formatDraft === "currency") {
+                return o.formulaFormat === "currency";
+            }
+            if (formatDraft === "percentage") {
+                return o.formulaFormat === "percentage";
+            }
+            return true;
+        });
+        return [...fieldOptions, ...formulaOptions];
+    }, [filteredOperandOptions, formatDraft, tablesMetadata]);
 
     const selectedTableOption = useMemo(
         () => tableOptions.find((table) => table.name === selectedTableName) ?? null,
@@ -261,7 +304,12 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
             return;
         }
         if (mode === "edit" && initialFormula) {
-            setExpressionDraft(initialFormula.expression);
+            setExpressionDraft(
+                expressionToEditTime(
+                    initialFormula.expression,
+                    existingFormulas
+                )
+            );
             setLabelDraft(initialFormula.label);
             setFormatDraft(initialFormula.format);
             setAggregationDraft(initialFormula.aggregation || "");
@@ -272,18 +320,33 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
             setAggregationDraft("");
         }
         setValidationError(null);
+        setValidationWarning(null);
         setSelectedOperandReference("");
         setSelectedTableName(tableOptions[0]?.name ?? "");
-    }, [open, mode, initialFormula, defaultLabel, tableOptions]);
+    }, [open, mode, initialFormula, defaultLabel, existingFormulas, tableOptions]);
 
-    const insertOperand = useCallback((reference: string) => {
-        const token = buildCanonicalFieldReference(
-            reference.split(".")[0],
-            reference.split(".").slice(1).join(".")
-        );
-        setExpressionDraft((prev) => appendExpressionToken(prev, token));
-    }, []);
-
+    const insertOperand = useCallback(
+        (reference: string) => {
+            const option = operandOptions.find(
+                (entry) => entry.reference === reference
+            );
+            let token: string;
+            if (option && isFormulaOperandOption(option)) {
+                token = buildEditTimeFormulaReference(option.label);
+            } else if (isFormulaOperandReference(reference)) {
+                token = buildEditTimeFormulaReference(
+                    reference.slice("formula:".length)
+                );
+            } else {
+                token = buildCanonicalFieldReference(
+                    reference.split(".")[0],
+                    reference.split(".").slice(1).join(".")
+                );
+            }
+            setExpressionDraft((prev) => appendExpressionToken(prev, token));
+        },
+        [operandOptions]
+    );
     const handleInsertField = useCallback(() => {
         if (!selectedOperandReference) {
             return;
@@ -305,10 +368,20 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
             isGrouped,
         });
         if (!result.ok) {
+            setValidationWarning(null);
             setValidationError(
                 resolveFormulaValidationMessage(t, result)
             );
             return;
+        }
+        setValidationError(null);
+        if (result.warning) {
+            // Soft warning: still save. Banner also shows while editing.
+            setValidationWarning(
+                resolveFormulaValidationMessage(t, result.warning)
+            );
+        } else {
+            setValidationWarning(null);
         }
         onSave(result.formula);
         onClose();
@@ -328,8 +401,50 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
                 })
               : t("formulas.expression_hint", {
                     defaultValue:
-                        "Use [Table.field], numbers, + - * / and parentheses",
+                        "Use [Table.field], numbers, + - * / and parentheses. Insurance Premium Rate and Registration Fee are percentages automatically (do not divide by 100).",
                 });
+
+    const redundantPercentDivisionWarning = useMemo(() => {
+        try {
+            const allowed = getFormulaOperandReferencesFromTables(
+                reportTableNames,
+                tablesMetadata
+            );
+            const converted = expressionToStorage(
+                expressionDraft,
+                existingFormulas,
+                allowed,
+                {
+                    draftId: editingId,
+                    draftLabel: labelDraft,
+                }
+            );
+            const normalized = normalizeFormulaExpression(
+                converted,
+                i18n.language.startsWith("he") ? "," : "."
+            );
+            if (!expressionHasRedundantAutoScalePercentDivision(normalized)) {
+                return null;
+            }
+            return t("formulas.redundant_percent_division_warning", {
+                defaultValue:
+                    "Insurance Premium Rate and Registration Fee are already treated as percentages in formulas. Remove /100 or results will be 100× too small.",
+            });
+        } catch {
+            return null;
+        }
+    }, [
+        expressionDraft,
+        existingFormulas,
+        editingId,
+        labelDraft,
+        reportTableNames,
+        tablesMetadata,
+        i18n.language,
+        t,
+    ]);
+
+    const displayedWarning = validationWarning || redundantPercentDivisionWarning;
 
     return (
         <AppDialog
@@ -478,7 +593,6 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
                                 isOptionEqualToValue={(option, value) =>
                                     option.value === value.value
                                 }
-                                disableClearable
                                 size="small"
                                 dir={isRTL ? "rtl" : "ltr"}
                                 {...(isHebrew && {
@@ -615,6 +729,7 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
                                             );
                                         }}
                                         getOptionLabel={(option) => option.label}
+                                        getOptionKey={(option) => option.reference}
                                         isOptionEqualToValue={(option, value) =>
                                             option.reference === value.reference
                                         }
@@ -626,10 +741,10 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
                                             "data-rtl": true,
                                         })}
                                         renderOption={(props, option) => {
-                                            const { key, ...otherProps } = props;
+                                            const { key: _key, ...otherProps } = props;
                                             return (
                                                 <li
-                                                    key={key}
+                                                    key={option.reference}
                                                     {...otherProps}
                                                     style={{
                                                         direction: isRTL ? "rtl" : "ltr",
@@ -686,6 +801,12 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
                             dir={isRTL ? "rtl" : "ltr"}
                             sx={hebrewHelperTextFieldSx}
                         />
+
+                        {displayedWarning && (
+                            <Alert severity="warning">
+                                {displayedWarning}
+                            </Alert>
+                        )}
 
                         {validationError && (
                             <Typography variant="caption" color="error">
