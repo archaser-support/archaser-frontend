@@ -76,6 +76,14 @@ describe("amplifyMode", () => {
             "https://staging.example.com/api"
         );
     });
+
+    it("adds the /api suffix to an explicit base URL that omits it", () => {
+        process.env.NEXT_PUBLIC_API_BASE_URL = "https://api.example.com";
+        expect(resolveProductApiBaseUrl()).toBe("https://api.example.com/api");
+
+        process.env.NEXT_PUBLIC_API_BASE_URL = "https://api.example.com/api/";
+        expect(resolveProductApiBaseUrl()).toBe("https://api.example.com/api");
+    });
 });
 
 describe("apiClientConfig", () => {
