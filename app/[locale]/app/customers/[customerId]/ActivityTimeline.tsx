@@ -1371,7 +1371,7 @@ const Timeline = memo(
     }: {
         data: TimelineItem[];
         session: Session | null;
-        t: (_key: string, _params?: Record<string, string>) => string;
+        t: (_key: string, _params?: Record<string, unknown>) => string;
         i18n: any;
         triggerRefresh: () => void;
         expandedDetails: Set<string>;
@@ -1570,9 +1570,9 @@ const ActivityTimeline: React.FC<CustomerProp> = ({
 
     // Combined translation function that tries both namespaces
     const t = useCallback(
-        (key: string, params?: Record<string, unknown>) => {
+        (key: string, params?: Record<string, unknown>): string => {
             // First try translation namespace
-            const translationResult = translationT(key, params as any);
+            const translationResult = translationT(key, params as any) as string;
             if (translationResult !== key) {
                 return translationResult;
             }
