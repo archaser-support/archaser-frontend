@@ -60,14 +60,16 @@ describe("amplifyMode", () => {
         );
     });
 
-    it("resolves Nest product API base URL in Nest UI mode", () => {
-        process.env.NEXT_PUBLIC_USE_NEST_AUTH = "true";
+    it("is always Nest UI mode (frontend is UI-only)", () => {
+        expect(isNestUiMode()).toBe(true);
+        expect(shouldAttachNestBearer()).toBe(true);
+    });
+
+    it("resolves Nest product API base URL from Nest origin", () => {
         process.env.NEXT_PUBLIC_NEST_API_BASE_URL = "https://staging.example.com";
         expect(resolveProductApiBaseUrl()).toBe(
             "https://staging.example.com/api"
         );
-        expect(shouldAttachNestBearer()).toBe(true);
-        expect(isNestUiMode()).toBe(true);
     });
 });
 

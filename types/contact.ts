@@ -28,22 +28,7 @@ export interface ContactResponse {
     totalRecords: number;
 }
 
-export type InvalidContact = Pick<
-    ContactRow,
-    | "id"
-    | "first_name"
-    | "last_name"
-    | "email"
-    | "mobile"
-    | "phone"
-    | "role"
-    | "status"
-    | "company_id"
-    | "email_status"
-    | "mobile_status"
-    | "receives_standard_reminder"
-    | "receives_escalated_reminder"
-> & {
+export type InvalidContact = ContactRow & {
     Company: Pick<Company, "id" | "name" | "created_by" | "modified_by"> & {
         Customer: Customer[];
     };

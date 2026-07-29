@@ -20,6 +20,7 @@ frontend:
     preBuild:
       commands:
         - npm ci
+        - npm run type-check
     build:
       commands:
         - npm run build:amplify

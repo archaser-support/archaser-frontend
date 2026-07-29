@@ -1,5 +1,4 @@
 "use client";
-import { apiFetch } from "@/utils/apiFetch";
 
 // @ts-nocheck
 // React imports
@@ -37,8 +36,8 @@ import {
     useTheme,
 } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import React, {
     useCallback,
     useEffect,
@@ -46,12 +45,15 @@ import React, {
     useRef,
     useState,
 } from "react";
+
 // Shared components
+import { useTranslation } from "react-i18next";
+
 import PageHeader from "@/components/PageHeader";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 
 // Translation
-import { useTranslation } from "react-i18next";
+import { apiFetch } from "@/utils/apiFetch";
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -140,14 +142,15 @@ const CronJobsPage = () => {
     } = useQuery({
         queryKey: ["cronJobs", "debug"],
         queryFn: async (): Promise<CronJob[]> => {
-            const response = await apiFetch("/api/system/admin/cron-jobs?debug=true"
+            const response = await apiFetch(
+                "/api/system/admin/cron-jobs?debug=true"
             );
             if (!response.ok) {
-                const errorData = await response.json();
+                const errorData = await response.json().catch(() => ({}));
                 throw new Error(errorData.error || "Failed to fetch cron jobs");
             }
             const result = await response.json();
-            return result.data;
+            return result.cronJobs ?? result.data ?? [];
         },
         enabled: session?.user?.account_id === 10013,
     });
@@ -168,7 +171,7 @@ const CronJobsPage = () => {
         queryKey: ["cronJobOverallStats"],
         queryFn: async () => {
             const url = `/api/admin/cron-jobs/stats?days=30`;
-            const response = await fetch(url);
+            const response = await apiFetch(url);
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(
@@ -194,7 +197,7 @@ const CronJobsPage = () => {
             const allJobsUrl = `/api/admin/cron-jobs/stats?days=30`;
 
             // Fetch all jobs stats (for statistics section)
-            const allJobsResponse = await fetch(allJobsUrl);
+            const allJobsResponse = await apiFetch(allJobsUrl);
             if (!allJobsResponse.ok) {
                 const errorData = await allJobsResponse.json();
                 throw new Error(
@@ -219,7 +222,7 @@ const CronJobsPage = () => {
             }
 
             const jobStatsUrl = `/api/admin/cron-jobs/stats?jobId=${selectedJob.id}&days=30&includeHistory=true&includeErrors=true`;
-            const jobResponse = await fetch(jobStatsUrl);
+            const jobResponse = await apiFetch(jobStatsUrl);
             if (!jobResponse.ok) {
                 const errorData = await jobResponse.json();
                 throw new Error(

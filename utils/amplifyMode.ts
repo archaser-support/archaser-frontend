@@ -11,12 +11,9 @@ export function isAmplifySsrBuild(): boolean {
     );
 }
 
-/** Nest owns product APIs + auth (Amplify UI or Nest auth flag). */
+/** Nest owns product APIs + auth. The frontend is UI-only. */
 export function isNestUiMode(): boolean {
-    return (
-        isAmplifySsrBuild() ||
-        process.env.NEXT_PUBLIC_USE_NEST_AUTH === "true"
-    );
+    return true;
 }
 
 /**

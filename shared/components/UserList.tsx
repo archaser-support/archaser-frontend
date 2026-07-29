@@ -13,7 +13,6 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { GridColDef, GridSortModel } from "@mui/x-data-grid";
 import { useQuery } from "@tanstack/react-query";
-import api, { apiFetch } from "@/app/api";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -21,6 +20,7 @@ import React, { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useDebounce } from "use-debounce";
 
+import api, { apiFetch } from "@/app/api";
 import { ToolbarDropdownFilter } from "@/shared/components/ToolbarDropdownFilter";
 import EndlessScrollDataGrid, {
     useVirtualInfiniteScroll,
@@ -284,7 +284,7 @@ export default function UserList({
 
             const url = `/api/entities/users?${new URLSearchParams(params)}`;
 
-            const response = await fetch(url);
+            const response = await apiFetch(url);
 
             if (!response.ok) {
                 // Handle 403 (Forbidden) gracefully - user doesn't have permission

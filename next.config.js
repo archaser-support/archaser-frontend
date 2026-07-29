@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
-const path = require("path");
 const fs = require("fs");
+const path = require("path");
 
 // Load env from this package (frontend/.env). Falls back to backend/.env for shared secrets during monorepo transition.
 const appDir = __dirname;
@@ -45,9 +45,11 @@ const nextConfig = {
     // Disable source maps in production
     productionBrowserSourceMaps: false,
 
-    // Enable TypeScript checking during build
+    // Type safety is enforced by `npm run type-check`. Next's embedded
+    // typecheck duplicates that work and OOM/crashes on smaller Windows hosts;
+    // Amplify still runs the explicit type-check step in amplify.yml.
     typescript: {
-        ignoreBuildErrors: false,
+        ignoreBuildErrors: isAmplifySsr,
     },
 
     // Disable ESLint during build to ignore ESLint-related TypeScript errors

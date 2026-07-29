@@ -34,11 +34,11 @@ import {
 } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import api from "@/app/api";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import api from "@/app/api";
 import PageHeader from "@/components/PageHeader";
 import DragDropFieldSelector from "@/components/reports/DragDropFieldSelector";
 import FilterBuilder from "@/components/reports/FilterBuilder";
@@ -47,28 +47,10 @@ import FormulaColumnEditor, {
 } from "@/components/reports/FormulaColumnEditor";
 import GroupingBuilder from "@/components/reports/GroupingBuilder";
 import { useSessionState } from "@/hooks/useSessionState";
-import type { ReportConfig } from "@/types/reports";
-import { findFormulasReferencingOperand } from "@/shared/reportFormula/findFormulasReferencingOperand";
-import { MAX_FORMULAS_PER_REPORT } from "@/shared/reportFormula/types";
-import {
-    getFormulaOperandReference,
-    isGroupedReportConfig,
-    resolveReportColumnOrder,
-    syncFieldsOrderFromColumnOrder,
-} from "@/shared/reportFormula/columnOrder";
-import {
-    resolveFormulaValidationMessage,
-    validateAllReportFormulas,
-} from "@/shared/reportFormula/validateFormulaDraft";
-import { getViewConfig, MAIN_REPORTS_MENU_CONTEXT } from "@/shared/utils/viewConfigs";
 import {
     buildDashboardChartDetailsReturnPath,
     isDashboardChartDetailsReportContext,
 } from "@/shared/dashboard/dashboardInvoiceBuilderReturn";
-import {
-    buildOperationDashboardDetailsReturnPath,
-    isOperationDashboardDetailsReportContext,
-} from "@/shared/dashboard/dashboardOperationBuilderReturn";
 import {
     DASHBOARD_ACTIVITIES_CONTEXT,
     DASHBOARD_CUSTOMERS_CONTEXT,
@@ -77,6 +59,25 @@ import {
     DASHBOARD_PAYMENTS_CONTEXT,
     DASHBOARD_PROMISES_CONTEXT,
 } from "@/shared/dashboard/dashboardInvoiceReportAccess";
+import {
+    buildOperationDashboardDetailsReturnPath,
+    isOperationDashboardDetailsReportContext,
+} from "@/shared/dashboard/dashboardOperationBuilderReturn";
+import {
+    getFormulaOperandReference,
+    isGroupedReportConfig,
+    resolveReportColumnOrder,
+    syncFieldsOrderFromColumnOrder,
+} from "@/shared/reportFormula/columnOrder";
+import { findFormulasReferencingOperand } from "@/shared/reportFormula/findFormulasReferencingOperand";
+import { MAX_FORMULAS_PER_REPORT } from "@/shared/reportFormula/types";
+import {
+    resolveFormulaValidationMessage,
+    validateAllReportFormulas,
+} from "@/shared/reportFormula/validateFormulaDraft";
+import { getViewConfig, MAIN_REPORTS_MENU_CONTEXT } from "@/shared/utils/viewConfigs";
+import type { ReportConfig } from "@/types/reports";
+import { apiFetch } from "@/utils/apiFetch";
 import AppUrls from "@/utils/appUrls";
 import { getRTLTooltipProps } from "@/utils/reportFieldUtils";
 import {
@@ -1143,7 +1144,7 @@ const ReportBuilderPage: React.FC = () => {
                 ? `/api/reports/${effectiveReportId}`
                 : "/api/reports";
             const method = effectiveReportId ? "PUT" : "POST";
-            const response = await fetch(url, {
+            const response = await apiFetch(url, {
                 method,
                 headers: {
                     "Content-Type": "application/json",

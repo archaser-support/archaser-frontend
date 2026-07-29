@@ -115,7 +115,9 @@ function generate(schemaPath) {
     out.push(" * plain structural types: no Prisma client, no database access.");
     out.push(" */");
     out.push("");
-    out.push("/* eslint-disable @typescript-eslint/no-explicit-any */");
+    // Enums are emitted as a `const` object plus a same-named type alias, which
+    // the base no-redeclare rule misreads as a duplicate declaration.
+    out.push("/* eslint-disable @typescript-eslint/no-explicit-any, no-redeclare */");
     out.push("");
     out.push("export type JsonValue =");
     out.push("    | string");
@@ -145,21 +147,23 @@ function generate(schemaPath) {
         const scalars = model.fields.filter((f) => !modelNames.has(f.type));
         const relations = model.fields.filter((f) => modelNames.has(f.type));
 
-        out.push(`export interface ${model.name} {`);
+        // Emitted as type aliases, not interfaces, so rows keep the implicit
+        // index signature that `Record<string, unknown>` parameters require.
+        out.push(`export type ${model.name} = {`);
         for (const field of scalars) {
             out.push(
                 `    ${renderField(field, tsType(field, enumNames, modelNames))}`
             );
         }
-        out.push("}");
+        out.push("};");
         out.push("");
 
         if (relations.length > 0) {
-            out.push(`export interface ${model.name}Relations {`);
+            out.push(`export type ${model.name}Relations = {`);
             for (const field of relations) {
                 out.push(`    ${renderField(field, field.type)}`);
             }
-            out.push("}");
+            out.push("};");
             out.push("");
         }
     }

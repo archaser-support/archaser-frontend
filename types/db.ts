@@ -6,7 +6,7 @@
  * plain structural types: no Prisma client, no database access.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any, no-redeclare */
 
 export type JsonValue =
     | string
@@ -331,7 +331,7 @@ export const user_role = {
 } as const;
 export type user_role = (typeof user_role)[keyof typeof user_role];
 
-export interface Account {
+export type Account = {
     id: number;
     created_at: Date;
     name: string | null;
@@ -399,9 +399,9 @@ export interface Account {
     modified_by: string | null;
     deleted_at: Date | null;
     deleted_by: string | null;
-}
+};
 
-export interface AccountRelations {
+export type AccountRelations = {
     User_Account_created_byToUser: User | null;
     User_Account_modified_byToUser: User | null;
     User_Account_deleted_byToUser: User | null;
@@ -434,9 +434,9 @@ export interface AccountRelations {
     Report: Report[];
     BillingConnector: BillingConnector | null;
     CustomerCheckpoint: CustomerCheckpoint[];
-}
+};
 
-export interface AccountBankAccounts {
+export type AccountBankAccounts = {
     id: number;
     created_at: Date;
     modified_at: Date;
@@ -459,9 +459,9 @@ export interface AccountBankAccounts {
     state_id: number | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface AccountBankAccountsRelations {
+export type AccountBankAccountsRelations = {
     User_AccountBankAccounts_created_byToUser: User | null;
     User_AccountBankAccounts_modified_byToUser: User | null;
     Account: Account;
@@ -469,9 +469,9 @@ export interface AccountBankAccountsRelations {
     State: State | null;
     BusinessUnitBankAccounts: BusinessUnitBankAccounts[];
     CustomerBanks: CustomerBanks[];
-}
+};
 
-export interface AccountSMSProviderPreferences {
+export type AccountSMSProviderPreferences = {
     id: number;
     account_id: number;
     country_id: number;
@@ -482,17 +482,17 @@ export interface AccountSMSProviderPreferences {
     modified_at: Date | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface AccountSMSProviderPreferencesRelations {
+export type AccountSMSProviderPreferencesRelations = {
     User_AccountSMSProviderPreferences_created_byToUser: User | null;
     User_AccountSMSProviderPreferences_modified_byToUser: User | null;
     Account: Account;
     Country: Country;
     SMSVendor: SMSVendor;
-}
+};
 
-export interface ActivitiesSequence {
+export type ActivitiesSequence = {
     id: number;
     created_at: Date;
     modified_at: Date;
@@ -514,18 +514,18 @@ export interface ActivitiesSequence {
     sequence_container_id: number | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface ActivitiesSequenceRelations {
+export type ActivitiesSequenceRelations = {
     User_ActivitiesSequence_created_byToUser: User | null;
     User_ActivitiesSequence_modified_byToUser: User | null;
     Account: Account;
     ActivitiesTemplate: ActivitiesTemplate | null;
     SequenceContainer: SequenceContainer | null;
     Activity: Activity[];
-}
+};
 
-export interface ActivitiesTemplate {
+export type ActivitiesTemplate = {
     id: number;
     created_at: Date;
     modified_at: Date;
@@ -538,18 +538,18 @@ export interface ActivitiesTemplate {
     dispute_resolution: dispute_resolution | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface ActivitiesTemplateRelations {
+export type ActivitiesTemplateRelations = {
     ActivitiesSequence: ActivitiesSequence[];
     Account: Account;
     User_ActivitiesTemplate_created_byToUser: User | null;
     User_ActivitiesTemplate_modified_byToUser: User | null;
     Activity: Activity[];
     ActivityTemplateLanguage: ActivityTemplateLanguage[];
-}
+};
 
-export interface Activity {
+export type Activity = {
     id: bigint;
     created_at: Date;
     modified_at: Date;
@@ -577,9 +577,9 @@ export interface Activity {
     call_outcome: string | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface ActivityRelations {
+export type ActivityRelations = {
     User_Activity_created_byToUser: User | null;
     User_Activity_modified_byToUser: User | null;
     Account: Account;
@@ -592,9 +592,9 @@ export interface ActivityRelations {
     ActivityAttachment: ActivityAttachment[];
     ActivityContact: ActivityContact[];
     CommunicationLearningData: CommunicationLearningData[];
-}
+};
 
-export interface ActivityAttachment {
+export type ActivityAttachment = {
     id: bigint;
     created_at: Date;
     modified_at: Date;
@@ -608,16 +608,16 @@ export interface ActivityAttachment {
     account_id: number;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface ActivityAttachmentRelations {
+export type ActivityAttachmentRelations = {
     User_ActivityAttachment_created_byToUser: User | null;
     User_ActivityAttachment_modified_byToUser: User | null;
     Account: Account;
     Activity: Activity;
-}
+};
 
-export interface ActivityContact {
+export type ActivityContact = {
     id: number;
     activity_id: bigint;
     contact_id: number;
@@ -657,9 +657,9 @@ export interface ActivityContact {
     vendor_message_id: string | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface ActivityContactRelations {
+export type ActivityContactRelations = {
     User_ActivityContact_created_byToUser: User | null;
     User_ActivityContact_modified_byToUser: User | null;
     Activity: Activity;
@@ -667,9 +667,9 @@ export interface ActivityContactRelations {
     ActivityContact: ActivityContact | null;
     other_ActivityContact: ActivityContact[];
     SMSVendor: SMSVendor | null;
-}
+};
 
-export interface ActivityTemplateLanguage {
+export type ActivityTemplateLanguage = {
     id: number;
     created_at: Date;
     modified_at: Date;
@@ -681,15 +681,15 @@ export interface ActivityTemplateLanguage {
     email_content: string | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface ActivityTemplateLanguageRelations {
+export type ActivityTemplateLanguageRelations = {
     User_ActivityTemplateLanguage_created_byToUser: User | null;
     User_ActivityTemplateLanguage_modified_byToUser: User | null;
     ActivitiesTemplate: ActivitiesTemplate;
-}
+};
 
-export interface BillingConnector {
+export type BillingConnector = {
     id: number;
     account_id: number;
     provider: BillingProvider;
@@ -713,15 +713,15 @@ export interface BillingConnector {
     modified_at: Date;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface BillingConnectorRelations {
+export type BillingConnectorRelations = {
     Account: Account;
     ConnectorFieldMapping: ConnectorFieldMapping[];
     ConnectorSyncState: ConnectorSyncState[];
-}
+};
 
-export interface BusinessUnit {
+export type BusinessUnit = {
     id: number;
     account_id: number;
     name: string;
@@ -733,9 +733,9 @@ export interface BusinessUnit {
     modified_at: Date;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface BusinessUnitRelations {
+export type BusinessUnitRelations = {
     Account: Account;
     Parent: BusinessUnit | null;
     Children: BusinessUnit[];
@@ -745,9 +745,9 @@ export interface BusinessUnitRelations {
     Customer: Customer[];
     User: User[];
     CreditDashboardDailySnapshot: CreditDashboardDailySnapshot[];
-}
+};
 
-export interface BusinessUnitBankAccounts {
+export type BusinessUnitBankAccounts = {
     id: number;
     business_unit_id: number;
     account_id: number;
@@ -756,15 +756,15 @@ export interface BusinessUnitBankAccounts {
     modified_at: Date;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface BusinessUnitBankAccountsRelations {
+export type BusinessUnitBankAccountsRelations = {
     BusinessUnit: BusinessUnit;
     Account: Account;
     AccountBankAccounts: AccountBankAccounts;
-}
+};
 
-export interface CommunicationChannelPreference {
+export type CommunicationChannelPreference = {
     id: number;
     customer_id: number;
     channel: activity_type;
@@ -778,15 +778,15 @@ export interface CommunicationChannelPreference {
     modified_at: Date | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface CommunicationChannelPreferenceRelations {
+export type CommunicationChannelPreferenceRelations = {
     User_CommunicationChannelPreference_created_byToUser: User | null;
     User_CommunicationChannelPreference_modified_byToUser: User | null;
     Customer: Customer;
-}
+};
 
-export interface CommunicationLearningData {
+export type CommunicationLearningData = {
     id: number;
     customer_id: number;
     contact_id: number | null;
@@ -801,17 +801,17 @@ export interface CommunicationLearningData {
     created_at: Date | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface CommunicationLearningDataRelations {
+export type CommunicationLearningDataRelations = {
     User_CommunicationLearningData_created_byToUser: User | null;
     User_CommunicationLearningData_modified_byToUser: User | null;
     Activity: Activity | null;
     Contact: Contact | null;
     Customer: Customer;
-}
+};
 
-export interface Company {
+export type Company = {
     id: number;
     created_at: Date;
     modified_at: Date;
@@ -819,16 +819,16 @@ export interface Company {
     company_number: string | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface CompanyRelations {
+export type CompanyRelations = {
     User_Company_created_byToUser: User | null;
     User_Company_modified_byToUser: User | null;
     Contact: Contact[];
     Customer: Customer[];
-}
+};
 
-export interface ConnectorFieldMapping {
+export type ConnectorFieldMapping = {
     id: number;
     connector_id: number;
     import_type: ImportType;
@@ -836,13 +836,13 @@ export interface ConnectorFieldMapping {
     is_complete: boolean;
     modified_at: Date;
     modified_by: string | null;
-}
+};
 
-export interface ConnectorFieldMappingRelations {
+export type ConnectorFieldMappingRelations = {
     BillingConnector: BillingConnector;
-}
+};
 
-export interface ConnectorSyncState {
+export type ConnectorSyncState = {
     id: number;
     connector_id: number;
     entity_type: ImportType;
@@ -857,13 +857,13 @@ export interface ConnectorSyncState {
     last_successful_run_at: Date | null;
     last_attempt_at: Date | null;
     last_error: string | null;
-}
+};
 
-export interface ConnectorSyncStateRelations {
+export type ConnectorSyncStateRelations = {
     BillingConnector: BillingConnector;
-}
+};
 
-export interface Contact {
+export type Contact = {
     id: number;
     created_at: Date;
     modified_at: Date;
@@ -908,9 +908,9 @@ export interface Contact {
     erp_contact_id: string | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface ContactRelations {
+export type ContactRelations = {
     Activity: Activity[];
     ActivityContact: ActivityContact[];
     CommunicationLearningData: CommunicationLearningData[];
@@ -922,9 +922,9 @@ export interface ContactRelations {
     Contact: Contact | null;
     other_Contact: Contact[];
     State: State | null;
-}
+};
 
-export interface Country {
+export type Country = {
     id: number;
     name: string;
     iso3: string | null;
@@ -951,9 +951,9 @@ export interface Country {
     modified_at: Date;
     flag: number;
     wikiDataId: string | null;
-}
+};
 
-export interface CountryRelations {
+export type CountryRelations = {
     Account: Account[];
     AccountBankAccounts: AccountBankAccounts[];
     AccountSMSProviderPreferences: AccountSMSProviderPreferences[];
@@ -962,9 +962,9 @@ export interface CountryRelations {
     State: State[];
     Customer: Customer[];
     InsurancePolicyCountry: InsurancePolicyCountry[];
-}
+};
 
-export interface CountrySMSVendor {
+export type CountrySMSVendor = {
     id: number;
     country_id: number;
     vendor_id: number;
@@ -978,16 +978,16 @@ export interface CountrySMSVendor {
     phone_number: string | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface CountrySMSVendorRelations {
+export type CountrySMSVendorRelations = {
     User_CountrySMSVendor_created_byToUser: User | null;
     User_CountrySMSVendor_modified_byToUser: User | null;
     Country: Country;
     SMSVendor: SMSVendor;
-}
+};
 
-export interface CreditAsOfBackfillJob {
+export type CreditAsOfBackfillJob = {
     id: bigint;
     account_id: number;
     status: string;
@@ -1001,9 +1001,9 @@ export interface CreditAsOfBackfillJob {
     started_at: Date | null;
     created_at: Date;
     updated_at: Date;
-}
+};
 
-export interface CreditAsOfRewriteQueue {
+export type CreditAsOfRewriteQueue = {
     id: bigint;
     account_id: number;
     customer_ids: number[];
@@ -1015,9 +1015,9 @@ export interface CreditAsOfRewriteQueue {
     last_error: string | null;
     created_at: Date;
     updated_at: Date;
-}
+};
 
-export interface CreditDashboardDailySnapshot {
+export type CreditDashboardDailySnapshot = {
     id: bigint;
     account_id: number;
     policy_id: number | null;
@@ -1052,13 +1052,13 @@ export interface CreditDashboardDailySnapshot {
     top_up_expiring_customer_count: number | null;
     created_at: Date;
     modified_at: Date;
-}
+};
 
-export interface CreditDashboardDailySnapshotRelations {
+export type CreditDashboardDailySnapshotRelations = {
     BusinessUnit: BusinessUnit | null;
-}
+};
 
-export interface CronJob {
+export type CronJob = {
     id: number;
     created_at: Date;
     name: string;
@@ -1085,13 +1085,13 @@ export interface CronJob {
     alert_failure_rate_threshold: Decimal | null;
     alert_connection_threshold: number | null;
     alert_enabled: boolean;
-}
+};
 
-export interface CronJobRelations {
+export type CronJobRelations = {
     Log: Log[];
-}
+};
 
-export interface CurrencyRate {
+export type CurrencyRate = {
     id: number;
     rate_date: Date;
     base_currency: string;
@@ -1101,9 +1101,9 @@ export interface CurrencyRate {
     modified_at: Date;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface Customer {
+export type Customer = {
     id: number;
     account_id: number;
     created_at: Date;
@@ -1155,9 +1155,9 @@ export interface Customer {
     oldest_invoice_overdue_date: Date | null;
     overdue_block: boolean;
     zero_limit_alert_exist: boolean;
-}
+};
 
-export interface CustomerRelations {
+export type CustomerRelations = {
     Activity: Activity[];
     CommunicationChannelPreference: CommunicationChannelPreference[];
     CommunicationLearningData: CommunicationLearningData[];
@@ -1185,9 +1185,9 @@ export interface CustomerRelations {
     CustomerPolicyTrend: CustomerPolicyTrend[];
     CustomerTopUp: CustomerTopUp[];
     CustomerCheckpoint: CustomerCheckpoint | null;
-}
+};
 
-export interface CustomerAggregatedData {
+export type CustomerAggregatedData = {
     id: number;
     customer_id: number;
     created_at: Date;
@@ -1208,15 +1208,15 @@ export interface CustomerAggregatedData {
     child_customers_count: number | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface CustomerAggregatedDataRelations {
+export type CustomerAggregatedDataRelations = {
     Customer: Customer;
     User_CustomerAggregatedData_created_byToUser: User | null;
     User_CustomerAggregatedData_modified_byToUser: User | null;
-}
+};
 
-export interface CustomerBanks {
+export type CustomerBanks = {
     id: number;
     customer_id: number;
     account_id: number;
@@ -1225,17 +1225,17 @@ export interface CustomerBanks {
     modified_at: Date;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface CustomerBanksRelations {
+export type CustomerBanksRelations = {
     User_CustomerBanks_created_byToUser: User | null;
     User_CustomerBanks_modified_byToUser: User | null;
     Account: Account;
     Customer: Customer;
     AccountBankAccounts: AccountBankAccounts;
-}
+};
 
-export interface CustomerCheckpoint {
+export type CustomerCheckpoint = {
     id: number;
     customer_id: number;
     account_id: number;
@@ -1244,14 +1244,14 @@ export interface CustomerCheckpoint {
     saved_by: string | null;
     created_at: Date;
     modified_at: Date;
-}
+};
 
-export interface CustomerCheckpointRelations {
+export type CustomerCheckpointRelations = {
     Customer: Customer;
     Account: Account;
-}
+};
 
-export interface CustomerCollectionPeriod {
+export type CustomerCollectionPeriod = {
     id: number;
     created_at: Date;
     modified_at: Date;
@@ -1288,18 +1288,18 @@ export interface CustomerCollectionPeriod {
     lawyer_assigned: boolean;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface CustomerCollectionPeriodRelations {
+export type CustomerCollectionPeriodRelations = {
     Activity: Activity[];
     User_CustomerCollectionPeriod_created_byToUser: User | null;
     User_CustomerCollectionPeriod_modified_byToUser: User | null;
     Customer: Customer;
     CustomerDispute: CustomerDispute[];
     Invoice: Invoice[];
-}
+};
 
-export interface CustomerDispute {
+export type CustomerDispute = {
     id: number;
     created_at: Date;
     modified_at: Date;
@@ -1319,9 +1319,9 @@ export interface CustomerDispute {
     created_by: string | null;
     modified_by: string | null;
     closed_at: Date | null;
-}
+};
 
-export interface CustomerDisputeRelations {
+export type CustomerDisputeRelations = {
     User_CustomerDispute_created_byToUser: User | null;
     User_CustomerDispute_modified_byToUser: User | null;
     CustomerCollectionPeriod: CustomerCollectionPeriod | null;
@@ -1329,9 +1329,9 @@ export interface CustomerDisputeRelations {
     DisputeReason: DisputeReason | null;
     User_CustomerDispute_owner_idToUser: User | null;
     DisputeInvoice: DisputeInvoice[];
-}
+};
 
-export interface CustomerPolicy {
+export type CustomerPolicy = {
     id: number;
     created_at: Date;
     modified_at: Date;
@@ -1373,17 +1373,17 @@ export interface CustomerPolicy {
     uninsured_currency2: string | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface CustomerPolicyRelations {
+export type CustomerPolicyRelations = {
     Customer: Customer;
     InsurancePolicy: InsurancePolicy | null;
     User_CustomerPolicy_created_byToUser: User | null;
     User_CustomerPolicy_modified_byToUser: User | null;
     CustomerPolicyTrend: CustomerPolicyTrend[];
-}
+};
 
-export interface CustomerPolicyTrend {
+export type CustomerPolicyTrend = {
     id: bigint;
     account_id: number;
     customer_id: number;
@@ -1436,15 +1436,15 @@ export interface CustomerPolicyTrend {
     effective_usage_pct: number | null;
     created_at: Date;
     modified_at: Date;
-}
+};
 
-export interface CustomerPolicyTrendRelations {
+export type CustomerPolicyTrendRelations = {
     Customer: Customer;
     InsurancePolicy: InsurancePolicy | null;
     CustomerPolicy: CustomerPolicy | null;
-}
+};
 
-export interface CustomerTopUp {
+export type CustomerTopUp = {
     id: number;
     customer_id: number;
     insurance_policy_id: number;
@@ -1461,16 +1461,16 @@ export interface CustomerTopUp {
     modified_by: string | null;
     created_at: Date;
     modified_at: Date;
-}
+};
 
-export interface CustomerTopUpRelations {
+export type CustomerTopUpRelations = {
     Customer: Customer;
     InsurancePolicy: InsurancePolicy;
     User_CustomerTopUp_created_byToUser: User | null;
     User_CustomerTopUp_modified_byToUser: User | null;
-}
+};
 
-export interface DashboardCache {
+export type DashboardCache = {
     id: number;
     account_id: number;
     business_unit_id: number | null;
@@ -1500,9 +1500,9 @@ export interface DashboardCache {
     expires_at: Date;
     created_at: Date;
     modified_at: Date;
-}
+};
 
-export interface DisputeInvoice {
+export type DisputeInvoice = {
     id: number;
     dispute_id: number;
     invoice_id: number;
@@ -1510,16 +1510,16 @@ export interface DisputeInvoice {
     modified_at: Date | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface DisputeInvoiceRelations {
+export type DisputeInvoiceRelations = {
     User_DisputeInvoice_created_byToUser: User | null;
     User_DisputeInvoice_modified_byToUser: User | null;
     CustomerDispute: CustomerDispute;
     Invoice: Invoice;
-}
+};
 
-export interface DisputeReason {
+export type DisputeReason = {
     id: number;
     created_at: Date;
     modified_at: Date;
@@ -1530,17 +1530,17 @@ export interface DisputeReason {
     editable: boolean | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface DisputeReasonRelations {
+export type DisputeReasonRelations = {
     CustomerDispute: CustomerDispute[];
     User_DisputeReason_created_byToUser: User | null;
     User_DisputeReason_modified_byToUser: User | null;
     Account: Account | null;
     DisputeReasonLanguage: DisputeReasonLanguage[];
-}
+};
 
-export interface DisputeReasonLanguage {
+export type DisputeReasonLanguage = {
     id: number;
     created_at: Date;
     modified_at: Date;
@@ -1549,15 +1549,15 @@ export interface DisputeReasonLanguage {
     name: string;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface DisputeReasonLanguageRelations {
+export type DisputeReasonLanguageRelations = {
     User_DisputeReasonLanguage_created_byToUser: User | null;
     User_DisputeReasonLanguage_modified_byToUser: User | null;
     DisputeReason: DisputeReason;
-}
+};
 
-export interface ImportJob {
+export type ImportJob = {
     id: string;
     created_at: Date;
     modified_at: Date;
@@ -1575,17 +1575,17 @@ export interface ImportJob {
     metadata: JsonValue | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface ImportJobRelations {
+export type ImportJobRelations = {
     User_ImportJob_created_byToUser: User | null;
     User_ImportJob_modified_byToUser: User | null;
     Account: Account;
     User_ImportJob_user_idToUser: User | null;
     ImportRecord: ImportRecord[];
-}
+};
 
-export interface ImportRecord {
+export type ImportRecord = {
     id: string;
     created_at: Date;
     modified_at: Date;
@@ -1600,15 +1600,15 @@ export interface ImportRecord {
     entity_id: number | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface ImportRecordRelations {
+export type ImportRecordRelations = {
     User_ImportRecord_created_byToUser: User | null;
     User_ImportRecord_modified_byToUser: User | null;
     ImportJob: ImportJob;
-}
+};
 
-export interface InsurancePolicy {
+export type InsurancePolicy = {
     id: number;
     created_at: Date;
     modified_at: Date;
@@ -1642,9 +1642,9 @@ export interface InsurancePolicy {
     auto_activate_on_term_start: boolean;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface InsurancePolicyRelations {
+export type InsurancePolicyRelations = {
     Account: Account;
     User_InsurancePolicy_created_byToUser: User | null;
     User_InsurancePolicy_modified_byToUser: User | null;
@@ -1659,9 +1659,9 @@ export interface InsurancePolicyRelations {
     CustomerTopUp: CustomerTopUp[];
     ParentInsurancePolicy: InsurancePolicy | null;
     ChildInsurancePolicies: InsurancePolicy[];
-}
+};
 
-export interface InsurancePolicyCountry {
+export type InsurancePolicyCountry = {
     id: string;
     created_at: Date;
     modified_at: Date;
@@ -1673,17 +1673,17 @@ export interface InsurancePolicyCountry {
     country_max_limit: Decimal | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface InsurancePolicyCountryRelations {
+export type InsurancePolicyCountryRelations = {
     InsurancePolicy: InsurancePolicy;
     Country: Country;
     User_InsurancePolicyCountry_created_byToUser: User | null;
     User_InsurancePolicyCountry_modified_byToUser: User | null;
     InsurancePolicyCountryTrend: InsurancePolicyCountryTrend[];
-}
+};
 
-export interface InsurancePolicyCountryTrend {
+export type InsurancePolicyCountryTrend = {
     id: bigint;
     account_id: number;
     insurance_policy_id: number;
@@ -1696,14 +1696,14 @@ export interface InsurancePolicyCountryTrend {
     country_max_limit: Decimal | null;
     created_at: Date;
     modified_at: Date;
-}
+};
 
-export interface InsurancePolicyCountryTrendRelations {
+export type InsurancePolicyCountryTrendRelations = {
     InsurancePolicyCountry: InsurancePolicyCountry;
     InsurancePolicy: InsurancePolicy;
-}
+};
 
-export interface InsurancePolicyTrend {
+export type InsurancePolicyTrend = {
     id: bigint;
     account_id: number;
     insurance_policy_id: number;
@@ -1736,13 +1736,13 @@ export interface InsurancePolicyTrend {
     country_row_count: number;
     created_at: Date;
     modified_at: Date;
-}
+};
 
-export interface InsurancePolicyTrendRelations {
+export type InsurancePolicyTrendRelations = {
     InsurancePolicy: InsurancePolicy;
-}
+};
 
-export interface InternalEmailTemplate {
+export type InternalEmailTemplate = {
     id: number;
     created_at: Date;
     modified_at: Date;
@@ -1755,15 +1755,15 @@ export interface InternalEmailTemplate {
     master_template: boolean;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface InternalEmailTemplateRelations {
+export type InternalEmailTemplateRelations = {
     User_InternalEmailTemplate_created_byToUser: User | null;
     User_InternalEmailTemplate_modified_byToUser: User | null;
     Account: Account;
-}
+};
 
-export interface Invoice {
+export type Invoice = {
     id: number;
     created_at: Date;
     promise_to_pay: number | null;
@@ -1821,9 +1821,9 @@ export interface Invoice {
     capacity_gap_amount: Decimal | null;
     capacity_gap_amount_limit: Decimal | null;
     capacity_gap_amount_date: Date | null;
-}
+};
 
-export interface InvoiceRelations {
+export type InvoiceRelations = {
     DisputeInvoice: DisputeInvoice[];
     User_Invoice_created_byToUser: User | null;
     User_Invoice_modified_byToUser: User | null;
@@ -1835,9 +1835,9 @@ export interface InvoiceRelations {
     InsurancePolicy: InsurancePolicy | null;
     InvoicePayment: InvoicePayment[];
     Activity: Activity[];
-}
+};
 
-export interface InvoicePayment {
+export type InvoicePayment = {
     id: number;
     invoice_id: number | null;
     customer_currency: string;
@@ -1853,17 +1853,17 @@ export interface InvoicePayment {
     modified_at: Date | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface InvoicePaymentRelations {
+export type InvoicePaymentRelations = {
     User_InvoicePayment_created_byToUser: User | null;
     User_InvoicePayment_modified_byToUser: User | null;
     Customer: Customer;
     Invoice: Invoice | null;
     Account: Account;
-}
+};
 
-export interface Log {
+export type Log = {
     id: bigint;
     timestamp: Date;
     level: log_level;
@@ -1875,15 +1875,15 @@ export interface Log {
     job_id: number | null;
     correlation_id: string | null;
     sub_source: string | null;
-}
+};
 
-export interface LogRelations {
+export type LogRelations = {
     Account: Account | null;
     CronJob: CronJob | null;
     User: User | null;
-}
+};
 
-export interface NamedPolicy {
+export type NamedPolicy = {
     id: number;
     created_at: Date;
     modified_at: Date;
@@ -1896,16 +1896,16 @@ export interface NamedPolicy {
     limit_expiration_date: Date | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface NamedPolicyRelations {
+export type NamedPolicyRelations = {
     InsurancePolicy: InsurancePolicy;
     User_NamedPolicy_created_byToUser: User | null;
     User_NamedPolicy_modified_byToUser: User | null;
     NamedPolicyTrend: NamedPolicyTrend[];
-}
+};
 
-export interface NamedPolicyTrend {
+export type NamedPolicyTrend = {
     id: bigint;
     account_id: number;
     insurance_policy_id: number;
@@ -1919,14 +1919,14 @@ export interface NamedPolicyTrend {
     limit_expiration_date: Date | null;
     created_at: Date;
     modified_at: Date;
-}
+};
 
-export interface NamedPolicyTrendRelations {
+export type NamedPolicyTrendRelations = {
     NamedPolicy: NamedPolicy;
     InsurancePolicy: InsurancePolicy;
-}
+};
 
-export interface Notification {
+export type Notification = {
     id: string;
     created_at: Date;
     modified_at: Date;
@@ -1941,16 +1941,16 @@ export interface Notification {
     metadata: JsonValue | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface NotificationRelations {
+export type NotificationRelations = {
     User_Notification_created_byToUser: User | null;
     User_Notification_modified_byToUser: User | null;
     Account: Account;
     User_Notification_user_idToUser: User;
-}
+};
 
-export interface NotificationDeliveryLog {
+export type NotificationDeliveryLog = {
     id: bigint;
     account_id: number;
     rule_id: number;
@@ -1963,14 +1963,14 @@ export interface NotificationDeliveryLog {
     metadata: JsonValue | null;
     created_at: Date;
     modified_at: Date;
-}
+};
 
-export interface NotificationDeliveryLogRelations {
+export type NotificationDeliveryLogRelations = {
     Account: Account;
     rule: NotificationRule;
-}
+};
 
-export interface NotificationRule {
+export type NotificationRule = {
     id: number;
     rule_set_id: number;
     advance_day_offsets: number[];
@@ -1979,16 +1979,16 @@ export interface NotificationRule {
     modified_at: Date;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface NotificationRuleRelations {
+export type NotificationRuleRelations = {
     rule_set: NotificationRuleSet;
     role_defaults: NotificationRuleRoleDefault[];
     user_overrides: NotificationRuleUserOverride[];
     delivery_logs: NotificationDeliveryLog[];
-}
+};
 
-export interface NotificationRuleRoleDefault {
+export type NotificationRuleRoleDefault = {
     id: number;
     rule_id: number;
     role: user_role;
@@ -1996,13 +1996,13 @@ export interface NotificationRuleRoleDefault {
     modified_at: Date;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface NotificationRuleRoleDefaultRelations {
+export type NotificationRuleRoleDefaultRelations = {
     rule: NotificationRule;
-}
+};
 
-export interface NotificationRuleSet {
+export type NotificationRuleSet = {
     id: number;
     account_id: number;
     product: notification_rule_product;
@@ -2012,14 +2012,14 @@ export interface NotificationRuleSet {
     modified_at: Date;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface NotificationRuleSetRelations {
+export type NotificationRuleSetRelations = {
     Account: Account;
     rules: NotificationRule[];
-}
+};
 
-export interface NotificationRuleUserOverride {
+export type NotificationRuleUserOverride = {
     id: number;
     rule_id: number;
     user_id: string;
@@ -2028,13 +2028,13 @@ export interface NotificationRuleUserOverride {
     modified_at: Date;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface NotificationRuleUserOverrideRelations {
+export type NotificationRuleUserOverrideRelations = {
     rule: NotificationRule;
-}
+};
 
-export interface Payment {
+export type Payment = {
     id: number;
     created_at: Date;
     payment_date: Date;
@@ -2053,16 +2053,16 @@ export interface Payment {
     generic_date2: Date | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface PaymentRelations {
+export type PaymentRelations = {
     User_Payment_created_byToUser: User | null;
     User_Payment_modified_byToUser: User | null;
     Account: Account;
     Customer: Customer;
-}
+};
 
-export interface Person {
+export type Person = {
     id: number;
     created_at: Date;
     modified_at: Date;
@@ -2074,15 +2074,15 @@ export interface Person {
     full_name: string | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface PersonRelations {
+export type PersonRelations = {
     User_Person_created_byToUser: User | null;
     User_Person_modified_byToUser: User | null;
     Customer: Customer[];
-}
+};
 
-export interface Report {
+export type Report = {
     id: number;
     account_id: number;
     name: string;
@@ -2097,9 +2097,9 @@ export interface Report {
     modified_at: Date;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface ReportRelations {
+export type ReportRelations = {
     Account: Account;
     User_Report_created_byToUser: User | null;
     User_Report_modified_byToUser: User | null;
@@ -2107,9 +2107,9 @@ export interface ReportRelations {
     ReportSchedule: ReportSchedule[];
     ReportExecution: ReportExecution[];
     UserDefaultReport: UserDefaultReport[];
-}
+};
 
-export interface ReportExecution {
+export type ReportExecution = {
     id: number;
     report_id: number;
     executed_by: string | null;
@@ -2117,14 +2117,14 @@ export interface ReportExecution {
     execution_config: JsonValue | null;
     result_count: number | null;
     execution_time_ms: number | null;
-}
+};
 
-export interface ReportExecutionRelations {
+export type ReportExecutionRelations = {
     Report: Report;
     User_ReportExecution_executed_byToUser: User | null;
-}
+};
 
-export interface ReportSchedule {
+export type ReportSchedule = {
     id: number;
     report_id: number;
     schedule_type: string;
@@ -2134,13 +2134,13 @@ export interface ReportSchedule {
     next_run_at: Date | null;
     created_at: Date;
     modified_at: Date;
-}
+};
 
-export interface ReportScheduleRelations {
+export type ReportScheduleRelations = {
     Report: Report;
-}
+};
 
-export interface ReportShare {
+export type ReportShare = {
     id: number;
     report_id: number;
     shared_with_user_id: string | null;
@@ -2148,15 +2148,15 @@ export interface ReportShare {
     permission: string;
     created_at: Date;
     created_by: string | null;
-}
+};
 
-export interface ReportShareRelations {
+export type ReportShareRelations = {
     Report: Report;
     User_ReportShare_shared_with_user_idToUser: User | null;
     User_ReportShare_created_byToUser: User | null;
-}
+};
 
-export interface RolePermission {
+export type RolePermission = {
     id: number;
     account_id: number;
     role: user_role;
@@ -2167,15 +2167,15 @@ export interface RolePermission {
     modified_at: Date;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface RolePermissionRelations {
+export type RolePermissionRelations = {
     Account: Account;
     User_RolePermission_created_byToUser: User | null;
     User_RolePermission_modified_byToUser: User | null;
-}
+};
 
-export interface SequenceContainer {
+export type SequenceContainer = {
     id: number;
     created_at: Date;
     modified_at: Date;
@@ -2188,30 +2188,30 @@ export interface SequenceContainer {
     is_deleted: boolean;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface SequenceContainerRelations {
+export type SequenceContainerRelations = {
     ActivitiesSequence: ActivitiesSequence[];
     Customer: Customer[];
     User_SequenceContainer_created_byToUser: User | null;
     User_SequenceContainer_modified_byToUser: User | null;
     Account: Account;
-}
+};
 
-export interface Session {
+export type Session = {
     id: string;
     userId: string;
     expires: Date;
     sessionToken: string;
     created_at: Date;
     modified_at: Date;
-}
+};
 
-export interface SessionRelations {
+export type SessionRelations = {
     User: User;
-}
+};
 
-export interface SMSVendor {
+export type SMSVendor = {
     id: number;
     name: string;
     provider: string;
@@ -2229,17 +2229,17 @@ export interface SMSVendor {
     use_account_sender_name: boolean | null;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface SMSVendorRelations {
+export type SMSVendorRelations = {
     AccountSMSProviderPreferences: AccountSMSProviderPreferences[];
     ActivityContact: ActivityContact[];
     CountrySMSVendor: CountrySMSVendor[];
     User_SMSVendor_created_byToUser: User | null;
     User_SMSVendor_modified_byToUser: User | null;
-}
+};
 
-export interface State {
+export type State = {
     id: number;
     name: string;
     country_id: number;
@@ -2255,17 +2255,17 @@ export interface State {
     modified_at: Date;
     flag: number;
     wikiDataId: string | null;
-}
+};
 
-export interface StateRelations {
+export type StateRelations = {
     Account: Account[];
     AccountBankAccounts: AccountBankAccounts[];
     Contact: Contact[];
     Country: Country;
     Customer: Customer[];
-}
+};
 
-export interface User {
+export type User = {
     id: string;
     name: string | null;
     email: string;
@@ -2298,9 +2298,9 @@ export interface User {
     created_by: string | null;
     modified_by: string | null;
     business_unit_id: number | null;
-}
+};
 
-export interface UserRelations {
+export type UserRelations = {
     Account_Account_created_byToUser: Account[];
     Account_Account_modified_byToUser: Account[];
     Account_Account_deleted_byToUser: Account[];
@@ -2402,23 +2402,23 @@ export interface UserRelations {
     ReportShare_ReportShare_created_byToUser: ReportShare[];
     ReportExecution_ReportExecution_executed_byToUser: ReportExecution[];
     UserDefaultReport: UserDefaultReport[];
-}
+};
 
-export interface UserDefaultReport {
+export type UserDefaultReport = {
     id: number;
     user_id: string;
     context: string;
     report_id: number;
     created_at: Date;
     modified_at: Date;
-}
+};
 
-export interface UserDefaultReportRelations {
+export type UserDefaultReportRelations = {
     User: User;
     Report: Report;
-}
+};
 
-export interface UserImportMappings {
+export type UserImportMappings = {
     id: string;
     user_id: string;
     mapping: JsonValue;
@@ -2429,40 +2429,40 @@ export interface UserImportMappings {
     import_type: ImportType;
     created_by: string | null;
     modified_by: string | null;
-}
+};
 
-export interface UserImportMappingsRelations {
+export type UserImportMappingsRelations = {
     CreatedByUser: User | null;
     ModifiedByUser: User | null;
     User: User;
-}
+};
 
-export interface UserPreferences {
+export type UserPreferences = {
     id: string;
     userId: string;
     preferenceKey: string;
     preferenceValue: JsonValue | null;
     created_at: Date;
     modified_at: Date;
-}
+};
 
-export interface UserPreferencesRelations {
+export type UserPreferencesRelations = {
     User: User;
-}
+};
 
-export interface VerificationCode {
+export type VerificationCode = {
     id: number;
     customer_uuid: string;
     code: string;
     expires_at: Date;
     created_at: Date;
-}
+};
 
-export interface VerificationToken {
+export type VerificationToken = {
     id: string;
     identifier: string;
     token: string;
     expires: Date;
     created_at: Date;
     modified_at: Date;
-}
+};

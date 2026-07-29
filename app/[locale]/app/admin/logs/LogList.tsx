@@ -1,5 +1,4 @@
 "use client";
-import AppDialog from "@/shared/layout-components/modal/AppDialog";
 import {
     ContentCopy as CopyIcon,
     Report as CriticalIcon,
@@ -24,9 +23,9 @@ import {
     GridRenderCellParams,
     GridSortModel,
 } from "@mui/x-data-grid";
-import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import React, {
     useCallback,
     useEffect,
@@ -44,8 +43,10 @@ import EndlessScrollDataGrid, {
     useVirtualInfiniteScroll,
     useWindowWidth,
 } from "@/shared/layout-components/grid/EndlessScrollDataGrid";
+import AppDialog from "@/shared/layout-components/modal/AppDialog";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import { CurrencyColumnsConfig, ExportFormat } from "@/shared/utility/exportToExcel";
+import { apiFetch } from "@/utils/apiFetch";
 import {
     getUserDateFormatOptions,
     getUserDateTimeFormatOptions,
@@ -353,7 +354,7 @@ export default function LogList() {
 
             const url = `/api/admin/logs?${params.toString()}`;
 
-            const response = await fetch(url);
+            const response = await apiFetch(url);
             if (!response.ok) {
                 throw new Error("Failed to fetch logs");
             }

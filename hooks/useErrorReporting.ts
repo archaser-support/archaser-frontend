@@ -4,6 +4,8 @@ import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useCallback } from "react";
 
+import { apiFetch } from "@/utils/apiFetch";
+
 interface ErrorReportData {
     errorMessage: string;
     errorStack?: string;
@@ -77,7 +79,7 @@ export const useErrorReporting = () => {
                 };
 
                 // Send to API endpoint
-                await fetch("/api/errors/report", {
+                await apiFetch("/api/errors/report", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",

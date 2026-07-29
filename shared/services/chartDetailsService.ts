@@ -1,4 +1,5 @@
 import { ChartDetailsResponse } from "@/types/ChartDetails";
+import { apiFetch } from "@/utils/apiFetch";
 
 export const fetchChartDetails = async (
     chartType: string,
@@ -18,7 +19,7 @@ export const fetchChartDetails = async (
     const url = `/api/system/dashboard/chart-details?${searchParams.toString()}`;
     // Debug logging removed for production
 
-    const response = await fetch(url);
+    const response = await apiFetch(url);
 
     if (!response.ok) {
         throw new Error(

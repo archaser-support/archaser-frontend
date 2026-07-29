@@ -1,4 +1,5 @@
 ﻿import { ImportType } from "@/types/db";
+import { apiFetch } from "@/utils/apiFetch";
 
 export interface UserImportMapping {
     id: string;
@@ -32,7 +33,7 @@ class ImportMappingService {
             ? `${this.baseUrl}?import_type=${importType}`
             : this.baseUrl;
 
-        const response = await fetch(url);
+        const response = await apiFetch(url);
 
         if (!response.ok) {
             const errorText = await response.text();
@@ -44,7 +45,7 @@ class ImportMappingService {
     }
 
     async getMapping(id: string): Promise<UserImportMapping> {
-        const response = await fetch(`${this.baseUrl}/${id}`);
+        const response = await apiFetch(`${this.baseUrl}/${id}`);
 
         if (!response.ok) {
             throw new Error(`Failed to fetch mapping: ${response.statusText}`);
@@ -57,7 +58,7 @@ class ImportMappingService {
     async createMapping(
         request: CreateMappingRequest
     ): Promise<UserImportMapping> {
-        const response = await fetch(this.baseUrl, {
+        const response = await apiFetch(this.baseUrl, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -80,7 +81,7 @@ class ImportMappingService {
     ): Promise<UserImportMapping> {
         const url = `${this.baseUrl}/${id}`;
 
-        const response = await fetch(url, {
+        const response = await apiFetch(url, {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",
@@ -98,7 +99,7 @@ class ImportMappingService {
     }
 
     async deleteMapping(id: string): Promise<void> {
-        const response = await fetch(`${this.baseUrl}/${id}`, {
+        const response = await apiFetch(`${this.baseUrl}/${id}`, {
             method: "DELETE",
         });
 

@@ -17,12 +17,29 @@ import {
 } from "@mui/material";
 import { GridSortModel } from "@mui/x-data-grid";
 import { useQuery } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useDebounce } from "use-debounce";
 
+
+import { CreditMetricCard } from "@/app/[locale]/app/credit-dashboard/CreditMetricCard";
+import type { MetricStatCardIconAccent } from "@/app/theme";
+import InternalPageWrapper from "@/components/InternalPageWrapper";
+import PageHeader from "@/components/PageHeader";
+import {
+    COLLECTED_MTD_CHART_TYPE,
+    COLLECTED_MTD_CHART_TYPE_LEGACY,
+    isCollectedMtdChartType,
+} from "@/shared/dashboard/collectedMtdChartDetails";
+import {
+    appendDashboardBusinessUnitId,
+    parseDashboardBusinessUnitIdFromUrl,
+} from "@/shared/dashboard/dashboardBusinessUnitParams";
+import { shouldUseDashboardCustomerReportList } from "@/shared/dashboard/dashboardCustomerChartFilters";
+import { shouldUseDashboardInvoiceReportList } from "@/shared/dashboard/dashboardInvoiceChartFilters";
+import { shouldUseDashboardPaymentReportList } from "@/shared/dashboard/dashboardPaymentChartFilters";
 import EndlessScrollDataGrid, {
     BREAKPOINTS,
     useWindowWidth,
@@ -33,6 +50,7 @@ import {
     formatCurrencyWithCode,
     safeAmount,
 } from "@/shared/utility/exportToExcel";
+import { apiFetch } from "@/utils/apiFetch";
 import {
     formatDateForDisplay,
     getUserDateLocale,
@@ -43,24 +61,6 @@ import {
     formatCurrencyWithRTLSupport,
     resolveCustomerFirstCurrency,
 } from "@/utils/stringFormatters";
-
-import { CreditMetricCard } from "@/app/[locale]/app/credit-dashboard/CreditMetricCard";
-import type { MetricStatCardIconAccent } from "@/app/theme";
-import InternalPageWrapper from "@/components/InternalPageWrapper";
-import PageHeader from "@/components/PageHeader";
-
-import {
-    COLLECTED_MTD_CHART_TYPE,
-    COLLECTED_MTD_CHART_TYPE_LEGACY,
-    isCollectedMtdChartType,
-} from "@/shared/dashboard/collectedMtdChartDetails";
-import {
-    appendDashboardBusinessUnitId,
-    parseDashboardBusinessUnitIdFromUrl,
-} from "@/shared/dashboard/dashboardBusinessUnitParams";
-import { shouldUseDashboardInvoiceReportList } from "@/shared/dashboard/dashboardInvoiceChartFilters";
-import { shouldUseDashboardCustomerReportList } from "@/shared/dashboard/dashboardCustomerChartFilters";
-import { shouldUseDashboardPaymentReportList } from "@/shared/dashboard/dashboardPaymentChartFilters";
 
 import { createColumnDefinitions, getChartColumns } from "./columnDefinitions";
 import { DashboardCustomerChartDetailsGrid } from "./DashboardCustomerChartDetailsGrid";
@@ -200,7 +200,7 @@ const ChartDetailsPage: React.FC<ChartDetailsProps> = ({ params }) => {
 
         const url = `/api/system/dashboard/chart-details?${searchParams.toString()}`;
 
-        const response = await fetch(url, { cache: "no-store" });
+        const response = await apiFetch(url, { cache: "no-store" });
 
         if (!response.ok) {
             if (response.status === 403) {
@@ -405,7 +405,7 @@ const ChartDetailsPage: React.FC<ChartDetailsProps> = ({ params }) => {
             }
 
             const url = `/api/system/dashboard/chart-details?${searchParams.toString()}`;
-            const response = await fetch(url, { cache: "no-store" });
+            const response = await apiFetch(url, { cache: "no-store" });
 
             if (!response.ok) {
                 if (response.status === 403) {

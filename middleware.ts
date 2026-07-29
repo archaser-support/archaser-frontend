@@ -27,6 +27,14 @@ export async function middleware(request: NextRequest) {
         if (pathname.startsWith("/api/auth")) {
             return NextResponse.next();
         }
+        // Local dev may proxy product APIs to Nest via `next.config.js`
+        // rewrites; middleware runs first, so let those through.
+        if (
+            process.env.NODE_ENV === "development" &&
+            process.env.USE_NEST_API_REWRITE === "true"
+        ) {
+            return NextResponse.next();
+        }
         if (pathname.startsWith("/api/ws")) {
             const nest =
                 process.env.NEXT_PUBLIC_NEST_API_BASE_URL?.replace(/\/$/, "") ||

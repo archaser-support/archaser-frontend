@@ -43,9 +43,8 @@ export default defineConfig({
         teardownTimeout: 5000, // 5 seconds for teardown
         // Add reporter for better progress visibility
         reporters: ["verbose"],
-        typecheck: {
-            tsconfig: "./tsconfig.vitest.json",
-        },
+        // Typecheck is handled by `npm run type-check`; enabling it here hangs
+        // vitest on Windows while scanning the full app tree.
     },
     resolve: {
         alias: {

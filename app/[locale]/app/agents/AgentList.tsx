@@ -1,5 +1,6 @@
 "use client";
 import { apiFetch } from "@/utils/apiFetch";
+
 import {
     Group as GroupIcon,
     Category,
@@ -30,9 +31,9 @@ import {
 } from "@mui/x-data-grid";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import moment from "moment";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import dynamic from "next/dynamic";
 import React, { useState, useMemo, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useDebounce } from "use-debounce";
@@ -48,14 +49,14 @@ const MassUpdateCategoryModal = dynamic(
         loading: () => null,
     }
 );
-import { ToolbarDropdownFilter } from "@/shared/components/ToolbarDropdownFilter";
 import { BulkActionButton } from "@/shared/components/BulkActionButton";
+import { ToolbarDropdownFilter } from "@/shared/components/ToolbarDropdownFilter";
+import { GRID_CONSTANTS } from "@/shared/layout-components/grid/constants";
 import EndlessScrollDataGrid, {
     useWindowWidth,
     BREAKPOINTS,
     useVirtualInfiniteScroll,
 } from "@/shared/layout-components/grid/EndlessScrollDataGrid";
-import { GRID_CONSTANTS } from "@/shared/layout-components/grid/constants";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import {
     fetchDisputeWithAgentsStats,
@@ -283,7 +284,7 @@ const AgentList: React.FC<AgentListProps> = ({
                 ...filteredParams,
             });
             const fullUrl = `${endpoint}?${queryParams}`;
-            const response = await fetch(fullUrl, {
+            const response = await apiFetch(fullUrl, {
                 method: "GET",
                 headers: { "Content-Type": "application/json" },
             });
@@ -342,7 +343,7 @@ const AgentList: React.FC<AgentListProps> = ({
                 ...filteredParams,
             });
             const fullUrl = `${endpoint}?${queryParams}`;
-            const response = await fetch(fullUrl, {
+            const response = await apiFetch(fullUrl, {
                 method: "GET",
                 headers: { "Content-Type": "application/json" },
             });
@@ -745,7 +746,7 @@ const AgentList: React.FC<AgentListProps> = ({
             }
 
             // Make API call to fetch all records
-            const response = await fetch(apiUrl);
+            const response = await apiFetch(apiUrl);
             if (!response.ok) {
                 throw new Error(
                     `API call failed: ${response.status} ${response.statusText}`

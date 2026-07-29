@@ -41,18 +41,18 @@ import {
 } from "@mui/material";
 import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import api, { apiFetch } from "@/app/api";
-import { useSession } from "next-auth/react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useDebounce } from "use-debounce";
 
+import api, { apiFetch } from "@/app/api";
 import { resolveAccountColorFields } from "@/app/theme";
 import { CountrySelect } from "@/components/LocationSelects";
-import AppDialog from "@/shared/layout-components/modal/AppDialog";
 import EndlessScrollDataGrid from "@/shared/layout-components/grid/EndlessScrollDataGrid";
 import { getEndlessScrollToolbarTooltipProps } from "@/shared/layout-components/grid/endlessScrollToolbarTooltip";
+import AppDialog from "@/shared/layout-components/modal/AppDialog";
 import DeleteDialog from "@/shared/layout-components/modal/DeleteDialog";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import { fetchAccountById } from "@/shared/services/accountService";
@@ -61,7 +61,6 @@ import { Account } from "@/types/Account";
 import AppUrls from "@/utils/appUrls";
 import { decodeLogo } from "@/utils/logoUtils";
 
-import AccountHeader from "./components/AccountHeader";
 import {
     accountCardContentSx,
     accountCardHeaderSx,
@@ -69,13 +68,14 @@ import {
     accountCardTitleSx,
     accountSectionIconSx,
 } from "./accountCardStyles";
+import AccountHeader from "./components/AccountHeader";
 import AccountRoles from "./components/AccountRoles";
 import AccountUsers from "./components/AccountUsers";
 import AddressInformation from "./components/AddressInformation";
 import AutomationSettings from "./components/AutomationSettings";
+import BillingIntegrationSettings from "./components/BillingIntegrationSettings";
 import { BusinessUnits } from "./components/BusinessUnits";
 import CommunicationSettings from "./components/CommunicationSettings";
-import BillingIntegrationSettings from "./components/BillingIntegrationSettings";
 import GeneralInformation from "./components/GeneralInformation";
 import IntelligentChannelSelection from "./components/IntelligentChannelSelection";
 import PortalSettings from "./components/PortalSettings";
@@ -807,7 +807,7 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
                 payload.id = accountId as number;
             }
 
-            const response = await fetch(url, {
+            const response = await apiFetch(url, {
                 method: isNewAccount ? "POST" : "PUT",
                 headers: {
                     "Content-Type": "application/json",
@@ -1179,7 +1179,7 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
                 priority: providerForm.priority ?? 1,
             };
 
-            const response = await fetch(url, {
+            const response = await apiFetch(url, {
                 method: method,
                 headers: {
                     "Content-Type": "application/json",
@@ -2447,7 +2447,7 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
                                                     delete payload.logoPreview;
                                                     payload.id = Number(accountId);
 
-                                                    const response = await fetch(url, {
+                                                    const response = await apiFetch(url, {
                                                         method: "PUT",
                                                         headers: { "Content-Type": "application/json" },
                                                         body: JSON.stringify(payload),

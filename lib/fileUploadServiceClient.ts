@@ -2,6 +2,8 @@
  * Client-safe file upload service utilities
  * This version can be used in React components without Node.js dependencies
  */
+import { apiFetch } from "@/utils/apiFetch";
+
 
 export interface FileUploadResult {
     filePath: string;
@@ -32,7 +34,7 @@ export class FileUploadServiceClient {
         if (this.isS3File(filePath)) {
             try {
                 // Call the API to get a presigned URL
-                const response = await fetch(`/api/activities/attachments/presigned-url`, {
+                const response = await apiFetch(`/api/activities/attachments/presigned-url`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

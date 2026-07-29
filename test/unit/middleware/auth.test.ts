@@ -70,19 +70,21 @@ describe("Middleware Authentication", () => {
             const request = new NextRequest("http://localhost:3000/api/users");
             const response = await middleware(request);
 
-            expect(mockGetToken).toHaveBeenCalled();
-            expect(response.status).not.toBe(401);
+            // Product APIs are Nest-owned; middleware returns a guidance 404.
+            expect(response.status).toBe(404);
+            const json = await response.json();
+            expect(json.error).toMatch(/Nest/i);
         });
 
-        it("should return 401 for unauthenticated API requests", async () => {
+        it("should return 404 for product API requests (Nest-owned)", async () => {
             mockGetToken.mockResolvedValue(null);
 
             const request = new NextRequest("http://localhost:3000/api/users");
             const response = await middleware(request);
 
-            expect(response.status).toBe(401);
+            expect(response.status).toBe(404);
             const json = await response.json();
-            expect(json.error).toBe("Unauthorized");
+            expect(json.error).toMatch(/Nest/i);
         });
 
         it("should redirect to login for unauthenticated page requests", async () => {
@@ -103,39 +105,25 @@ describe("Middleware Authentication", () => {
             const request = new NextRequest("http://localhost:3000/api/auth/signin");
             const response = await middleware(request);
 
-            // getToken is called early in middleware now
-            expect(mockGetToken).toHaveBeenCalled();
+            // Auth stays on Amplify for the Nest-JWT→session bridge.
             expect(response.status).not.toBe(401);
+            expect(response.status).not.toBe(404);
         });
 
-        it("should allow access to /api/portal paths without authentication", async () => {
+        it("should reject product API paths with Nest guidance 404", async () => {
             mockGetToken.mockResolvedValue(null);
 
-            const request = new NextRequest("http://localhost:3000/api/portal/test");
-            const response = await middleware(request);
-
-            expect(mockGetToken).toHaveBeenCalled();
-            expect(response.status).not.toBe(401);
-        });
-
-        it("should allow access to /api/system/cron paths without authentication", async () => {
-            mockGetToken.mockResolvedValue(null);
-
-            const request = new NextRequest("http://localhost:3000/api/system/cron");
-            const response = await middleware(request);
-
-            expect(mockGetToken).toHaveBeenCalled();
-            expect(response.status).not.toBe(401);
-        });
-
-        it("should allow access to /api/logs/create paths without authentication", async () => {
-            mockGetToken.mockResolvedValue(null);
-
-            const request = new NextRequest("http://localhost:3000/api/logs/create");
-            const response = await middleware(request);
-
-            expect(mockGetToken).toHaveBeenCalled();
-            expect(response.status).not.toBe(401);
+            for (const path of [
+                "/api/portal/test",
+                "/api/system/cron",
+                "/api/logs/create",
+            ]) {
+                const request = new NextRequest(`http://localhost:3000${path}`);
+                const response = await middleware(request);
+                expect(response.status).toBe(404);
+                const json = await response.json();
+                expect(json.error).toMatch(/Nest/i);
+            }
         });
 
         it("should allow access to /portal paths without authentication", async () => {
@@ -282,17 +270,18 @@ describe("Middleware Authentication", () => {
             expect(response.status).not.toBe(403);
         });
 
-        it("should require authentication for account-specific API routes", async () => {
+        it("should reject account-specific API routes with Nest guidance 404", async () => {
             mockGetToken.mockResolvedValue(null);
 
             const request = new NextRequest("http://localhost:3000/api/accounts/1");
             const response = await middleware(request);
 
-            // Middleware should require auth, but account validation happens in handler
-            expect(response.status).toBe(401);
+            expect(response.status).toBe(404);
+            const json = await response.json();
+            expect(json.error).toMatch(/Nest/i);
         });
 
-        it("should pass through authenticated requests to handlers for account validation", async () => {
+        it("should reject authenticated product API requests with Nest guidance 404", async () => {
             const mockToken = {
                 id: "user-123",
                 account_id: 1,
@@ -303,8 +292,7 @@ describe("Middleware Authentication", () => {
             const request = new NextRequest("http://localhost:3000/api/accounts/1");
             const response = await middleware(request);
 
-            // Middleware allows through, handler will validate account access
-            expect(response.status).not.toBe(401);
+            expect(response.status).toBe(404);
         });
 
         it("should allow system admin (account_id 10013) to access protected paths", async () => {

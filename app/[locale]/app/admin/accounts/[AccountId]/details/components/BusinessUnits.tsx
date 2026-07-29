@@ -17,12 +17,12 @@ import {
 import { useTheme } from "@mui/material/styles";
 import { GridColDef, GridSortModel } from "@mui/x-data-grid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import api, { apiFetch } from "@/app/api";
 import { useSession } from "next-auth/react";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useDebounce } from "use-debounce";
 
+import api, { apiFetch } from "@/app/api";
 import EndlessScrollDataGrid, {
     useVirtualInfiniteScroll,
 } from "@/shared/layout-components/grid/EndlessScrollDataGrid";
@@ -275,7 +275,7 @@ export function BusinessUnits({ accountId }: BusinessUnitsProps) {
 
             const url = `/api/entities/accounts/${accountId}/business-units?${params.toString()}`;
 
-            const response = await fetch(url);
+            const response = await apiFetch(url);
 
             if (!response.ok) {
                 const errorData = await response

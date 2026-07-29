@@ -13,7 +13,6 @@ import {
 import { alpha } from "@mui/material/styles";
 import { GridColDef, GridSortModel } from "@mui/x-data-grid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import api, { apiFetch } from "@/app/api";
 import type { ApexOptions } from "apexcharts";
 import dynamic from "next/dynamic";
 import { useRouter, useParams } from "next/navigation";
@@ -28,6 +27,7 @@ import React, {
 import { useTranslation } from "react-i18next";
 import { useDebounce } from "use-debounce";
 
+import api, { apiFetch } from "@/app/api";
 import ReportViewerFiltersModal from "@/components/reports/ReportViewerFiltersModal";
 import EndlessScrollDataGrid, {
     useVirtualInfiniteScroll,
@@ -463,7 +463,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
                             `sortDirection=${encodeURIComponent(executionParams.sortDirection)}`
                         );
                     }
-                    const response = await fetch(
+                    const response = await apiFetch(
                         `/api/reports/${reportId}/export?${queryParts.join("&")}`,
                         {
                             method: "GET",
