@@ -532,19 +532,19 @@ export function UtilizationSectionView({
                 </Eyebrow>
                 <div className={layout.kpiStrip} style={{ marginBottom: 16 }}>
                     <BigNumber
-                        value={section.averageDailyTopUpCount}
-                        decimals={1}
+                        value={section.periodActiveTopUpCount}
+                        decimals={0}
                         suffix=""
                         label={t("credit_portfolio_health.kpi_top_up_count", {
                             ...ns,
-                            defaultValue: "Avg daily top-up count",
+                            defaultValue: "Top-up count",
                         })}
                         color={CPH.ink}
                         locale={language}
                     />
                     <BigNumber
-                        value={section.averageDailyCustomersWithTopUp}
-                        decimals={1}
+                        value={section.periodCustomersWithTopUp}
+                        decimals={0}
                         suffix=""
                         label={t(
                             "credit_portfolio_health.kpi_top_up_customers",

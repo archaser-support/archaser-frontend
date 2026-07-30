@@ -296,6 +296,18 @@ export type PortfolioUtilizationDailyPoint = {
     snapshotDate: string;
     /** Portfolio effective util % for approved rows; null when limit sum is 0. */
     utilizationPct: number | null;
+    /** Size-weighted util % for DCL (self-underwriting) rows; null when DCL limit sum is 0. */
+    dclUtilizationPct: number | null;
+    /** Size-weighted util % for Named (insurer-approved) rows; null when Named limit sum is 0. */
+    namedUtilizationPct: number | null;
+    /** Approved DCL customer count that day. */
+    dclCustomerCount: number;
+    /** Approved Named customer count that day. */
+    namedCustomerCount: number;
+    /** Sum of total_receivables for approved DCL rows. */
+    dclAr: number;
+    /** Sum of total_receivables for approved Named rows. */
+    namedAr: number;
     /** Size-weighted top-up util % among rows with top_up_total > 0; null if none. */
     topUpUtilizationPct: number | null;
     activeTopUpCountSum: number;
@@ -323,18 +335,32 @@ export type PortfolioUtilizationSection = {
     peakUtilizationStreakDays: number;
     peakUtilizationStreakStart: string | null;
     peakUtilizationStreakEnd: string | null;
+    /**
+     * DCL (self-underwriting) share of covered customers (DCL + Named).
+     * Uncovered customers are excluded from the denominator.
+     */
     selfUnderwrittenCustomerPct: number;
     selfUnderwrittenArSharePct: number;
+    selfUnderwrittenAverageAr: number;
+    selfUnderwrittenAverageUtilizationPct: number | null;
+    /** Named (insurer-approved) share of covered customers (DCL + Named). */
     approvedCustomerPct: number;
     approvedArSharePct: number;
+    approvedAverageAr: number;
+    approvedAverageUtilizationPct: number | null;
     averageTopUpUtilizationPct: number | null;
-    averageDailyTopUpCount: number;
-    averageDailyCustomersWithTopUp: number;
+    /** Unique top-ups active on at least one day in the range. */
+    periodActiveTopUpCount: number;
+    /** Unique customers with an active top-up on at least one day in the range. */
+    periodCustomersWithTopUp: number;
     topCustomers: PortfolioUtilizationTopCustomer[];
     efficiencyA: number | null;
+    /** @deprecated Health B removed from UI; kept null for API compatibility. */
     efficiencyB: number | null;
     distribution: PortfolioUtilizationDistributionBin[];
     distributionCustomerCount: number;
+    /** Daily portfolio / DCL / Named utilization for the Utilization chart. */
+    daily: PortfolioUtilizationDailyPoint[];
 };
 
 export type PortfolioCostDailyPoint = {
