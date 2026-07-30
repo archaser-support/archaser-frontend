@@ -1,4 +1,4 @@
-import { describe, expect, it, afterEach } from "vitest";
+import { describe, expect, it, afterEach, beforeEach } from "vitest";
 
 import {
     isAmplifySsrBuild,
@@ -23,11 +23,16 @@ describe("amplifyMode", () => {
         "NEXT_PUBLIC_NEST_API_BASE_URL",
     ] as const;
 
-    afterEach(() => {
+    // A developer shell that exported AMPLIFY_SSR (e.g. after a local Amplify
+    // build) must not change what these assertions see.
+    const clearKeys = () => {
         for (const key of keys) {
             delete process.env[key];
         }
-    });
+    };
+
+    beforeEach(clearKeys);
+    afterEach(clearKeys);
 
     it("detects Amplify SSR build flags", () => {
         expect(isAmplifySsrBuild()).toBe(false);
@@ -60,14 +65,24 @@ describe("amplifyMode", () => {
         );
     });
 
-    it("resolves Nest product API base URL in Nest UI mode", () => {
-        process.env.NEXT_PUBLIC_USE_NEST_AUTH = "true";
+    it("is always Nest UI mode (frontend is UI-only)", () => {
+        expect(isNestUiMode()).toBe(true);
+        expect(shouldAttachNestBearer()).toBe(true);
+    });
+
+    it("resolves Nest product API base URL from Nest origin", () => {
         process.env.NEXT_PUBLIC_NEST_API_BASE_URL = "https://staging.example.com";
         expect(resolveProductApiBaseUrl()).toBe(
             "https://staging.example.com/api"
         );
-        expect(shouldAttachNestBearer()).toBe(true);
-        expect(isNestUiMode()).toBe(true);
+    });
+
+    it("adds the /api suffix to an explicit base URL that omits it", () => {
+        process.env.NEXT_PUBLIC_API_BASE_URL = "https://api.example.com";
+        expect(resolveProductApiBaseUrl()).toBe("https://api.example.com/api");
+
+        process.env.NEXT_PUBLIC_API_BASE_URL = "https://api.example.com/api/";
+        expect(resolveProductApiBaseUrl()).toBe("https://api.example.com/api");
     });
 });
 

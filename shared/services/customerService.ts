@@ -1,4 +1,4 @@
-import { ActivityContact } from "@prisma/client";
+﻿import { ActivityContact } from "@/types/db";
 import { QueryFunction } from "@tanstack/react-query";
 
 import api from "@/app/api";
@@ -221,16 +221,6 @@ export const fetchInvoices: QueryFunction<InvoiceResponse> = async ({
     }
 };
 
-// Shared service function to get available invoices for dispute creation
-export const getAvailableInvoicesForDispute = async (
-    customerIdOrUUID: number | string
-) => {
-    // Use the existing DisputeInvoiceService for consistency
-    return DisputeInvoiceService.getAvailableInvoicesForDispute(
-        customerIdOrUUID
-    );
-};
-
 // Service function to get all invoices for a customer (including disputed ones)
 export const getAllInvoicesForCustomer = async (customerId: number) => {
     try {
@@ -249,159 +239,6 @@ export const getAllInvoicesForCustomer = async (customerId: number) => {
         handleApiError(error, "Failed to fetch all invoices for customer");
     }
 };
-
-/**
- * Dedicated service for dispute-related invoice operations
- * Used by both LogActivity and Portal InvoiceSelector
- */
-export class DisputeInvoiceService {
-    /**
-     * Get available invoices for dispute creation (excludes invoices already in active disputes)
-     * @param customerIdOrUUID - The customer ID (number) or customer UUID (string)
-     * @returns Array of invoices available for dispute creation
-     */
-    static async getAvailableInvoicesForDispute(
-        customerIdOrUUID: number | string
-    ) {
-        // Get invoices that are part of active disputes for THIS SPECIFIC CUSTOMER to exclude them
-        const { prisma } = await import("@/lib/prisma");
-
-        // Determine if we have a customer ID or UUID and get the customer ID
-        let customerId: number;
-
-        if (typeof customerIdOrUUID === "string") {
-            // It's a UUID, we need to find the customer first
-            const customer = await prisma.customer.findFirst({
-                where: { customer_uuid: customerIdOrUUID },
-                select: { id: true },
-            });
-
-            if (!customer) {
-                throw new Error(
-                    `Customer with UUID ${customerIdOrUUID} not found`
-                );
-            }
-
-            customerId = customer.id;
-        } else {
-            // It's already a customer ID
-            customerId = customerIdOrUUID;
-        }
-
-        const activeDisputeInvoices = await prisma.disputeInvoice.findMany({
-            where: {
-                CustomerDispute: {
-                    dispute_status: {
-                        in: ["New", "Under_Review", "Awaiting_Update"],
-                    },
-                    customer_id: customerId,
-                },
-            },
-            select: {
-                invoice_id: true,
-            },
-        });
-
-        const activeInvoiceIds = activeDisputeInvoices.map(
-            (di) => di.invoice_id
-        );
-
-        // Build the invoice where clause - exclude active dispute invoices
-        const invoiceWhereClause: any = {
-            customer_id: customerId, // Add customer_id filter to only show invoices for this specific customer
-            status: { in: ["Overdue", "Due"] }, // Due and overdue invoices
-            // Only exclude invoices if there are active disputes
-            ...(activeInvoiceIds.length > 0 && {
-                id: { notIn: activeInvoiceIds },
-            }),
-            // Include both positive and negative outstanding debt (credit invoices)
-            customer_outstanding_debt: { not: 0 },
-        };
-
-        // Get available invoices for dispute creation
-        const invoices = await prisma.invoice.findMany({
-            where: invoiceWhereClause,
-            include: {},
-            orderBy: {
-                due_date: "asc",
-            },
-        });
-
-        return invoices;
-    }
-
-    /**
-     * Check if a customer has any invoices in active disputes
-     * @param customerId - The customer ID
-     * @returns Boolean indicating if customer has disputed invoices
-     */
-    static async hasDisputedInvoices(customerId: number): Promise<boolean> {
-        const { prisma } = await import("@/lib/prisma");
-
-        const disputedInvoicesCount = await prisma.disputeInvoice.count({
-            where: {
-                Invoice: {
-                    customer_id: customerId,
-                },
-                CustomerDispute: {
-                    dispute_status: {
-                        in: ["New", "Under_Review", "Awaiting_Update"],
-                    },
-                },
-            },
-        });
-
-        return disputedInvoicesCount > 0;
-    }
-
-    /**
-     * Get all invoices for a customer (including those in disputes)
-     * Used for invoice list display
-     * @param customerId - The customer ID
-     * @param accountId - The account ID
-     * @returns Array of all invoices for the customer
-     */
-    static async getAllInvoicesForCustomer(customerIdOrUUID: number | string) {
-        const { prisma } = await import("@/lib/prisma");
-
-        // Determine if we have a customer ID or UUID and get the customer ID
-        let customerId: number;
-
-        if (typeof customerIdOrUUID === "string") {
-            // It's a UUID, we need to find the customer first
-            const customer = await prisma.customer.findFirst({
-                where: { customer_uuid: customerIdOrUUID },
-                select: { id: true },
-            });
-
-            if (!customer) {
-                throw new Error(
-                    `Customer with UUID ${customerIdOrUUID} not found`
-                );
-            }
-
-            customerId = customer.id;
-        } else {
-            // It's already a customer ID
-            customerId = customerIdOrUUID;
-        }
-
-        const invoices = await prisma.invoice.findMany({
-            where: {
-                customer_id: customerId,
-                status: { in: ["Overdue", "Due"] }, // Both overdue (Overdue) and due (Due) invoices
-                // Show all due and overdue invoices regardless of outstanding debt amount
-                // This includes invoices with zero outstanding debt that might still need attention
-            },
-            include: {},
-            orderBy: {
-                due_date: "asc",
-            },
-        });
-
-        return invoices;
-    }
-}
 
 // Guest-friendly invoice fetching function for portal components
 export const fetchPortalInvoices: QueryFunction<InvoiceResponse> = async ({

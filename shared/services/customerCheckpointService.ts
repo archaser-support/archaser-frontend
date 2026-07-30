@@ -1,7 +1,32 @@
-import type {
-    CustomerCheckpointRestoreSummary,
-    CustomerCheckpointStatus,
-} from "@/server/services/customerCheckpoint/types";
+import { apiFetch } from "@/utils/apiFetch";
+
+export type CustomerCheckpointRowCounts = {
+    invoices: number;
+    invoicePayments: number;
+    payments: number;
+    collectionPeriods: number;
+    activities: number;
+    activityContacts: number;
+    disputes: number;
+    disputeInvoices: number;
+    customerPolicies: number;
+    customerTopUps: number;
+    contacts: number;
+    customerBanks: number;
+    hasAggregatedData: boolean;
+};
+
+export type CustomerCheckpointStatus = {
+    exists: boolean;
+    savedAt: string | null;
+    savedBy: string | null;
+    rowCounts?: CustomerCheckpointRowCounts;
+};
+
+export type CustomerCheckpointRestoreSummary = {
+    restoredAt: string;
+    rowCounts: CustomerCheckpointRowCounts;
+};
 
 function checkpointUrl(customerId: number, action?: "save" | "restore"): string {
     const suffix =
@@ -20,7 +45,7 @@ export function customerCheckpointQueryKey(customerId: number) {
 export async function fetchCustomerCheckpointStatus(
     customerId: number
 ): Promise<CustomerCheckpointStatus | null> {
-    const response = await fetch(checkpointUrl(customerId));
+    const response = await apiFetch(checkpointUrl(customerId));
     if (response.status === 404) {
         return null;
     }
@@ -36,7 +61,7 @@ export async function fetchCustomerCheckpointStatus(
 export async function saveCustomerCheckpoint(
     customerId: number
 ): Promise<CustomerCheckpointStatus> {
-    const response = await fetch(checkpointUrl(customerId, "save"), {
+    const response = await apiFetch(checkpointUrl(customerId, "save"), {
         method: "POST",
     });
     if (!response.ok) {
@@ -51,7 +76,7 @@ export async function saveCustomerCheckpoint(
 export async function restoreCustomerCheckpoint(
     customerId: number
 ): Promise<CustomerCheckpointRestoreSummary> {
-    const response = await fetch(checkpointUrl(customerId, "restore"), {
+    const response = await apiFetch(checkpointUrl(customerId, "restore"), {
         method: "POST",
     });
     if (!response.ok) {

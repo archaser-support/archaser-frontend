@@ -2,13 +2,12 @@ import { getServerSession } from "next-auth";
 import type { Session } from "next-auth";
 
 /**
- * Session for RSC layouts/pages.
- * Amplify uses the jose NextAuth stub (cookie bridge) — still call getServerSession.
- * Do not short-circuit to null solely because AMPLIFY_SSR is set.
+ * Session for RSC layouts/pages, read from the NextAuth cookie bridge that
+ * wraps the Nest access token.
  */
 export async function getServerSessionSafe(): Promise<Session | null> {
     try {
-        const { authOptions } = await import("@/server/auth/authOptions");
+        const { authOptions } = await import("@/lib/authOptions");
         return await getServerSession(authOptions);
     } catch {
         return null;

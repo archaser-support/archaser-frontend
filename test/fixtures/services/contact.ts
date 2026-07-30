@@ -1,4 +1,4 @@
-import { contact_status } from "@prisma/client";
+﻿import { contact_status } from "@/types/db";
 
 /**
  * Contact Service Fixtures

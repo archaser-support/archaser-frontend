@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { apiFetch } from "@/utils/apiFetch";
 
 import { Alert, Box, Typography, useTheme } from "@mui/material";
@@ -12,7 +12,7 @@ import InternalPageWrapper from "@/components/InternalPageWrapper";
 import PageHeader from "@/components/PageHeader";
 import BusinessUnitDashboardFilter from "@/shared/components/BusinessUnitDashboardFilter";
 import { parseDashboardBusinessUnitIdFromUrl } from "@/shared/dashboard/dashboardBusinessUnitParams";
-import type { CreditDashboardSummary } from "@/server/services/creditInsurance/creditInsuranceDashboardService";
+import type { CreditDashboardSummary } from "@/types/creditInsurance";
 import Seo from "@/shared/layout-components/seo/seo";
 import { getUserDateLocale } from "@/utils/datetimeOperations";
 

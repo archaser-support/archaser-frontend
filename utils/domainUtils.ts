@@ -5,6 +5,65 @@
 export type EnvironmentType = 'localhost' | 'preprod' | 'production' | 'unknown';
 
 /**
+ * Leading labels that identify a whole deployment rather than a tenant, e.g.
+ * `dev.archaser.com`. These are also reserved in the portal subdomain list, so
+ * no account can ever own one — treating them as tenants would send every
+ * visitor through an organization lookup that can only 404.
+ */
+const ENVIRONMENT_SUBDOMAINS = ['staging', 'dev', 'preprod'];
+
+/** Labels that are never a customer subdomain, environment or otherwise. */
+const NON_TENANT_SUBDOMAINS = [...ENVIRONMENT_SUBDOMAINS, 'www', 'portal'];
+
+function leadingLabel(hostname: string): string {
+    return hostname.split('.')[0]?.toLowerCase() ?? '';
+}
+
+function isLocalHostname(hostname: string): boolean {
+    return hostname.includes('localhost') || hostname.includes('127.0.0.1');
+}
+
+/** True for deployment hosts such as `staging.archaser.com` or `dev.archaser.com`. */
+export function isEnvironmentHost(hostname: string | null | undefined): boolean {
+    if (!hostname) {
+        return false;
+    }
+    return ENVIRONMENT_SUBDOMAINS.includes(leadingLabel(hostname));
+}
+
+/** The environment label for a host, or null when it is not a deployment host. */
+export function getEnvironmentLabel(
+    hostname: string | null | undefined
+): string | null {
+    if (!hostname) {
+        return null;
+    }
+    const label = leadingLabel(hostname);
+    return ENVIRONMENT_SUBDOMAINS.includes(label) ? label : null;
+}
+
+/**
+ * The customer subdomain for a hostname, or null when the host belongs to a
+ * deployment (`dev`, `staging`), a reserved label (`www`, `portal`), or a
+ * local machine.
+ */
+export function getTenantSubdomain(
+    hostname: string | null | undefined
+): string | null {
+    if (!hostname || isLocalHostname(hostname)) {
+        return null;
+    }
+    if (hostname.split('.').length < 3) {
+        return null;
+    }
+    const label = leadingLabel(hostname);
+    if (!label || NON_TENANT_SUBDOMAINS.includes(label)) {
+        return null;
+    }
+    return label;
+}
+
+/**
  * Detects the current environment based on the domain
  * @returns EnvironmentType - The detected environment
  */
@@ -16,12 +75,7 @@ export function detectEnvironment(): EnvironmentType {
     const hostname = window.location.hostname;
     const port = window.location.port;
 
-    // Check for preprod or staging subdomain or port 3001
-    if (hostname.includes('preprod') ||
-        hostname.startsWith('preprod.') ||
-        hostname.includes('staging') ||
-        hostname.startsWith('staging.') ||
-        port === '3001') {
+    if (isEnvironmentHost(hostname) || port === '3001') {
         return 'preprod';
     }
 
@@ -110,11 +164,7 @@ export function detectServerEnvironment(): EnvironmentType {
                 const hostname = url.hostname;
                 const urlPort = url.port;
 
-                if (urlPort === '3001' ||
-                    hostname.startsWith('preprod.') ||
-                    hostname === 'preprod' ||
-                    hostname.startsWith('staging.') ||
-                    hostname === 'staging') {
+                if (urlPort === '3001' || isEnvironmentHost(hostname)) {
                     return 'preprod';
                 }
             } catch (e) { /* ignore */ }

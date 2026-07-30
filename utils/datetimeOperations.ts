@@ -1175,20 +1175,6 @@ export async function scheduleDateTime(options: {
         `Step ${stepNumber++}: Final conversion to ${returnUTC ? "UTC" : "Local"} format → ${finalTime.toISOString()}`
     );
 
-    // Store calculation in database if activityId provided (server-side only)
-    if (options.activityId && typeof window === "undefined") {
-        try {
-            // Lazy import Prisma only when needed (server-side only)
-            const { prisma } = await import("@/lib/prisma");
-            await prisma.activity.update({
-                where: { id: options.activityId },
-                data: { schedule_calculation: calculationSteps.join("\n") },
-            });
-        } catch (_error) {
-            // Ignore errors when storing calculation
-        }
-    }
-
     return {
         scheduledTime: finalTime,
         calculation: calculationSteps.join("\n"),

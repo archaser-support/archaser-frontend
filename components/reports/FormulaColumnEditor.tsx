@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, {
     forwardRef,
@@ -13,7 +13,7 @@ import FormulaUpsertModal, {
     FORMULA_OPERAND_OBJECT_NAME,
     type FormulaOperandOption,
 } from "@/components/reports/FormulaUpsertModal";
-import type { ReportConfig } from "@/server/services/ReportService";
+import type { ReportConfig } from "@/types/reports";
 import {
     findFormulasDependingOnField,
     getFormulaOperandReference,

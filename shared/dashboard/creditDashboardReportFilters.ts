@@ -5,7 +5,7 @@
  * and system report unique_names for ViewBased grids.
  */
 
-import type { Filter } from "@/server/services/ReportExecutionService.types";
+import type { Filter } from "@/types/reports";
 
 export const DASHBOARD_CREDIT_CUSTOMERS_CONTEXT = "dashboard_credit_customers";
 export const DASHBOARD_CREDIT_INVOICES_CONTEXT = "dashboard_credit_invoices";

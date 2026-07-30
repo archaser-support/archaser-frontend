@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Box } from "@mui/material";
 import {
@@ -11,7 +11,7 @@ import {
     useState,
 } from "react";
 
-import type { CreditDashboardHistoryPoint } from "@/server/services/creditInsurance/creditDashboardSnapshotService";
+import type { CreditDashboardHistoryPoint } from "@/types/creditInsurance";
 import { formatDateForDisplay } from "@/utils/datetimeOperations";
 
 export type TrendLineChartSvgProps = {
@@ -218,7 +218,7 @@ function formatChartDate(
     isWeekly: boolean
 ): string {
     const date = parseSnapshotDate(snapshotDate);
-    /** Weekly axis uses calendar dates only — avoid TZ shifting 17.05 → 18.05. */
+    /** Weekly axis uses calendar dates only â€” avoid TZ shifting 17.05 â†’ 18.05. */
     if (isWeekly) {
         return formatDateForDisplay(date, "date", dateLocale, "UTC");
     }

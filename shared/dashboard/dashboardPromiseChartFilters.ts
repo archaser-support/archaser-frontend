@@ -6,7 +6,7 @@
  * are applied server-side on execute.
  */
 
-import type { Filter } from "@/server/services/ReportExecutionService.types";
+import type { Filter } from "@/types/reports";
 import { DASHBOARD_PROMISE_ACTIVITY_FILTER_FIELD } from "./dashboardPromisePeriodMembership";
 
 export { DASHBOARD_PROMISE_ACTIVITY_FILTER_FIELD };

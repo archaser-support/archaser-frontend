@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
     AccountBalance as AccountBalanceIcon,
@@ -10,7 +10,7 @@ import { Box, Card, CardContent, Typography, alpha, useTheme } from "@mui/materi
 import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { CreditDashboardSummary } from "@/server/services/creditInsurance/creditInsuranceDashboardService";
+import type { CreditDashboardSummary } from "@/types/creditInsurance";
 import { formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
 
 import type { CreditReportType } from "./creditReportTypes";

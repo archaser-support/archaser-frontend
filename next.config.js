@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
-const path = require("path");
 const fs = require("fs");
+const path = require("path");
 
 // Load env from this package (frontend/.env). Falls back to backend/.env for shared secrets during monorepo transition.
 const appDir = __dirname;
@@ -33,17 +33,6 @@ const nextConfig = {
     // Amplify Hosting SSR expects default `.next`; EC2 deploy scripts use `frontend/build`.
     ...(isAmplifySsr ? {} : { distDir: "build" }),
 
-    // Externalize heavy server packages from App Router server bundles
-    serverExternalPackages: [
-        "@prisma/client",
-        "prisma",
-        "bcryptjs",
-        "formidable",
-        "mongoose",
-        "prom-client",
-        "pdfkit",
-    ],
-
     modularizeImports: {
         "@mui/material": {
             transform: "@mui/material/{{member}}",
@@ -56,9 +45,11 @@ const nextConfig = {
     // Disable source maps in production
     productionBrowserSourceMaps: false,
 
-    // Enable TypeScript checking during build
+    // Type safety is enforced by `npm run type-check`. Next's embedded
+    // typecheck duplicates that work and OOM/crashes on smaller Windows hosts;
+    // Amplify still runs the explicit type-check step in amplify.yml.
     typescript: {
-        ignoreBuildErrors: false,
+        ignoreBuildErrors: isAmplifySsr,
     },
 
     // Disable ESLint during build to ignore ESLint-related TypeScript errors
@@ -146,20 +137,6 @@ const nextConfig = {
             ...config.resolve.alias,
             "@": path.resolve(__dirname),
         };
-
-        if (isAmplifySsr) {
-            config.resolve.alias = {
-                ...config.resolve.alias,
-                "@/lib/prisma": path.resolve(
-                    __dirname,
-                    "lib/prisma.amplify-stub.ts"
-                ),
-                "@/server/auth/authOptions": path.resolve(
-                    __dirname,
-                    "server/auth/authOptions.amplify-stub.ts"
-                ),
-            };
-        }
 
         return config;
     },

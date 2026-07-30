@@ -325,6 +325,7 @@ const EndlessScrollToolbarComponent: React.FC<EndlessScrollToolbarProps> = ({
                     ? userDefaultReportId === selectedReportData.id
                     : selectedReportData.is_default === true,
                 group: selectedReportData.is_system === true ? "system" : "custom",
+                uniqueName: (selectedReportData as any).unique_name || null,
             };
         }
 

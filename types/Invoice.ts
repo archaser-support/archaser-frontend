@@ -1,13 +1,15 @@
-import { Prisma } from "@prisma/client";
+import type {
+    Account,
+    Customer,
+    CustomerCollectionPeriod,
+    Invoice as InvoiceRow,
+} from "@/types/db";
 
-export type Invoice = Prisma.InvoiceGetPayload<{
-    include: {
-        Account: true;
-        Customer: true;
-        CustomerCollectionPeriod: true;
-        InvoiceStatus: true;
-    };
-}>;
+export type Invoice = InvoiceRow & {
+    Account: Account;
+    Customer: Customer | null;
+    CustomerCollectionPeriod: CustomerCollectionPeriod | null;
+};
 
 export interface InvoiceResponse {
     invoices: Invoice[];

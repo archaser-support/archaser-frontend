@@ -1,4 +1,4 @@
-import type { CustomerPolicyCustomerTrendLatestPoint, CustomerPolicyCustomerTrendPoint } from "@/server/services/creditInsurance/customerPolicyTrendService";
+﻿import type { CustomerPolicyCustomerTrendLatestPoint, CustomerPolicyCustomerTrendPoint } from "@/types/creditInsurance";
 import { currencies } from "@/shared/data/common/currencies";
 import { formatAmountWithoutSymbol } from "@/utils/stringFormatters";
 
@@ -68,7 +68,7 @@ export function formatSignedCostChangeAmount(
     isRtl: boolean
 ): string {
     if (amount == null || !Number.isFinite(amount)) {
-        return "—";
+        return "â€”";
     }
     const absolute = formatAmountWithoutSymbol(Math.abs(amount), locale);
     const code = currency?.trim();
@@ -156,7 +156,7 @@ export function buildDailyCostChangeBreakdownLine(args: {
         );
     }
 
-    return parts.length > 0 ? parts.join(" · ") : null;
+    return parts.length > 0 ? parts.join(" Â· ") : null;
 }
 
 export function buildDailyCostChangeKpiDisplay(args: {

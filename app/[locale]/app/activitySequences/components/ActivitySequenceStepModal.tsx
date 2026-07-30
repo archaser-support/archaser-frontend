@@ -1,5 +1,4 @@
 "use client";
-import { apiFetch } from "@/utils/apiFetch";
 
 import { Add as AddIcon, Edit as EditIcon } from "@mui/icons-material";
 import {
@@ -20,6 +19,7 @@ import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import { ActivitySequenceForm } from "@/types/ActivitiesSequence";
 import { ActivityTemplate } from "@/types/ActivitiesTemplate";
 import { ACTIVITY_TYPE_OPTIONS } from "@/types/enums";
+import { apiFetch } from "@/utils/apiFetch";
 
 interface Option {
     value: string;
@@ -445,7 +445,7 @@ export default function ActivitySequenceStepModal({
                 : `/api/activities/sequences`;
             const method = initialActivitySequence?.id ? "PUT" : "POST";
 
-            const response = await fetch(url, {
+            const response = await apiFetch(url, {
                 method,
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
@@ -1576,7 +1576,7 @@ export default function ActivitySequenceStepModal({
                                                                 active: newActiveValue,
                                                             })
                                                         );
-                                                        return;
+                                                        
                                                     } else if (
                                                         isBecomingActive &&
                                                         activitySequence.account_id &&

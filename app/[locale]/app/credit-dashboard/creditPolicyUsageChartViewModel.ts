@@ -1,4 +1,4 @@
-import type { PolicyLimitUsageCategoryTotals } from "@/server/services/creditInsurance/portfolioPolicyLimitUsage";
+﻿import type { PolicyLimitUsageCategoryTotals } from "@/types/creditInsurance";
 
 export type PolicyUsageChartCategory = {
     fullLabel: string;

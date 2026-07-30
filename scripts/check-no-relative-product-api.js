@@ -7,8 +7,8 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
-const TARGET_DIRS = ["app", "components", "shared"].map((d) =>
-    path.join(ROOT, d)
+const TARGET_DIRS = ["app", "components", "shared", "hooks", "lib", "utils"].map(
+    (d) => path.join(ROOT, d)
 );
 const EXT = new Set([".ts", ".tsx", ".js", ".jsx"]);
 
@@ -20,6 +20,22 @@ const PATTERNS = [
     /(?<![\w.])fetch\s*\(\s*[`'"]\/api\/(?!auth(?:\/|"|'|`|\?))[^`'"]*[`'"]/,
     /axios\.(get|post|put|patch|delete|request)\s*\(\s*[`'"]\/api\/(?!auth(?:\/|"|'|`|\?))[^`'"]*[`'"]/,
 ];
+
+/**
+ * Raw `fetch(someVariable)` is just as dangerous as a literal path — the URL is
+ * usually a relative `/api/...` string built a few lines earlier, which then
+ * hits Amplify instead of Nest. Flag every bare `fetch(` outside the small set
+ * of modules that legitimately own absolute-URL or NextAuth requests.
+ */
+const BARE_FETCH = /(?<![\w.])fetch\s*\(/;
+const BARE_FETCH_ALLOWED_FILES = new Set([
+    "app/api.ts",
+    "utils/apiFetch.ts",
+    "utils/nestAuth.ts",
+    "utils/nestPortal.ts",
+    "app/actions/portalVerification.ts",
+]);
+const NEXTAUTH_FETCH = /(?<![\w.])fetch\s*\(\s*[`'"]\/api\/auth\//;
 
 function walk(dir) {
     if (!fs.existsSync(dir)) {
@@ -44,7 +60,7 @@ function walk(dir) {
 function checkFile(filePath) {
     const source = fs.readFileSync(filePath, "utf8");
     const rel = path.relative(ROOT, filePath).replace(/\\/g, "/");
-    if (rel === "app/api.ts" || rel === "utils/apiFetch.ts") {
+    if (BARE_FETCH_ALLOWED_FILES.has(rel)) {
         return;
     }
     const lines = source.split(/\r?\n/);
@@ -58,11 +74,11 @@ function checkFile(filePath) {
         ) {
             continue;
         }
-        for (const re of PATTERNS) {
-            if (re.test(line)) {
-                violations.push(`${rel}:${i + 1}: ${trimmed}`);
-                break;
-            }
+        const matched =
+            PATTERNS.some((re) => re.test(line)) ||
+            (BARE_FETCH.test(line) && !NEXTAUTH_FETCH.test(line));
+        if (matched) {
+            violations.push(`${rel}:${i + 1}: ${trimmed}`);
         }
     }
 }
@@ -73,9 +89,9 @@ for (const dir of TARGET_DIRS) {
 
 if (violations.length) {
     console.error(
-        "[check-no-relative-product-api] Relative product /api calls found.\n" +
+        "[check-no-relative-product-api] Raw fetch / relative product /api calls found.\n" +
             "Use `api` from `@/app/api` or `apiFetch` from `@/utils/apiFetch`.\n" +
-            "Only `/api/auth` may stay relative (NextAuth).\n"
+            "Only `fetch(\"/api/auth/...\")` may stay raw (NextAuth).\n"
     );
     for (const v of violations) {
         console.error(`  ${v}`);

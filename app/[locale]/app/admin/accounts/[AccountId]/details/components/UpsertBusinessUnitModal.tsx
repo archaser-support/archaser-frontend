@@ -1,5 +1,4 @@
 "use client";
-import { apiFetch } from "@/utils/apiFetch";
 
 import { Delete as DeleteIcon } from "@mui/icons-material";
 import BusinessIcon from "@mui/icons-material/Business";
@@ -22,6 +21,7 @@ import { useTranslation } from "react-i18next";
 
 import AppDialog from "@/shared/layout-components/modal/AppDialog";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
+import { apiFetch } from "@/utils/apiFetch";
 
 
 interface BusinessUnit {
@@ -241,7 +241,7 @@ export function UpsertBusinessUnitModal({
             const url = businessUnit
                 ? `/api/entities/business-units/${businessUnit.id}`
                 : `/api/entities/business-units`;
-            const response = await fetch(url, {
+            const response = await apiFetch(url, {
                 method: businessUnit ? "PUT" : "POST",
                 headers: {
                     "Content-Type": "application/json",

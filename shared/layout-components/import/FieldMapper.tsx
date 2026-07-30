@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import AppDialog from "@/shared/layout-components/modal/AppDialog";
 import {
@@ -26,7 +26,7 @@ import {
     Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { ImportType } from "@prisma/client";
+import { ImportType } from "@/types/db";
 import React, {
     useCallback,
     useEffect,
@@ -433,9 +433,9 @@ const FieldMapper: React.FC<FieldMapperProps> = ({
                         "registration number",
                         "commercial_registration",
                         "commercial registration",
-                        "ח.פ",
-                        "חפ",
-                        "מספר ח",
+                        "×—.×¤",
+                        "×—×¤",
+                        "×ž×¡×¤×¨ ×—",
                     ];
                     if (
                         crnVariations.some((variation) =>
@@ -911,7 +911,7 @@ const FieldMapper: React.FC<FieldMapperProps> = ({
                         <Chip
                             label={
                                 i18n.language === "he"
-                                    ? "מיפוי אוטומטי..."
+                                    ? "×ž×™×¤×•×™ ××•×˜×•×ž×˜×™..."
                                     : "Auto-mapping..."
                             }
                             size="small"
@@ -937,7 +937,7 @@ const FieldMapper: React.FC<FieldMapperProps> = ({
                         size="small"
                         onClick={handleAutoMap}
                     >
-                        {i18n.language === "he" ? "מיפוי אוטומטי" : "Auto-Map"}
+                        {i18n.language === "he" ? "×ž×™×¤×•×™ ××•×˜×•×ž×˜×™" : "Auto-Map"}
                     </Button>
 
                     {/* Clear mapping button */}
@@ -950,7 +950,7 @@ const FieldMapper: React.FC<FieldMapperProps> = ({
                             setHasUnsavedChanges(true);
                         }}
                     >
-                        {i18n.language === "he" ? "נקה" : "Clear"}
+                        {i18n.language === "he" ? "× ×§×”" : "Clear"}
                     </Button>
 
                     {/* Show save button only when there are unsaved changes */}
@@ -962,7 +962,7 @@ const FieldMapper: React.FC<FieldMapperProps> = ({
                             onClick={handleSaveMapping}
                         >
                             {i18n.language === "he"
-                                ? "שמור מיפוי"
+                                ? "×©×ž×•×¨ ×ž×™×¤×•×™"
                                 : "Save Mapping"}
                         </Button>
                     )}
@@ -1539,7 +1539,7 @@ const FieldMapper: React.FC<FieldMapperProps> = ({
                                                 sx={{ minWidth: "auto", px: 1 }}
                                             >
                                                 {i18n.language === "he"
-                                                    ? "נקה"
+                                                    ? "× ×§×”"
                                                     : "Clear"}
                                             </Button>
                                         </Box>

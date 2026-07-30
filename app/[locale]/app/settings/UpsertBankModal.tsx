@@ -1,5 +1,4 @@
-"use client";
-import { apiFetch } from "@/utils/apiFetch";
+﻿"use client";
 
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import {
@@ -11,7 +10,6 @@ import {
     Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { State } from "@prisma/client";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -19,6 +17,8 @@ import { useTranslation } from "react-i18next";
 import { CountrySelect, StateSelect } from "@/components/LocationSelects";
 import AppDialog from "@/shared/layout-components/modal/AppDialog";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
+import { State } from "@/types/db";
+import { apiFetch } from "@/utils/apiFetch";
 
 interface CountryType {
     id: number;
@@ -150,7 +150,7 @@ export function UpsertBankModal({
             const url = account
                 ? `/api/entities/accounts/${accountId}/bank-accounts/${account.id}`
                 : `/api/entities/accounts/${accountId}/bank-accounts`;
-            const response = await fetch(url, {
+            const response = await apiFetch(url, {
                 method: account ? "PUT" : "POST",
                 headers: {
                     "Content-Type": "application/json",

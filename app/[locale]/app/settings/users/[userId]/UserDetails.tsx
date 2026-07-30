@@ -29,12 +29,12 @@ import {
     useTheme,
 } from "@mui/material";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import api, { apiFetch } from "@/app/api";
-import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import api, { apiFetch } from "@/app/api";
 import PageHeader from "@/components/PageHeader";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import { getCountryTimezone } from "@/utils/datetimeOperations";
@@ -238,7 +238,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId }) => {
             const url = isNewUser
                 ? `/api/entities/accounts/${effectiveAccountId}/business-units`
                 : `/api/entities/accounts/${effectiveAccountId}/business-units?page=1&limit=1000`;
-            const response = await fetch(url);
+            const response = await apiFetch(url);
             if (!response.ok) {
                 throw new Error("Failed to fetch business units");
             }
@@ -740,7 +740,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId }) => {
                 : `/api/entities/users`;
             const method = editedUser.id ? "PUT" : "POST";
 
-            const response = await fetch(url, {
+            const response = await apiFetch(url, {
                 method,
                 headers: {
                     "Content-Type": "application/json",

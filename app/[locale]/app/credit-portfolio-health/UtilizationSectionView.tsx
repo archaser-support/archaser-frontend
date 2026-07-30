@@ -23,17 +23,13 @@ import {
     YAxis,
 } from "recharts";
 
-import type {
-    PortfolioUtilizationSection,
-    UtilizationDistributionBinKey,
-} from "@/server/services/creditInsurance/creditPortfolioHealthService";
+import type { PortfolioUtilizationSection, UtilizationDistributionBinKey } from "@/types/creditInsurance";
 
 import { BigNumber } from "./BigNumber";
 import { ChartTooltip } from "./ChartTooltip";
 import { Eyebrow } from "./Eyebrow";
 import { IslandCard } from "./IslandCard";
 import { StatNumber } from "./StatNumber";
-import { UtilizationDailyChart } from "./UtilizationDailyChart";
 import { CPH } from "./designTokens";
 import { SPACE_GROTESK_FONT_FAMILY } from "./fontTokens";
 import layout from "./islandLayout.module.css";
@@ -65,7 +61,7 @@ const BIN_LABEL_KEYS: Record<
     },
     "75_plus": {
         key: "credit_portfolio_health.bin_75_plus",
-        defaultValue: "≥75%",
+        defaultValue: "â‰¥75%",
     },
 };
 
@@ -138,17 +134,7 @@ export function UtilizationSectionView({
                 accent="jade"
                 className={`${layout.span6} ${layout.mdSpan3} ${layout.cardPad}`}
             >
-                <Eyebrow
-                    icon={Activity}
-                    help={t(
-                        "credit_portfolio_health.kpi_avg_utilization_help",
-                        {
-                            ...ns,
-                            defaultValue:
-                                "Mean of daily (sum usage ÷ sum effective approved limit × 100) for approved customers over available days.",
-                        }
-                    )}
-                >
+                <Eyebrow icon={Activity}>
                     {t("credit_portfolio_health.kpi_avg_utilization", {
                         ...ns,
                         defaultValue: "Avg. utilization",
@@ -173,18 +159,7 @@ export function UtilizationSectionView({
                 accent="critical"
                 className={`${layout.span6} ${layout.mdSpan3} ${layout.cardPad}`}
             >
-                <Eyebrow
-                    icon={AlertTriangle}
-                    tone={CPH.critical}
-                    help={t(
-                        "credit_portfolio_health.kpi_pct_days_above_100_help",
-                        {
-                            ...ns,
-                            defaultValue:
-                                "Share of available days where portfolio effective utilization exceeded 100%.",
-                        }
-                    )}
-                >
+                <Eyebrow icon={AlertTriangle} tone={CPH.critical}>
                     {t("credit_portfolio_health.kpi_pct_days_above_100", {
                         ...ns,
                         defaultValue: "Over-coverage",
@@ -209,17 +184,7 @@ export function UtilizationSectionView({
                 accent="jade"
                 className={`${layout.span6} ${layout.mdSpan3} ${layout.cardPad}`}
             >
-                <Eyebrow
-                    icon={TrendingUp}
-                    help={t(
-                        "credit_portfolio_health.kpi_peak_utilization_help",
-                        {
-                            ...ns,
-                            defaultValue:
-                                "Highest daily effective utilization and the longest consecutive calendar streak at that exact peak (most recent on ties).",
-                        }
-                    )}
-                >
+                <Eyebrow icon={TrendingUp}>
                     {t("credit_portfolio_health.kpi_peak_utilization", {
                         ...ns,
                         defaultValue: "Coverage peak",
@@ -238,14 +203,7 @@ export function UtilizationSectionView({
                 accent="copper"
                 className={`${layout.span6} ${layout.mdSpan3} ${layout.cardPad}`}
             >
-                <Eyebrow
-                    icon={Gauge}
-                    help={t("credit_portfolio_health.kpi_efficiency_help", {
-                        ...ns,
-                        defaultValue:
-                            "Portfolio average health ÷ average utilization for covered customers (with an effective limit). Example: health 90% and utilization 60% → 1.5.",
-                    })}
-                >
+                <Eyebrow icon={Gauge}>
                     {t("credit_portfolio_health.kpi_efficiency", {
                         ...ns,
                         defaultValue: "Efficiency ratio",
@@ -257,36 +215,106 @@ export function UtilizationSectionView({
                     <BigNumber
                         value={section.efficiencyA}
                         decimals={2}
-                        suffix=""
+                        suffix="×"
                         label={t(
                             "credit_portfolio_health.kpi_efficiency_label",
                             {
                                 ...ns,
-                                defaultValue: "Health ÷ utilization",
+                                defaultValue: "Health A ÷ utilization",
                             }
                         )}
                         color={CPH.copper}
                         locale={language}
+                        sub={
+                            section.efficiencyB == null
+                                ? undefined
+                                : t(
+                                      "credit_portfolio_health.kpi_efficiency_b",
+                                      {
+                                          ...ns,
+                                          defaultValue: "Health B: {{value}}×",
+                                          value: Number(
+                                              section.efficiencyB.toFixed(2)
+                                          ),
+                                      }
+                                  )
+                        }
                     />
                 )}
+            </IslandCard>
+
+            <IslandCard
+                accent="slate"
+                className={`${layout.span12} ${layout.mdSpan6} ${layout.cardPad}`}
+            >
+                <Eyebrow icon={Users}>
+                    {t("credit_portfolio_health.kpi_self_footprint_title", {
+                        ...ns,
+                        defaultValue: "Self-underwriting footprint",
+                    })}
+                </Eyebrow>
+                <div className={layout.footprintRow}>
+                    <div>
+                        <div
+                            className="text-3xl font-semibold"
+                            style={{
+                                color: CPH.ink,
+                                fontFamily: SPACE_GROTESK_FONT_FAMILY,
+                            }}
+                        >
+                            <StatNumber
+                                value={section.selfUnderwrittenCustomerPct}
+                                decimals={0}
+                                suffix="%"
+                                locale={language}
+                                className="text-3xl"
+                            />
+                        </div>
+                        <div
+                            className="mt-1 text-xs"
+                            style={{ color: CPH.slate }}
+                        >
+                            {t("credit_portfolio_health.footprint_customers", {
+                                ...ns,
+                                defaultValue: "of customers",
+                            })}
+                        </div>
+                    </div>
+                    <ChevronRight size={18} style={{ color: CPH.muted }} />
+                    <div>
+                        <div
+                            className="text-3xl font-semibold"
+                            style={{
+                                color: CPH.ink,
+                                fontFamily: SPACE_GROTESK_FONT_FAMILY,
+                            }}
+                        >
+                            <StatNumber
+                                value={section.selfUnderwrittenArSharePct}
+                                decimals={0}
+                                suffix="%"
+                                locale={language}
+                                className="text-3xl"
+                            />
+                        </div>
+                        <div
+                            className="mt-1 text-xs"
+                            style={{ color: CPH.slate }}
+                        >
+                            {t("credit_portfolio_health.footprint_ar", {
+                                ...ns,
+                                defaultValue: "of monetary amount",
+                            })}
+                        </div>
+                    </div>
+                </div>
             </IslandCard>
 
             <IslandCard
                 accent="jade"
                 className={`${layout.span12} ${layout.mdSpan6} ${layout.cardPad}`}
             >
-                <Eyebrow
-                    icon={Layers}
-                    tone={CPH.jade}
-                    help={t(
-                        "credit_portfolio_health.kpi_approved_footprint_help",
-                        {
-                            ...ns,
-                            defaultValue:
-                                "Mean daily share of customers and open AR with a linked policy and no exclusion reason. Avg. utilization is the mean daily effective utilization for that cohort.",
-                        }
-                    )}
-                >
+                <Eyebrow icon={Layers} tone={CPH.jade}>
                     {t("credit_portfolio_health.kpi_approved_footprint_title", {
                         ...ns,
                         defaultValue: "Insurer-approved footprint",
@@ -349,164 +377,14 @@ export function UtilizationSectionView({
                         </div>
                     </div>
                 </div>
-                <div className={layout.dividerTop}>
-                    {section.approvedAverageUtilizationPct == null ? (
-                        <span style={{ color: CPH.muted }}>—</span>
-                    ) : (
-                        <BigNumber
-                            value={section.approvedAverageUtilizationPct}
-                            suffix="%"
-                            label={t(
-                                "credit_portfolio_health.footprint_avg_utilization",
-                                {
-                                    ...ns,
-                                    defaultValue: "Avg. utilization",
-                                }
-                            )}
-                            color={CPH.jade}
-                            locale={language}
-                        />
-                    )}
-                </div>
-                <p
-                    className="m-0 mt-3 text-xs"
-                    style={{ color: CPH.slate }}
-                >
-                    {t("credit_portfolio_health.footprint_covered_only_remark", {
-                        ...ns,
-                        defaultValue:
-                            "Calculation includes only covered customers (Named + DCL).",
-                    })}
-                </p>
             </IslandCard>
-
-            <IslandCard
-                accent="slate"
-                className={`${layout.span12} ${layout.mdSpan6} ${layout.cardPad}`}
-            >
-                <Eyebrow
-                    icon={Users}
-                    help={t(
-                        "credit_portfolio_health.kpi_self_footprint_help",
-                        {
-                            ...ns,
-                            defaultValue:
-                                "Mean daily share of customers and open AR with no linked policy or any exclusion reason. Avg. utilization is shown when an effective limit applies.",
-                        }
-                    )}
-                >
-                    {t("credit_portfolio_health.kpi_self_footprint_title", {
-                        ...ns,
-                        defaultValue: "Self-underwriting footprint",
-                    })}
-                </Eyebrow>
-                <div className={layout.footprintRow}>
-                    <div>
-                        <div
-                            className="text-3xl font-semibold"
-                            style={{
-                                color: CPH.ink,
-                                fontFamily: SPACE_GROTESK_FONT_FAMILY,
-                            }}
-                        >
-                            <StatNumber
-                                value={section.selfUnderwrittenCustomerPct}
-                                decimals={0}
-                                suffix="%"
-                                locale={language}
-                                className="text-3xl"
-                            />
-                        </div>
-                        <div
-                            className="mt-1 text-xs"
-                            style={{ color: CPH.slate }}
-                        >
-                            {t("credit_portfolio_health.footprint_customers", {
-                                ...ns,
-                                defaultValue: "of customers",
-                            })}
-                        </div>
-                    </div>
-                    <ChevronRight size={18} style={{ color: CPH.muted }} />
-                    <div>
-                        <div
-                            className="text-3xl font-semibold"
-                            style={{
-                                color: CPH.ink,
-                                fontFamily: SPACE_GROTESK_FONT_FAMILY,
-                            }}
-                        >
-                            <StatNumber
-                                value={section.selfUnderwrittenArSharePct}
-                                decimals={0}
-                                suffix="%"
-                                locale={language}
-                                className="text-3xl"
-                            />
-                        </div>
-                        <div
-                            className="mt-1 text-xs"
-                            style={{ color: CPH.slate }}
-                        >
-                            {t("credit_portfolio_health.footprint_ar", {
-                                ...ns,
-                                defaultValue: "of monetary amount",
-                            })}
-                        </div>
-                    </div>
-                </div>
-                <div className={layout.dividerTop}>
-                    {section.selfUnderwrittenAverageUtilizationPct == null ? (
-                        <span style={{ color: CPH.muted }}>—</span>
-                    ) : (
-                        <BigNumber
-                            value={
-                                section.selfUnderwrittenAverageUtilizationPct
-                            }
-                            suffix="%"
-                            label={t(
-                                "credit_portfolio_health.footprint_avg_utilization",
-                                {
-                                    ...ns,
-                                    defaultValue: "Avg. utilization",
-                                }
-                            )}
-                            color={CPH.ink}
-                            locale={language}
-                        />
-                    )}
-                </div>
-                <p
-                    className="m-0 mt-3 text-xs"
-                    style={{ color: CPH.slate }}
-                >
-                    {t("credit_portfolio_health.footprint_covered_only_remark", {
-                        ...ns,
-                        defaultValue:
-                            "Calculation includes only covered customers (Named + DCL).",
-                    })}
-                </p>
-            </IslandCard>
-
-            <UtilizationDailyChart daily={section.daily} />
 
             {section.distributionCustomerCount > 0 ? (
                 <IslandCard
                     accent="jade"
                     className={`${layout.span12} ${layout.mdSpan6} ${layout.cardPad}`}
                 >
-                    <Eyebrow
-                        icon={Users}
-                        help={t(
-                            "credit_portfolio_health.distribution_help",
-                            {
-                                ...ns,
-                                count: section.distributionCustomerCount,
-                                defaultValue:
-                                    "As of range end among {{count}} approved customers with a positive effective limit. Exclusive bins; shares sum to ~100%.",
-                            }
-                        )}
-                    >
+                    <Eyebrow icon={Users}>
                         {t("credit_portfolio_health.distribution_title", {
                             ...ns,
                             defaultValue: "Utilization distribution",
@@ -572,14 +450,7 @@ export function UtilizationSectionView({
                     accent="jade"
                     className={`${layout.span12} ${layout.mdSpan7} ${layout.cardPad}`}
                 >
-                    <Eyebrow
-                        icon={Award}
-                        help={t("credit_portfolio_health.top_customers_help", {
-                            ...ns,
-                            defaultValue:
-                                "As of the range end date. Bars show effective coverage/utilization %.",
-                        })}
-                    >
+                    <Eyebrow icon={Award}>
                         {t("credit_portfolio_health.top_customers_title", {
                             ...ns,
                             defaultValue: "Coverage — 10 largest customers",
@@ -653,14 +524,7 @@ export function UtilizationSectionView({
                         : layout.span12
                 }`}
             >
-                <Eyebrow
-                    icon={RefreshCw}
-                    help={t("credit_portfolio_health.kpi_top_ups_help", {
-                        ...ns,
-                        defaultValue:
-                            "Top-up count: policies active any time in the period. Customers with top-up: average daily count with at least one active top-up. Avg. utilization: size-weighted daily usage among customers with top-up total greater than zero.",
-                    })}
-                >
+                <Eyebrow icon={RefreshCw}>
                     {t("credit_portfolio_health.kpi_top_ups_title", {
                         ...ns,
                         defaultValue: "Top-ups",
@@ -668,19 +532,19 @@ export function UtilizationSectionView({
                 </Eyebrow>
                 <div className={layout.kpiStrip} style={{ marginBottom: 16 }}>
                     <BigNumber
-                        value={section.periodActiveTopUpCount}
-                        decimals={0}
+                        value={section.averageDailyTopUpCount}
+                        decimals={1}
                         suffix=""
                         label={t("credit_portfolio_health.kpi_top_up_count", {
                             ...ns,
-                            defaultValue: "Top-up count",
+                            defaultValue: "Avg daily top-up count",
                         })}
                         color={CPH.ink}
                         locale={language}
                     />
                     <BigNumber
-                        value={section.periodCustomersWithTopUp}
-                        decimals={0}
+                        value={section.averageDailyCustomersWithTopUp}
+                        decimals={1}
                         suffix=""
                         label={t(
                             "credit_portfolio_health.kpi_top_up_customers",

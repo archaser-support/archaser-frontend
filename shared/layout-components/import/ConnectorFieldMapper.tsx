@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
     Autocomplete,
@@ -12,7 +12,7 @@ import {
     Typography,
 } from "@mui/material";
 import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
-import type { ImportType } from "@prisma/client";
+import type { ImportType } from "@/types/db";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -398,7 +398,7 @@ export default function ConnectorFieldMapper({
                         onClick={() => void handleDiscover()}
                         disabled={!canManage || isDiscovering}
                     >
-                        {isDiscovering ? "Discovering…" : "Discover fields"}
+                        {isDiscovering ? "Discoveringâ€¦" : "Discover fields"}
                     </Button>
                     <Button
                         size="small"
@@ -406,7 +406,7 @@ export default function ConnectorFieldMapper({
                         onClick={() => void handleSave()}
                         disabled={!canManage || isSaving}
                     >
-                        {isSaving ? "Saving…" : "Save mapping"}
+                        {isSaving ? "Savingâ€¦" : "Save mapping"}
                     </Button>
                 </Box>
             </Box>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { ShowChart as ShowChartIcon } from "@mui/icons-material";
 import { Box, Card, CardContent, Typography, useTheme } from "@mui/material";
@@ -8,7 +8,7 @@ import { useSession } from "next-auth/react";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { CustomerPolicyUsageTrendResponse } from "@/server/services/creditInsurance/customerPolicyTrendService";
+import type { CustomerPolicyUsageTrendResponse } from "@/types/creditInsurance";
 import {
     formatDateForDisplay,
     getUserDateLocale,

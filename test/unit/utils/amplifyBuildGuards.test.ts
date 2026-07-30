@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { describe, expect, it } from "vitest";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -49,22 +50,25 @@ describe("amplify build guards", () => {
         });
         expect(result.status).toBe(1);
         expect(result.stderr + result.stdout).toContain(
-            "Relative product /api calls found"
+            "relative product /api calls found"
         );
         fs.rmSync(tmpRoot, { recursive: true, force: true });
     });
 
-    it("frontend-postinstall no-ops when AMPLIFY_SSR=true", () => {
-        const result = spawnSync(
-            process.execPath,
-            [path.join(root, "scripts/frontend-postinstall.js")],
-            {
-                encoding: "utf8",
-                env: { ...process.env, AMPLIFY_SSR: "true" },
-            }
+    it("package.json no longer depends on Prisma", () => {
+        const pkg = JSON.parse(
+            fs.readFileSync(path.join(root, "package.json"), "utf8")
         );
-        expect(result.status).toBe(0);
-        expect(result.stdout).toContain("skipping prisma generate");
+        const deps = {
+            ...(pkg.dependencies || {}),
+            ...(pkg.devDependencies || {}),
+        };
+        expect(deps["@prisma/client"]).toBeUndefined();
+        expect(deps.prisma).toBeUndefined();
+        expect(deps.mongoose).toBeUndefined();
+        expect(fs.existsSync(path.join(root, "scripts/frontend-postinstall.js"))).toBe(
+            false
+        );
     });
 });
 

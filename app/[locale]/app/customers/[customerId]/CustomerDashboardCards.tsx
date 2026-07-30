@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import FavoriteIcon from "@mui/icons-material/Favorite";
@@ -27,7 +27,7 @@ import {
     customerDashboardKpisQueryKey,
     fetchCustomerDashboardKpis,
 } from "@/app/[locale]/app/customers/[customerId]/customerDashboardKpisQuery";
-import type { TermsBreachCountByReason } from "@/server/services/creditInsurance/creditInsuranceDashboardService";
+import type { TermsBreachCountByReason } from "@/types/creditInsurance";
 import { resolveCapacityGapDisplayAmounts } from "@/shared/creditInsurance/invoiceBucketAmounts";
 import { resolveCustomerDetailDashboardUx } from "@/shared/customerDetailDashboardUx";
 import { currencies } from "@/shared/data/common/currencies";
@@ -155,7 +155,7 @@ function DashboardSectionHeader({
 
 function formatUsagePct(value: number | null | undefined) {
     if (value == null || !Number.isFinite(value)) {
-        return "—";
+        return "â€”";
     }
     return `${value.toFixed(1)}%`;
 }
@@ -492,7 +492,7 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
     const formatAmount = useMemo(
         () => (amount: number | null | undefined) => {
             if (amount == null || !Number.isFinite(amount)) {
-                return "—";
+                return "â€”";
             }
             const base = formatAmountWithoutSymbol(amount, locale);
             return accountCurrency ? `${base} ${accountCurrency}` : base;
@@ -507,7 +507,7 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
             secondaryCurrencyOverride?: string | null
         ) => {
             if (amount == null || !Number.isFinite(amount)) {
-                return "—";
+                return "â€”";
             }
             return formatDualCurrencyCreditInsuranceLine(
                 isRtl,

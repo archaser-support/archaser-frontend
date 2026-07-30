@@ -1,4 +1,4 @@
-import { Company, Country } from "@prisma/client";
+﻿import { Company, Country } from "@/types/db";
 import { QueryFunction } from "@tanstack/react-query";
 
 import api from "@/app/api";

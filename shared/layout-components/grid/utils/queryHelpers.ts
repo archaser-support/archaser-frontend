@@ -1,3 +1,5 @@
+import { apiFetch } from "@/utils/apiFetch";
+
 import { GRID_CONSTANTS } from "../constants";
 
 /**
@@ -32,7 +34,7 @@ export const createQueryFn = (
 
         const fullUrl = `${endpoint}?${queryParams.toString()}`;
 
-        const response = await fetch(fullUrl, {
+        const response = await apiFetch(fullUrl, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",

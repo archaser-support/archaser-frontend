@@ -49,6 +49,29 @@ import AppUrls from "@/utils/appUrls";
 
 const reportsMenuBuilderContextQuery = `context=${MAIN_REPORTS_MENU_CONTEXT}`;
 
+type ReportAuditUser = {
+    name?: string | null;
+    username?: string | null;
+    first_name?: string | null;
+    last_name?: string | null;
+    email?: string | null;
+};
+
+function getReportAuditUserDisplayName(
+    user: ReportAuditUser | null | undefined,
+    fallback?: unknown
+): string {
+    const fullName = `${user?.first_name || ""} ${user?.last_name || ""}`.trim();
+    return (
+        user?.name?.trim() ||
+        fullName ||
+        user?.username?.trim() ||
+        user?.email?.trim() ||
+        (fallback == null ? "" : String(fallback)) ||
+        "-"
+    );
+}
+
 const ReportsPage: React.FC = () => {
     const { t, i18n } = useTranslation(["reports", "common"]);
     const router = useRouter();
@@ -163,26 +186,30 @@ const ReportsPage: React.FC = () => {
     const rows = useMemo(() => {
         const allReports = reports || [];
 
-        return allReports.map((report: any) => ({
-            id: report.id, // CRITICAL: Stable ID required for virtual scrolling
-            name: report.name || "",
-            context: report.context || "",
-            description: report.description || "",
-            created_at: report.created_at,
-            created_at_formatted:
-                report.created_at_formatted || report.created_at, // Use backend formatted date
-            created_by: report.created_by,
-            modified_at: report.modified_at,
-            modified_at_formatted:
-                report.modified_at_formatted || report.modified_at, // Use backend formatted date
-            modified_by: report.modified_by,
-            is_system: report.is_system || false,
-            is_shared: report.is_shared || false,
-            account_id: report.account_id,
-            User_Report_created_byToUser: report.User_Report_created_byToUser,
-            User_Report_modified_byToUser: report.User_Report_modified_byToUser,
-            raw: report, // Original entity for nested data access
-        }));
+        return allReports.map((report: any) => {
+            const createdByUser = report.User_Report_created_byToUser;
+            const modifiedByUser = report.User_Report_modified_byToUser;
+            return {
+                id: report.id, // CRITICAL: Stable ID required for virtual scrolling
+                name: report.name || "",
+                context: report.context || "",
+                description: report.description || "",
+                created_at: report.created_at,
+                created_at_formatted:
+                    report.created_at_formatted || report.created_at, // Use backend formatted date
+                created_by: getReportAuditUserDisplayName(createdByUser),
+                modified_at: report.modified_at,
+                modified_at_formatted:
+                    report.modified_at_formatted || report.modified_at, // Use backend formatted date
+                modified_by: getReportAuditUserDisplayName(modifiedByUser),
+                is_system: report.is_system || false,
+                is_shared: report.is_shared || false,
+                account_id: report.account_id,
+                User_Report_created_byToUser: createdByUser,
+                User_Report_modified_byToUser: modifiedByUser,
+                raw: report, // Original entity for nested data access
+            };
+        });
     }, [reports]);
 
     // Delete mutation
@@ -467,8 +494,10 @@ const ReportsPage: React.FC = () => {
                     const user =
                         params.row.raw?.User_Report_created_byToUser ||
                         params.row.User_Report_created_byToUser;
-                    const displayName =
-                        user?.name || user?.email || params.value || "-";
+                    const displayName = getReportAuditUserDisplayName(
+                        user,
+                        params.value
+                    );
                     return (
                         <Box
                             sx={{
@@ -507,8 +536,10 @@ const ReportsPage: React.FC = () => {
                     const user =
                         params.row.raw?.User_Report_modified_byToUser ||
                         params.row.User_Report_modified_byToUser;
-                    const displayName =
-                        user?.name || user?.email || params.value || "-";
+                    const displayName = getReportAuditUserDisplayName(
+                        user,
+                        params.value
+                    );
                     return (
                         <Box
                             sx={{

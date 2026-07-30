@@ -5,7 +5,7 @@
  * overdue-amount / overdue-customers / active-customers.
  */
 
-import type { Filter } from "@/server/services/ReportExecutionService.types";
+import type { Filter } from "@/types/reports";
 
 export const DASHBOARD_CUSTOMERS_CONTEXT = "dashboard_customers";
 

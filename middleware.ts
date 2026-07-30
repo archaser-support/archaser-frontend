@@ -4,42 +4,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 import i18nConfig from "./i18nConfig";
 import { getDefaultLandingPage } from "./shared/utils/navigation";
-import { isAmplifySsrBuild } from "./utils/amplifyMode";
 import { isSuspiciousPayload } from "./utils/payloadScanner";
 import { getSecurityHeaders } from "./utils/securityHeaders";
 import { getCookieName } from "./utils/authUtils";
 
-// Helper function to send logs to MongoDB from middleware (Edge Runtime)
-async function sendMongoLog(request: NextRequest, level: string, message: string, details: any) {
-    try {
-        const url = new URL("/api/logs/create", request.nextUrl.origin);
-        await fetch(url, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                level,
-                message,
-                source: "Middleware-Auth",
-                details: {
-                    ...details,
-                    pathname: request.nextUrl.pathname,
-                    host: request.headers.get("host"),
-                    userAgent: request.headers.get("user-agent"),
-                    url: request.url
-                }
-            }),
-        });
-    } catch (e) {
-        // Silently fail to not block middleware
-    }
-}
-
 export async function middleware(request: NextRequest) {
     const host = request.headers.get("host");
     const pathname = request.nextUrl.pathname;
-    const amplifyUi = isAmplifySsrBuild();
 
     // Redirect www.archaser.com to archaser.com
     if (host === "www.archaser.com") {
@@ -49,11 +20,19 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(url, 301);
     }
 
-    // Amplify UI-only: product APIs + SSE live on Nest. Keep NextAuth `/api/auth`
-    // for the Nest-JWT→session bridge (prisma-free stub). Relative `/api/ws` hits
-    // here only if the client was misconfigured — prefer Nest absolute SSE URL.
-    if (amplifyUi && pathname.startsWith("/api/")) {
+    // Product APIs + SSE live on Nest. `/api/auth` stays local for the
+    // Nest-JWT→session bridge. Relative `/api/ws` only lands here when the
+    // client is misconfigured — it should use the absolute Nest SSE URL.
+    if (pathname.startsWith("/api/")) {
         if (pathname.startsWith("/api/auth")) {
+            return NextResponse.next();
+        }
+        // Local dev may proxy product APIs to Nest via `next.config.js`
+        // rewrites; middleware runs first, so let those through.
+        if (
+            process.env.NODE_ENV === "development" &&
+            process.env.USE_NEST_API_REWRITE === "true"
+        ) {
             return NextResponse.next();
         }
         if (pathname.startsWith("/api/ws")) {
@@ -82,41 +61,11 @@ export async function middleware(request: NextRequest) {
         );
     }
 
-    // Special handling for Prometheus metrics - always allow
-    if (pathname === "/api/metrics" || pathname === "/api/metrics/") {
-        return NextResponse.next();
-    }
+    // Only page routes reach this point; `/api/*` returned above.
+    const protectedPaths = ["/app"];
+    const skipAuthPaths = ["/portal"];
 
-    // Define protected paths
-    const protectedPaths = ["/app", "/api"];
-    // const skipAuthPaths = ['/api/auth', '/api/portal', '/api/dispute/get'];
-    // Public endpoints that skip authentication at middleware level
-    // Note: These endpoints should still validate authentication internally if needed
-    const skipAuthPaths = [
-        "/api/auth", // NextAuth endpoints
-        "/api/test-auth", // Test authentication endpoint (has IP whitelist and API key protection)
-        "/api/portal", // Portal endpoints (public, but validate customer UUID)
-        "/api/system/cron", // Cron job endpoint (validates secret header)
-        "/api/email/ses-webhook", // AWS SES webhook (validates signature)
-        "/api/email/track-open", // Email tracking pixel (public, no sensitive data)
-        "/api/email/track-click", // Email tracking link (public, no sensitive data)
-        "/api/sms/webhook", // SMS webhook (validates signature)
-        "/api/sms/webhook/twilio", // Twilio webhook (validates signature)
-        "/api/webhooks/aws-ses-delivery", // AWS webhook (validates signature)
-        "/api/accounts/[accountId]/logo", // Public logo endpoint
-        "/api/logs/create", // Logging endpoint (rate limited, validates auth internally for non-login events)
-        "/api/activities/attachments/presigned-url", // S3 presigned URL generation (validates auth internally)
-        "/api/country", // Public country list endpoint
-        "/portal", // Portal routes
-        "/api/metrics", // Prometheus metrics endpoint
-    ];
-    // Security check: Block suspicious payloads in query parameters and path
-    // BUT: Skip security scanning for OAuth callbacks (they contain long, legitimate Base64 codes)
-    const isOAuthCallback = pathname === "/api/auth/callback/azure-ad" ||
-        pathname === "/api/auth/callback/google" ||
-        pathname.startsWith("/api/auth/callback/");
-
-    if (!isOAuthCallback) {
+    {
         const searchParams = Object.fromEntries(
             request.nextUrl.searchParams.entries()
         );
@@ -161,9 +110,6 @@ export async function middleware(request: NextRequest) {
         }
     }
 
-    // Check if the request is for an API route
-    const isApiRoute = pathname.startsWith("/api");
-
     // Retrieve the token (session) from the request early to handle root redirects
     const isSecure = process.env.NODE_ENV === "production" && !!process.env.NEXT_PUBLIC_BASE_URL?.startsWith("https://");
 
@@ -184,33 +130,9 @@ export async function middleware(request: NextRequest) {
         });
     }
 
-    if (token) {
-        // Token found
-    } else {
-
-        // Log to MongoDB if it's a protected path
-        const isProtected = protectedPaths.some((path) => pathname.startsWith(path));
-        const isSkipped = skipAuthPaths.some((path) => pathname.startsWith(path));
-
-        if (isProtected && !isSkipped) {
-            // Get all cookies for details
-            const cookieHeader = request.headers.get("cookie") || "";
-            const hasSessionCookie = cookieHeader.includes(primaryCookieName);
-            const hasLegacyCookie = cookieHeader.includes(legacyCookieName);
-
-            await sendMongoLog(request, "WARNING", `[Auth] Session missing on protected route: ${pathname}`, {
-                primaryCookieName,
-                legacyCookieName,
-                hasSessionCookie,
-                hasLegacyCookie,
-                cookieCount: request.cookies.size
-            });
-        }
-    }
-
     let response: NextResponse;
 
-    if (!isApiRoute) {
+    {
         // Redirect root path to login or dashboard
         if (pathname === "/") {
             if (token) {
@@ -294,64 +216,18 @@ export async function middleware(request: NextRequest) {
 
         // Also add pathname header for all routes to help with debugging
         response.headers.set("x-pathname", originalPathname);
-    } else {
-        response = NextResponse.next();
     }
 
-    // Check if the current path is protected
-    let requiresAuth = true;
+    // Portal pages are public (customer UUID scoped); everything under /app needs a session.
+    const isPublicPage =
+        skipAuthPaths.some((path) => pathname.startsWith(path)) ||
+        pathname.includes("/portal/");
+    const requiresAuth =
+        !isPublicPage && protectedPaths.some((path) => pathname.includes(path));
 
-    // Special handling for portal customer API endpoints (public, no auth required)
-    // These endpoints are accessed via customer UUID and are public
-    const portalCustomerApiPattern =
-        /^\/api\/customers\/[^/]+\/(portal-data|bank-details|view-disputes|invoices|wrong-contact|create-dispute|agent-portal)$/;
-    const isPortalCustomerApi = portalCustomerApiPattern.test(pathname);
-
-    // Check if the current path should skip authentication
-    const shouldSkipAuth = skipAuthPaths.some((path) => {
-        // Special handling for /api/auth - exclude all auth-related paths
-        if (path === "/api/auth") {
-            return pathname.startsWith("/api/auth");
-        }
-        // Special handling for /api/test-auth - exclude all test auth paths
-        if (path === "/api/test-auth") {
-            return pathname.startsWith("/api/test-auth");
-        }
-        // Special handling for /api/portal - exclude all sub-paths
-        if (path === "/api/portal") {
-            return pathname.startsWith(path);
-        }
-        // Convert Next.js dynamic route pattern to regex
-        const regexPattern = path.replace(/\[.*?\]/g, "[^/]+");
-        const regex = new RegExp(`^${regexPattern}$`);
-        return regex.test(pathname);
-    });
-
-    if (shouldSkipAuth || isPortalCustomerApi) {
-        requiresAuth = false;
-    } else {
-        // Check if it's a portal route (should not require auth)
-        if (pathname.startsWith("/portal/")) {
-            requiresAuth = false;
-        } else {
-            requiresAuth = protectedPaths.some((path) =>
-                pathname.includes(path)
-            );
-        }
-    }
-
-    if (requiresAuth) {
-        if (!token) {
-            if (pathname.startsWith("/api")) {
-                return NextResponse.json(
-                    { error: "Unauthorized" },
-                    { status: 401 }
-                );
-            } else {
-                const signInUrl = new URL("/login", request.url);
-                return NextResponse.redirect(signInUrl);
-            }
-        }
+    if (requiresAuth && !token) {
+        const signInUrl = new URL("/login", request.url);
+        return NextResponse.redirect(signInUrl);
     }
     response.headers.set(
         "Cache-Control",

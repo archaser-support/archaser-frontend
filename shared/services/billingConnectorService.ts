@@ -1,5 +1,5 @@
-import api from "@/app/api";
-import type { ConnectorAuthType, BillingProvider, ImportType } from "@prisma/client";
+﻿import api from "@/app/api";
+import type { ConnectorAuthType, BillingProvider, ImportType } from "@/types/db";
 
 import type { MappingRule } from "@/shared/constants/importEntityFields";
 

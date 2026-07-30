@@ -1,3 +1,4 @@
+import { apiFetch } from "@/utils/apiFetch";
 /**
  * Utility functions for triggering real-time Control Center updates
  */
@@ -17,7 +18,7 @@ export async function triggerControlCenterUpdate(
     } = {}
 ): Promise<boolean> {
     try {
-        const response = await fetch(
+        const response = await apiFetch(
             "/api/system/control-center/trigger-update",
             {
                 method: "POST",

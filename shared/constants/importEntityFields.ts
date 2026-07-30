@@ -1,6 +1,10 @@
-import type { ImportType } from "@prisma/client";
+﻿import type { ImportType } from "@/types/db";
 
-import type { PriorityEntityImportType } from "@/server/integrations/priority/fixtures/samplePayloads";
+/** Entities the Priority connector can map. */
+export type PriorityEntityImportType = Extract<
+    ImportType,
+    "Customer" | "Contact" | "Invoice" | "Payment"
+>;
 
 export type ConnectorFieldTransform =
     | "date"

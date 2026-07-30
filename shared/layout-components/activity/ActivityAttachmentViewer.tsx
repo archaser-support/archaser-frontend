@@ -1,4 +1,3 @@
-import AppDialog from "@/shared/layout-components/modal/AppDialog";
 import {
     Audiotrack,
     Delete,
@@ -20,7 +19,9 @@ import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useFileUpload } from "@/hooks/useFileUpload";
+import AppDialog from "@/shared/layout-components/modal/AppDialog";
 import DeleteDialog from "@/shared/layout-components/modal/DeleteDialog";
+import { apiFetch } from "@/utils/apiFetch";
 
 import AddAttachmentToActivity from "./AddAttachmentToActivity";
 
@@ -421,7 +422,7 @@ const ActivityAttachmentViewer: React.FC<ActivityAttachmentViewerProps> = ({
                                         const downloadUrl = `/api/activity-attachments/${attachment.id}`;
 
                                         try {
-                                            const response = await fetch(downloadUrl, {
+                                            const response = await apiFetch(downloadUrl, {
                                                 method: 'GET',
                                                 headers: {
                                                     'Cache-Control': 'no-cache',
@@ -628,7 +629,7 @@ const ActivityAttachmentViewer: React.FC<ActivityAttachmentViewerProps> = ({
                                 const downloadUrl = `/api/activity-attachments/${previewAttachment.id}`;
 
                                 try {
-                                    const response = await fetch(downloadUrl, {
+                                    const response = await apiFetch(downloadUrl, {
                                         method: 'GET',
                                         headers: {
                                             'Cache-Control': 'no-cache',

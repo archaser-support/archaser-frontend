@@ -1,11 +1,11 @@
-"use client";
+﻿"use client";
 
 import { useSession } from "next-auth/react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, TrendingDown } from "lucide-react";
 
-import type { PortfolioHealthSection } from "@/server/services/creditInsurance/creditPortfolioHealthService";
+import type { PortfolioHealthSection } from "@/types/creditInsurance";
 import {
     formatDateForDisplay,
     getUserDateLocale,
@@ -70,7 +70,7 @@ export function PortfolioHealthSectionView({
             ? t("credit_portfolio_health.kpi_lowest_health_streak_window", {
                   ...ns,
                   defaultValue:
-                      "Longest trough: {{days}} days ({{start}} – {{end}})",
+                      "Longest trough: {{days}} days ({{start}} â€“ {{end}})",
                   days: section.seriesA.lowestHealthStreakDays,
                   start: startLabel,
                   end: endLabel,

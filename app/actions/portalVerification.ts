@@ -1,44 +1,58 @@
-'use server'
+"use server";
 
 import { cookies } from "next/headers";
-import { isAmplifySsrBuild } from "@/utils/amplifyMode";
+import { nestOrigin } from "@/utils/nestPortal";
 
-async function getVerificationService() {
-    if (isAmplifySsrBuild()) {
+/**
+ * Portal e-mail verification. The codes themselves live in Nest; this action
+ * only exists so the verified flag can be written to an httpOnly cookie.
+ */
+async function postToNest<T>(
+    path: string,
+    body: Record<string, unknown>
+): Promise<T | null> {
+    try {
+        const response = await fetch(`${nestOrigin()}/api/portal/${path}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+            cache: "no-store",
+        });
+        if (!response.ok) {
+            return null;
+        }
+        return (await response.json()) as T;
+    } catch {
         return null;
     }
-    const { VerificationService } = await import(
-        "@/server/services/VerificationService"
-    );
-    return VerificationService.getInstance();
 }
 
-export async function sendVerificationCodeAction(customerUUID: string, contactId?: number): Promise<{ success: boolean; emailObfuscated?: string; error?: string }> {
-    const service = await getVerificationService();
-    if (!service) {
-        return { success: false, error: "Verification unavailable" };
-    }
-    const result = await service.sendVerificationEmail(customerUUID, contactId);
-    return result;
+export async function sendVerificationCodeAction(
+    customerUUID: string,
+    contactId?: number
+): Promise<{ success: boolean; emailObfuscated?: string; error?: string }> {
+    const result = await postToNest<{
+        success: boolean;
+        emailObfuscated?: string;
+        error?: string;
+    }>("send-verification-code", { customerUUID, contactId });
+    return result ?? { success: false, error: "Verification unavailable" };
 }
 
 export async function verifyCodeAction(customerUUID: string, code: string) {
-    const service = await getVerificationService();
-    if (!service) {
-        return { success: false, message: "Verification unavailable" };
-    }
-    const isValid = await service.verifyCode(customerUUID, code);
+    const result = await postToNest<{ valid: boolean }>("verify-code", {
+        customerUUID,
+        code,
+    });
 
-    if (isValid) {
-        // Set a cookie to mark this session as verified for this specific customer
-        // Expires in 24 hours (or whatever policy is preferred)
+    if (result?.valid) {
         const cookieStore = await cookies();
-        cookieStore.set(`portal_verified_${customerUUID}`, 'true', {
+        cookieStore.set(`portal_verified_${customerUUID}`, "true", {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            maxAge: 60 * 60 * 24 * 30, // 30 days
-            path: '/', // Path should perhaps be scoped? But easier to keep root for now or /portal
-            sameSite: 'lax'
+            secure: process.env.NODE_ENV === "production",
+            maxAge: 60 * 60 * 24 * 30,
+            path: "/",
+            sameSite: "lax",
         });
         return { success: true };
     }
@@ -46,15 +60,21 @@ export async function verifyCodeAction(customerUUID: string, code: string) {
     return { success: false, message: "Invalid or expired code" };
 }
 
-export async function getMaskedContactEmailAction(customerUUID: string, contactId?: number) {
-    const service = await getVerificationService();
-    if (!service) {
+export async function getMaskedContactEmailAction(
+    customerUUID: string,
+    contactId?: number
+): Promise<string | null> {
+    const result = await postToNest<{ email?: string }>(
+        "verification-email",
+        { customerUUID, contactId }
+    );
+    const email = result?.email;
+    if (!email) {
         return null;
     }
-    const data = await service.getEmailAddress(customerUUID, contactId);
-    if (!data) return null;
-
-    const [local, domain] = data.email.split('@');
-    const obfuscated = `${local.substring(0, 2)}***@${domain}`;
-    return obfuscated;
+    const [local, domain] = email.split("@");
+    if (!domain) {
+        return null;
+    }
+    return `${local.substring(0, 2)}***@${domain}`;
 }

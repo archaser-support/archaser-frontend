@@ -11,12 +11,9 @@ export function isAmplifySsrBuild(): boolean {
     );
 }
 
-/** Nest owns product APIs + auth (Amplify UI or Nest auth flag). */
+/** Nest owns product APIs + auth. The frontend is UI-only. */
 export function isNestUiMode(): boolean {
-    return (
-        isAmplifySsrBuild() ||
-        process.env.NEXT_PUBLIC_USE_NEST_AUTH === "true"
-    );
+    return true;
 }
 
 /**
@@ -37,17 +34,25 @@ export function isWebSocketEnabled(): boolean {
     return true;
 }
 
+/**
+ * Nest mounts every product controller under `/api` (only `/auth` sits at the
+ * root), so a base URL without that suffix would 404 on every request.
+ */
+function withApiSuffix(baseUrl: string): string {
+    const trimmed = baseUrl.replace(/\/$/, "");
+    return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
+}
+
 /** Product API base URL for axios (Nest `/api` on Amplify / Nest UI mode). */
 export function resolveProductApiBaseUrl(): string {
     const explicit = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
     if (explicit) {
-        return explicit.replace(/\/$/, "");
+        return withApiSuffix(explicit);
     }
     if (isNestUiMode()) {
         const nest = process.env.NEXT_PUBLIC_NEST_API_BASE_URL?.trim();
         if (nest) {
-            const origin = nest.replace(/\/$/, "");
-            return origin.endsWith("/api") ? origin : `${origin}/api`;
+            return withApiSuffix(nest);
         }
     }
     return "/api";

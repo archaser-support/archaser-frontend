@@ -1,18 +1,25 @@
 # Amplify Hosting (SSR) — app root must be `frontend` in Amplify Console.
+# The frontend is UI-only: no database, no Prisma. All data comes from Nest.
 #
-# Required console env (staging example):
+# Required console env, per branch (staging example):
 #   AMPLIFY_SSR=true
 #   NEXT_PUBLIC_AMPLIFY_UI=true
-#   NEXT_PUBLIC_USE_NEST_AUTH=true
-#   NEXT_PUBLIC_NEST_API_BASE_URL=https://staging.archaser.com
-#   NEXT_PUBLIC_API_BASE_URL=https://staging.archaser.com/api
-#   NEXT_PUBLIC_BASE_URL=https://<amplify-app-domain>
-#   NEXTAUTH_SECRET=<shared with Nest JWT verify; omit DATABASE_URL>
+#   NEXT_PUBLIC_NEST_API_BASE_URL=https://api.staging.archaser.com
+#   NEXT_PUBLIC_API_BASE_URL=https://api.staging.archaser.com/api
+#   NEXT_PUBLIC_BASE_URL=https://<this-branch-domain>
+#   NEXTAUTH_URL=https://<this-branch-domain>
+#   NEXTAUTH_SECRET=<signs the NextAuth cookie session>
 #   JWT_SECRET=<same secret Nest uses to sign access tokens>
 #   NEXT_PUBLIC_ENABLE_WS=true
 #
-# Nest must allow this origin in NEST_CORS_ORIGINS and Authorization header.
-# SSE uses EventSource against Nest /api/ws/* with ?access_token=.
+# NEXTAUTH_URL must match the branch domain — pointing it at another branch
+# makes /api/auth/session fail. Nest must list this exact origin in
+# NEST_CORS_ORIGINS. SSE uses EventSource against Nest /api/ws/* with
+# ?access_token=.
+#
+# Amplify does not forward Console variables to the SSR runtime, so
+# `build:amplify` writes the server-side ones into .env.production before
+# building. `.env*` is gitignored, so the Console is the only source.
 
 version: 1
 frontend:
@@ -20,6 +27,7 @@ frontend:
     preBuild:
       commands:
         - npm ci
+        - npm run type-check
     build:
       commands:
         - npm run build:amplify

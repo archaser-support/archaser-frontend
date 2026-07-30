@@ -5,6 +5,7 @@
  */
 
 import { getCustomerPortalUrl } from './appUrls';
+import { getTenantSubdomain, isEnvironmentHost } from './domainUtils';
 
 /**
  * Get the current customer subdomain from the hostname
@@ -12,28 +13,7 @@ import { getCustomerPortalUrl } from './appUrls';
 export function getCurrentSubdomain(): string | null {
     if (typeof window === 'undefined') return null;
 
-    const hostname = window.location.hostname;
-
-    // Handle localhost for development
-    if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
-        return null;
-    }
-
-    // Extract subdomain from hostname
-    const parts = hostname.split('.');
-
-    // Check if we are in staging - if so, we don't treat 'staging' as a customer subdomain
-    const isStaging = hostname === 'staging.archaser.com';
-    if (isStaging) return null;
-
-    if (parts.length > 2) {
-        const subdomain = parts[0];
-        // Explicitly ignore 'www' as a customer subdomain
-        if (subdomain.toLowerCase() === 'www') return null;
-        return subdomain;
-    }
-
-    return null;
+    return getTenantSubdomain(window.location.hostname);
 }
 
 /**
@@ -127,8 +107,8 @@ export function getSubdomainRedirectUrl(
     // If already on correct subdomain, no redirect needed
     if (currentSubdomain === customerSubdomain) return null;
 
-    const isStaging = window.location.hostname === 'staging.archaser.com';
-    if (isStaging) return null;
+    // Deployment hosts do not have per-tenant subdomains configured.
+    if (isEnvironmentHost(window.location.hostname)) return null;
 
     // Generate URL with correct subdomain
     const protocol = window.location.protocol;

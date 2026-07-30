@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { apiFetch } from "@/utils/apiFetch";
 
 import { useQuery } from "@tanstack/react-query";
@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { parseDashboardBusinessUnitIdFromUrl } from "@/shared/dashboard/dashboardBusinessUnitParams";
 import { defaultPortfolioHealthDateRange } from "@/shared/creditInsurance/portfolioHealthDateRange";
-import type { CreditPortfolioHealthResponse } from "@/server/services/creditInsurance/creditPortfolioHealthService";
+import type { CreditPortfolioHealthResponse } from "@/types/creditInsurance";
 import { useCreditDashboardPoliciesQuery } from "@/app/[locale]/app/credit-dashboard/CreditDashboardPolicySelect";
 
 import { CreditPortfolioHealthScreen } from "./CreditPortfolioHealthScreen";

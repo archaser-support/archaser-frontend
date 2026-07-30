@@ -1,4 +1,5 @@
-import type { CustomerDashboardKpisResponse } from "@/server/services/creditInsurance/customerDashboardKpisService";
+import type { CustomerDashboardKpisResponse } from "@/types/creditInsurance";
+import { apiFetch } from "@/utils/apiFetch";
 
 export function customerDashboardKpisQueryKey(
     customerId: number,
@@ -27,7 +28,7 @@ export async function fetchCustomerDashboardKpis(
     }
     const url = `/api/credit-insurance/customer-dashboard-kpis?${params.toString()}`;
 
-    const res = await fetch(url);
+    const res = await apiFetch(url);
     if (!res.ok) {
         const errorBody = await res.text().catch(() => "");
         let parsedError: string | null = null;

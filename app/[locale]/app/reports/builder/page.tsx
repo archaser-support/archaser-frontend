@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
     DndContext,
@@ -34,11 +34,11 @@ import {
 } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import api from "@/app/api";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import api from "@/app/api";
 import PageHeader from "@/components/PageHeader";
 import DragDropFieldSelector from "@/components/reports/DragDropFieldSelector";
 import FilterBuilder from "@/components/reports/FilterBuilder";
@@ -47,28 +47,10 @@ import FormulaColumnEditor, {
 } from "@/components/reports/FormulaColumnEditor";
 import GroupingBuilder from "@/components/reports/GroupingBuilder";
 import { useSessionState } from "@/hooks/useSessionState";
-import type { ReportConfig } from "@/server/services/ReportService";
-import { findFormulasReferencingOperand } from "@/shared/reportFormula/findFormulasReferencingOperand";
-import { MAX_FORMULAS_PER_REPORT } from "@/shared/reportFormula/types";
-import {
-    getFormulaOperandReference,
-    isGroupedReportConfig,
-    resolveReportColumnOrder,
-    syncFieldsOrderFromColumnOrder,
-} from "@/shared/reportFormula/columnOrder";
-import {
-    resolveFormulaValidationMessage,
-    validateAllReportFormulas,
-} from "@/shared/reportFormula/validateFormulaDraft";
-import { getViewConfig, MAIN_REPORTS_MENU_CONTEXT } from "@/shared/utils/viewConfigs";
 import {
     buildDashboardChartDetailsReturnPath,
     isDashboardChartDetailsReportContext,
 } from "@/shared/dashboard/dashboardInvoiceBuilderReturn";
-import {
-    buildOperationDashboardDetailsReturnPath,
-    isOperationDashboardDetailsReportContext,
-} from "@/shared/dashboard/dashboardOperationBuilderReturn";
 import {
     DASHBOARD_ACTIVITIES_CONTEXT,
     DASHBOARD_CUSTOMERS_CONTEXT,
@@ -77,6 +59,25 @@ import {
     DASHBOARD_PAYMENTS_CONTEXT,
     DASHBOARD_PROMISES_CONTEXT,
 } from "@/shared/dashboard/dashboardInvoiceReportAccess";
+import {
+    buildOperationDashboardDetailsReturnPath,
+    isOperationDashboardDetailsReportContext,
+} from "@/shared/dashboard/dashboardOperationBuilderReturn";
+import {
+    getFormulaOperandReference,
+    isGroupedReportConfig,
+    resolveReportColumnOrder,
+    syncFieldsOrderFromColumnOrder,
+} from "@/shared/reportFormula/columnOrder";
+import { findFormulasReferencingOperand } from "@/shared/reportFormula/findFormulasReferencingOperand";
+import { MAX_FORMULAS_PER_REPORT } from "@/shared/reportFormula/types";
+import {
+    resolveFormulaValidationMessage,
+    validateAllReportFormulas,
+} from "@/shared/reportFormula/validateFormulaDraft";
+import { getViewConfig, MAIN_REPORTS_MENU_CONTEXT } from "@/shared/utils/viewConfigs";
+import type { ReportConfig } from "@/types/reports";
+import { apiFetch } from "@/utils/apiFetch";
 import AppUrls from "@/utils/appUrls";
 import { getRTLTooltipProps } from "@/utils/reportFieldUtils";
 import {
@@ -629,7 +630,7 @@ const ReportBuilderPage: React.FC = () => {
 
             // Aggregated columns must not appear in GROUP BY (legacy `table.field` can linger
             // because cleanedGrouping keeps unknown keys when the table is still selected).
-            // Uses all aggregation suffix variants so SUM→MAX (etc.) does not leave stale keys.
+            // Uses all aggregation suffix variants so SUMâ†’MAX (etc.) does not leave stale keys.
             const groupingKeysFromAggregatedFields =
                 getForbiddenGroupingKeysForAggregatedFields(normalizedFields);
             const cleanedGroupingWithoutAggregatedSources = cleanedGrouping.filter(
@@ -844,7 +845,7 @@ const ReportBuilderPage: React.FC = () => {
         setSelectedTables(mappedTables);
     }, [existingReport, metadata, isClone, reportId, relationships]);
 
-    // Update joins when auto-detected joins change — new reports only.
+    // Update joins when auto-detected joins change â€” new reports only.
     // Edit mode: joins + grouping are set atomically in the hydrate effect above.
     useEffect(() => {
         if (reportId) {
@@ -1143,7 +1144,7 @@ const ReportBuilderPage: React.FC = () => {
                 ? `/api/reports/${effectiveReportId}`
                 : "/api/reports";
             const method = effectiveReportId ? "PUT" : "POST";
-            const response = await fetch(url, {
+            const response = await apiFetch(url, {
                 method,
                 headers: {
                     "Content-Type": "application/json",
@@ -1691,7 +1692,7 @@ const ReportBuilderPage: React.FC = () => {
                     >
                         {t(
                             "messages.chart_under_construction",
-                            "📈 Our charts are still collecting data! 💸"
+                            "ðŸ“ˆ Our charts are still collecting data! ðŸ’¸"
                         )}
                     </Typography>
                     <Typography
@@ -1701,7 +1702,7 @@ const ReportBuilderPage: React.FC = () => {
                     >
                         {t(
                             "messages.chart_funny",
-                            "We're working on making your collection data look as beautiful as a fully paid invoice. The charts are coming soon - and unlike some payments, they'll arrive on time! 🎯"
+                            "We're working on making your collection data look as beautiful as a fully paid invoice. The charts are coming soon - and unlike some payments, they'll arrive on time! ðŸŽ¯"
                         )}
                     </Typography>
                 </Box>

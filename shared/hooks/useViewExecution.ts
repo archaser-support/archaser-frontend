@@ -1,11 +1,12 @@
-import { apiFetch } from "@/utils/apiFetch";
-import { getUserDateLocale } from "@/utils/datetimeOperations";
-import { useVirtualInfiniteScroll } from "@/shared/layout-components/grid/EndlessScrollDataGrid";
-import { hasNoAvailableViewsForContext } from "@/shared/components/ViewBasedDataGrid/hasNoAvailableViewsForContext";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+
+import { hasNoAvailableViewsForContext } from "@/shared/components/ViewBasedDataGrid/hasNoAvailableViewsForContext";
+import { useVirtualInfiniteScroll } from "@/shared/layout-components/grid/EndlessScrollDataGrid";
+import { apiFetch } from "@/utils/apiFetch";
+import { getUserDateLocale } from "@/utils/datetimeOperations";
 
 export interface UseViewExecutionOptions {
     /** Context name (e.g., "customers", "disputes") */
@@ -165,7 +166,7 @@ export function useViewExecution(
                     params.append("context", context);
                 }
                 const url = `/api/reports${params.toString() ? `?${params.toString()}` : ""}`;
-                const response = await fetch(url);
+                const response = await apiFetch(url);
                 if (!response.ok) return { reports: [] };
                 return response.json();
             },

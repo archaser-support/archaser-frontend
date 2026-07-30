@@ -35,7 +35,7 @@ import {
     Settings as SettingsIcon,
     Sync as SyncIcon,
 } from "@mui/icons-material";
-import type { ConnectorAuthType, ImportType } from "@prisma/client";
+import type { ConnectorAuthType, ImportType } from "@/types/db";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 

@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import { getPortalCardSx, PORTAL_CARD_CLASS } from "@/app/theme/portalCard";
 import { portalInvoiceListRadius } from "@/shared/components/portal/portalInvoiceListStyles";
 import { PortalInvoice } from "@/types/PortalInvoice";
+import { apiFetch } from "@/utils/apiFetch";
 
 import PortalPageLayout from "../../components/PortalPageLayout";
 
@@ -131,7 +132,7 @@ export default function Page() {
                 setLoading(true);
                 const url = `/api/customers/${customerUUID}/invoices`;
 
-                const response = await fetch(url);
+                const response = await apiFetch(url);
 
                 if (!response.ok) {
                     throw new Error(

@@ -1,12 +1,15 @@
-import { Prisma } from "@prisma/client";
+import type {
+    Account,
+    ActivitiesSequence,
+    ActivitiesTemplate,
+    Activity,
+} from "@/types/db";
 
-export type ActivitySequence = Prisma.ActivitiesSequenceGetPayload<{
-    include: {
-        ActivitiesTemplate: true;
-        Activity: true;
-        Account: true;
-    };
-}> & {
+export type ActivitySequence = ActivitiesSequence & {
+    ActivitiesTemplate: ActivitiesTemplate | null;
+    Activity: Activity[];
+    Account: Account;
+} & {
     lockedFields?: string[]; // Add lockedFields for frontend form handling
     deleted?: boolean; // Add deleted flag for frontend filtering
     send_to_standard_contacts?: boolean; // Add contact preferences

@@ -1,3 +1,13 @@
+import { isEnvironmentHost } from "./domainUtils";
+
+function hostnameOf(url: string): string {
+    try {
+        return new URL(url).hostname;
+    } catch {
+        return "";
+    }
+}
+
 export const getCustomerPortalUrl = (
     customerUUID: string,
     sub_domain?: string | null,
@@ -16,13 +26,13 @@ export const getCustomerPortalUrl = (
 
     let baseUrl: string;
     const publicBaseUrl = process.env.NEXT_PUBLIC_BASE_URL || "";
-    const isStaging = publicBaseUrl.includes("staging.archaser.com");
+    const isDeploymentHost = isEnvironmentHost(hostnameOf(publicBaseUrl));
 
     if (isLocalhost) {
         // Development environment - use localhost
         baseUrl = `http://localhost:${process.env.PORT || 3000}`;
-    } else if (isStaging) {
-        // Staging environment - bypass subdomains as they might not be configured
+    } else if (isDeploymentHost) {
+        // staging / dev — per-tenant subdomains are not configured there.
         baseUrl = publicBaseUrl.endsWith("/") ? publicBaseUrl.slice(0, -1) : publicBaseUrl;
     } else {
         // Production environment - prioritize customer subdomain

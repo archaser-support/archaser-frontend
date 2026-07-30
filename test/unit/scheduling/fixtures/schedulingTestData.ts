@@ -1,4 +1,4 @@
-import { Activity } from "@prisma/client";
+﻿import { Activity } from "@/types/db";
 
 import { ActivityStatus } from "@/types/enums";
 
@@ -115,10 +115,10 @@ export const mockActivitySequence = {
             },
             {
                 language: "Hebrew",
-                email_subject: "תזכורת לתשלום - {{account_name}}",
-                email_content: "שלום {{customer_name}}, אנא שלם את החוב שלך.",
-                sms_content: "תזכורת לתשלום מ{{account_name}}",
-                whatsapp_content: "שלום {{customer_name}}, אנא שלם את החוב שלך.",
+                email_subject: "×ª×–×›×•×¨×ª ×œ×ª×©×œ×•× - {{account_name}}",
+                email_content: "×©×œ×•× {{customer_name}}, ×× × ×©×œ× ××ª ×”×—×•×‘ ×©×œ×š.",
+                sms_content: "×ª×–×›×•×¨×ª ×œ×ª×©×œ×•× ×ž{{account_name}}",
+                whatsapp_content: "×©×œ×•× {{customer_name}}, ×× × ×©×œ× ××ª ×”×—×•×‘ ×©×œ×š.",
             },
         ],
     },

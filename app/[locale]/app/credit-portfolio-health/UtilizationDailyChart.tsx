@@ -14,7 +14,7 @@ import {
     YAxis,
 } from "recharts";
 
-import type { PortfolioUtilizationDailyPoint } from "@/server/services/creditInsurance/creditPortfolioHealthService";
+import type { PortfolioUtilizationDailyPoint } from "@/types/creditInsurance";
 
 import { ChartTooltip } from "./ChartTooltip";
 import { Eyebrow } from "./Eyebrow";

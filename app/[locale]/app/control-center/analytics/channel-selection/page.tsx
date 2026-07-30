@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { apiFetch } from "@/utils/apiFetch";
 
 import { AnalyticsOutlined as AnalyticsOutlinedIcon } from "@mui/icons-material";
@@ -18,7 +18,7 @@ import {
 import { useTheme } from "@mui/material/styles";
 import { GridColDef } from "@mui/x-data-grid";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import { activity_type } from "@prisma/client";
+import { activity_type } from "@/types/db";
 import moment from "moment";
 import React, { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";

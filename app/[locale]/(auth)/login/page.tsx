@@ -47,6 +47,7 @@ import {
     isArchaserAdminAccount,
 } from "@/shared/utils/navigation";
 import AppUrls from "@/utils/appUrls";
+import { getTenantSubdomain } from "@/utils/domainUtils";
 import {
     clearNestAccessToken,
     getNestAzureStartUrl,
@@ -177,18 +178,12 @@ function LoginPageContent() {
 
     // Handle Subdomain Logic
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const hostname = window.location.hostname;
-            // logic to exclude portal.archaser.com and check for other subdomains
-            if (hostname !== 'portal.archaser.com' && hostname.endsWith('.archaser.com')) {
-                const parts = hostname.split('.');
-                // Assuming standard subdomain format: subdomain.domain.com
-                if (parts.length >= 3) {
-                    const subdomain = parts[0];
-                    if (subdomain && subdomain !== 'www' && subdomain !== 'portal') {
-                        handleOrganizationLookup(subdomain);
-                    }
-                }
+        if (typeof window !== 'undefined' && window.location.hostname.endsWith('.archaser.com')) {
+            // Skips www/portal and deployment hosts such as dev.archaser.com,
+            // none of which can belong to an account.
+            const subdomain = getTenantSubdomain(window.location.hostname);
+            if (subdomain) {
+                handleOrganizationLookup(subdomain);
             }
         }
     }, []);
@@ -727,38 +722,12 @@ function LoginPageContent() {
         setOrganizationError("");
 
         try {
-            if (isNestAuthEnabled()) {
-                const data = await nestAccountBySubdomain(subdomain);
-                if (!data) {
-                    setOrganizationError(t("messages.organization_not_found"));
-                    setAccountInfo(null);
-                    return;
-                }
-                setAccountInfo({
-                    accountId: data.accountId,
-                    name: data.name,
-                    ssoEnabled: data.ssoEnabled,
-                    ssoProviders: data.ssoProviders || [],
-                });
+            const data = await nestAccountBySubdomain(subdomain);
+            if (!data) {
+                setOrganizationError(t("messages.organization_not_found"));
+                setAccountInfo(null);
                 return;
             }
-
-            const response = await fetch(
-                `/api/auth/account-by-subdomain?subdomain=${encodeURIComponent(subdomain)}`
-            );
-
-            if (!response.ok) {
-                if (response.status === 404) {
-                    setOrganizationError(t("messages.organization_not_found"));
-                    setAccountInfo(null);
-                } else {
-                    setOrganizationError(t("messages.error"));
-                    setAccountInfo(null);
-                }
-                return;
-            }
-
-            const data = await response.json();
             setAccountInfo({
                 accountId: data.accountId,
                 name: data.name,
