@@ -124,9 +124,8 @@ export function CustomerTopUpList({
     } = useVirtualInfiniteScroll<TopUpRow>({
         queryKey,
         queryFn: createQueryFn(
-            `/api/customers/_/top-ups`,
+            `/api/entities/customers/${customerId}/top-ups`,
             {
-                customer_id: String(customerId),
                 query: debouncedSearch,
                 sortField: sortField || "start_date",
                 sortDirection: sortDirection || "desc",
@@ -164,9 +163,9 @@ export function CustomerTopUpList({
 
     const cancelMut = useMutation({
         mutationFn: async (topUpId: number) => {
-            await api.delete(`/api/customers/_/top-ups`, {
-                params: { customer_id: customerId, id: topUpId },
-            });
+            await api.delete(
+                `/api/entities/customers/${customerId}/top-ups/${topUpId}`
+            );
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["customer-top-ups", customerId] });
@@ -652,9 +651,10 @@ function AddTopUpDialog({
                 premium: premium !== "" ? parseFloat(premium) : null,
                 premiumCurrency: premium !== "" ? (premiumCurrency.trim() || null) : null,
             };
-            await api.post(`/api/customers/_/top-ups`, payload, {
-                params: { customer_id: customerId },
-            });
+            await api.post(
+                `/api/entities/customers/${customerId}/top-ups`,
+                payload
+            );
         },
         onSuccess: () => {
             onSaved();

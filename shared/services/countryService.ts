@@ -7,7 +7,7 @@ export const fetchCountries: QueryFunction<Country[]> = async ({
     queryKey,
 }) => {
     try {
-        const response = await api.get("/system/country");
+        const response = await api.get("/country");
         // Debug logging removed for production
         return response.data;
     } catch (error) {
@@ -18,7 +18,7 @@ export const fetchCountries: QueryFunction<Country[]> = async ({
 export const fetchStates: QueryFunction<State[]> = async ({ queryKey }) => {
     const [, country_id] = queryKey as [string, string];
     try {
-        const response = await api.get("/system/states", {
+        const response = await api.get("/state", {
             params: { country_id },
         });
         return response.data;

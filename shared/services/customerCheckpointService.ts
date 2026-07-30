@@ -35,7 +35,7 @@ function checkpointUrl(customerId: number, action?: "save" | "restore"): string 
             : action === "restore"
               ? "/restore"
               : "";
-    return `/api/customers/_/checkpoint${suffix}?customer_id=${customerId}`;
+    return `/api/entities/customers/${customerId}/checkpoint${suffix}`;
 }
 
 export function customerCheckpointQueryKey(customerId: number) {

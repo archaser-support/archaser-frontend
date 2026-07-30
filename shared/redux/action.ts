@@ -98,9 +98,7 @@ export const clearStates = () => (dispatch: any) => {
 export const fetchStatesFromApi =
     (countryId: string | number) => async (dispatch: any) => {
         try {
-            const response = await api.get(
-                `/system/states?country_id=${countryId}`
-            );
+            const response = await api.get(`/state?country_id=${countryId}`);
             dispatch(setStates(response.data));
         } catch (error) {
             console.error("Error fetching states:", error);
