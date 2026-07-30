@@ -426,6 +426,112 @@ describe("replayCustomerArImport", () => {
         });
     });
 
+    it("stamps limit_assessed from chronological open AR, not live paid book", async () => {
+        mockPrisma.customerPolicy.findFirst.mockResolvedValue({
+            approved_limit: 14_000,
+        });
+        mockPrisma.invoice.findMany.mockResolvedValue([]);
+        mockPrisma.invoicePayment.findMany.mockResolvedValue([]);
+        mockPrisma.invoicePayment.count.mockResolvedValue(0);
+        mockPrisma.invoice.update.mockResolvedValue({});
+        mockLinkDeferredPaymentAndRecalc.mockResolvedValue({
+            alreadyLinked: true,
+            invoicePayment: { id: 1 },
+            updatedInvoice: { id: 10, outstanding_debt: 0 },
+        });
+
+        await replayCustomerArImport({
+            customerId: 1111,
+            accountId: 1,
+            invoices: [
+                {
+                    invoiceNumber: "1",
+                    invoiceDate: d("2026-01-01"),
+                    netAmount: 13_850,
+                    customerNetAmount: 13_850,
+                    invoiceId: 1,
+                },
+                {
+                    invoiceNumber: "10",
+                    invoiceDate: d("2026-02-03"),
+                    netAmount: 1_900,
+                    customerNetAmount: 1_900,
+                    invoiceId: 10,
+                },
+            ],
+            payments: [
+                {
+                    id: 50,
+                    invoiceNumber: "1",
+                    paymentDate: d("2026-06-01"),
+                    amount: 13_850,
+                    customerAmount: 13_850,
+                    invoiceId: 1,
+                },
+            ],
+        });
+
+        const limitUpdates = mockPrisma.invoice.update.mock.calls.filter(
+            (call: { args?: { data?: { limit_assessed_amount?: number } } }) =>
+                call[0]?.data?.limit_assessed_amount != null
+        );
+        const inv10Stamp = limitUpdates.find(
+            (call: { args?: unknown; 0?: { where?: { id?: number } } }) =>
+                call[0]?.where?.id === 10
+        );
+        // Headroom on Feb 3 = 14000 - 13850 = 150 (ignore future June payment).
+        expect(inv10Stamp?.[0]?.data?.limit_assessed_amount).toBe(150);
+    });
+
+    it("loads linked payments with null invoice_number via invoice_id (UI import order)", async () => {
+        mockPrisma.customerPolicy.findFirst.mockResolvedValue({
+            approved_limit: 1_000_000,
+        });
+        mockPrisma.invoice.findMany.mockResolvedValue([
+            {
+                id: 99,
+                invoice_number: "5584561",
+                invoice_date: d("2026-01-01"),
+                due_date: d("2026-02-12"),
+                net_amount: 250,
+                customer_net_amount: 250,
+            },
+        ]);
+        mockPrisma.invoicePayment.findMany.mockResolvedValue([
+            {
+                id: 50,
+                invoice_number: null,
+                invoice_id: 99,
+                payment_date: d("2026-01-03"),
+                amount: 150,
+                customer_amount: 150,
+            },
+        ]);
+        mockPrisma.invoice.update.mockResolvedValue({});
+        mockPrisma.invoice.findUnique.mockResolvedValue({
+            id: 99,
+            outstanding_debt: 100,
+        });
+        mockPrisma.invoicePayment.count.mockResolvedValue(0);
+        mockLinkDeferredPaymentAndRecalc.mockResolvedValue({
+            alreadyLinked: true,
+            invoicePayment: { id: 50 },
+            updatedInvoice: { id: 99, outstanding_debt: 100 },
+        });
+
+        const summary = await replayCustomerArImport({
+            customerId: 1111,
+            accountId: 1,
+        });
+
+        expect(summary.eventsApplied).toBe(2);
+        expect(mockLinkDeferredPaymentAndRecalc).toHaveBeenCalledWith({
+            invoicePaymentId: 50,
+            invoiceId: 99,
+            forceRecalc: true,
+        });
+    });
+
     it("counts deferred remaining when invoice is still missing at payment event", async () => {
         mockPrisma.customerPolicy.findFirst.mockResolvedValue({
             approved_limit: 1_000_000,

@@ -19,7 +19,19 @@ interface CreatePaymentDTO {
     customer_currency: string;
     customer_amount: number;
     customer_number: string;
+    /** When set, stored on InvoicePayment so chronological AR replay can see linked rows. */
+    invoice_number?: string;
 }
+
+/** Options for linked payment create side paths (import batch vs UI/API). */
+export type CreateInvoicePaymentOptions = {
+    /**
+     * When true, skip chronological AR replay + live refresh even if
+     * payment_date is backdated. Import uses this because payment job
+     * complete runs the shared orchestration once for all affected customers.
+     */
+    skipArPostIngest?: boolean;
+};
 
 interface CreateDeferredPaymentDTO {
     invoice_number: string;
@@ -35,13 +47,31 @@ interface CreateDeferredPaymentDTO {
 
 export class PaymentService {
     private logService = LogService.getInstance();
-    public async createInvoicePayment(data: CreatePaymentDTO) {
+    public async createInvoicePayment(
+        data: CreatePaymentDTO,
+        options?: CreateInvoicePaymentOptions
+    ) {
         try {
             const { invoicePayment, updatedInvoice } = await prisma.$transaction(
                 async (tx) => {
+                    let invoiceNumber =
+                        typeof data.invoice_number === "string"
+                            ? data.invoice_number.trim()
+                            : "";
+                    if (!invoiceNumber) {
+                        const invoice = await tx.invoice.findUnique({
+                            where: { id: data.invoice_id },
+                            select: { invoice_number: true },
+                        });
+                        invoiceNumber = invoice?.invoice_number?.trim() ?? "";
+                    }
+
                     const createdPayment = await tx.invoicePayment.create({
                         data: {
                             invoice_id: data.invoice_id,
+                            ...(invoiceNumber
+                                ? { invoice_number: invoiceNumber }
+                                : {}),
                             customer_currency: data.customer_currency,
                             payment_date: data.payment_date,
                             amount: data.amount,
@@ -77,15 +107,34 @@ export class PaymentService {
                 const { enqueueAsOfRewrite } = await import(
                     "@/server/services/creditInsurance/asOfRewriteQueue"
                 );
-                const { startOfTodayUtc } = await import(
+                const { startOfTodayUtc, toUtcDateOnly } = await import(
                     "@/shared/creditInsurance/insurancePolicyLifecycle"
                 );
+                const todayUtc = startOfTodayUtc();
                 await enqueueAsOfRewrite({
                     accountId: data.account_id,
                     customerIds: [data.customer_id],
                     fromDate: data.payment_date,
-                    toDate: startOfTodayUtc(),
+                    toDate: todayUtc,
                 }).catch(() => {});
+
+                // Backdated UI/API create: chronological AR replay + live refresh.
+                // Same-day creates keep the lighter path. Import batches skip here
+                // and rely on payment job complete instead.
+                const isBackdated =
+                    toUtcDateOnly(data.payment_date).getTime() <
+                    todayUtc.getTime();
+                if (isBackdated && !options?.skipArPostIngest) {
+                    const { runArPostIngestForCustomers } = await import(
+                        "@/server/services/import/arPostIngestForCustomers"
+                    );
+                    await runArPostIngestForCustomers({
+                        accountId: data.account_id,
+                        customerIds: [data.customer_id],
+                        runMaturity: false,
+                        runLiveRefresh: true,
+                    });
+                }
             }
 
             return { invoicePayment, updatedInvoice };

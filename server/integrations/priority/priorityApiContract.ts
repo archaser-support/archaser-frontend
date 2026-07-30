@@ -474,6 +474,30 @@ export const PRIORITY_GATE_OUTCOMES: readonly PriorityGateOutcome[] = [
             "Official sandbox available for manual/integration validation. CI uses mock server + recorded fixtures to avoid network dependency.",
         implementationNote: `Sandbox: ${PRIORITY_SANDBOX_SERVICE_ROOT} (apidemo/123). Local: npx tsx scripts/testing/priority-mock-server.ts`,
     },
+    {
+        gate: "unpaid_open_filter",
+        answer: "yes",
+        mvpImpact:
+            "Supports filtering unpaid invoices by balance and date. TFNCITEMS2ONE for live, CINVOICES IVBALANCE mock fallback.",
+        implementationNote:
+            "Use IVBALANCE gt 0 or lt 0 with IVDATE lt {cutover} to pull older open invoices in dated backfill.",
+    },
+    {
+        gate: "payments_by_invoice_link",
+        answer: "yes",
+        mvpImpact:
+            "Related payments can be fetched by IVNUM+CUSTNAME compound filter in chunked queries.",
+        implementationNote:
+            "Chunked OR filters via buildPaymentsByInvoiceLinkFilters; max ~20 links per chunk to stay under URL limits.",
+    },
+    {
+        gate: "mock_dated_open_payment_filters",
+        answer: "yes",
+        mvpImpact:
+            "priorityODataFilterEval can evaluate dated-backfill $filter expressions for local fixture validation.",
+        implementationNote:
+            "Mock server and unit tests use compileODataFilter + applyODataFilter for smoke coverage of filter logic.",
+    },
 ];
 
 // ---------------------------------------------------------------------------

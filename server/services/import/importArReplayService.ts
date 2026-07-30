@@ -278,18 +278,43 @@ export async function replayCustomerArImport(
                 invoiceId: inv.id,
             }));
 
+    // Linked UI/API payments historically stored invoice_id without
+    // invoice_number; resolve the number from the invoice so replay still
+    // includes those settlements (invoices-then-payments import order).
+    const invoiceNumberById = new Map<number, string>();
+    for (const inv of dbInvoices) {
+        if (inv.invoice_number) {
+            invoiceNumberById.set(inv.id, inv.invoice_number);
+        }
+    }
+    for (const inv of invoiceInputs) {
+        if (inv.invoiceId != null) {
+            invoiceNumberById.set(inv.invoiceId, inv.invoiceNumber);
+        }
+    }
+
     const paymentInputs: ReplayPaymentInput[] =
         params.payments ??
         dbPayments
-            .filter((p) => p.invoice_number)
-            .map((p) => ({
-                id: p.id,
-                invoiceNumber: p.invoice_number!,
-                paymentDate: p.payment_date,
-                amount: p.amount,
-                customerAmount: p.customer_amount,
-                invoiceId: p.invoice_id,
-            }));
+            .map((p): ReplayPaymentInput | null => {
+                const invoiceNumber =
+                    p.invoice_number ??
+                    (p.invoice_id != null
+                        ? invoiceNumberById.get(p.invoice_id)
+                        : undefined);
+                if (!invoiceNumber) {
+                    return null;
+                }
+                return {
+                    id: p.id,
+                    invoiceNumber,
+                    paymentDate: p.payment_date,
+                    amount: p.amount,
+                    customerAmount: p.customer_amount,
+                    invoiceId: p.invoice_id,
+                };
+            })
+            .filter((p): p is ReplayPaymentInput => p !== null);
 
     const approvedLimit =
         params.approvedLimit ??
@@ -381,27 +406,16 @@ export async function replayCustomerArImport(
             paymentsLinked += 1;
         }
 
-        const updatedInvoice = await prisma.invoice.findUnique({
-            where: { id: invoiceId },
-            select: { outstanding_debt: true },
-        });
-        if (updatedInvoice?.outstanding_debt != null) {
-            const scopeKey = "default";
-            const allInvoices = await prisma.invoice.findMany({
-                where: {
-                    customer_id: customerId,
-                    status: { in: ["Due", "Overdue"] },
-                },
-                select: { outstanding_debt: true },
-            });
-            openArRunning.set(
-                scopeKey,
-                allInvoices.reduce(
-                    (sum, inv) => sum + Math.max(0, inv.outstanding_debt ?? 0),
-                    0
-                )
-            );
-        }
+        // Keep open-AR running total chronological for limit_assessed stamps.
+        // Do not re-read live Due/Overdue outstanding — those already reflect
+        // future payments when replaying a fully linked book.
+        const scopeKey = "default";
+        const openBeforePayment = openArRunning.get(scopeKey) ?? 0;
+        const paymentAmount = Math.max(0, Number(payment.amount ?? 0));
+        openArRunning.set(
+            scopeKey,
+            Math.max(0, openBeforePayment - paymentAmount)
+        );
     }
 
     const stillDeferred = await prisma.invoicePayment.count({

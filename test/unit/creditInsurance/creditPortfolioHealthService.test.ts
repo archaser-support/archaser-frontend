@@ -15,8 +15,8 @@ import {
     computeAverageCompliantExposure,
     computeDailyPortfolioUtilizationPct,
     computeDailyTopUpUtilizationPct,
+    computeDclVsNamedFootprints,
     computeEffectiveCost,
-    computePeriodCost,
     computePolicyEfficiency,
     computePortfolioHealthSeriesMetrics,
     computeSelfVsApprovedShares,
@@ -32,6 +32,7 @@ import {
     defaultPortfolioHealthDateRange,
     countInclusiveCalendarDays,
 } from "@/server/services/creditInsurance/creditPortfolioHealthService";
+import { computePortfolioRangeCost } from "@/server/services/creditInsurance/portfolioRangeCost";
 
 vi.mock("@/lib/prisma", () => ({
     prisma: {
@@ -39,6 +40,12 @@ vi.mock("@/lib/prisma", () => ({
             findUnique: vi.fn(),
         },
         customer: {
+            findMany: vi.fn(),
+        },
+        customerTopUp: {
+            findMany: vi.fn(),
+        },
+        invoice: {
             findMany: vi.fn(),
         },
         $queryRaw: vi.fn(),
@@ -408,7 +415,13 @@ describe("No Coverage pure helpers", () => {
                 hasLinkedPolicy: true,
                 exclusionReason: "Custom unknown",
             })
-        ).toBe("other");
+        ).toBe("Custom unknown");
+        expect(
+            classifyNoCoverageReason({
+                hasLinkedPolicy: true,
+                exclusionReason: "Other",
+            })
+        ).toBe("Other");
         expect(
             classifyNoCoverageReason({
                 hasLinkedPolicy: true,
@@ -474,6 +487,7 @@ describe("No Coverage pure helpers", () => {
         expect(section.averageUncoveredCustomerPct).toBeCloseTo(30, 5);
         expect(section.averageUncoveredAmount).toBe(300);
         expect(section.averageUncoveredCustomerCount).toBe(3);
+        expect(section.accountCurrency).toBe("USD");
         // day1 10%, day2 0% → 5%
         expect(section.averageViolationPct).toBeCloseTo(5, 5);
         const creditHold = section.reasons.find(
@@ -481,6 +495,38 @@ describe("No Coverage pure helpers", () => {
         );
         expect(creditHold?.averageAmount).toBe(250);
         expect(creditHold?.averageCustomerCount).toBe(2.5);
+    });
+
+    it("keeps distinct non-canonical exclusion reasons instead of an Other bucket", () => {
+        const section = buildNoCoverageSection([
+            {
+                snapshotDate: "2026-07-01",
+                totalCustomerCount: 10,
+                uncoveredCustomerCount: 3,
+                uncoveredAmount: 300,
+                approvedTotalReceivables: 700,
+                approvedTermsBreachAmount: 0,
+                amountByReason: {
+                    Other: 100,
+                    "Manual blacklist": 200,
+                },
+                customerCountByReason: {
+                    Other: 1,
+                    "Manual blacklist": 2,
+                },
+                breachAmountByReason: {},
+            },
+        ]);
+
+        const other = section.reasons.find((r) => r.reason === "Other");
+        const blacklist = section.reasons.find(
+            (r) => r.reason === "Manual blacklist"
+        );
+        expect(other?.averageAmount).toBe(100);
+        expect(other?.averageCustomerCount).toBe(1);
+        expect(blacklist?.averageAmount).toBe(200);
+        expect(blacklist?.averageCustomerCount).toBe(2);
+        expect(section.reasons.some((r) => r.reason === "other")).toBe(false);
     });
 
     it("picks main violation reason by summed breach amount over the range", () => {
@@ -603,6 +649,12 @@ describe("Utilization pure helpers", () => {
             {
                 snapshotDate: "2026-07-01",
                 utilizationPct: 110,
+                dclUtilizationPct: 100,
+                namedUtilizationPct: 120,
+                dclCustomerCount: 1,
+                namedCustomerCount: 1,
+                dclAr: 50,
+                namedAr: 50,
                 topUpUtilizationPct: 40,
                 activeTopUpCountSum: 2,
                 customersWithActiveTopUp: 1,
@@ -610,6 +662,12 @@ describe("Utilization pure helpers", () => {
             {
                 snapshotDate: "2026-07-02",
                 utilizationPct: 110,
+                dclUtilizationPct: 100,
+                namedUtilizationPct: 120,
+                dclCustomerCount: 1,
+                namedCustomerCount: 1,
+                dclAr: 50,
+                namedAr: 50,
                 topUpUtilizationPct: 60,
                 activeTopUpCountSum: 4,
                 customersWithActiveTopUp: 2,
@@ -617,6 +675,12 @@ describe("Utilization pure helpers", () => {
             {
                 snapshotDate: "2026-07-03",
                 utilizationPct: 90,
+                dclUtilizationPct: 90,
+                namedUtilizationPct: 90,
+                dclCustomerCount: 1,
+                namedCustomerCount: 1,
+                dclAr: 50,
+                namedAr: 50,
                 topUpUtilizationPct: null,
                 activeTopUpCountSum: 0,
                 customersWithActiveTopUp: 0,
@@ -624,6 +688,12 @@ describe("Utilization pure helpers", () => {
             {
                 snapshotDate: "2026-07-04",
                 utilizationPct: 110,
+                dclUtilizationPct: 100,
+                namedUtilizationPct: 120,
+                dclCustomerCount: 1,
+                namedCustomerCount: 1,
+                dclAr: 50,
+                namedAr: 50,
                 topUpUtilizationPct: 50,
                 activeTopUpCountSum: 3,
                 customersWithActiveTopUp: 1,
@@ -631,6 +701,12 @@ describe("Utilization pure helpers", () => {
             {
                 snapshotDate: "2026-07-05",
                 utilizationPct: 110,
+                dclUtilizationPct: 100,
+                namedUtilizationPct: 120,
+                dclCustomerCount: 1,
+                namedCustomerCount: 1,
+                dclAr: 50,
+                namedAr: 50,
                 topUpUtilizationPct: null,
                 activeTopUpCountSum: 0,
                 customersWithActiveTopUp: 0,
@@ -638,6 +714,12 @@ describe("Utilization pure helpers", () => {
             {
                 snapshotDate: "2026-07-06",
                 utilizationPct: null,
+                dclUtilizationPct: null,
+                namedUtilizationPct: null,
+                dclCustomerCount: 0,
+                namedCustomerCount: 0,
+                dclAr: 0,
+                namedAr: 0,
                 topUpUtilizationPct: null,
                 activeTopUpCountSum: 0,
                 customersWithActiveTopUp: 0,
@@ -655,14 +737,44 @@ describe("Utilization pure helpers", () => {
         expect(metrics.peakUtilizationStreakEnd).toBe("2026-07-05");
         // top-up mean over days with top-ups only: (40+60+50)/3
         expect(metrics.averageTopUpUtilizationPct).toBeCloseTo(50, 5);
-        // counts average over all 6 days
-        expect(metrics.averageDailyTopUpCount).toBeCloseTo(1.5, 5);
-        expect(metrics.averageDailyCustomersWithTopUp).toBeCloseTo(0.7, 5);
     });
 
     it("computes efficiency as health/util and null when util is 0", () => {
         expect(computePolicyEfficiency(90, 60)).toBeCloseTo(1.5, 5);
         expect(computePolicyEfficiency(80, 0)).toBeNull();
+    });
+
+    it("computes DCL vs Named shares among covered customers only", () => {
+        const footprints = computeDclVsNamedFootprints([
+            {
+                dclCustomerCount: 2,
+                namedCustomerCount: 8,
+                dclAr: 200,
+                namedAr: 800,
+                dclUtilizationPct: 40,
+                namedUtilizationPct: 80,
+            },
+            {
+                dclCustomerCount: 4,
+                namedCustomerCount: 6,
+                dclAr: 400,
+                namedAr: 600,
+                dclUtilizationPct: 50,
+                namedUtilizationPct: 70,
+            },
+        ]);
+        // day1 20%, day2 40% → 30%
+        expect(footprints.selfUnderwrittenCustomerPct).toBeCloseTo(30, 5);
+        expect(footprints.approvedCustomerPct).toBeCloseTo(70, 5);
+        expect(footprints.selfUnderwrittenArSharePct).toBeCloseTo(30, 5);
+        expect(footprints.approvedArSharePct).toBeCloseTo(70, 5);
+        expect(footprints.selfUnderwrittenAverageAr).toBeCloseTo(300, 5);
+        expect(footprints.approvedAverageAr).toBeCloseTo(700, 5);
+        expect(footprints.selfUnderwrittenAverageUtilizationPct).toBeCloseTo(
+            45,
+            5
+        );
+        expect(footprints.approvedAverageUtilizationPct).toBeCloseTo(75, 5);
     });
 
     it("computes self vs approved customer % and AR share only (no limit util)", () => {
@@ -695,34 +807,32 @@ describe("Utilization pure helpers", () => {
         // day1 20%, day2 40% → 30%
         expect(shares.selfUnderwrittenArSharePct).toBeCloseTo(30, 5);
         expect(shares.approvedArSharePct).toBeCloseTo(70, 5);
+        // day1 200, day2 400 → 300
+        expect(shares.selfUnderwrittenAverageAr).toBeCloseTo(300, 5);
+        // day1 800, day2 600 → 700
+        expect(shares.approvedAverageAr).toBeCloseTo(700, 5);
     });
 
-    it("builds utilization section with dual efficiency and distribution", () => {
+    it("builds utilization section with DCL/Named footprints and period top-ups", () => {
         const section = buildUtilizationSection({
             daily: [
                 {
                     snapshotDate: "2026-07-01",
                     utilizationPct: 50,
+                    dclUtilizationPct: 40,
+                    namedUtilizationPct: 60,
+                    dclCustomerCount: 1,
+                    namedCustomerCount: 3,
+                    dclAr: 25,
+                    namedAr: 75,
                     topUpUtilizationPct: null,
                     activeTopUpCountSum: 0,
                     customersWithActiveTopUp: 0,
                 },
             ],
-            noCoverageDaily: [
-                {
-                    snapshotDate: "2026-07-01",
-                    totalCustomerCount: 4,
-                    uncoveredCustomerCount: 1,
-                    uncoveredAmount: 25,
-                    approvedTotalReceivables: 75,
-                    approvedTermsBreachAmount: 0,
-                    amountByReason: {},
-                    customerCountByReason: {},
-                    breachAmountByReason: {},
-                },
-            ],
             healthAverageA: 90,
-            healthAverageB: 80,
+            periodActiveTopUpCount: 5,
+            periodCustomersWithTopUp: 3,
             topCustomers: [
                 {
                     customerId: 1,
@@ -739,24 +849,23 @@ describe("Utilization pure helpers", () => {
 
         expect(section.averageUtilizationPct).toBe(50);
         expect(section.efficiencyA).toBeCloseTo(1.8, 5);
-        expect(section.efficiencyB).toBeCloseTo(1.6, 5);
+        expect(section.efficiencyB).toBeNull();
         expect(section.topCustomers).toHaveLength(1);
         expect(section.distributionCustomerCount).toBe(2);
         expect(section.selfUnderwrittenCustomerPct).toBeCloseTo(25, 5);
         expect(section.approvedArSharePct).toBeCloseTo(75, 5);
+        expect(section.selfUnderwrittenAverageUtilizationPct).toBeCloseTo(
+            40,
+            5
+        );
+        expect(section.approvedAverageUtilizationPct).toBeCloseTo(60, 5);
+        expect(section.periodActiveTopUpCount).toBe(5);
+        expect(section.periodCustomersWithTopUp).toBe(3);
+        expect(section.daily).toHaveLength(1);
     });
 });
 
 describe("creditPortfolioHealthService costs", () => {
-    it("sums period cost from daily approved totals (sparkline series)", () => {
-        const daily = [
-            { snapshotDate: "2026-07-01", totalDailyCost: 10 },
-            { snapshotDate: "2026-07-02", totalDailyCost: 15.5 },
-            { snapshotDate: "2026-07-03", totalDailyCost: 4.5 },
-        ];
-        expect(computePeriodCost(daily)).toBeCloseTo(30, 5);
-    });
-
     it("computes effective cost as period ÷ avg compliant exposure", () => {
         expect(computeAverageCompliantExposure([])).toBe(0);
         expect(
@@ -773,36 +882,60 @@ describe("creditPortfolioHealthService costs", () => {
         expect(computeEffectiveCost(0, 0)).toBeNull();
     });
 
-    it("builds costs section with shares, currency, and deductible N/A", () => {
-        const section = buildCostsSection({
-            daily: [
-                { snapshotDate: "2026-07-02", totalDailyCost: 20 },
-                { snapshotDate: "2026-07-01", totalDailyCost: 10 },
+    it("builds costs section from range cost period/monthly with effective cost", () => {
+        const rangeCost = computePortfolioRangeCost({
+            dayRows: [
+                {
+                    snapshotDate: "2026-07-01",
+                    customerId: 1,
+                    insurancePolicyId: 9,
+                    approvedLimit: 365_000,
+                    costCalculationMethod: "Limit",
+                    costPercent: 1,
+                    excludedFromPolicy: false,
+                    outdatedDcl: false,
+                    policyExclusionReason: null,
+                },
+                {
+                    snapshotDate: "2026-07-02",
+                    customerId: 1,
+                    insurancePolicyId: 9,
+                    approvedLimit: 730_000,
+                    costCalculationMethod: "Limit",
+                    costPercent: 1,
+                    excludedFromPolicy: false,
+                    outdatedDcl: false,
+                    policyExclusionReason: null,
+                },
             ],
+            invoices: [],
+            topUpSlices: [],
+        });
+
+        const section = buildCostsSection({
+            periodCost: rangeCost.periodCost,
+            monthly: rangeCost.monthly,
             dailyHealth: [
                 { compliantExposure: 100 },
                 { compliantExposure: 200 },
             ],
-            noCoverageDaily: [
+            footprintDaily: [
                 {
-                    snapshotDate: "2026-07-01",
-                    totalCustomerCount: 10,
-                    uncoveredCustomerCount: 2,
-                    uncoveredAmount: 20,
-                    approvedTotalReceivables: 80,
-                    approvedTermsBreachAmount: 0,
-                    amountByReason: {},
-                    customerCountByReason: {},
-                    breachAmountByReason: {},
+                    dclCustomerCount: 2,
+                    namedCustomerCount: 8,
+                    dclAr: 20,
+                    namedAr: 80,
+                    dclUtilizationPct: 40,
+                    namedUtilizationPct: 80,
                 },
             ],
             accountCurrency: "ils",
         });
 
         expect(section.periodCost).toBeCloseTo(30, 5);
-        expect(section.daily.map((d) => d.snapshotDate)).toEqual([
-            "2026-07-01",
-            "2026-07-02",
+        expect(section.daily).toEqual([]);
+        expect(section.monthly).toEqual([
+            { month: "2026-07", totalCost: expect.closeTo(30, 5) },
         ]);
         expect(section.averageCompliantExposure).toBe(150);
         expect(section.effectiveCost).toBeCloseTo(0.2, 5);
@@ -811,14 +944,17 @@ describe("creditPortfolioHealthService costs", () => {
         expect(section.approvedCustomerPct).toBeCloseTo(80, 5);
         expect(section.selfUnderwrittenArSharePct).toBeCloseTo(20, 5);
         expect(section.approvedArSharePct).toBeCloseTo(80, 5);
+        expect(section.selfUnderwrittenAverageAr).toBeCloseTo(20, 5);
+        expect(section.approvedAverageAr).toBeCloseTo(80, 5);
         expect(section.deductiblePct).toBeNull();
     });
 
     it("sets effectiveCost null when all compliant exposure is zero", () => {
         const section = buildCostsSection({
-            daily: [{ snapshotDate: "2026-07-01", totalDailyCost: 5 }],
+            periodCost: 5,
+            monthly: [{ month: "2026-07", totalCost: 5 }],
             dailyHealth: [{ compliantExposure: 0 }],
-            noCoverageDaily: [],
+            footprintDaily: [],
             accountCurrency: "USD",
         });
         expect(section.periodCost).toBe(5);
@@ -829,6 +965,8 @@ describe("creditPortfolioHealthService costs", () => {
 describe("getCreditPortfolioHealth", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(prisma.customerTopUp.findMany).mockResolvedValue([]);
+        vi.mocked(prisma.invoice.findMany).mockResolvedValue([]);
     });
 
     it("returns dual Health + No Coverage + Utilization + Costs sections from CPT aggregates", async () => {
@@ -900,6 +1038,14 @@ describe("getCreditPortfolioHealth", () => {
                 snapshot_date: new Date("2026-07-01T00:00:00.000Z"),
                 approved_usage_sum: 80,
                 approved_effective_limit_sum: 100,
+                dcl_usage_sum: 20,
+                dcl_effective_limit_sum: 50,
+                dcl_customer_count: 1,
+                dcl_ar_sum: 30,
+                named_usage_sum: 60,
+                named_effective_limit_sum: 50,
+                named_customer_count: 3,
+                named_ar_sum: 70,
                 top_up_weighted_usage_sum: 20,
                 top_up_total_sum: 40,
                 active_top_up_count_sum: 2,
@@ -909,6 +1055,14 @@ describe("getCreditPortfolioHealth", () => {
                 snapshot_date: new Date("2026-07-03T00:00:00.000Z"),
                 approved_usage_sum: 120,
                 approved_effective_limit_sum: 100,
+                dcl_usage_sum: 40,
+                dcl_effective_limit_sum: 40,
+                dcl_customer_count: 2,
+                dcl_ar_sum: 40,
+                named_usage_sum: 80,
+                named_effective_limit_sum: 60,
+                named_customer_count: 2,
+                named_ar_sum: 60,
                 top_up_weighted_usage_sum: 0,
                 top_up_total_sum: 0,
                 active_top_up_count_sum: 0,
@@ -918,11 +1072,29 @@ describe("getCreditPortfolioHealth", () => {
         const costRows = [
             {
                 snapshot_date: new Date("2026-07-01T00:00:00.000Z"),
-                approved_total_daily_cost: 12,
+                customer_id: 1,
+                insurance_policy_id: 9,
+                approved_limit: 24000,
+                usage_amount: 0,
+                approved_limit_currency: "ILS",
+                excluded_from_policy: false,
+                outdated_dcl: false,
+                cost_calculation_method: "Limit",
+                cost_percent: 0.05,
+                policy_exclusion_reason: null,
             },
             {
                 snapshot_date: new Date("2026-07-03T00:00:00.000Z"),
-                approved_total_daily_cost: 18,
+                customer_id: 1,
+                insurance_policy_id: 9,
+                approved_limit: 36000,
+                usage_amount: 0,
+                approved_limit_currency: "ILS",
+                excluded_from_policy: false,
+                outdated_dcl: false,
+                cost_calculation_method: "Limit",
+                cost_percent: 0.05,
+                policy_exclusion_reason: null,
             },
         ];
         const topCustomers = [
@@ -940,6 +1112,7 @@ describe("getCreditPortfolioHealth", () => {
             { customer_id: 2, utilization_pct: 80 },
         ];
 
+        vi.mocked(prisma.customerTopUp.findMany).mockResolvedValue([]);
         vi.mocked(prisma.$queryRaw).mockImplementation(async (query: any) => {
             const sql = String(query?.strings?.join?.("") ?? query ?? "");
             if (sql.includes("compliant_a")) {
@@ -957,7 +1130,10 @@ describe("getCreditPortfolioHealth", () => {
             if (sql.includes("approved_usage_sum")) {
                 return utilizationRows as any;
             }
-            if (sql.includes("approved_total_daily_cost")) {
+            if (
+                sql.includes("cost_calculation_method") &&
+                sql.includes("cost_percent")
+            ) {
                 return costRows as any;
             }
             if (sql.includes("company_name") && sql.includes("usage_amount")) {
@@ -1003,6 +1179,7 @@ describe("getCreditPortfolioHealth", () => {
             5
         );
         expect(result.noCoverage!.averageUncoveredAmount).toBe(30);
+        expect(result.noCoverage!.accountCurrency).toBe("ILS");
         expect(result.noCoverage!.averageViolationPct).toBeCloseTo(5, 5);
         expect(result.noCoverage!.mainViolationReason).toBe("paymentTerm");
         expect(result.noCoverage!.mainViolationReasonSharePct).toBe(100);
@@ -1020,15 +1197,29 @@ describe("getCreditPortfolioHealth", () => {
         expect(result.utilization!.topCustomers[0]?.customerName).toBe("Top Co");
         expect(result.utilization!.distributionCustomerCount).toBe(2);
         expect(result.utilization!.efficiencyA).toBeCloseTo(75 / 100, 5);
-        expect(result.utilization!.efficiencyB).toBeCloseTo(80 / 100, 5);
+        expect(result.utilization!.efficiencyB).toBeNull();
+        expect(result.utilization!.periodActiveTopUpCount).toBe(0);
+        expect(result.utilization!.periodCustomersWithTopUp).toBe(0);
+        expect(result.utilization!.daily).toHaveLength(2);
+        // day1 DCL 25% of covered cust, day2 50% → 37.5%
+        expect(result.utilization!.selfUnderwrittenCustomerPct).toBeCloseTo(
+            37.5,
+            5
+        );
         expect(result.costs).not.toBeNull();
         expect(result.costs!.accountCurrency).toBe("ILS");
-        expect(result.costs!.periodCost).toBeCloseTo(30, 5);
-        expect(result.costs!.daily).toHaveLength(2);
-        // avg compliant (90+60)/2 = 75; effective = 30/75
-        expect(result.costs!.effectiveCost).toBeCloseTo(0.4, 5);
+        // Limit day-slices: (24000*0.05 + 36000*0.05)/100/365 = 30/365
+        expect(result.costs!.periodCost).toBeCloseTo(30 / 365, 8);
+        expect(result.costs!.daily).toEqual([]);
+        expect(result.costs!.monthly).toEqual([
+            { month: "2026-07", totalCost: expect.closeTo(30 / 365, 8) },
+        ]);
+        // avg compliant (90+60)/2 = 75; effective = (30/365)/75
+        expect(result.costs!.effectiveCost).toBeCloseTo(30 / 365 / 75, 8);
         expect(result.costs!.deductiblePct).toBeNull();
+        expect(result.costs!.selfUnderwrittenCustomerPct).toBeCloseTo(37.5, 5);
         expect(prisma.customer.findMany).not.toHaveBeenCalled();
+        expect(prisma.invoice.findMany).toHaveBeenCalled();
     });
 
     it("returns empty Health and No Coverage when BU scope has no customers", async () => {

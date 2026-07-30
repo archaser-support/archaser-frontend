@@ -14,6 +14,7 @@ export interface ImportPaymentResult {
     skipped?: boolean;
     deferred?: boolean;
     invoicePaymentId?: number;
+    customerId?: number;
     message?: string;
 }
 
@@ -127,6 +128,7 @@ export class ImportPaymentService {
                     success: true,
                     skipped: true,
                     invoicePaymentId: existingPayment.id,
+                    customerId,
                     message: "import.results.paymentSkipped",
                 });
                 continue;
@@ -172,6 +174,7 @@ export class ImportPaymentService {
                         success: true,
                         deferred: true,
                         invoicePaymentId: deferredPayment.id,
+                        customerId,
                         message: "import.results.paymentDeferred",
                     });
                 } catch (err) {
@@ -213,23 +216,30 @@ export class ImportPaymentService {
 
             try {
                 const { invoicePayment } =
-                    await this.paymentService.createInvoicePayment({
-                        invoice_id: invoice.id,
-                        amount: amountResolution.amount,
-                        payment_date: new Date(record.payment_date),
-                        payment_method: record.payment_method ?? "",
-                        reference: record.reference,
-                        customer_id: customerId,
-                        account_id: record.account_id,
-                        customer_currency: amountResolution.customer_currency,
-                        customer_amount: amountResolution.customer_amount,
-                        customer_number: record.customer_number,
-                    });
+                    await this.paymentService.createInvoicePayment(
+                        {
+                            invoice_id: invoice.id,
+                            invoice_number: record.invoice_number,
+                            amount: amountResolution.amount,
+                            payment_date: new Date(record.payment_date),
+                            payment_method: record.payment_method ?? "",
+                            reference: record.reference,
+                            customer_id: customerId,
+                            account_id: record.account_id,
+                            customer_currency:
+                                amountResolution.customer_currency,
+                            customer_amount: amountResolution.customer_amount,
+                            customer_number: record.customer_number,
+                        },
+                        // Job complete runs shared AR post-ingest once per batch.
+                        { skipArPostIngest: true }
+                    );
 
                 results.push({
                     index: i,
                     success: true,
                     invoicePaymentId: invoicePayment.id,
+                    customerId,
                 });
             } catch (err) {
                 results.push({

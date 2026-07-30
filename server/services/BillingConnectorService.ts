@@ -12,6 +12,13 @@ import { prisma } from "@/lib/prisma";
 import { testPriorityConnection } from "@/server/integrations/priority/PriorityClient";
 import { PRIORITY_RATE_LIMITS } from "@/server/integrations/priority/priorityApiContract";
 import {
+    areBackfillOptionsLocked,
+    formatBackfillStartDateForApi,
+    resolveBackfillStartDateChange,
+    resolveIncludeOlderOpenInvoicesChange,
+    resolveSkipReportingBreachOnBackfillChange,
+} from "@/server/services/billingConnectorBackfillBounds";
+import {
     computeNextScheduledSyncAt,
     cronToPreset,
     describeSchedule,
@@ -64,6 +71,20 @@ export interface BillingConnectorPublicConfig {
     enabled_entities: ImportType[];
     sync_overlap_minutes: number;
     consecutive_auth_failures: number;
+    /** YYYY-MM-DD calendar day, or null for full-history backfill. */
+    backfill_start_date: string | null;
+    /**
+     * When start date is set: also pull unpaid pre-date invoices + related payments.
+     * Default true. Ignored when start date is blank.
+     */
+    include_older_open_invoices: boolean;
+    /**
+     * When true, connector backfill invoice writes do not set reporting_breach.
+     * Default false. Incremental sync and overnight cron ignore this switch.
+     */
+    skip_reporting_breach_on_backfill: boolean;
+    /** True once backfill has started; reset unlocks cutover options. */
+    backfill_options_locked: boolean;
     last_connection_test_at: string | null;
     last_connection_error: string | null;
     created_at: string;
@@ -87,6 +108,12 @@ export interface UpsertBillingConnectorInput {
     daily_time_utc?: string;
     weekly_day?: number;
     enabled_entities?: ImportType[];
+    /** YYYY-MM-DD, null/"" to clear, omit to leave unchanged. */
+    backfill_start_date?: string | null;
+    /** Omit to leave unchanged. Default true when creating. */
+    include_older_open_invoices?: boolean;
+    /** Omit to leave unchanged. Default false when creating. */
+    skip_reporting_breach_on_backfill?: boolean;
 }
 
 async function buildScheduleFields(
@@ -212,6 +239,16 @@ async function toPublicConfig(
         enabled_entities: enabledEntities,
         sync_overlap_minutes: connector.sync_overlap_minutes,
         consecutive_auth_failures: connector.consecutive_auth_failures,
+        backfill_start_date: formatBackfillStartDateForApi(
+            connector.backfill_start_date
+        ),
+        include_older_open_invoices:
+            connector.include_older_open_invoices ?? true,
+        skip_reporting_breach_on_backfill:
+            connector.skip_reporting_breach_on_backfill ?? false,
+        backfill_options_locked: areBackfillOptionsLocked(
+            connector.backfill_started_at
+        ),
         last_connection_test_at: connector.last_connection_test_at
             ? connector.last_connection_test_at.toISOString()
             : null,
@@ -372,8 +409,49 @@ export class BillingConnectorService {
             where: { id: connector.id },
             data: {
                 sync_mode: "BACKFILL",
+                backfill_started_at: null,
                 modified_by: userId,
             },
+        });
+    }
+
+    /**
+     * Reset backfill progress for all entities and unlock cutover options.
+     */
+    async resetConnectorBackfill(
+        accountId: number,
+        userId: string
+    ): Promise<void> {
+        const connector = await prisma.billingConnector.findUnique({
+            where: { account_id: accountId },
+        });
+        if (!connector) {
+            throw new Error("Billing connector is not configured");
+        }
+
+        await prisma.$transaction(async (tx) => {
+            await tx.connectorSyncState.updateMany({
+                where: { connector_id: connector.id },
+                data: {
+                    backfill_completed: false,
+                    backfill_completed_at: null,
+                    backfill_cursor: null,
+                    backfill_records_pulled: 0,
+                    backfill_last_checkpoint_at: null,
+                    backfill_total_records: null,
+                    last_max_updated_at: null,
+                    last_error: null,
+                },
+            });
+
+            await tx.billingConnector.update({
+                where: { id: connector.id },
+                data: {
+                    sync_mode: "BACKFILL",
+                    backfill_started_at: null,
+                    modified_by: userId,
+                },
+            });
         });
     }
 
@@ -399,6 +477,42 @@ export class BillingConnectorService {
                     { statusCode: 400, code: "INVALID_CRON_EXPRESSION" }
                 );
             }
+        }
+
+        const startDateChange = resolveBackfillStartDateChange({
+            backfillStartedAt: existing?.backfill_started_at,
+            existingStartDate: existing?.backfill_start_date,
+            nextInput: input.backfill_start_date,
+        });
+        if (!startDateChange.ok) {
+            throw Object.assign(new Error(startDateChange.message), {
+                statusCode: 409,
+                code: startDateChange.code,
+            });
+        }
+
+        const includeOlderChange = resolveIncludeOlderOpenInvoicesChange({
+            backfillStartedAt: existing?.backfill_started_at,
+            existingValue: existing?.include_older_open_invoices,
+            nextInput: input.include_older_open_invoices,
+        });
+        if (!includeOlderChange.ok) {
+            throw Object.assign(new Error(includeOlderChange.message), {
+                statusCode: 409,
+                code: includeOlderChange.code,
+            });
+        }
+
+        const skipBreachChange = resolveSkipReportingBreachOnBackfillChange({
+            backfillStartedAt: existing?.backfill_started_at,
+            existingValue: existing?.skip_reporting_breach_on_backfill,
+            nextInput: input.skip_reporting_breach_on_backfill,
+        });
+        if (!skipBreachChange.ok) {
+            throw Object.assign(new Error(skipBreachChange.message), {
+                statusCode: 409,
+                code: skipBreachChange.code,
+            });
         }
 
         const enabledEntities = input.enabled_entities
@@ -431,6 +545,18 @@ export class BillingConnectorService {
                 existing?.sync_cron_expression ??
                 "0 */6 * * *",
             enabled_entities: enabledEntities,
+            backfill_start_date:
+                startDateChange.value !== undefined
+                    ? startDateChange.value
+                    : (existing?.backfill_start_date ?? null),
+            include_older_open_invoices:
+                includeOlderChange.value !== undefined
+                    ? includeOlderChange.value
+                    : (existing?.include_older_open_invoices ?? true),
+            skip_reporting_breach_on_backfill:
+                skipBreachChange.value !== undefined
+                    ? skipBreachChange.value
+                    : (existing?.skip_reporting_breach_on_backfill ?? false),
             status: (() => {
                 const syncOn =
                     input.sync_enabled ?? existing?.sync_enabled ?? false;

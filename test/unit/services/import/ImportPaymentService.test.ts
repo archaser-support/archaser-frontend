@@ -74,6 +74,7 @@ describe("ImportPaymentService", () => {
                 success: true,
                 skipped: true,
                 invoicePaymentId: 999,
+                customerId: 42,
                 message: "import.results.paymentSkipped",
             },
         ]);
@@ -107,6 +108,7 @@ describe("ImportPaymentService", () => {
             success: true,
             deferred: true,
             invoicePaymentId: 777,
+            customerId: 42,
             message: "import.results.paymentDeferred",
         });
         expect(mockCreateDeferredInvoicePayment).toHaveBeenCalledWith(
@@ -185,13 +187,15 @@ describe("ImportPaymentService", () => {
             index: 0,
             success: true,
             invoicePaymentId: 555,
+            customerId: 42,
         });
         expect(mockCreateInvoicePayment).toHaveBeenCalledWith(
             expect.objectContaining({
                 amount: 100,
                 customer_amount: 100,
                 customer_currency: "USD",
-            })
+            }),
+            { skipArPostIngest: true }
         );
     });
 
@@ -233,7 +237,9 @@ describe("ImportPaymentService", () => {
                 amount: 500,
                 customer_amount: 600,
                 customer_currency: "EUR",
-            })
+                invoice_number: "INV-1",
+            }),
+            { skipArPostIngest: true }
         );
     });
 

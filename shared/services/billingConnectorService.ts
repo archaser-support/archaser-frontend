@@ -17,6 +17,20 @@ export interface BillingConnectorConfig {
     enabled_entities: ImportType[];
     sync_overlap_minutes: number;
     consecutive_auth_failures: number;
+    /** YYYY-MM-DD, or null for full-history backfill. */
+    backfill_start_date?: string | null;
+    /**
+     * When start date is set: also pull unpaid pre-date invoices + related payments.
+     * Default true.
+     */
+    include_older_open_invoices?: boolean;
+    /**
+     * When true, backfill invoice writes do not set reporting_breach.
+     * Default false. Incremental sync and overnight job ignore this.
+     */
+    skip_reporting_breach_on_backfill?: boolean;
+    /** Locked after backfill starts until reset. */
+    backfill_options_locked?: boolean;
     last_connection_test_at: string | null;
     last_connection_error: string | null;
     created_at: string;
@@ -64,6 +78,13 @@ export interface SyncRunSummary {
     >;
     error_message: string | null;
     error_type: string | null;
+    /** Present on backfill runs — start date / older-open / skip-breach. */
+    cutover_options?: {
+        backfill_start_date: string | null;
+        include_older_open_invoices: boolean;
+        skip_reporting_breach_on_backfill: boolean;
+    } | null;
+    cutover_summary?: string | null;
 }
 
 export interface UpsertBillingConnectorPayload {
@@ -83,6 +104,10 @@ export interface UpsertBillingConnectorPayload {
     daily_time_utc?: string;
     weekly_day?: number;
     enabled_entities?: ImportType[];
+    /** YYYY-MM-DD, null/"" to clear. */
+    backfill_start_date?: string | null;
+    include_older_open_invoices?: boolean;
+    skip_reporting_breach_on_backfill?: boolean;
 }
 
 const basePath = (accountId: number) =>
@@ -147,12 +172,19 @@ export interface PreviewSyncEntityResult {
     sample_rows: Record<string, unknown>[];
     validation_errors: string[];
     sorted_preview: boolean;
+    pull_phases?: string[];
 }
 
 export interface PreviewSyncResponse {
     mode: "preview";
     started_at: string;
     completed_at: string;
+    cutover?: {
+        backfill_start_date: string | null;
+        include_older_open_invoices: boolean;
+        skip_reporting_breach_on_backfill: boolean;
+    };
+    cutover_summary?: string | null;
     entities: PreviewSyncEntityResult[];
     go_no_go: {
         required_field_errors: number;
@@ -240,5 +272,13 @@ export async function resetBillingConnectorEntityBackfill(
 ): Promise<void> {
     await api.post(`${basePath(accountId)}/backfill/reset`, {
         entity_type: entityType,
+    });
+}
+
+export async function resetBillingConnectorBackfill(
+    accountId: number
+): Promise<void> {
+    await api.post(`${basePath(accountId)}/backfill/reset`, {
+        reset_all: true,
     });
 }

@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 
 import { ensureMongoConnection } from "@/lib/mongoose";
 import ConnectorSyncExecution, {
+    type ConnectorCutoverOptions,
     type ConnectorExecutionStatus,
     type ConnectorSyncTrigger,
     type EntitySyncStats,
@@ -17,6 +18,7 @@ export class ConnectorSyncExecutionService {
         syncMode: string;
         correlationId?: string;
         mappingSnapshotHash?: Record<string, string>;
+        cutoverOptions?: ConnectorCutoverOptions | null;
     }): Promise<IConnectorSyncExecution> {
         await ensureMongoConnection();
 
@@ -30,6 +32,7 @@ export class ConnectorSyncExecutionService {
             started_at: new Date(),
             correlation_id: data.correlationId,
             mapping_snapshot_hash: data.mappingSnapshotHash,
+            cutover_options: data.cutoverOptions ?? null,
             entity_stats: {},
         });
 

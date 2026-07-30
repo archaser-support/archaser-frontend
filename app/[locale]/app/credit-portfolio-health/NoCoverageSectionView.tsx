@@ -14,13 +14,15 @@ import {
     YAxis,
 } from "recharts";
 
-import type { NoCoverageReasonKey, PortfolioNoCoverageSection } from "@/server/services/creditInsurance/creditPortfolioHealthService";
+import type { PortfolioNoCoverageSection } from "@/server/services/creditInsurance/creditPortfolioHealthService";
+import { formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
 
 import { BigNumber } from "./BigNumber";
 import { ChartTooltip } from "./ChartTooltip";
 import { Eyebrow } from "./Eyebrow";
 import { IslandCard } from "./IslandCard";
 import { CPH } from "./designTokens";
+import { SPACE_GROTESK_FONT_FAMILY } from "./fontTokens";
 import layout from "./islandLayout.module.css";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
@@ -29,7 +31,7 @@ export type NoCoverageSectionViewProps = {
 };
 
 const REASON_LABEL_KEYS: Record<
-    NoCoverageReasonKey,
+    string,
     { key: string; defaultValue: string }
 > = {
     pending_review: {
@@ -89,12 +91,27 @@ function formatAmount(value: number, language: string): string {
     return value.toLocaleString(locale, { maximumFractionDigits: 0 });
 }
 
+function formatMoney(
+    amount: number,
+    currencyCode: string,
+    language: string
+): string {
+    const locale = language.startsWith("he") ? "he-IL" : "en-US";
+    return formatCurrencyWithRTLSupport(
+        amount,
+        currencyCode,
+        locale,
+        language.startsWith("he") ? "he" : language
+    );
+}
+
 export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
     const { t, i18n } = useTranslation(["dashboard"]);
     const language = i18n.language;
     const ns = { ns: "dashboard" as const };
     const prefersReducedMotion = usePrefersReducedMotion();
     const animDuration = prefersReducedMotion ? 0 : 1100;
+    const currency = section.accountCurrency || "USD";
 
     const reasonsWithSignal = section.reasons.filter(
         (item) => item.averageAmount > 0 || item.averageCustomerCount > 0
@@ -108,10 +125,12 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                     const meta = REASON_LABEL_KEYS[item.reason];
                     return {
                         reason: item.reason,
-                        label: t(meta.key, {
-                            ...ns,
-                            defaultValue: meta.defaultValue,
-                        }),
+                        label: meta
+                            ? t(meta.key, {
+                                  ...ns,
+                                  defaultValue: meta.defaultValue,
+                              })
+                            : item.reason,
                         amount: item.averageAmount,
                         customers: item.averageCustomerCount,
                     };
@@ -148,11 +167,11 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                     icon={ShieldAlert}
                     tone={CPH.critical}
                     help={t(
-                        "credit_portfolio_health.kpi_uncovered_customer_pct_help",
+                        "credit_portfolio_health.kpi_uncovered_exposure_help",
                         {
                             ...ns,
                             defaultValue:
-                                "Mean daily share of customers with no linked policy or any exclusion reason.",
+                                "Customer %: mean daily share of customers with no linked policy or any exclusion reason. Amount: mean daily open AR for that uncovered cohort over available days.",
                         }
                     )}
                 >
@@ -183,20 +202,25 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                     )}
                 />
                 <div className={layout.dividerTop}>
-                    <BigNumber
-                        value={section.averageUncoveredAmount}
-                        decimals={0}
-                        suffix=""
-                        label={t(
-                            "credit_portfolio_health.kpi_uncovered_amount",
-                            {
-                                ...ns,
-                                defaultValue: "Uncovered monetary exposure",
-                            }
+                    <div
+                        className="text-3xl font-semibold tracking-tight"
+                        style={{
+                            color: CPH.ink,
+                            fontFamily: SPACE_GROTESK_FONT_FAMILY,
+                        }}
+                    >
+                        {formatMoney(
+                            section.averageUncoveredAmount,
+                            currency,
+                            language
                         )}
-                        color={CPH.ink}
-                        locale={language}
-                    />
+                    </div>
+                    <div className="mt-1 text-sm" style={{ color: CPH.slate }}>
+                        {t("credit_portfolio_health.kpi_uncovered_amount", {
+                            ...ns,
+                            defaultValue: "Uncovered monetary exposure",
+                        })}
+                    </div>
                 </div>
             </IslandCard>
 
@@ -204,7 +228,17 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                 accent="copper"
                 className={`${layout.span12} ${layout.mdSpan8} ${layout.cardPad}`}
             >
-                <Eyebrow icon={Info}>
+                <Eyebrow
+                    icon={Info}
+                    help={t(
+                        "credit_portfolio_health.no_coverage_reasons_help",
+                        {
+                            ...ns,
+                            defaultValue:
+                                "Average daily uncovered open AR by exclusion reason (or no linked policy) over available days in the range.",
+                        }
+                    )}
+                >
                     {t("credit_portfolio_health.no_coverage_reasons_title", {
                         ...ns,
                         defaultValue: "Reasons for lack of coverage",
@@ -242,7 +276,19 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                                 <YAxis
                                     type="category"
                                     dataKey="label"
-                                    width={160}
+                                    width={Math.min(
+                                        220,
+                                        Math.max(
+                                            160,
+                                            ...reasonsChartData.map(
+                                                (row) =>
+                                                    Math.min(
+                                                        row.label.length * 7.2,
+                                                        220
+                                                    )
+                                            )
+                                        )
+                                    )}
                                     tick={{ fill: CPH.slate, fontSize: 11.5 }}
                                     axisLine={false}
                                     tickLine={false}
@@ -290,7 +336,15 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                 accent="critical"
                 className={`${layout.span12} ${layout.cardPad}`}
             >
-                <Eyebrow icon={AlertTriangle} tone={CPH.critical}>
+                <Eyebrow
+                    icon={AlertTriangle}
+                    tone={CPH.critical}
+                    help={t("credit_portfolio_health.kpi_violations_help", {
+                        ...ns,
+                        defaultValue:
+                            "Average policy violation rate is the mean of daily (terms-breach AR ÷ approved total AR × 100). Leading cause is the reason with the largest summed breach amount among approved customers, and that reason’s share of total breach amount.",
+                    })}
+                >
                     {t("credit_portfolio_health.kpi_violations_title", {
                         ...ns,
                         defaultValue: "Policy violations",

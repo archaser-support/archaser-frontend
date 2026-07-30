@@ -4,10 +4,15 @@
  *
  * When customerIds are provided, only those customers are synced (fast path for imports).
  * Otherwise runs the full account-wide sweep (cron-style).
+ *
+ * `skipReportingBreachPromotion` is accepted for connector backfill parity; full
+ * mute wiring lands with dated-backfill. Until then the option is ignored.
  */
 export async function triggerPostImportOverdueMetrics(
-    customerIds?: number[]
+    customerIds?: number[],
+    options?: { skipReportingBreachPromotion?: boolean }
 ): Promise<void> {
+    void options;
     try {
         const { default: computeCustomerOverdueMetrics } = await import(
             "@/server/cron-jobs/computeCustomerOverdueMetrics"

@@ -378,6 +378,7 @@ const PaymentProcessor: React.FC = () => {
 
             const allResults: any[] = [];
             let processedCount = 0;
+            const affectedCustomerIds = new Set<number>();
 
             for (
                 let batchIndex = 0;
@@ -417,6 +418,9 @@ const PaymentProcessor: React.FC = () => {
                     }));
 
                     allResults.push(...adjustedResults);
+                    (
+                        result.affectedCustomerIds as number[] | undefined
+                    )?.forEach((id) => affectedCustomerIds.add(id));
                     processedCount += batch.length;
                 } else {
                     // Create failed results for this batch
@@ -441,6 +445,7 @@ const PaymentProcessor: React.FC = () => {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         jobId: jobId,
+                        affectedCustomerIds: Array.from(affectedCustomerIds),
                     }),
                 });
             } catch (_err) {

@@ -8,6 +8,17 @@ import {
 } from "@/server/integrations/priority/PriorityClient";
 import { isPriorityEntityImportType } from "@/server/integrations/priority/priorityApiContract";
 import type { PriorityEntityImportType } from "@/server/integrations/priority/fixtures/samplePayloads";
+import {
+    buildPaymentsByInvoiceLinkFilters,
+} from "@/server/integrations/priority/priorityDatedBackfillFilters";
+import {
+    DEFAULT_ACCOUNT_TIMEZONE,
+    buildBackfillEntityPullPhases,
+    buildCutoverOptionsSnapshot,
+    extractInvoiceCustomerLinks,
+    formatCutoverOptionsSummary,
+    type CutoverOptionsSnapshot,
+} from "@/server/services/billingConnectorBackfillBounds";
 import { ConnectorFieldMappingService } from "@/server/services/ConnectorFieldMappingService";
 import { sortInvoicesForImport } from "@/server/services/import/sortInvoicesForImport";
 import { decryptCredentials } from "@/server/utils/billingConnectorCrypto";
@@ -18,24 +29,68 @@ import {
 } from "@/server/utils/connectorFieldUtils";
 import { getImportEntityFieldCatalog } from "@/shared/constants/importEntityFields";
 
+const PREVIEW_SAMPLE_TOP = 10;
+
 export interface PreviewEntityResult {
     import_type: ImportType;
     pulled: number;
     sample_rows: Record<string, unknown>[];
     validation_errors: string[];
     sorted_preview: boolean;
+    /** Pull phase ids applied (mirrors backfill cutover plan). */
+    pull_phases: string[];
 }
 
 export interface PreviewSyncResult {
     mode: "preview";
     started_at: string;
     completed_at: string;
+    cutover: CutoverOptionsSnapshot;
+    cutover_summary: string | null;
     entities: PreviewEntityResult[];
     go_no_go: {
         required_field_errors: number;
         passed: boolean;
         checks: Array<{ id: string; label: string; passed: boolean; detail: string }>;
     };
+}
+
+function recordIdentityKey(
+    importType: ImportType,
+    record: Record<string, unknown>
+): string {
+    if (importType === "Invoice") {
+        return `inv:${String(record.IVNUM ?? "")}\0${String(record.CUSTNAME ?? "")}`;
+    }
+    if (importType === "Payment") {
+        return `pay:${String(record.PAYNUM ?? "")}\0${String(record.CUSTNAME ?? "")}`;
+    }
+    if (importType === "Customer") {
+        return `cust:${String(record.CUSTNAME ?? "")}`;
+    }
+    if (importType === "Contact") {
+        return `contact:${String(record.CUSTNAME ?? "")}\0${String(record.NAME ?? "")}`;
+    }
+    return JSON.stringify(record);
+}
+
+function mergeUniqueRecords(
+    importType: ImportType,
+    batches: Record<string, unknown>[][]
+): Record<string, unknown>[] {
+    const seen = new Set<string>();
+    const merged: Record<string, unknown>[] = [];
+    for (const batch of batches) {
+        for (const record of batch) {
+            const key = recordIdentityKey(importType, record);
+            if (seen.has(key)) {
+                continue;
+            }
+            seen.add(key);
+            merged.push(record);
+        }
+    }
+    return merged;
 }
 
 export class ConnectorPreviewSyncService {
@@ -65,6 +120,15 @@ export class ConnectorPreviewSyncService {
             });
         }
 
+        const timeZone = DEFAULT_ACCOUNT_TIMEZONE;
+
+        const cutover = buildCutoverOptionsSnapshot({
+            backfillStartDate: connector.backfill_start_date,
+            includeOlderOpenInvoices: connector.include_older_open_invoices,
+            skipReportingBreachOnBackfill:
+                connector.skip_reporting_breach_on_backfill,
+        });
+
         const enabledEntities = (
             Array.isArray(connector.enabled_entities)
                 ? connector.enabled_entities
@@ -92,27 +156,24 @@ export class ConnectorPreviewSyncService {
 
         for (const importType of enabledEntities) {
             const rules = mappingByType.get(importType) ?? [];
-            const fetchResult = await fetchPriorityEntitySamples(
+            const phases = buildBackfillEntityPullPhases({
+                entityType: importType,
+                syncMode: "BACKFILL",
+                backfillStartDate: connector.backfill_start_date,
+                includeOlderOpenInvoices:
+                    connector.include_older_open_invoices ?? true,
+                timeZone,
+            });
+
+            const { records, phaseIds } = await this.pullPreviewRecords({
                 config,
                 importType,
-                10
-            );
-            if (!fetchResult.ok) {
-                throw Object.assign(
-                    new Error(fetchResult.error ?? "Failed to pull preview data"),
-                    {
-                        statusCode: fetchResult.statusCode === 401 ? 400 : 502,
-                        code:
-                            fetchResult.statusCode === 401
-                                ? "PRIORITY_AUTH_FAILED"
-                                : "PRIORITY_FETCH_FAILED",
-                    }
-                );
-            }
+                phases,
+                backfillStartDate: connector.backfill_start_date,
+                timeZone,
+            });
 
-            let mappedRows = fetchResult.records.map((record) =>
-                mapErpRecord(record, rules)
-            );
+            let mappedRows = records.map((record) => mapErpRecord(record, rules));
 
             let sortedPreview = false;
             if (importType === "Invoice") {
@@ -136,20 +197,27 @@ export class ConnectorPreviewSyncService {
 
             entities.push({
                 import_type: importType,
-                pulled: fetchResult.records.length,
+                pulled: records.length,
                 sample_rows: mappedRows.slice(0, 5),
                 validation_errors: validationErrors,
                 sorted_preview: sortedPreview,
+                pull_phases: phaseIds,
             });
         }
 
         const completedAt = new Date();
-        const checks = this.buildGoNoGoChecks(entities, totalValidationErrors);
+        const checks = this.buildGoNoGoChecks(
+            entities,
+            totalValidationErrors,
+            cutover
+        );
 
         return {
             mode: "preview",
             started_at: startedAt.toISOString(),
             completed_at: completedAt.toISOString(),
+            cutover,
+            cutover_summary: formatCutoverOptionsSummary(cutover),
             entities,
             go_no_go: {
                 required_field_errors: totalValidationErrors,
@@ -202,10 +270,106 @@ export class ConnectorPreviewSyncService {
         };
     }
 
+    private async pullPreviewRecords(params: {
+        config: PriorityConnectionConfig;
+        importType: PriorityEntityImportType;
+        phases: ReturnType<typeof buildBackfillEntityPullPhases>;
+        backfillStartDate: Date | null;
+        timeZone: string;
+    }): Promise<{ records: Record<string, unknown>[]; phaseIds: string[] }> {
+        const batches: Record<string, unknown>[][] = [];
+        const phaseIds: string[] = [];
+
+        for (const phase of params.phases) {
+            phaseIds.push(phase.id);
+
+            if (phase.filter === "dynamic_related") {
+                const olderOpenFilter = buildBackfillEntityPullPhases({
+                    entityType: "Invoice",
+                    syncMode: "BACKFILL",
+                    backfillStartDate: params.backfillStartDate,
+                    includeOlderOpenInvoices: true,
+                    timeZone: params.timeZone,
+                }).find((p) => p.id === "older_open")?.filter;
+
+                if (typeof olderOpenFilter !== "string") {
+                    continue;
+                }
+
+                const olderOpenResult = await fetchPriorityEntitySamples(
+                    params.config,
+                    "Invoice",
+                    PREVIEW_SAMPLE_TOP,
+                    { filter: olderOpenFilter }
+                );
+                this.assertFetchOk(olderOpenResult);
+
+                const linkFilters = buildPaymentsByInvoiceLinkFilters(
+                    extractInvoiceCustomerLinks(olderOpenResult.records)
+                );
+                for (const filter of linkFilters.slice(0, 3)) {
+                    const related = await fetchPriorityEntitySamples(
+                        params.config,
+                        params.importType,
+                        PREVIEW_SAMPLE_TOP,
+                        { filter }
+                    );
+                    this.assertFetchOk(related);
+                    batches.push(related.records);
+                }
+                continue;
+            }
+
+            const filter =
+                typeof phase.filter === "string" ? phase.filter : null;
+            const fetchResult = await fetchPriorityEntitySamples(
+                params.config,
+                params.importType,
+                PREVIEW_SAMPLE_TOP,
+                { filter }
+            );
+            this.assertFetchOk(fetchResult);
+            batches.push(fetchResult.records);
+        }
+
+        return {
+            records: mergeUniqueRecords(params.importType, batches),
+            phaseIds,
+        };
+    }
+
+    private assertFetchOk(fetchResult: {
+        ok: boolean;
+        error?: string;
+        statusCode?: number;
+        records: Record<string, unknown>[];
+    }): asserts fetchResult is {
+        ok: true;
+        records: Record<string, unknown>[];
+        statusCode?: number;
+    } {
+        if (!fetchResult.ok) {
+            throw Object.assign(
+                new Error(fetchResult.error ?? "Failed to pull preview data"),
+                {
+                    statusCode: fetchResult.statusCode === 401 ? 400 : 502,
+                    code:
+                        fetchResult.statusCode === 401
+                            ? "PRIORITY_AUTH_FAILED"
+                            : "PRIORITY_FETCH_FAILED",
+                }
+            );
+        }
+    }
+
     private buildGoNoGoChecks(
         entities: PreviewEntityResult[],
-        totalValidationErrors: number
+        totalValidationErrors: number,
+        cutover: CutoverOptionsSnapshot
     ) {
+        const cutoverSummary =
+            formatCutoverOptionsSummary(cutover) ?? "full history";
+
         const checks = [
             {
                 id: "required_fields",
@@ -223,7 +387,7 @@ export class ConnectorPreviewSyncService {
                 detail: entities
                     .map(
                         (entity) =>
-                            `${entity.import_type}: ${entity.sample_rows.length} sample row(s)`
+                            `${entity.import_type}: ${entity.sample_rows.length} sample row(s) [${entity.pull_phases.join(", ")}]`
                     )
                     .join("; "),
             },
@@ -235,6 +399,14 @@ export class ConnectorPreviewSyncService {
                     .every((entity) => entity.sorted_preview),
                 detail:
                     "Invoice preview applies sortInvoicesForImport before validation.",
+            },
+            {
+                id: "cutover_window",
+                label: "Preview samples use the same cutover window as backfill",
+                passed: true,
+                detail: cutover.backfill_start_date
+                    ? `Applied cutover filters (${cutoverSummary}). Customers/contacts remain full history.`
+                    : `No start date — full-history preview (${cutoverSummary}).`,
             },
         ];
 

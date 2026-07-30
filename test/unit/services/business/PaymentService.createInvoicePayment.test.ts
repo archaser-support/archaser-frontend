@@ -43,9 +43,66 @@ vi.mock("@/server/services/creditInsurance/syncCustomerInsuranceFields", () => (
     syncCustomerInsuranceFields: mockSyncCustomerInsuranceFields,
 }));
 
+const mockEnqueueAsOfRewrite = vi.fn().mockResolvedValue(undefined);
+const mockRunArPostIngestForCustomers = vi.fn().mockResolvedValue({
+    replayStats: null,
+    maturityResult: null,
+});
+const FIXED_TODAY_UTC = new Date("2026-07-29T00:00:00.000Z");
+
+vi.mock("@/server/services/creditInsurance/asOfRewriteQueue", () => ({
+    enqueueAsOfRewrite: (...args: unknown[]) => mockEnqueueAsOfRewrite(...args),
+}));
+
+vi.mock("@/server/services/import/arPostIngestForCustomers", () => ({
+    runArPostIngestForCustomers: (...args: unknown[]) =>
+        mockRunArPostIngestForCustomers(...args),
+}));
+
+vi.mock("@/shared/creditInsurance/insurancePolicyLifecycle", async () => {
+    const actual = await vi.importActual<
+        typeof import("@/shared/creditInsurance/insurancePolicyLifecycle")
+    >("@/shared/creditInsurance/insurancePolicyLifecycle");
+    return {
+        ...actual,
+        startOfTodayUtc: vi.fn(() => new Date(FIXED_TODAY_UTC)),
+    };
+});
+
 describe("PaymentService.createInvoicePayment", () => {
     let mockPrisma: any;
     let paymentService: PaymentService;
+
+    async function stubSuccessfulPaymentCreate(paymentData: {
+        invoice_id: number;
+        customer_id: number;
+        account_id: number;
+        amount: number;
+        customer_amount: number;
+        customer_currency: string;
+        payment_date: Date;
+        payment_method: string;
+        reference: string;
+    }) {
+        mockPrisma.invoicePayment.create.mockResolvedValue({
+            id: 1,
+            ...paymentData,
+        });
+        mockPrisma.invoicePayment.aggregate.mockResolvedValue({
+            _sum: {
+                amount: paymentData.amount,
+                customer_amount: paymentData.customer_amount,
+            },
+        });
+        mockPrisma.invoice.update.mockResolvedValue({
+            id: paymentData.invoice_id,
+            total_paid: paymentData.amount,
+            customer_total_paid: paymentData.customer_amount,
+            outstanding_debt: 500.0,
+            customer_outstanding_debt: 500.0,
+            status_id: 1,
+        });
+    }
 
     beforeEach(async () => {
         vi.clearAllMocks();
@@ -111,6 +168,7 @@ describe("PaymentService.createInvoicePayment", () => {
             expect(mockPrisma.invoicePayment.create).toHaveBeenCalledWith({
                 data: expect.objectContaining({
                     invoice_id: 1,
+                    invoice_number: "INV001",
                     amount: 500.0,
                     customer_amount: 500.0,
                     customer_currency: "USD",
@@ -483,6 +541,82 @@ describe("PaymentService.createInvoicePayment", () => {
                     customer_total_paid: 0,
                 }),
             });
+        });
+    });
+
+    describe("AR post-ingest for backdated vs same-day", () => {
+        it("runs chronological AR replay + live refresh when payment_date is before today", async () => {
+            const paymentData = {
+                invoice_id: 1,
+                customer_id: 42,
+                account_id: 7,
+                amount: 500.0,
+                customer_amount: 500.0,
+                customer_currency: "USD",
+                payment_date: new Date("2026-07-24T12:00:00.000Z"),
+                payment_method: "Bank Transfer",
+                reference: "PAY-BACKDATED",
+            };
+            await stubSuccessfulPaymentCreate(paymentData);
+
+            await paymentService.createInvoicePayment(paymentData);
+
+            expect(mockEnqueueAsOfRewrite).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    accountId: 7,
+                    customerIds: [42],
+                    fromDate: paymentData.payment_date,
+                    toDate: FIXED_TODAY_UTC,
+                })
+            );
+            expect(mockRunArPostIngestForCustomers).toHaveBeenCalledWith({
+                accountId: 7,
+                customerIds: [42],
+                runMaturity: false,
+                runLiveRefresh: true,
+            });
+        });
+
+        it("does not run full AR post-ingest when payment_date is today", async () => {
+            const paymentData = {
+                invoice_id: 1,
+                customer_id: 42,
+                account_id: 7,
+                amount: 500.0,
+                customer_amount: 500.0,
+                customer_currency: "USD",
+                payment_date: new Date("2026-07-29T15:30:00.000Z"),
+                payment_method: "Bank Transfer",
+                reference: "PAY-SAME-DAY",
+            };
+            await stubSuccessfulPaymentCreate(paymentData);
+
+            await paymentService.createInvoicePayment(paymentData);
+
+            expect(mockEnqueueAsOfRewrite).toHaveBeenCalled();
+            expect(mockRunArPostIngestForCustomers).not.toHaveBeenCalled();
+        });
+
+        it("skips AR post-ingest when skipArPostIngest is set (import batch path)", async () => {
+            const paymentData = {
+                invoice_id: 1,
+                customer_id: 42,
+                account_id: 7,
+                amount: 500.0,
+                customer_amount: 500.0,
+                customer_currency: "USD",
+                payment_date: new Date("2026-07-24T12:00:00.000Z"),
+                payment_method: "Bank Transfer",
+                reference: "PAY-IMPORT",
+            };
+            await stubSuccessfulPaymentCreate(paymentData);
+
+            await paymentService.createInvoicePayment(paymentData, {
+                skipArPostIngest: true,
+            });
+
+            expect(mockEnqueueAsOfRewrite).toHaveBeenCalled();
+            expect(mockRunArPostIngestForCustomers).not.toHaveBeenCalled();
         });
     });
 });

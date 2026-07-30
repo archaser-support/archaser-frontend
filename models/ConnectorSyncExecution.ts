@@ -20,6 +20,13 @@ export interface EntitySyncStats {
     skipped: number;
 }
 
+/** Cutover flags used for a backfill run (support / sync history). */
+export interface ConnectorCutoverOptions {
+    backfill_start_date: string | null;
+    include_older_open_invoices: boolean;
+    skip_reporting_breach_on_backfill: boolean;
+}
+
 export interface IConnectorSyncExecution extends Document {
     _id: mongoose.Types.ObjectId;
     connector_id: number;
@@ -35,6 +42,8 @@ export interface IConnectorSyncExecution extends Document {
     entity_stats?: Record<string, EntitySyncStats>;
     mapping_snapshot_hash?: Record<string, string>;
     import_job_ids?: Record<string, string>;
+    /** Present on backfill runs when cutover options were configured. */
+    cutover_options?: ConnectorCutoverOptions | null;
     error_message?: string;
     error_type?: string;
     error_details?: Record<string, unknown>;
@@ -89,6 +98,7 @@ const ConnectorSyncExecutionSchema = new Schema(
         entity_stats: { type: Map, of: EntitySyncStatsSchema, default: {} },
         mapping_snapshot_hash: { type: Schema.Types.Mixed, default: null },
         import_job_ids: { type: Schema.Types.Mixed, default: null },
+        cutover_options: { type: Schema.Types.Mixed, default: null },
         error_message: { type: String, default: null },
         error_type: { type: String, default: null },
         error_details: { type: Schema.Types.Mixed, default: null },

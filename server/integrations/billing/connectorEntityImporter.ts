@@ -33,7 +33,8 @@ export async function importMappedEntityBatch(
     importType: "Customer" | "Contact" | "Invoice" | "Payment",
     rows: Record<string, unknown>[],
     accountId: number,
-    userId?: string
+    userId?: string,
+    options?: { skipReportingBreach?: boolean }
 ): Promise<EntityImportBatchResult> {
     const result: EntityImportBatchResult = {
         success: 0,
@@ -121,7 +122,9 @@ export async function importMappedEntityBatch(
                 }) as InvoiceInput
         );
         try {
-            const importResult = await invoiceService.importInvoices(invoices);
+            const importResult = await invoiceService.importInvoices(invoices, {
+                skipReportingBreach: options?.skipReportingBreach === true,
+            });
             result.affectedCustomerIds = importResult.affectedCustomerIds ?? [];
             const successCount = importResult.results.filter(
                 (row) => row.success
