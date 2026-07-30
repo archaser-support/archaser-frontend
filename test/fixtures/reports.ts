@@ -1,4 +1,4 @@
-import type { Table } from "../utils/reportFieldUtils";
+import type { Table } from "@/utils/reportFieldUtils";
 
 /**
  * Minimal tables metadata for report unit tests.

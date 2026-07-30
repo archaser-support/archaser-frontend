@@ -17,7 +17,7 @@ import {
     normalizeFieldName,
     getTableFields,
     type Table,
-} from "../../utils/reportFieldUtils";
+} from "@/utils/reportFieldUtils";
 
 const minimalTables: Table[] = [
     {

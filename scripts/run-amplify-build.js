@@ -16,14 +16,15 @@ if (process.env.NEXT_PUBLIC_ENABLE_WS == null) {
 
 // Without a signing secret NextAuth answers every /api/auth/session with a 500
 // ("problem with the server configuration"), which is hard to diagnose from the
-// browser. Fail the build instead of shipping a login page that cannot work.
+// browser. Warn loudly rather than exit: a secret stored through Amplify's
+// Secrets feature reaches the SSR runtime without ever entering the build env,
+// so absence here does not prove the deploy is broken.
 if (!process.env.NEXTAUTH_SECRET && !process.env.JWT_SECRET) {
-    console.error(
-        "[run-amplify-build] NEXTAUTH_SECRET (or JWT_SECRET) is not set.\n" +
-            "Add it to the Amplify Console environment variables; it must match\n" +
-            "the secret Nest uses to sign access tokens."
+    console.warn(
+        "[run-amplify-build] WARNING: neither NEXTAUTH_SECRET nor JWT_SECRET is\n" +
+            "visible to the build, so neither can be baked into .env.production.\n" +
+            "Unless the SSR runtime supplies one, /api/auth/session will return 500."
     );
-    process.exit(1);
 }
 
 if (!process.env.NEXT_PUBLIC_NEST_API_BASE_URL?.trim()) {
@@ -79,7 +80,9 @@ function writeRuntimeEnvFile() {
         if (existing.has(key) || value == null || value === "") {
             continue;
         }
-        added.push(`${key}=${value}`);
+        // dotenv treats an unquoted `#` as the start of a comment, so quote every
+        // value. It does not unescape `\"` or `\\`, so the value goes in verbatim.
+        added.push(`${key}="${value}"`);
         existing.add(key);
     }
 

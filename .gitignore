@@ -2,6 +2,8 @@
 
 # dependencies
 node_modules/
+# npm download cache, kept in-tree so Amplify can cache it between builds
+/.npm/
 /.pnp
 .pnp.js
 .yarn/install-state.gz
