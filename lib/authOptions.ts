@@ -8,6 +8,8 @@ import { jwtVerify } from "jose";
 import type { NextAuthOptions, User } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 
+import { authCookiesAreSecure, getCookieName } from "@/utils/authUtils";
+
 const nestJwtSecret = () =>
     process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || "";
 
@@ -97,6 +99,23 @@ export const authOptions: NextAuthOptions = {
     session: { strategy: "jwt" },
     pages: {
         signIn: "/login",
+    },
+    // Middleware and server components look the session cookie up by the
+    // deployment-specific name from `getCookieName`, which NextAuth would not
+    // produce on its own. Naming it here is what keeps the writer and those
+    // readers in agreement; without it a deployment whose name carries an
+    // environment suffix authenticates and then redirects back to /login.
+    useSecureCookies: authCookiesAreSecure(),
+    cookies: {
+        sessionToken: {
+            name: getCookieName(authCookiesAreSecure()),
+            options: {
+                httpOnly: true,
+                sameSite: "lax",
+                path: "/",
+                secure: authCookiesAreSecure(),
+            },
+        },
     },
     callbacks: {
         async jwt({ token, user }) {

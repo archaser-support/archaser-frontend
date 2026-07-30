@@ -53,8 +53,8 @@ describe("Middleware Authentication", () => {
                 secret: process.env.NEXTAUTH_SECRET,
                 cookieName:
                     process.env.NODE_ENV === "production"
-                        ? "__Secure-next-auth.session-token.v1"
-                        : "next-auth.session-token.v1",
+                        ? "__Secure-next-auth.session-token"
+                        : "next-auth.session-token",
             }));
             expect(response.status).not.toBe(401);
         });
@@ -157,7 +157,7 @@ describe("Middleware Authentication", () => {
 
             expect(mockGetToken).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    cookieName: "__Secure-next-auth.session-token.v1",
+                    cookieName: "__Secure-next-auth.session-token",
                 })
             );
 
@@ -184,7 +184,7 @@ describe("Middleware Authentication", () => {
 
             expect(mockGetToken).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    cookieName: "next-auth.session-token.v1",
+                    cookieName: "next-auth.session-token",
                 })
             );
 

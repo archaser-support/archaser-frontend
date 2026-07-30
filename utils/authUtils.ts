@@ -109,7 +109,33 @@ export const combineFirstLastNames = (
 
 // ===== AUTHENTICATION HELPERS =====
 
-export const getCookieName = (isSecure: boolean, name: string = "session-token", isLegacy: boolean = false) => {
+/**
+ * Secret the session cookie is signed with. Mirrors `authOptions.secret`: a
+ * reader that falls back differently cannot decrypt the cookie it is handed.
+ */
+export const sessionSecret = (): string | undefined =>
+    process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET;
+
+/**
+ * Whether auth cookies carry the `__Secure-` prefix and the `secure` attribute.
+ * `authOptions` and every reader must agree on this, so it is derived here once.
+ */
+export const authCookiesAreSecure = (): boolean => {
+    const baseUrl =
+        process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || "";
+    return (
+        process.env.NODE_ENV === "production" && baseUrl.startsWith("https://")
+    );
+};
+
+/**
+ * Name of a NextAuth cookie for this deployment. `authOptions` configures the
+ * session cookie with this name, and middleware, `getServerSession` and the
+ * helpers below read it back. A writer/reader disagreement makes login appear
+ * to succeed and then bounce straight back to /login, so this is the single
+ * source of truth for the name.
+ */
+export const getCookieName = (isSecure: boolean, name: string = "session-token") => {
     // Standard NextAuth cookie names: session-token, csrf-token, callback-url, state, pkce.code_verifier, nonce
     // Maps internal NextAuth cookie keys to their base names
     const cookieMap: Record<string, string> = {
@@ -124,9 +150,7 @@ export const getCookieName = (isSecure: boolean, name: string = "session-token",
 
     const targetName = cookieMap[name] || name;
 
-    const baseName = isLegacy && targetName === "session-token"
-        ? "next-auth.session-token"
-        : `next-auth.${targetName}${targetName === "session-token" && !isLegacy ? ".v1" : ""}`;
+    const baseName = `next-auth.${targetName}`;
     const prefix = isSecure ? "__Secure-" : "";
     const serviceName = process.env.SERVICE_NAME || "";
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || "";
@@ -143,28 +167,20 @@ export const getCookieName = (isSecure: boolean, name: string = "session-token",
 };
 
 const extractToken = async (request: NextApiRequest | NextRequest) => {
-    const isSecure =
-        process.env.NODE_ENV === "production" &&
-        process.env.NEXT_PUBLIC_BASE_URL?.startsWith("https://");
-
     const token = await getToken({
         req: request,
-        secret: process.env.NEXTAUTH_SECRET,
-        cookieName: getCookieName(!!isSecure),
+        secret: sessionSecret(),
+        cookieName: getCookieName(authCookiesAreSecure()),
     });
     return token;
 };
 
 // Helper: Get user from token (legacy function - use getAccountId/getUserId instead)
 export async function getUser(request: Request): Promise<Token> {
-    const isSecure =
-        process.env.NODE_ENV === "production" &&
-        process.env.NEXT_PUBLIC_BASE_URL?.startsWith("https://");
-
     const token = (await getToken({
         req: request as any,
-        secret: process.env.NEXTAUTH_SECRET,
-        cookieName: getCookieName(!!isSecure),
+        secret: sessionSecret(),
+        cookieName: getCookieName(authCookiesAreSecure()),
     })) as Token | null;
 
     if (!token?.account_id) {

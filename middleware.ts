@@ -6,7 +6,11 @@ import i18nConfig from "./i18nConfig";
 import { getDefaultLandingPage } from "./shared/utils/navigation";
 import { isSuspiciousPayload } from "./utils/payloadScanner";
 import { getSecurityHeaders } from "./utils/securityHeaders";
-import { getCookieName } from "./utils/authUtils";
+import {
+    authCookiesAreSecure,
+    getCookieName,
+    sessionSecret,
+} from "./utils/authUtils";
 
 export async function middleware(request: NextRequest) {
     const host = request.headers.get("host");
@@ -110,25 +114,13 @@ export async function middleware(request: NextRequest) {
         }
     }
 
-    // Retrieve the token (session) from the request early to handle root redirects
-    const isSecure = process.env.NODE_ENV === "production" && !!process.env.NEXT_PUBLIC_BASE_URL?.startsWith("https://");
-
-    const primaryCookieName = getCookieName(isSecure);
-    const legacyCookieName = getCookieName(isSecure, "session-token", true);
-
-    let token = await getToken({
+    // Retrieve the token (session) from the request early to handle root redirects.
+    // Name and secret come from the same helpers `authOptions` writes with.
+    const token = await getToken({
         req: request,
-        secret: process.env.NEXTAUTH_SECRET,
-        cookieName: primaryCookieName,
+        secret: sessionSecret(),
+        cookieName: getCookieName(authCookiesAreSecure()),
     });
-
-    if (!token) {
-        token = await getToken({
-            req: request,
-            secret: process.env.NEXTAUTH_SECRET,
-            cookieName: legacyCookieName,
-        });
-    }
 
     let response: NextResponse;
 
