@@ -2,18 +2,19 @@
 
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Layers } from "lucide-react";
+import { Activity } from "lucide-react";
 import {
     CartesianGrid,
-    ComposedChart,
+    Legend,
     Line,
+    LineChart,
     ResponsiveContainer,
     Tooltip,
     XAxis,
     YAxis,
 } from "recharts";
 
-import type { PortfolioHealthMonthlyPoint } from "@/types/creditInsurance";
+import type { PortfolioUtilizationDailyPoint } from "@/types/creditInsurance";
 
 import { ChartTooltip } from "./ChartTooltip";
 import { Eyebrow } from "./Eyebrow";
@@ -22,30 +23,31 @@ import { CPH } from "./designTokens";
 import layout from "./islandLayout.module.css";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
-export type PortfolioHealthMonthlyChartProps = {
-    monthly: PortfolioHealthMonthlyPoint[];
+export type UtilizationDailyChartProps = {
+    daily: PortfolioUtilizationDailyPoint[];
 };
 
-function formatMonthLabel(month: string, language: string): string {
-    const [y, m] = month.split("-").map(Number);
-    if (!y || !m) {
-        return month;
+function formatDayLabel(ymd: string, language: string): string {
+    const date = new Date(`${ymd}T12:00:00.000Z`);
+    if (Number.isNaN(date.getTime())) {
+        return ymd;
     }
     const locale = language.startsWith("he") ? "he-IL" : "en-US";
-    return new Date(y, m - 1, 1).toLocaleDateString(locale, {
+    return date.toLocaleDateString(locale, {
         month: "short",
-        year: "2-digit",
+        day: "numeric",
     });
 }
 
-function formatAmount(value: number, language: string): string {
+function formatPct(value: number, language: string): string {
     const locale = language.startsWith("he") ? "he-IL" : "en-US";
-    return value.toLocaleString(locale, { maximumFractionDigits: 0 });
+    return `${value.toLocaleString(locale, {
+        maximumFractionDigits: 1,
+        minimumFractionDigits: 0,
+    })}%`;
 }
 
-export function PortfolioHealthMonthlyChart({
-    monthly,
-}: PortfolioHealthMonthlyChartProps) {
+export function UtilizationDailyChart({ daily }: UtilizationDailyChartProps) {
     const { i18n, t } = useTranslation(["dashboard"]);
     const language = i18n.language;
     const ns = { ns: "dashboard" as const };
@@ -54,56 +56,39 @@ export function PortfolioHealthMonthlyChart({
 
     const data = useMemo(
         () =>
-            monthly.map((p) => ({
-                month: p.month,
-                label: formatMonthLabel(p.month, language),
-                total: p.totalReceivables,
-                covered: p.compliantExposure,
-                uncovered: p.atRiskExposure,
+            daily.map((point) => ({
+                date: point.snapshotDate,
+                label: formatDayLabel(point.snapshotDate, language),
+                portfolio: point.utilizationPct,
+                dcl: point.dclUtilizationPct,
+                named: point.namedUtilizationPct,
             })),
-        [monthly, language]
+        [daily, language]
     );
 
-    const seriesLabels = {
-        covered: t("credit_portfolio_health.chart_series_covered", {
-            ...ns,
-            defaultValue: "Covered",
-        }),
-        uncovered: t("credit_portfolio_health.chart_series_uncovered", {
-            ...ns,
-            defaultValue: "Uncovered",
-        }),
-        total: t("credit_portfolio_health.chart_series_total_ar", {
-            ...ns,
-            defaultValue: "Total AR",
-        }),
-    };
+    const hasSignal = data.some(
+        (row) =>
+            row.portfolio != null || row.dcl != null || row.named != null
+    );
 
     return (
-        <IslandCard accent="jade" className={layout.cardPad}>
+        <IslandCard accent="jade" className={`${layout.span12} ${layout.cardPad}`}>
             <Eyebrow
-                icon={Layers}
-                help={t("credit_portfolio_health.monthly_chart_help", {
+                icon={Activity}
+                help={t("credit_portfolio_health.daily_util_chart_help", {
                     ...ns,
                     defaultValue:
-                        "Average daily open AR, compliant (covered), and at-risk (uncovered) amounts per calendar month in the selected range.",
+                        "Daily effective utilization (usage ÷ effective approved limit × 100) for the portfolio, Named, and DCL cohorts among approved customers.",
                 })}
             >
-                {t("credit_portfolio_health.monthly_chart_title", {
+                {t("credit_portfolio_health.daily_util_chart_title", {
                     ...ns,
-                    defaultValue:
-                        "Monthly trend — total exposure, covered vs. uncovered",
+                    defaultValue: "Daily avg. utilization",
                 })}
             </Eyebrow>
 
-            {data.length === 0 ? (
-                <p
-                    style={{
-                        margin: 0,
-                        fontSize: 14,
-                        color: CPH.slate,
-                    }}
-                >
+            {!hasSignal ? (
+                <p className="m-0 text-sm" style={{ color: CPH.slate }}>
                     {t("credit_portfolio_health.no_chart_data", {
                         ...ns,
                         defaultValue: "No monthly history in this range.",
@@ -112,7 +97,7 @@ export function PortfolioHealthMonthlyChart({
             ) : (
                 <div style={{ width: "100%", height: 280 }}>
                     <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart
+                        <LineChart
                             data={data}
                             margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
                         >
@@ -126,55 +111,82 @@ export function PortfolioHealthMonthlyChart({
                                 tick={{ fill: CPH.slate, fontSize: 12 }}
                                 axisLine={{ stroke: CPH.border }}
                                 tickLine={false}
+                                interval="preserveStartEnd"
+                                minTickGap={28}
                             />
                             <YAxis
                                 tick={{ fill: CPH.slate, fontSize: 12 }}
                                 axisLine={false}
                                 tickLine={false}
-                                width={64}
+                                width={48}
+                                domain={[0, "auto"]}
                                 tickFormatter={(v: number) =>
-                                    formatAmount(v, language)
+                                    formatPct(v, language)
                                 }
                             />
                             <Tooltip
                                 content={
                                     <ChartTooltip
                                         formatValue={(v) =>
-                                            formatAmount(v, language)
+                                            formatPct(v, language)
                                         }
                                     />
                                 }
                             />
+                            <Legend
+                                wrapperStyle={{ fontSize: 12, color: CPH.slate }}
+                            />
                             <Line
                                 type="monotone"
-                                dataKey="covered"
-                                name={seriesLabels.covered}
+                                dataKey="portfolio"
+                                name={t(
+                                    "credit_portfolio_health.chart_util_portfolio",
+                                    {
+                                        ...ns,
+                                        defaultValue: "Avg. utilization",
+                                    }
+                                )}
                                 stroke={CPH.jade}
-                                strokeWidth={2}
+                                strokeWidth={2.5}
                                 dot={false}
+                                connectNulls
                                 animationDuration={animDuration}
                             />
                             <Line
                                 type="monotone"
-                                dataKey="uncovered"
-                                name={seriesLabels.uncovered}
+                                dataKey="dcl"
+                                name={t(
+                                    "credit_portfolio_health.chart_util_sdl",
+                                    {
+                                        ...ns,
+                                        defaultValue: "SDL avg. utilization",
+                                    }
+                                )}
                                 stroke={CPH.copper}
                                 strokeWidth={2}
                                 dot={false}
+                                connectNulls
                                 animationDuration={animDuration}
-                                animationBegin={prefersReducedMotion ? 0 : 150}
+                                animationBegin={prefersReducedMotion ? 0 : 100}
                             />
                             <Line
                                 type="monotone"
-                                dataKey="total"
-                                name={seriesLabels.total}
+                                dataKey="named"
+                                name={t(
+                                    "credit_portfolio_health.chart_util_issuer",
+                                    {
+                                        ...ns,
+                                        defaultValue: "Issuer avg. utilization",
+                                    }
+                                )}
                                 stroke={CPH.ink}
                                 strokeWidth={2}
                                 dot={false}
+                                connectNulls
                                 animationDuration={animDuration}
-                                animationBegin={prefersReducedMotion ? 0 : 250}
+                                animationBegin={prefersReducedMotion ? 0 : 200}
                             />
-                        </ComposedChart>
+                        </LineChart>
                     </ResponsiveContainer>
                 </div>
             )}

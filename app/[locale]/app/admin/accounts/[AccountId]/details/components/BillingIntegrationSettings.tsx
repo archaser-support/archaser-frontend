@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
     Alert,
@@ -42,6 +42,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     fetchBillingConnectorConfig,
     fetchBillingConnectorSyncRuns,
+    resetBillingConnectorBackfill,
     runBillingConnectorBackfill,
     runBillingConnectorIncrementalSync,
     runBillingConnectorPreviewSync,
@@ -148,6 +149,11 @@ export default function BillingIntegrationSettings({
     const [previewResult, setPreviewResult] =
         useState<PreviewSyncResponse | null>(null);
     const [mappingEntityTab, setMappingEntityTab] = useState(0);
+    const [backfillStartDate, setBackfillStartDate] = useState("");
+    const [skipReportingBreachOnBackfill, setSkipReportingBreachOnBackfill] =
+        useState(false);
+    const [includeOlderOpenInvoices, setIncludeOlderOpenInvoices] =
+        useState(true);
 
     useEffect(() => {
         if (!config) {
@@ -165,6 +171,13 @@ export default function BillingIntegrationSettings({
         setAdvancedExpanded(preset === "custom");
         setEnabledEntities(
             normalizeConnectorEnabledEntities(config.enabled_entities)
+        );
+        setBackfillStartDate(config.backfill_start_date ?? "");
+        setIncludeOlderOpenInvoices(
+            config.include_older_open_invoices ?? true
+        );
+        setSkipReportingBreachOnBackfill(
+            Boolean(config.skip_reporting_breach_on_backfill)
         );
     }, [config]);
 
@@ -207,6 +220,9 @@ export default function BillingIntegrationSettings({
                 auth_type: authType,
                 sync_enabled: syncEnabled,
                 enabled_entities: enabledEntities,
+                backfill_start_date: backfillStartDate.trim() || null,
+                include_older_open_invoices: includeOlderOpenInvoices,
+                skip_reporting_breach_on_backfill: skipReportingBreachOnBackfill,
             };
 
             if (schedulePreset === "custom") {
@@ -283,7 +299,7 @@ export default function BillingIntegrationSettings({
                 success("Preview sync passed go/no-go checks");
             } else {
                 showError(
-                    "Preview sync completed with validation issues â€” review results below"
+                    "Preview sync completed with validation issues — review results below"
                 );
             }
         },
@@ -323,6 +339,22 @@ export default function BillingIntegrationSettings({
         },
         onError: (err: unknown) => {
             showError(axiosErrorMessage(err) ?? "Incremental sync failed");
+        },
+    });
+
+    const resetBackfillMutation = useMutation({
+        mutationFn: () => resetBillingConnectorBackfill(accountId),
+        onSuccess: () => {
+            success("Backfill reset — start date is editable again");
+            queryClient.invalidateQueries({
+                queryKey: ["billing-connector", accountId],
+            });
+            queryClient.invalidateQueries({
+                queryKey: ["billing-connector-sync-runs", accountId],
+            });
+        },
+        onError: (err: unknown) => {
+            showError(axiosErrorMessage(err) ?? "Failed to reset backfill");
         },
     });
 
@@ -598,7 +630,7 @@ export default function BillingIntegrationSettings({
                                         !canManage || saveMutation.isPending
                                     }
                                 >
-                                    {saveMutation.isPending ? "Savingâ€¦" : "Save"}
+                                    {saveMutation.isPending ? "Saving…" : "Save"}
                                 </Button>
                             </Box>
                         </Grid>
@@ -738,7 +770,7 @@ export default function BillingIntegrationSettings({
                         </Typography>
                     ) : syncEnabled ? (
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                            Next scheduled sync (UTC): â€”
+                            Next scheduled sync (UTC): —
                         </Typography>
                     ) : null}
 
@@ -882,10 +914,11 @@ export default function BillingIntegrationSettings({
                             color="text.secondary"
                             sx={{ mb: 2 }}
                         >
-                            Pulls sample rows from Priority, applies mappings and
-                            transforms, validates required fields â€” no database
-                            writes and no watermark changes. Run go/no-go checks
-                            before starting backfill.
+                            Pulls sample rows from Priority using the same
+                            cutover window as backfill (start date and older-open
+                            when set), applies mappings and transforms, validates
+                            required fields — no database writes and no watermark
+                            changes. Run go/no-go checks before starting backfill.
                         </Typography>
 
                         <Button
@@ -906,7 +939,7 @@ export default function BillingIntegrationSettings({
                             sx={{ mb: 2 }}
                         >
                             {previewMutation.isPending
-                                ? "Running previewâ€¦"
+                                ? "Running preview…"
                                 : "Run preview sync"}
                         </Button>
 
@@ -932,6 +965,9 @@ export default function BillingIntegrationSettings({
                                         : "needs attention"}{" "}
                                     ({previewResult.go_no_go.required_field_errors}{" "}
                                     required-field error(s))
+                                    {previewResult.cutover_summary
+                                        ? ` — ${previewResult.cutover_summary}`
+                                        : ""}
                                 </Alert>
 
                                 <List dense>
@@ -964,7 +1000,7 @@ export default function BillingIntegrationSettings({
                                             variant="subtitle2"
                                             sx={{ mb: 1 }}
                                         >
-                                            {entity.import_type} â€” {entity.pulled}{" "}
+                                            {entity.import_type} — {entity.pulled}{" "}
                                             row(s) pulled,{" "}
                                             {entity.sample_rows.length} sample(s)
                                         </Typography>
@@ -1013,9 +1049,102 @@ export default function BillingIntegrationSettings({
                             backfill is complete.
                         </Typography>
 
+                        <TextField
+                            label="Backfill start date"
+                            type="date"
+                            size="small"
+                            value={backfillStartDate}
+                            onChange={(e) =>
+                                setBackfillStartDate(e.target.value)
+                            }
+                            disabled={
+                                !canManage ||
+                                Boolean(config.backfill_options_locked)
+                            }
+                            InputLabelProps={{ shrink: true }}
+                            helperText={
+                                config.backfill_options_locked
+                                    ? "Locked after backfill started. Reset backfill to change the start date."
+                                    : "Optional. Invoices and payments created on/after this account-local day. Leave blank for full history. Customers and contacts always pull full history. Save settings to persist."
+                            }
+                            sx={{ mb: 2, maxWidth: 280 }}
+                        />
+
+                        {Boolean(backfillStartDate.trim()) && (
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={includeOlderOpenInvoices}
+                                        onChange={(e) =>
+                                            setIncludeOlderOpenInvoices(
+                                                e.target.checked
+                                            )
+                                        }
+                                        disabled={
+                                            !canManage ||
+                                            Boolean(
+                                                config.backfill_options_locked
+                                            )
+                                        }
+                                    />
+                                }
+                                label="Include older open invoices"
+                                sx={{ mb: 1, display: "block" }}
+                            />
+                        )}
+                        {Boolean(backfillStartDate.trim()) && (
+                            <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                display="block"
+                                sx={{ mb: 2 }}
+                            >
+                                {config.backfill_options_locked
+                                    ? "Locked after backfill started. Reset backfill to change this option."
+                                    : "When on, also pull unpaid invoices created before the start date and payments linked to those invoices (any payment date). Default on."}
+                            </Typography>
+                        )}
+
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={skipReportingBreachOnBackfill}
+                                    onChange={(e) =>
+                                        setSkipReportingBreachOnBackfill(
+                                            e.target.checked
+                                        )
+                                    }
+                                    disabled={
+                                        !canManage ||
+                                        Boolean(config.backfill_options_locked)
+                                    }
+                                />
+                            }
+                            label="Skip reporting breach during backfill"
+                            sx={{ mb: 0.5, display: "block" }}
+                        />
+                        <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            display="block"
+                            sx={{ mb: 2 }}
+                        >
+                            {config.backfill_options_locked
+                                ? "Locked after backfill started. Reset backfill to change this option."
+                                : "Only affects connector backfill import. Incremental sync and the overnight reporting-breach job still run as usual. Save settings to persist."}
+                        </Typography>
+
+                        {config.backfill_options_locked && (
+                            <Alert severity="warning" sx={{ mb: 2 }}>
+                                Cutover options are locked because backfill has
+                                started. Use Reset backfill below to unlock the
+                                start date and switches before changing them.
+                            </Alert>
+                        )}
+
                         {syncInProgress && (
                             <Alert severity="info" sx={{ mb: 2 }}>
-                                Sync in progress â€” actions are disabled until the
+                                Sync in progress — actions are disabled until the
                                 current run finishes.
                             </Alert>
                         )}
@@ -1061,6 +1190,30 @@ export default function BillingIntegrationSettings({
                             >
                                 Run incremental sync now
                             </Button>
+                            <Button
+                                variant="outlined"
+                                color="warning"
+                                onClick={() => {
+                                    if (
+                                        typeof window !== "undefined" &&
+                                        !window.confirm(
+                                            "Reset backfill progress for all entities and unlock the start date? Imported data is not deleted."
+                                        )
+                                    ) {
+                                        return;
+                                    }
+                                    resetBackfillMutation.mutate();
+                                }}
+                                disabled={
+                                    !canManage ||
+                                    syncInProgress ||
+                                    resetBackfillMutation.isPending
+                                }
+                            >
+                                {resetBackfillMutation.isPending
+                                    ? "Resetting…"
+                                    : "Reset backfill"}
+                            </Button>
                         </Box>
 
                         {config.sync_states && config.sync_states.length > 0 && (
@@ -1071,13 +1224,13 @@ export default function BillingIntegrationSettings({
                                             primary={state.entity_type}
                                             secondary={`Pulled: ${state.backfill_records_pulled}${
                                                 state.backfill_completed
-                                                    ? " â€” backfill complete"
+                                                    ? " — backfill complete"
                                                     : state.backfill_cursor_present
-                                                      ? " â€” in progress"
-                                                      : " â€” not started"
+                                                      ? " — in progress"
+                                                      : " — not started"
                                             }${
                                                 state.last_successful_run_at
-                                                    ? ` â€” last success ${new Date(state.last_successful_run_at).toLocaleString()}`
+                                                    ? ` — last success ${new Date(state.last_successful_run_at).toLocaleString()}`
                                                     : ""
                                             }`}
                                         />
@@ -1099,18 +1252,22 @@ export default function BillingIntegrationSettings({
                         <List dense>
                             {syncRuns.map((run) => (
                                 <ListItem key={run.id}>
-                                    <ListItemText
-                                        primary={`${run.sync_mode} (${run.trigger}) â€” ${run.status}`}
-                                        secondary={`${new Date(run.started_at).toLocaleString()}${
-                                            run.duration_seconds
-                                                ? ` â€” ${run.duration_seconds}s`
-                                                : ""
-                                        }${
-                                            run.error_message
-                                                ? ` â€” ${run.error_message}`
-                                                : ""
-                                        }`}
-                                    />
+                                        <ListItemText
+                                            primary={`${run.sync_mode} (${run.trigger}) — ${run.status}`}
+                                            secondary={`${new Date(run.started_at).toLocaleString()}${
+                                                run.duration_seconds
+                                                    ? ` — ${run.duration_seconds}s`
+                                                    : ""
+                                            }${
+                                                run.cutover_summary
+                                                    ? ` — ${run.cutover_summary}`
+                                                    : ""
+                                            }${
+                                                run.error_message
+                                                    ? ` — ${run.error_message}`
+                                                    : ""
+                                            }`}
+                                        />
                                 </ListItem>
                             ))}
                         </List>

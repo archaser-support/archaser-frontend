@@ -10,7 +10,7 @@ export type BigNumberProps = {
     decimals?: number;
     suffix?: string;
     prefix?: string;
-    label: string;
+    label?: string;
     sub?: ReactNode;
     color?: string;
     locale?: string;
@@ -46,15 +46,17 @@ export function BigNumber({
                     color={color}
                 />
             </div>
-            <div
-                style={{
-                    marginTop: 4,
-                    fontSize: 14,
-                    color: CPH.slate,
-                }}
-            >
-                {label}
-            </div>
+            {label ? (
+                <div
+                    style={{
+                        marginTop: 4,
+                        fontSize: 14,
+                        color: CPH.slate,
+                    }}
+                >
+                    {label}
+                </div>
+            ) : null}
             {sub ? (
                 <div
                     style={{

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -45,19 +45,19 @@ const BIN_LABEL_KEYS: Record<
 > = {
     "0_10": {
         key: "credit_portfolio_health.bin_0_10",
-        defaultValue: "0â€“10%",
+        defaultValue: "0–10%",
     },
     "10_20": {
         key: "credit_portfolio_health.bin_10_20",
-        defaultValue: "10â€“20%",
+        defaultValue: "10–20%",
     },
     "20_50": {
         key: "credit_portfolio_health.bin_20_50",
-        defaultValue: "20â€“50%",
+        defaultValue: "20–50%",
     },
     "50_75": {
         key: "credit_portfolio_health.bin_50_75",
-        defaultValue: "50â€“75%",
+        defaultValue: "50–75%",
     },
     "75_plus": {
         key: "credit_portfolio_health.bin_75_plus",
@@ -88,7 +88,7 @@ export function UtilizationSectionView({
         section.peakUtilizationStreakEnd != null
             ? t("credit_portfolio_health.kpi_peak_util_streak_window", {
                   ...ns,
-                  defaultValue: "Longest peak: {{days}} days ({{start}} â€“ {{end}})",
+                  defaultValue: "Longest peak: {{days}} days ({{start}} – {{end}})",
                   days: section.peakUtilizationStreakDays,
                   start: section.peakUtilizationStreakStart,
                   end: section.peakUtilizationStreakEnd,
@@ -210,17 +210,17 @@ export function UtilizationSectionView({
                     })}
                 </Eyebrow>
                 {section.efficiencyA == null ? (
-                    <span style={{ color: CPH.muted }}>â€”</span>
+                    <span style={{ color: CPH.muted }}>—</span>
                 ) : (
                     <BigNumber
                         value={section.efficiencyA}
                         decimals={2}
-                        suffix="Ã—"
+                        suffix="×"
                         label={t(
                             "credit_portfolio_health.kpi_efficiency_label",
                             {
                                 ...ns,
-                                defaultValue: "Health A Ã· utilization",
+                                defaultValue: "Health A ÷ utilization",
                             }
                         )}
                         color={CPH.copper}
@@ -232,7 +232,7 @@ export function UtilizationSectionView({
                                       "credit_portfolio_health.kpi_efficiency_b",
                                       {
                                           ...ns,
-                                          defaultValue: "Health B: {{value}}Ã—",
+                                          defaultValue: "Health B: {{value}}×",
                                           value: Number(
                                               section.efficiencyB.toFixed(2)
                                           ),
@@ -453,7 +453,7 @@ export function UtilizationSectionView({
                     <Eyebrow icon={Award}>
                         {t("credit_portfolio_health.top_customers_title", {
                             ...ns,
-                            defaultValue: "Coverage â€” 10 largest customers",
+                            defaultValue: "Coverage — 10 largest customers",
                         })}
                     </Eyebrow>
                     <div style={{ width: "100%", height: topChartHeight }}>
@@ -559,7 +559,7 @@ export function UtilizationSectionView({
                 </div>
                 <div className={layout.dividerTop}>
                     {section.averageTopUpUtilizationPct == null ? (
-                        <span style={{ color: CPH.muted }}>â€”</span>
+                        <span style={{ color: CPH.muted }}>—</span>
                     ) : (
                         <BigNumber
                             value={section.averageTopUpUtilizationPct}

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -39,7 +39,7 @@ const CURRENCY_SUBUNITS: Record<
     string,
     { factor: number; en: string; he: string }
 > = {
-    ILS: { factor: 100, en: "agorot", he: "××’×•×¨×•×ª" },
+    ILS: { factor: 100, en: "agorot", he: "אגורות" },
 };
 
 function getCurrencySymbol(currencyCode: string): string {
@@ -128,7 +128,7 @@ export function CostsSectionView({ section }: CostsSectionViewProps) {
                 </Eyebrow>
                 {section.effectiveCost == null ? (
                     <span className="text-3xl" style={{ color: CPH.muted }}>
-                        â€”
+                        —
                     </span>
                 ) : useSubunit && subunit ? (
                     <BigNumber
@@ -204,7 +204,7 @@ export function CostsSectionView({ section }: CostsSectionViewProps) {
                         defaultValue: "Not configured yet",
                     })}
                 >
-                    â€”
+                    —
                 </div>
                 <div className="mt-1 text-sm" style={{ color: CPH.slate }}>
                     {t("credit_portfolio_health.kpi_deductible_help", {
@@ -260,7 +260,7 @@ export function CostsSectionView({ section }: CostsSectionViewProps) {
                         </ResponsiveContainer>
                     </div>
                 ) : (
-                    <span style={{ color: CPH.muted }}>â€”</span>
+                    <span style={{ color: CPH.muted }}>—</span>
                 )}
             </IslandCard>
 

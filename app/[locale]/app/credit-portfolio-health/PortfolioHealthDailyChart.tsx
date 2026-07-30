@@ -2,18 +2,19 @@
 
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Layers } from "lucide-react";
+import { Activity } from "lucide-react";
 import {
     CartesianGrid,
-    ComposedChart,
     Line,
+    LineChart,
+    ReferenceLine,
     ResponsiveContainer,
     Tooltip,
     XAxis,
     YAxis,
 } from "recharts";
 
-import type { PortfolioHealthMonthlyPoint } from "@/types/creditInsurance";
+import type { PortfolioHealthDailyPoint } from "@/types/creditInsurance";
 
 import { ChartTooltip } from "./ChartTooltip";
 import { Eyebrow } from "./Eyebrow";
@@ -22,30 +23,35 @@ import { CPH } from "./designTokens";
 import layout from "./islandLayout.module.css";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
-export type PortfolioHealthMonthlyChartProps = {
-    monthly: PortfolioHealthMonthlyPoint[];
+export type PortfolioHealthDailyChartProps = {
+    daily: PortfolioHealthDailyPoint[];
+    averageHealthPct: number;
 };
 
-function formatMonthLabel(month: string, language: string): string {
-    const [y, m] = month.split("-").map(Number);
-    if (!y || !m) {
-        return month;
+function formatDayLabel(ymd: string, language: string): string {
+    const date = new Date(`${ymd}T12:00:00.000Z`);
+    if (Number.isNaN(date.getTime())) {
+        return ymd;
     }
     const locale = language.startsWith("he") ? "he-IL" : "en-US";
-    return new Date(y, m - 1, 1).toLocaleDateString(locale, {
+    return date.toLocaleDateString(locale, {
         month: "short",
-        year: "2-digit",
+        day: "numeric",
     });
 }
 
-function formatAmount(value: number, language: string): string {
+function formatPct(value: number, language: string): string {
     const locale = language.startsWith("he") ? "he-IL" : "en-US";
-    return value.toLocaleString(locale, { maximumFractionDigits: 0 });
+    return `${value.toLocaleString(locale, {
+        maximumFractionDigits: 1,
+        minimumFractionDigits: 0,
+    })}%`;
 }
 
-export function PortfolioHealthMonthlyChart({
-    monthly,
-}: PortfolioHealthMonthlyChartProps) {
+export function PortfolioHealthDailyChart({
+    daily,
+    averageHealthPct,
+}: PortfolioHealthDailyChartProps) {
     const { i18n, t } = useTranslation(["dashboard"]);
     const language = i18n.language;
     const ns = { ns: "dashboard" as const };
@@ -54,45 +60,32 @@ export function PortfolioHealthMonthlyChart({
 
     const data = useMemo(
         () =>
-            monthly.map((p) => ({
-                month: p.month,
-                label: formatMonthLabel(p.month, language),
-                total: p.totalReceivables,
-                covered: p.compliantExposure,
-                uncovered: p.atRiskExposure,
+            daily.map((point) => ({
+                date: point.snapshotDate,
+                label: formatDayLabel(point.snapshotDate, language),
+                health: point.healthIndex,
             })),
-        [monthly, language]
+        [daily, language]
     );
 
-    const seriesLabels = {
-        covered: t("credit_portfolio_health.chart_series_covered", {
-            ...ns,
-            defaultValue: "Covered",
-        }),
-        uncovered: t("credit_portfolio_health.chart_series_uncovered", {
-            ...ns,
-            defaultValue: "Uncovered",
-        }),
-        total: t("credit_portfolio_health.chart_series_total_ar", {
-            ...ns,
-            defaultValue: "Total AR",
-        }),
-    };
+    const avgLabel = t("credit_portfolio_health.chart_avg_health_ref", {
+        ...ns,
+        defaultValue: "Period avg. health",
+    });
 
     return (
         <IslandCard accent="jade" className={layout.cardPad}>
             <Eyebrow
-                icon={Layers}
-                help={t("credit_portfolio_health.monthly_chart_help", {
+                icon={Activity}
+                help={t("credit_portfolio_health.daily_health_chart_help", {
                     ...ns,
                     defaultValue:
-                        "Average daily open AR, compliant (covered), and at-risk (uncovered) amounts per calendar month in the selected range.",
+                        "Daily portfolio health (compliant AR ÷ total open AR × 100). The reference line is the period average over available days.",
                 })}
             >
-                {t("credit_portfolio_health.monthly_chart_title", {
+                {t("credit_portfolio_health.daily_health_chart_title", {
                     ...ns,
-                    defaultValue:
-                        "Monthly trend — total exposure, covered vs. uncovered",
+                    defaultValue: "Daily avg. health",
                 })}
             </Eyebrow>
 
@@ -110,9 +103,9 @@ export function PortfolioHealthMonthlyChart({
                     })}
                 </p>
             ) : (
-                <div style={{ width: "100%", height: 280 }}>
+                <div style={{ width: "100%", height: 260 }}>
                     <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart
+                        <LineChart
                             data={data}
                             margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
                         >
@@ -126,55 +119,56 @@ export function PortfolioHealthMonthlyChart({
                                 tick={{ fill: CPH.slate, fontSize: 12 }}
                                 axisLine={{ stroke: CPH.border }}
                                 tickLine={false}
+                                interval="preserveStartEnd"
+                                minTickGap={28}
                             />
                             <YAxis
                                 tick={{ fill: CPH.slate, fontSize: 12 }}
                                 axisLine={false}
                                 tickLine={false}
-                                width={64}
+                                width={48}
+                                domain={[0, 100]}
                                 tickFormatter={(v: number) =>
-                                    formatAmount(v, language)
+                                    formatPct(v, language)
                                 }
                             />
                             <Tooltip
                                 content={
                                     <ChartTooltip
                                         formatValue={(v) =>
-                                            formatAmount(v, language)
+                                            formatPct(v, language)
                                         }
                                     />
                                 }
                             />
-                            <Line
-                                type="monotone"
-                                dataKey="covered"
-                                name={seriesLabels.covered}
-                                stroke={CPH.jade}
-                                strokeWidth={2}
-                                dot={false}
-                                animationDuration={animDuration}
-                            />
-                            <Line
-                                type="monotone"
-                                dataKey="uncovered"
-                                name={seriesLabels.uncovered}
+                            <ReferenceLine
+                                y={averageHealthPct}
                                 stroke={CPH.copper}
-                                strokeWidth={2}
-                                dot={false}
-                                animationDuration={animDuration}
-                                animationBegin={prefersReducedMotion ? 0 : 150}
+                                strokeDasharray="6 4"
+                                strokeWidth={1.5}
+                                label={{
+                                    value: avgLabel,
+                                    fill: CPH.copper,
+                                    fontSize: 11,
+                                    position: "insideTopRight",
+                                }}
                             />
                             <Line
                                 type="monotone"
-                                dataKey="total"
-                                name={seriesLabels.total}
-                                stroke={CPH.ink}
-                                strokeWidth={2}
+                                dataKey="health"
+                                name={t(
+                                    "credit_portfolio_health.chart_daily_health",
+                                    {
+                                        ...ns,
+                                        defaultValue: "Avg. health",
+                                    }
+                                )}
+                                stroke={CPH.jade}
+                                strokeWidth={2.5}
                                 dot={false}
                                 animationDuration={animDuration}
-                                animationBegin={prefersReducedMotion ? 0 : 250}
                             />
-                        </ComposedChart>
+                        </LineChart>
                     </ResponsiveContainer>
                 </div>
             )}

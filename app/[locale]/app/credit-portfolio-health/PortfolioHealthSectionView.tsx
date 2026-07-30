@@ -16,10 +16,9 @@ import { BigNumber } from "./BigNumber";
 import { CoverageHalo } from "./CoverageHalo";
 import { Eyebrow } from "./Eyebrow";
 import { IslandCard } from "./IslandCard";
+import { PortfolioHealthDailyChart } from "./PortfolioHealthDailyChart";
 import { PortfolioHealthMonthlyChart } from "./PortfolioHealthMonthlyChart";
-import { StatNumber } from "./StatNumber";
 import { CPH } from "./designTokens";
-import { SPACE_GROTESK_FONT_FAMILY } from "./fontTokens";
 import layout from "./islandLayout.module.css";
 
 export type PortfolioHealthSectionViewProps = {
@@ -88,6 +87,19 @@ export function PortfolioHealthSectionView({
                 accent="jade"
                 className={`${layout.span12} ${layout.lgSpan4} ${layout.haloCard}`}
             >
+                <Eyebrow
+                    centered
+                    help={t("credit_portfolio_health.kpi_average_health_help", {
+                        ...ns,
+                        defaultValue:
+                            "Mean of daily portfolio health (compliant ÷ total AR × 100) over available days in the range.",
+                    })}
+                >
+                    {t("credit_portfolio_health.kpi_average_health", {
+                        ...ns,
+                        defaultValue: "Average portfolio health",
+                    })}
+                </Eyebrow>
                 <CoverageHalo
                     valuePct={section.seriesA.averageHealthPct}
                     label={t("credit_portfolio_health.coverage_halo_avg_label", {
@@ -96,71 +108,6 @@ export function PortfolioHealthSectionView({
                     })}
                     locale={language}
                 />
-                <div className={layout.miniRow}>
-                    <div
-                        className={layout.miniTile}
-                        style={{ backgroundColor: CPH.surfaceMuted }}
-                    >
-                        <div
-                            style={{
-                                color: CPH.jade,
-                                fontFamily: SPACE_GROTESK_FONT_FAMILY,
-                                fontSize: 18,
-                                fontWeight: 600,
-                            }}
-                        >
-                            <StatNumber
-                                value={section.seriesA.averageHealthPct}
-                                suffix="%"
-                                locale={language}
-                                color={CPH.jade}
-                            />
-                        </div>
-                        <div
-                            style={{
-                                marginTop: 2,
-                                fontSize: 11,
-                                color: CPH.slate,
-                            }}
-                        >
-                            {t("credit_portfolio_health.series_a_short", {
-                                ...ns,
-                                defaultValue: "Health A",
-                            })}
-                        </div>
-                    </div>
-                    <div
-                        className={layout.miniTile}
-                        style={{ backgroundColor: CPH.surfaceMuted }}
-                    >
-                        <div
-                            style={{
-                                color: CPH.ink,
-                                fontFamily: SPACE_GROTESK_FONT_FAMILY,
-                                fontSize: 18,
-                                fontWeight: 600,
-                            }}
-                        >
-                            <StatNumber
-                                value={section.seriesB.averageHealthPct}
-                                suffix="%"
-                                locale={language}
-                            />
-                        </div>
-                        <div
-                            style={{
-                                marginTop: 2,
-                                fontSize: 11,
-                                color: CPH.slate,
-                            }}
-                        >
-                            {t("credit_portfolio_health.series_b_short", {
-                                ...ns,
-                                defaultValue: "Health B",
-                            })}
-                        </div>
-                    </div>
-                </div>
             </IslandCard>
 
             <IslandCard
@@ -187,10 +134,6 @@ export function PortfolioHealthSectionView({
                     label={troughSub}
                     color={CPH.copper}
                     locale={language}
-                    sub={t("credit_portfolio_health.series_a_short", {
-                        ...ns,
-                        defaultValue: "Health A",
-                    })}
                 />
             </IslandCard>
 
@@ -224,19 +167,18 @@ export function PortfolioHealthSectionView({
                     )}
                     color={CPH.critical}
                     locale={language}
-                    sub={t("credit_portfolio_health.series_b_below_note", {
-                        ...ns,
-                        defaultValue: "Health B: {{pct}}%",
-                        pct: Number(section.seriesB.pctDaysBelow85.toFixed(1)),
-                    })}
                 />
             </IslandCard>
 
             <div className={layout.span12}>
-                <PortfolioHealthMonthlyChart
-                    monthlyA={section.monthlyA}
-                    monthlyB={section.monthlyB}
+                <PortfolioHealthDailyChart
+                    daily={section.dailyA}
+                    averageHealthPct={section.seriesA.averageHealthPct}
                 />
+            </div>
+
+            <div className={layout.span12}>
+                <PortfolioHealthMonthlyChart monthly={section.monthlyA} />
             </div>
         </div>
     );
