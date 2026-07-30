@@ -52,6 +52,13 @@ const PortalHeader: React.FC<PortalHeaderProps> = ({
                     return;
                 }
 
+                // The portal API signs the logo server-side, since an anonymous
+                // visitor cannot call the authenticated presign endpoint.
+                if (typeof logo === "string" && /^https?:\/\//i.test(logo)) {
+                    setProcessedLogo(logo);
+                    return;
+                }
+
                 // If it's an S3 file path, get presigned URL (with caching)
                 if (
                     typeof logo === "string" &&

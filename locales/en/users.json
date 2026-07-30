@@ -90,6 +90,7 @@
         "status_inactive": "Inactive",
         "status_unnamed_user": "Unnamed User",
         "portal_user": "Portal User",
+        "unknown_user": "Unknown User",
         "filters_search_users": "Search users",
         "empty": "No users found",
         "empty_description": "Try adjusting your search criteria",

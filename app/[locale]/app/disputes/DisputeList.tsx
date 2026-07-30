@@ -10,7 +10,7 @@ import {
     Gavel as GavelIcon,
 } from "@mui/icons-material";
 import { Box, Skeleton } from "@mui/material";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import React, {
     useState,
     useCallback,
@@ -30,6 +30,7 @@ import PageHeader from "@/components/PageHeader";
 import { ViewBasedDataGrid } from "@/shared/components/ViewBasedDataGrid";
 import DeleteDialog from "@/shared/layout-components/modal/DeleteDialog";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
+import { fetchDisputeStats } from "@/shared/services/disputeService";
 import { clearDisputeNotifications } from "@/shared/services/notificationService";
 import {
     formatDateForDisplay,
@@ -54,6 +55,16 @@ const DisputeList: React.FC<DisputeListProps> = ({ title, description }) => {
     const queryClient = useQueryClient();
     const { success, error: showError } = useToast();
     const theme = useTheme();
+
+    // Prefer account currency from stats (works without re-login); session is
+    // the long-term source once JWT carries Account.currency again.
+    const { data: disputeStatsPayload } = useQuery({
+        queryKey: ["disputeStats", {}],
+        queryFn: fetchDisputeStats,
+        refetchOnWindowFocus: false,
+    });
+    const accountCurrency =
+        disputeStatsPayload?.stats?.currency || session?.user?.currency;
 
     const [search, setSearch] = useState("");
     const [selectedViewId, setSelectedViewId] = useState<number | null>(null);
@@ -494,9 +505,7 @@ const DisputeList: React.FC<DisputeListProps> = ({ title, description }) => {
                                                         ?.totalAmount || 0,
                                                     resolveCustomerFirstCurrency(
                                                         {
-                                                            accountCurrency:
-                                                                session?.user
-                                                                    ?.currency,
+                                                            accountCurrency,
                                                         }
                                                     ),
                                                     getUserDateLocale(session),

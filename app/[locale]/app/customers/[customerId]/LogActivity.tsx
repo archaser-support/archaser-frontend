@@ -342,6 +342,8 @@ const LogActivity: React.FC<LogActivityProps> = ({
     });
 
     const [loading, setLoading] = useState<boolean>(false);
+    /** Save failures used to be swallowed, so the dialog just closed silently. */
+    const [saveError, setSaveError] = useState<string | null>(null);
 
     // Add file upload state
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -488,55 +490,48 @@ const LogActivity: React.FC<LogActivityProps> = ({
 
     const {
         data: invoiceResponse,
+        isError: invoicesFailed,
     } = useQuery({
         queryKey: queryKeys.invoices,
+        // Errors are deliberately not caught here: swallowing them turned a
+        // failing request into an empty dropdown that read "No invoices
+        // available", which is indistinguishable from a customer having none.
         queryFn: async () => {
-            try {
-                // Use the app API endpoint for invoices available for dispute
-                const response = await apiFetch(`/api/entities/customers/${customer?.id}/invoices-available-for-dispute`,
-                    {
-                        method: "GET",
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
-                        credentials: "include",
-                    }
+            const response = await apiFetch(`/api/entities/customers/${customer?.id}/invoices-available-for-dispute`,
+                {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    credentials: "include",
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `HTTP ${response.status}: ${response.statusText}`
                 );
-
-                if (!response.ok) {
-                    throw new Error(
-                        `HTTP ${response.status}: ${response.statusText}`
-                    );
-                }
-
-                const data = await response.json();
-
-                // The API endpoint returns serializeBigInt(availableInvoices) which should be an array
-                // But handle both array and object responses
-                let invoices: any[] = [];
-                if (Array.isArray(data)) {
-                    invoices = data;
-                } else if (data && typeof data === "object" && data !== null) {
-                    // Check for common response structures
-                    if (Array.isArray(data.invoices)) {
-                        invoices = data.invoices;
-                    } else if (Array.isArray(data.data)) {
-                        invoices = data.data;
-                    } else if (Array.isArray(data.results)) {
-                        invoices = data.results;
-                    }
-                }
-
-                return {
-                    invoices,
-                    totalRecords: invoices.length,
-                };
-            } catch (error) {
-                return {
-                    invoices: [],
-                    totalRecords: 0,
-                };
             }
+
+            const data = await response.json();
+
+            let invoices: any[] = [];
+            if (Array.isArray(data)) {
+                invoices = data;
+            } else if (data && typeof data === "object" && data !== null) {
+                if (Array.isArray(data.invoices)) {
+                    invoices = data.invoices;
+                } else if (Array.isArray(data.data)) {
+                    invoices = data.data;
+                } else if (Array.isArray(data.results)) {
+                    invoices = data.results;
+                }
+            }
+
+            return {
+                invoices,
+                totalRecords: invoices.length,
+            };
         },
         enabled: queryEnabled.invoices,
         placeholderData: { invoices: [], totalRecords: 0 },
@@ -856,7 +851,7 @@ const LogActivity: React.FC<LogActivityProps> = ({
                 let activityData;
                 try {
                     const response = await api.post(
-                        `/customers/${customer.id}/activity/log-call-activity`,
+                        `/entities/customers/${customer.id}/activity/log-call-activity`,
                         requestBody
                     );
                     activityData = response.data;
@@ -874,7 +869,7 @@ const LogActivity: React.FC<LogActivityProps> = ({
                 ) {
                     try {
                         const activityResponse = await api.get(
-                            `/customers/${customer.id}/activity?limit=1&sort=created_at:desc`
+                            `/entities/customers/${customer.id}/activity?limit=1&sort=created_at:desc`
                         );
                         const activityResult = activityResponse.data;
 
@@ -975,6 +970,7 @@ const LogActivity: React.FC<LogActivityProps> = ({
         }
 
         setLoading(true);
+        setSaveError(null);
 
         try {
 
@@ -1090,8 +1086,12 @@ const LogActivity: React.FC<LogActivityProps> = ({
             // Clear all form fields so next time the modal opens it is empty
             resetFormFields();
             toggleOpen();
-        } catch (_error) {
-            // Ignore error, as we'll handle it later
+        } catch (error) {
+            setSaveError(
+                error instanceof Error
+                    ? error.message
+                    : t("messages.error", { ns: "common" })
+            );
         } finally {
             setLoading(false);
         }
@@ -1969,6 +1969,16 @@ const LogActivity: React.FC<LogActivityProps> = ({
                         }}
                     >
                         <Stack spacing={{ xs: 1.5, sm: 2 }}>
+                            {saveError && (
+                                <Typography
+                                    color="error"
+                                    variant="body2"
+                                    role="alert"
+                                    sx={{ fontSize: "0.875rem" }}
+                                >
+                                    {saveError}
+                                </Typography>
+                            )}
                             <Box
                                 sx={{
                                     display: "flex",
@@ -2113,10 +2123,6 @@ const LogActivity: React.FC<LogActivityProps> = ({
                                                                     ns: "activities",
                                                                 }
                                                             )
-                                                    }
-                                                    disabled={
-                                                        !isCalling &&
-                                                        !selectedContact
                                                     }
                                                 >
                                                     {isCalling ? (
@@ -2723,19 +2729,26 @@ const LogActivity: React.FC<LogActivityProps> = ({
                                                                     "center",
                                                             }}
                                                         >
-                                                            {invoiceSearchTerm
+                                                            {invoicesFailed
                                                                 ? t(
-                                                                    "fields.log_activity_no_invoices_found",
+                                                                    "messages.error",
                                                                     {
-                                                                        ns: "activities",
+                                                                        ns: "common",
                                                                     }
                                                                 )
-                                                                : t(
-                                                                    "fields.log_activity_no_invoices_available",
-                                                                    {
-                                                                        ns: "activities",
-                                                                    }
-                                                                )}
+                                                                : invoiceSearchTerm
+                                                                    ? t(
+                                                                        "fields.log_activity_no_invoices_found",
+                                                                        {
+                                                                            ns: "activities",
+                                                                        }
+                                                                    )
+                                                                    : t(
+                                                                        "fields.log_activity_no_invoices_available",
+                                                                        {
+                                                                            ns: "activities",
+                                                                        }
+                                                                    )}
                                                         </MenuItem>
                                                     )}
                                                 </Select>

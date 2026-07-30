@@ -264,18 +264,47 @@ const parseTitleParams = (
     return raw;
 };
 
+const isOpaqueActor = (value: unknown): boolean => {
+    const actor = String(value ?? "")
+        .trim()
+        .toLowerCase();
+    if (!actor) {
+        return true;
+    }
+    return (
+        actor === "system" ||
+        actor === "system_user" ||
+        actor === "portal_user" ||
+        (actor.includes("-") && actor.length > 20)
+    );
+};
+
+/**
+ * Titles interpolate `{{userId}}`, but the stored id is a UUID. `title_params`
+ * also carries `userName`, so swap it in rather than showing the raw id.
+ */
+const withResolvedActor = (
+    params: Record<string, unknown> | undefined
+): Record<string, unknown> | undefined => {
+    if (!params?.userName || !isOpaqueActor(params.userId)) {
+        return params;
+    }
+    return { ...params, userId: params.userName };
+};
+
 const formatActivityTitle = (
     detail: TimelineDetail,
     t: (_key: string, _params?: Record<string, unknown>) => string
 ): string => {
+    const params = withResolvedActor(parseTitleParams(detail.title_params));
     if (!detail.title) {
-        return "";
+        // Pre-fix call rows were written without a title. Without this the row
+        // renders as a blank line with only a timestamp and an icon.
+        return detail.badgeText === "Call"
+            ? t("fields.activity_call_activity", { ns: "activities" })
+            : "";
     }
-    return translateStoredI18nKey(
-        String(detail.title),
-        t,
-        parseTitleParams(detail.title_params)
-    );
+    return translateStoredI18nKey(String(detail.title), t, params);
 };
 
 // Function to detect if an activity is failed
@@ -822,9 +851,22 @@ const CollapsibleDetail = memo(
             return resolveI18nPlaceholders(
                 detail.description,
                 t,
-                parseTitleParams(detail.title_params)
+                parseTitleParams(detail.title_params),
+                {
+                    // Date-only values carry no time, so converting them to the
+                    // user's timezone would only risk shifting the day.
+                    formatDate: (date, kind) =>
+                        formatDateForDisplay(
+                            date,
+                            kind,
+                            getUserDateLocale(session),
+                            kind === "datetime"
+                                ? getUserTimezone(session)
+                                : undefined
+                        ),
+                }
             );
-        }, [detail.description, detail.title_params, t]);
+        }, [detail.description, detail.title_params, t, session]);
 
         const hasContent = translatedContent && translatedContent.trim();
         // Use explicit px — numeric sx borderRadius is multiplied by theme.shape.borderRadius (4),
