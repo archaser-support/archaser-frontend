@@ -27,6 +27,7 @@ import EndlessScrollDataGrid, {
 } from "@/shared/layout-components/grid/EndlessScrollDataGrid";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import { getFirstAccessiblePage } from "@/shared/utils/navigation";
+import { isSyntheticAuditUser } from "@/shared/utils/userVisibility";
 
 interface UserFormData {
     id?: string;
@@ -45,6 +46,7 @@ interface User extends UserFormData {
     id: string;
     lastLogin?: string;
     name?: string;
+    is_audit_user?: boolean;
     business_unit_id?: number | null;
     BusinessUnit?: {
         id: number;
@@ -299,12 +301,19 @@ export default function UserList({
             }
 
             const result = await response.json();
+            const fetchedUsers: User[] = result.users || [];
+            const visibleUsers = fetchedUsers.filter(
+                (user) => !isSyntheticAuditUser(user)
+            );
+            const hiddenCount = fetchedUsers.length - visibleUsers.length;
 
             // Transform the API response to match the expected format
             return {
-                data: result.users || [],
-                totalRecords: result.total || 0,
-                hasMore: result.users && result.users.length === 10, // Assuming 10 is the limit
+                data: visibleUsers,
+                totalRecords: Math.max(0, (result.total || 0) - hiddenCount),
+                // Use the unfiltered page length: a page containing only hidden
+                // actors must not prematurely stop infinite scrolling.
+                hasMore: fetchedUsers.length === 10,
             };
         },
     });

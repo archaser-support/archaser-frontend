@@ -70,14 +70,21 @@ export function CostsSectionView({ section }: CostsSectionViewProps) {
     const animDuration = prefersReducedMotion ? 0 : 1200;
     const currency = section.accountCurrency || "USD";
 
-    const sparklineData = useMemo(
-        () =>
-            section.daily.map((point) => ({
-                date: point.snapshotDate,
-                cost: point.totalDailyCost,
-            })),
-        [section.daily]
-    );
+    // The range-cost model dropped the daily cost series, so the trend is drawn
+    // from the calendar-month costs the API still reports. `daily` is kept as a
+    // fallback for responses predating that change.
+    const sparklineData = useMemo(() => {
+        if (section.monthly.length > 0) {
+            return section.monthly.map((point) => ({
+                date: point.month,
+                cost: point.totalCost,
+            }));
+        }
+        return section.daily.map((point) => ({
+            date: point.snapshotDate,
+            cost: point.totalDailyCost,
+        }));
+    }, [section.monthly, section.daily]);
 
     const showSparkline = sparklineData.length >= 1;
     const subunit = CURRENCY_SUBUNITS[currency];
@@ -245,10 +252,10 @@ export function CostsSectionView({ section }: CostsSectionViewProps) {
                                     type="monotone"
                                     dataKey="cost"
                                     name={t(
-                                        "credit_portfolio_health.chart_daily_cost",
+                                        "credit_portfolio_health.chart_monthly_cost",
                                         {
                                             ...ns,
-                                            defaultValue: "Daily cost",
+                                            defaultValue: "Policy cost",
                                         }
                                     )}
                                     stroke={CPH.jade}
