@@ -3,6 +3,20 @@
  */
 
 /**
+ * Format a dispute id for display (e.g. 726 → "DIS-000726").
+ */
+export function formatDisputeNumber(id: number | string | null | undefined): string {
+    if (id == null || id === "") {
+        return "";
+    }
+    const numeric = typeof id === "number" ? id : Number(id);
+    if (Number.isFinite(numeric)) {
+        return `DIS-${String(numeric).padStart(6, "0")}`;
+    }
+    return `DIS-${String(id)}`;
+}
+
+/**
  * Format dispute status enum values to user-friendly display names
  * @param status - Raw database enum value (e.g., "Under_Review")
  * @returns Formatted display name (e.g., "Under Review")

@@ -9,7 +9,7 @@ import {
     AttachMoney as MoneyIcon,
     Gavel as GavelIcon,
 } from "@mui/icons-material";
-import { Box, Skeleton } from "@mui/material";
+import { Box, Skeleton, Typography } from "@mui/material";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import React, {
     useState,
@@ -33,12 +33,9 @@ import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import { fetchDisputeStats } from "@/shared/services/disputeService";
 import { clearDisputeNotifications } from "@/shared/services/notificationService";
 import {
-    formatDateForDisplay,
     getUserDateLocale,
-    getUserTimezone,
 } from "@/utils/datetimeOperations";
 import {
-    formatAmountWithoutSymbol,
     formatCurrencyWithRTLSupport,
     resolveCustomerFirstCurrency,
 } from "@/utils/stringFormatters";
@@ -311,6 +308,64 @@ const DisputeList: React.FC<DisputeListProps> = ({ title, description }) => {
         });
     }, []);
 
+    const amountInDisputeRenderer = useCallback(
+        (params: any) => {
+            const raw =
+                params?.value ??
+                params?.row?.["Dispute.amount_in_dispute"] ??
+                params?.row?.amount_in_dispute ??
+                0;
+            let amount =
+                typeof raw === "number" ? raw : Number(raw);
+            if (!Number.isFinite(amount) && typeof raw === "string") {
+                amount = parseFloat(raw.replace(/[^0-9.-]/g, "")) || 0;
+            }
+            if (!Number.isFinite(amount)) {
+                amount = 0;
+            }
+            const currency = resolveCustomerFirstCurrency({
+                accountCurrency,
+            });
+            const formattedAmount = formatCurrencyWithRTLSupport(
+                amount,
+                currency,
+                getUserDateLocale(session),
+                i18n.language
+            );
+            const isRTL = i18n.language === "he";
+            return (
+                <Box
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        height: "100%",
+                        width: "100%",
+                    }}
+                >
+                    <Typography
+                        variant="body2"
+                        sx={{
+                            direction: isRTL ? "rtl" : "ltr",
+                            textAlign: isRTL ? "right" : "left",
+                            unicodeBidi: isRTL ? "plaintext" : "normal",
+                        }}
+                    >
+                        {formattedAmount}
+                    </Typography>
+                </Box>
+            );
+        },
+        [accountCurrency, session, i18n.language]
+    );
+
+    const customCellRenderers = useMemo(
+        () => ({
+            amount_in_dispute: amountInDisputeRenderer,
+            "Dispute.amount_in_dispute": amountInDisputeRenderer,
+        }),
+        [amountInDisputeRenderer]
+    );
+
     return (
         <InternalPageWrapper>
             <Box
@@ -574,6 +629,7 @@ const DisputeList: React.FC<DisputeListProps> = ({ title, description }) => {
                         onSelectedRowsChange={setSelectedRows}
                         onDeleteView={handleDeleteView}
                         enableMultiSelect={false}
+                        customCellRenderers={customCellRenderers}
                     />
                 </Box>
 

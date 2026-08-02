@@ -34,6 +34,7 @@ import RTLGridLayout, { RTLGridItem } from "@/components/RTLGridLayout";
 import { useMobileDetection } from "@/shared/hooks/useMobileDetection";
 import { PortalInvoice } from "@/types/PortalInvoice";
 import { formatDateForDisplay } from "@/utils/datetimeOperations";
+import { formatDisputeNumber } from "@/utils/disputeFormatters";
 
 import DisputeInvoiceTable from "./DisputeInvoiceTable";
 
@@ -346,7 +347,7 @@ export default function DisputeAccordion({
                                                             : "left",
                                                 }}
                                             >
-                                                #{dispute.id}
+                                                {formatDisputeNumber(dispute.id)}
                                             </Typography>
                                         </Box>
 

@@ -38,6 +38,7 @@ import {
     fetchOpenDispute,
     fetchUsers,
 } from "@/shared/services/customerService";
+import { formatDisputeNumber } from "@/utils/disputeFormatters";
 import { Customer } from "@/types/Customer";
 import { OpenDisputeResponse } from "@/types/CustomerDispute";
 import { UserResponse } from "@/types/User";
@@ -704,7 +705,7 @@ const DisputeContainer: React.FC<DisputeContainerProps> = ({
                                                 {t(
                                                     "fields.details_dispute"
                                                 )}{" "}
-                                                #{dispute.id}
+                                                {formatDisputeNumber(dispute.id)}
                                             </Typography>
                                             <Chip
                                                 label={t(
