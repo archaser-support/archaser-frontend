@@ -72,7 +72,11 @@ interface UserDetailsProps {
 }
 
 const UserDetails: React.FC<UserDetailsProps> = ({ userId }) => {
-    const { t, i18n } = useTranslation(["users", "common"]);
+    const { t, i18n } = useTranslation([
+        "users",
+        "common",
+        "security_roles",
+    ]);
     const isHebrewUser = i18n.language === "he";
 
     const theme = useTheme();
@@ -194,27 +198,12 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId }) => {
         staleTime: 2 * 60 * 1000, // Cache for 2 minutes
     });
 
-    // Fetch roles for the account
-    const { data: rolesData } = useQuery<{
-        roles: Array<{ role: string; permissionCount: number }>;
-    }>({
-        queryKey: ["roles", effectiveAccountId],
-        queryFn: async () => {
-            const response = await api.get("/roles", {
-                params: { accountId: effectiveAccountId },
-            });
-            return response.data;
-        },
-        enabled: effectiveAccountId > 0,
-        staleTime: 2 * 60 * 1000, // Cache for 2 minutes
-    });
-
     const userPermissions = userPermissionsData?.permissions || [];
     const hasManageUsersPermission = userPermissions.includes("manage_users");
 
     const isSystemOrArchaserAdmin = useMemo(() => {
         const role = session?.user?.role;
-        const accountId = session?.user?.account_id;
+        const accountId = Number(session?.user?.account_id);
         return (
             accountId === 10013 ||
             role === "archaser_admin" ||
@@ -223,6 +212,58 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId }) => {
             role === "System Administrator"
         );
     }, [session?.user?.role, session?.user?.account_id]);
+
+    const canAssignRole = useMemo(() => {
+        const role = session?.user?.role;
+        const accountId = Number(session?.user?.account_id);
+        return (
+            isSystemOrArchaserAdmin ||
+            hasManageUsersPermission ||
+            accountId === 10013 ||
+            role === "archaser_admin" ||
+            role === "ARchaser Admin" ||
+            role === "Admin" ||
+            role === "Collection_Manager" ||
+            role === "Collection Manager" ||
+            role === "Account_Manager" ||
+            role === "System_Administrator" ||
+            role === "System Administrator"
+        );
+    }, [
+        isSystemOrArchaserAdmin,
+        hasManageUsersPermission,
+        session?.user?.role,
+        session?.user?.account_id,
+    ]);
+
+    // Fetch roles for the account
+    const {
+        data: rolesData,
+        isError: rolesLoadError,
+        isFetched: rolesFetched,
+    } = useQuery<{
+        roles: Array<{ role: string; permissionCount: number }>;
+    }>({
+        queryKey: ["roles", effectiveAccountId],
+        queryFn: async () => {
+            const response = await api.get("/roles", {
+                params: { accountId: effectiveAccountId },
+            });
+            const payload = response.data;
+            // Support both `{ roles: [...] }` and a bare array.
+            if (Array.isArray(payload)) {
+                return { roles: payload };
+            }
+            if (Array.isArray(payload?.roles)) {
+                return { roles: payload.roles };
+            }
+            return { roles: [] };
+        },
+        enabled: effectiveAccountId > 0,
+        // Avoid sticky empty cache after product-flag filter fixes / failed loads.
+        staleTime: 0,
+        refetchOnMount: "always",
+    });
 
     // Fetch business units for dropdown - fetch all (not just active) when editing existing user
     const { data: businessUnitsData } = useQuery({
@@ -260,7 +301,8 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId }) => {
 
     // Extract role names from the API response, filtering based on business unit
     const availableRoles = useMemo(() => {
-        if (!rolesData?.roles) return [];
+        const rawRoles = Array.isArray(rolesData?.roles) ? rolesData.roles : [];
+        if (rawRoles.length === 0) return [];
 
         // Get the selected business unit
         const selectedBU = editedUser.business_unit_id
@@ -268,27 +310,36 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId }) => {
             : null;
 
         // Filter roles based on business unit
-        return rolesData.roles
-            .map((role) => role.role)
-            .filter((role) => {
+        return rawRoles
+            .map((role) =>
+                typeof role === "string"
+                    ? role
+                    : typeof role?.role === "string"
+                      ? role.role
+                      : ""
+            )
+            .filter((role): role is string => {
+                if (!role) return false;
                 // Hide System_Administrator if business unit is not primary
                 if (role === "System_Administrator") {
-                    // Only show if the selected BU is primary
+                    // Only show if the selected BU is primary (or BU not loaded yet — still allow)
+                    if (!editedUser.business_unit_id) return true;
                     return selectedBU?.is_primary === true;
                 }
                 return true;
             });
     }, [rolesData, editedUser.business_unit_id, businessUnits]);
 
-    // Auto-select business unit when creating a new user and there's only one BU (the primary BU)
+    // Auto-select business unit when creating a new user:
+    // - single BU → that BU
+    // - multiple BUs → primary BU when present (Role dropdown needs a BU selected)
     useEffect(() => {
-        if (
-            isNewUser &&
-            businessUnits.length === 1 &&
-            !editedUser.business_unit_id
-        ) {
-            // Set the primary business unit as default
-            const primaryBU = businessUnits[0];
+        if (!isNewUser || editedUser.business_unit_id || businessUnits.length === 0) {
+            return;
+        }
+        const primaryBU =
+            businessUnits.find((bu) => bu.is_primary) || businessUnits[0];
+        if (primaryBU) {
             setEditedUser((prev) => ({
                 ...prev,
                 business_unit_id: primaryBU.id,
@@ -751,7 +802,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId }) => {
 
             const responseData = await response.json();
 
-            if (!response.ok) {
+            if (!response.ok || responseData?.error) {
                 const errorMessage =
                     responseData?.error ||
                     t("messages.toast_failed_to_save_user", { ns: "users" });
@@ -2280,9 +2331,19 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId }) => {
                                             >
                                                 <Autocomplete
                                                     fullWidth
-                                                    options={availableRoles}
+                                                    options={
+                                                        editedUser.role &&
+                                                        !availableRoles.includes(
+                                                            editedUser.role
+                                                        )
+                                                            ? [
+                                                                  ...availableRoles,
+                                                                  editedUser.role,
+                                                              ]
+                                                            : availableRoles
+                                                    }
                                                     value={
-                                                        editedUser.role || ""
+                                                        editedUser.role || null
                                                     }
                                                     onChange={(_, newValue) =>
                                                         handleFieldChange(
@@ -2290,40 +2351,13 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId }) => {
                                                             newValue || ""
                                                         )
                                                     }
+                                                    isOptionEqualToValue={(
+                                                        option,
+                                                        value
+                                                    ) => option === value}
                                                     disabled={
                                                         !isEditing ||
-                                                        !editedUser.business_unit_id ||
-                                                        // Only archaser_admin, Collection_Manager, and System_Administrator can change roles
-                                                        // Temporary backward compatibility: also check for old "Admin" and "Account_Manager" roles during migration
-                                                        !(
-                                                            session?.user
-                                                                ?.role ===
-                                                            "archaser_admin" ||
-                                                            session?.user
-                                                                ?.role ===
-                                                            "ARchaser Admin" ||
-                                                            session?.user
-                                                                ?.role ===
-                                                            "Admin" ||
-                                                            session?.user
-                                                                ?.role ===
-                                                            "Collection_Manager" ||
-                                                            session?.user
-                                                                ?.role ===
-                                                            "Collection Manager" ||
-                                                            session?.user
-                                                                ?.role ===
-                                                            "Account_Manager" ||
-                                                            session?.user
-                                                                ?.role ===
-                                                            "System_Administrator" ||
-                                                            session?.user
-                                                                ?.role ===
-                                                            "System Administrator" ||
-                                                            session?.user
-                                                                ?.account_id ===
-                                                            10013
-                                                        ) ||
+                                                        !canAssignRole ||
                                                         isOwnProfile
                                                     }
                                                     getOptionLabel={(
@@ -2479,7 +2513,28 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId }) => {
                                                                 !!validationErrors.role
                                                             }
                                                             helperText={
-                                                                validationErrors.role
+                                                                validationErrors.role ||
+                                                                (rolesLoadError
+                                                                    ? t(
+                                                                          "errors.loadFailed",
+                                                                          {
+                                                                              ns: "common",
+                                                                              defaultValue:
+                                                                                  "Failed to load roles",
+                                                                          }
+                                                                      )
+                                                                    : rolesFetched &&
+                                                                        availableRoles.length ===
+                                                                            0
+                                                                      ? t(
+                                                                            "errors.noRolesAvailable",
+                                                                            {
+                                                                                ns: "users",
+                                                                                defaultValue:
+                                                                                    "No roles available for this account",
+                                                                            }
+                                                                        )
+                                                                      : undefined)
                                                             }
                                                             {...(i18n.language ===
                                                                 "he" && {

@@ -46,7 +46,8 @@ export default function AccountRoles({ accountId }: AccountRolesProps) {
             return response.data;
         },
         enabled: !isNaN(targetAccountId) && targetAccountId > 0,
-        staleTime: 2 * 60 * 1000, // Cache for 2 minutes
+        staleTime: 0,
+        refetchOnMount: "always",
     });
 
     // Transform roles data for the grid
