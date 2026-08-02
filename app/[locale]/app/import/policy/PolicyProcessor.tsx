@@ -248,7 +248,7 @@ const PolicyProcessor: React.FC = () => {
             }
 
             const result = await response.json();
-            const validationResults = result.data || [];
+            const validationResults = result.items || result.data || [];
             const accessMap = new Map<
                 string,
                 { hasAccess: boolean; externalId: string | null }

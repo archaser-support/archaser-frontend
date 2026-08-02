@@ -1,0 +1,18 @@
+name: FE Nest API parity
+
+on:
+  pull_request:
+  push:
+    branches: [main, master, staging]
+
+jobs:
+  api-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Check FE calls vs vendored Nest OpenAPI
+        run: npm run check:api-parity

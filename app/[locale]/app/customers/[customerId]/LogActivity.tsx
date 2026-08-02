@@ -856,7 +856,7 @@ const LogActivity: React.FC<LogActivityProps> = ({
                 let activityData;
                 try {
                     const response = await api.post(
-                        `/customers/${customer.id}/activity/log-call-activity`,
+                        `/entities/customers/${customer.id}/activity/log-call-activity`,
                         requestBody
                     );
                     activityData = response.data;
@@ -874,7 +874,7 @@ const LogActivity: React.FC<LogActivityProps> = ({
                 ) {
                     try {
                         const activityResponse = await api.get(
-                            `/customers/${customer.id}/activity?limit=1&sort=created_at:desc`
+                            `/entities/customers/${customer.id}/activity?limit=1&sort=created_at:desc`
                         );
                         const activityResult = activityResponse.data;
 

@@ -24,16 +24,18 @@ export default function Comment({ customerId, onCommentAdded }: CommentProps) {
 
         setIsSubmitting(true);
         try {
-            const response = await apiFetch("/api/customers/add-comment", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    customer_id: customerId,
-                    comment: comment.trim(),
-                }),
-            });
+            const response = await apiFetch(
+                `/api/entities/customers/${customerId}/comments`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        comment: comment.trim(),
+                    }),
+                }
+            );
 
             if (!response.ok) {
                 throw new Error("Failed to add comment");

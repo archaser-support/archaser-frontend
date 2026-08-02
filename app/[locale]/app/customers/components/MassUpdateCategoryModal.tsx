@@ -123,7 +123,7 @@ const MassUpdateCategoryModal: React.FC<MassUpdateCategoryModalProps> = ({
                     !raw.current_category
                 ) {
                     try {
-                        const cpResponse = await apiFetch(`/api/entities/customer/${customerId}?include=collectionPeriod`
+                        const cpResponse = await apiFetch(`/api/entities/customers/${customerId}?include=collectionPeriod`
                         );
                         if (cpResponse.ok) {
                             const cpData = await cpResponse.json();

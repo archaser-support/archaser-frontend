@@ -148,7 +148,7 @@ const SystemHealthContainer = () => {
                 );
             }
             const result = await response.json();
-            return result.data;
+            return result.data ?? result;
         },
         refetchInterval: 60000, // Refetch every minute (60 seconds)
         refetchIntervalInBackground: true, // Continue refetching when tab is in background
