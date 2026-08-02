@@ -90,6 +90,7 @@
         "status_inactive": "לא פעיל",
         "status_unnamed_user": "משתמש ללא שם",
         "portal_user": "משתמש פורטל",
+        "unknown_user": "משתמש לא ידוע",
         "filters_search_users": "חפש משתמשים",
         "empty": "לא נמצאו משתמשים",
         "empty_description": "נסה להתאים את קריטריוני החיפוש",

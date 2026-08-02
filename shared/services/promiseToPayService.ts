@@ -46,61 +46,74 @@ export const fetchDisputeWithPromiseToPayStats: QueryFunction<
     }
 };
 
-/**
- * Shared utility function to calculate promise to pay date range
- * This eliminates code duplication between Portal and LogActivity components
- * 
- * @param promiseToPayLimit - The maximum number of days allowed for promise to pay (from Account.promise_to_pay)
- * @param currentPromiseCount - The current number of promises made in this cycle (from CustomerCollectionPeriod.promise_to_pay_count)
- * @param defaultLimit - Fallback limit if promiseToPayLimit is not provided (default: 2)
- * @returns Object containing minDate, maxDate, remainingDays, and isMaxedOut
- */
 export interface PromiseToPayDateRange {
     minDate: Date;
     maxDate: Date;
-    remainingDays: number;
+    /** Size of the selectable window in days. */
+    windowDays: number;
+    /** Promises still allowed this cycle, or null when no cap is configured. */
+    remainingPromises: number | null;
     isMaxedOut: boolean;
     isValid: boolean;
 }
 
-export function calculatePromiseToPayDateRange(
-    promiseToPayLimit: number | null | undefined,
-    currentPromiseCount: number | null | undefined,
-    defaultLimit: number = 2
-): PromiseToPayDateRange {
-    // Use provided limit or fallback to default
-    const limit = promiseToPayLimit ?? defaultLimit;
-    const usedCount = currentPromiseCount ?? 0;
+/** Used when an account has no promise_to_pay window configured. */
+export const DEFAULT_PROMISE_TO_PAY_WINDOW_DAYS = 7;
 
-    // Calculate remaining days
-    const remainingDays = Math.max(0, limit - usedCount);
-
-    // Check if maxed out
-    const isMaxedOut = usedCount >= limit;
-
-    // Calculate date range
-    const today = moment();
-    const minDate = moment().add(1, "day").toDate(); // Start from tomorrow
-    const maxDate = moment().add(remainingDays, "days").toDate();
-
-    return {
-        minDate,
-        maxDate,
-        remainingDays,
-        isMaxedOut,
-        isValid: remainingDays > 0
-    };
+export interface PromiseToPayLimits {
+    /** Account.promise_to_pay — how many days ahead a payment date may be set. */
+    windowDays?: number | null;
+    /** Account.max_promise_to_pay_allowed_per_cycle — promises allowed per cycle. */
+    maxPerCycle?: number | null;
+    /** CustomerCollectionPeriod.promise_to_pay_count — promises already made. */
+    usedCount?: number | null;
 }
 
 /**
- * Convenience function for Portal component
- * Uses the same logic as LogActivity but with simpler parameters
+ * Two independent limits govern a promise to pay, and they must not be mixed:
+ * `Account.promise_to_pay` is a length of time (how far ahead the customer may
+ * promise to pay), while `Account.max_promise_to_pay_allowed_per_cycle` is a
+ * quantity (how many promises are allowed in one collection cycle). Subtracting
+ * the count from the window collapsed the calendar to a day or two and made the
+ * feature unusable, so they are kept separate here.
+ *
+ * An unset cap means "not configured" rather than "zero allowed"; a cap only
+ * applies when it is a positive number.
  */
+export function calculatePromiseToPayDateRange({
+    windowDays,
+    maxPerCycle,
+    usedCount,
+}: PromiseToPayLimits): PromiseToPayDateRange {
+    const days =
+        windowDays != null && windowDays > 0
+            ? windowDays
+            : DEFAULT_PROMISE_TO_PAY_WINDOW_DAYS;
+    const used = usedCount ?? 0;
+    const cap = maxPerCycle != null && maxPerCycle > 0 ? maxPerCycle : null;
+    const isMaxedOut = cap != null && used >= cap;
+
+    return {
+        minDate: moment().add(1, "day").startOf("day").toDate(),
+        maxDate: moment().add(days, "days").endOf("day").toDate(),
+        windowDays: days,
+        remainingPromises: cap == null ? null : Math.max(0, cap - used),
+        isMaxedOut,
+        isValid: !isMaxedOut,
+    };
+}
+
+/** Convenience wrapper for the customer portal. */
 export function calculatePortalPromiseToPayDateRange(
-    promiseToPayLimit: number,
-    currentPromiseCount: number = 0
+    windowDays: number | null | undefined,
+    usedCount: number = 0,
+    maxPerCycle?: number | null
 ): PromiseToPayDateRange {
-    return calculatePromiseToPayDateRange(promiseToPayLimit, currentPromiseCount);
+    return calculatePromiseToPayDateRange({
+        windowDays,
+        usedCount,
+        maxPerCycle,
+    });
 }
 
 /**
@@ -110,13 +123,16 @@ export function calculatePortalPromiseToPayDateRange(
 export interface CustomerForPromiseToPay {
     Account?: {
         promise_to_pay: number | null;
+        max_promise_to_pay_allowed_per_cycle?: number | null;
     } | null;
     CustomerCollectionPeriod?:
     | Array<{
         promise_to_pay_count: number | null;
+        period_end_date?: Date | string | null;
     }>
     | {
         promise_to_pay_count: number | null;
+        period_end_date?: Date | string | null;
     }
     | null;
 }
@@ -126,18 +142,17 @@ export interface CustomerForPromiseToPay {
  * Handles the complex customer object structure with proper typing
  */
 export function calculateLogActivityPromiseToPayDateRange(
-    customer: CustomerForPromiseToPay,
-    defaultLimit: number = 2
+    customer: CustomerForPromiseToPay
 ): PromiseToPayDateRange {
-    const promiseToPayLimit = customer?.Account?.promise_to_pay;
+    const periods = customer?.CustomerCollectionPeriod;
+    // The count that matters is the open period's; a closed period's count is history.
+    const openPeriod = Array.isArray(periods)
+        ? (periods.find((p) => p?.period_end_date == null) ?? periods[0])
+        : periods;
 
-    // Handle both array and single object formats for CustomerCollectionPeriod
-    let currentPromiseCount: number | null | undefined;
-    if (Array.isArray(customer?.CustomerCollectionPeriod)) {
-        currentPromiseCount = customer.CustomerCollectionPeriod[0]?.promise_to_pay_count;
-    } else if (customer?.CustomerCollectionPeriod) {
-        currentPromiseCount = customer.CustomerCollectionPeriod.promise_to_pay_count;
-    }
-
-    return calculatePromiseToPayDateRange(promiseToPayLimit, currentPromiseCount, defaultLimit);
+    return calculatePromiseToPayDateRange({
+        windowDays: customer?.Account?.promise_to_pay,
+        maxPerCycle: customer?.Account?.max_promise_to_pay_allowed_per_cycle,
+        usedCount: openPeriod?.promise_to_pay_count,
+    });
 }

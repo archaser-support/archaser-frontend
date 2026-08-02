@@ -20,6 +20,7 @@ type NestBridgeUser = User & {
     account_name?: string | null;
     primary_color?: string | null;
     secondary_color?: string | null;
+    currency?: string | null;
     sidebar_collapsed?: boolean | null;
 };
 
@@ -67,6 +68,7 @@ async function authorizeFromNestAccessToken(
             account_name: claimString(payload.account_name) || "",
             primary_color: claimString(payload.primary_color) ?? null,
             secondary_color: claimString(payload.secondary_color) ?? null,
+            currency: claimString(payload.currency) ?? null,
             sidebar_collapsed: claimBool(payload.sidebar_collapsed),
         };
     } catch {
@@ -133,6 +135,7 @@ export const authOptions: NextAuthOptions = {
                 token.account_name = u.account_name;
                 token.primary_color = u.primary_color;
                 token.secondary_color = u.secondary_color;
+                token.currency = u.currency ?? undefined;
                 token.sidebar_collapsed = u.sidebar_collapsed ?? undefined;
             }
             return token;
@@ -171,6 +174,8 @@ export const authOptions: NextAuthOptions = {
                     session.user as { secondary_color?: string | null }
                 ).secondary_color =
                     (token.secondary_color as string) || null;
+                session.user.currency =
+                    (token.currency as string) || undefined;
             }
             return session;
         },

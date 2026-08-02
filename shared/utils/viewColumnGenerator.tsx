@@ -969,9 +969,13 @@ export function generateViewColumns(
                     }
                 }
 
-                // Translate enum values if this is an enum field
+                // Translate enum values if this is an enum field.
+                // Deliberately not gated on hasFormattedDisplay: the backend emits
+                // ___formatted_* for every field and passes enum members through
+                // verbatim, so gating here left raw values like "Under_Review" on
+                // screen. translateEnumValue falls back to title-casing, so running
+                // it over an already-human value is a no-op.
                 if (
-                    !hasFormattedDisplay &&
                     shouldTranslateEnum &&
                     displayValue !== "" &&
                     displayValue !== "-"
