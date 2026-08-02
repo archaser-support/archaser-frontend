@@ -176,15 +176,31 @@ const SMSVendors = () => {
         use_account_sender_name: false,
     });
 
-    // Fetch SMS vendors
+    // Fetch SMS vendors (server-side search/sort)
+    const sortField = sortModel[0]?.field;
+    const sortDirection = sortModel[0]?.sort;
     const {
         data: vendors,
         isLoading,
         error,
     } = useQuery({
-        queryKey: ["sms-vendors"],
+        queryKey: [
+            "sms-vendors",
+            { search: debouncedSearch, sortField, sortDirection },
+        ],
         queryFn: async () => {
-            const response = await api.get("/api/sms/vendors");
+            const params = new URLSearchParams();
+            if (debouncedSearch) {
+                params.append("search", debouncedSearch);
+            }
+            if (sortField) {
+                params.append("sortField", sortField);
+                params.append("sortDirection", sortDirection || "asc");
+            }
+            const qs = params.toString();
+            const response = await api.get(
+                `/api/sms/vendors${qs ? `?${qs}` : ""}`
+            );
             return response.data;
         },
     });
@@ -504,7 +520,7 @@ const SMSVendors = () => {
     );
 
     const rows = useMemo(() => {
-        let mappedRows =
+        return (
             vendors?.map((vendor: SMSVendor) => ({
                 id: vendor.id,
                 provider: vendor.provider,
@@ -514,77 +530,9 @@ const SMSVendors = () => {
                 status: vendor.is_active,
                 actions: vendor.id,
                 raw: vendor,
-            })) || [];
-
-        // Client-side search filtering
-        if (debouncedSearch) {
-            const searchLower = debouncedSearch.toLowerCase();
-            mappedRows = mappedRows.filter((row: (typeof mappedRows)[0]) => {
-                return (
-                    row.provider?.toLowerCase().includes(searchLower) ||
-                    row.currency?.toLowerCase().includes(searchLower) ||
-                    String(row.priority).includes(searchLower) ||
-                    (row.cost_per_sms != null &&
-                        String(row.cost_per_sms).includes(searchLower)) ||
-                    (row.status
-                        ? t("values.status_active", { ns: "common" })
-                        : t("values.status_inactive", { ns: "common" })
-                    )
-                        .toLowerCase()
-                        .includes(searchLower)
-                );
-            });
-        }
-
-        // Client-side sorting
-        if (sortModel && sortModel.length > 0) {
-            const sortField = sortModel[0].field;
-            const sortDirection = sortModel[0].sort;
-
-            return [...mappedRows].sort((a, b) => {
-                let aValue = a[sortField as keyof typeof a];
-                let bValue = b[sortField as keyof typeof b];
-
-                // Handle null/undefined values
-                if (aValue == null) aValue = "";
-                if (bValue == null) bValue = "";
-
-                // Handle boolean values (for status field)
-                if (
-                    typeof aValue === "boolean" &&
-                    typeof bValue === "boolean"
-                ) {
-                    if (aValue === bValue) return 0;
-                    return sortDirection === "asc"
-                        ? aValue
-                            ? 1
-                            : -1
-                        : aValue
-                            ? -1
-                            : 1;
-                }
-
-                // Handle numeric values
-                if (typeof aValue === "number" && typeof bValue === "number") {
-                    return sortDirection === "asc"
-                        ? aValue - bValue
-                        : bValue - aValue;
-                }
-
-                // Handle string values
-                const aStr = String(aValue).toLowerCase();
-                const bStr = String(bValue).toLowerCase();
-
-                if (sortDirection === "asc") {
-                    return aStr.localeCompare(bStr);
-                } else {
-                    return bStr.localeCompare(aStr);
-                }
-            });
-        }
-
-        return mappedRows;
-    }, [vendors, sortModel, debouncedSearch, t]);
+            })) || []
+        );
+    }, [vendors]);
 
     return (
         <Box>

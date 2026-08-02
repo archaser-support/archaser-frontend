@@ -86,7 +86,7 @@ const AccountList: React.FC = () => {
     const sortDirection = sortModel[0]?.sort;
     const queryKey = useMemo(
         () => [
-            "customers-virtual",
+            "accounts-virtual",
             {
                 query: debouncedSearch,
                 status: filterStatus,
@@ -250,7 +250,7 @@ const AccountList: React.FC = () => {
 
             // Invalidate and refetch all account-related queries
             await queryClient.invalidateQueries({
-                queryKey: ["customers-virtual"],
+                queryKey: ["accounts-virtual"],
             });
             await queryClient.invalidateQueries({ queryKey: ["account"] });
 
@@ -280,7 +280,7 @@ const AccountList: React.FC = () => {
 
             // Invalidate and refetch all account-related queries
             await queryClient.invalidateQueries({
-                queryKey: ["customers-virtual"],
+                queryKey: ["accounts-virtual"],
             });
             await queryClient.invalidateQueries({ queryKey: ["account"] });
 
@@ -804,7 +804,7 @@ const AccountList: React.FC = () => {
                 }}
             >
                 <EndlessScrollDataGrid
-                    key={`${debouncedSearch}-${filterStatus}`}
+                    key={`${debouncedSearch}-${filterStatus}-${deletionFilter}`}
                     rows={rows}
                     columns={columns}
                     totalRecords={totalRecords}

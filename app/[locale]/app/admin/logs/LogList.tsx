@@ -352,7 +352,7 @@ export default function LogList() {
                 params.append("level", selectedLevel);
             }
 
-            const url = `/api/admin/logs?${params.toString()}`;
+            const url = `/api/logs?${params.toString()}`;
 
             const response = await apiFetch(url);
             if (!response.ok) {
