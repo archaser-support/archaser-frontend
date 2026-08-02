@@ -215,7 +215,7 @@ const InvoiceProcessor: React.FC = () => {
                 }
 
                 const result = await response.json();
-                const validationResults = result.data || [];
+                const validationResults = result.items || result.data || [];
 
                 // Create a map of customer number to access result
                 const accessMap = new Map<

@@ -67,11 +67,11 @@ const fetchCronJobStats = async (): Promise<CronJobMonitorData> => {
     const response = await apiFetch("/api/system/admin/dashboard");
     const result = await response.json();
 
-    if (!result.success) {
+    if (!response.ok) {
         throw new Error(result.error || "Failed to fetch cron job data");
     }
 
-    return result.data;
+    return (result.data ?? result) as CronJobMonitorData;
 };
 
 const CronJobMonitor: React.FC = () => {

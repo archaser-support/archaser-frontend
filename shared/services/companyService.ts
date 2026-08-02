@@ -8,7 +8,8 @@ export const fetchCompanies: QueryFunction<
 > = async ({ queryKey }) => {
     try {
         const response = await api.get("/system/company");
-        return response.data;
+        const payload = response.data;
+        return Array.isArray(payload) ? payload : payload?.items || [];
     } catch (error) {
         throw new Error("Failed to fetch data");
     }

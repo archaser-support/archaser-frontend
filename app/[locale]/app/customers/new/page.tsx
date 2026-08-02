@@ -551,7 +551,7 @@ export default function CreateCustomerPage() {
             };
 
             const response = await api.post(
-                "/api/import/customers",
+                "/api/import/customer",
                 customerData,
                 {
                     headers: {

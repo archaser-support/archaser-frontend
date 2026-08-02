@@ -900,18 +900,33 @@ export default function CreditInsurancePolicyDetailPage() {
                 ? String(editingCountryRow.country_id)
                 : null;
 
-            await api.put(
-                `/api/entities/insurance-policies/${policyId}/countries/${selectedCountry.id}`,
-                {
-                    account_id: accountId,
-                    payment_term_cap: parseOptionalInt(countryForm.payment_term_cap),
-                    country_mep: parseOptionalDecimal(countryForm.country_mep),
-                    reporting_days: parseOptionalInt(countryForm.reporting_days),
-                    country_max_limit: parseOptionalDecimal(
-                        countryForm.country_max_limit
-                    ),
-                }
-            );
+            const countryPayload = {
+                insurance_policy_id: policyId,
+                country_id: selectedCountry.id,
+                account_id: accountId,
+                payment_term_cap: parseOptionalInt(countryForm.payment_term_cap),
+                country_mep: parseOptionalDecimal(countryForm.country_mep),
+                reporting_days: parseOptionalInt(countryForm.reporting_days),
+                country_max_limit: parseOptionalDecimal(
+                    countryForm.country_max_limit
+                ),
+            };
+
+            if (
+                editingCountryRow &&
+                editingCountryId &&
+                editingCountryId === selectedCountryId
+            ) {
+                await api.put(
+                    `/api/entities/insurance-policy-countries/${editingCountryRow.id}`,
+                    countryPayload
+                );
+            } else {
+                await api.post(
+                    `/api/entities/insurance-policy-countries`,
+                    countryPayload
+                );
+            }
 
             // If country changed while editing, remove the previous country row.
             if (
@@ -954,6 +969,7 @@ export default function CreditInsurancePolicyDetailPage() {
         mutationFn: async () => {
             if (!accountId) throw new Error("account");
             const payload = {
+                insurance_policy_id: policyId,
                 account_id: accountId,
                 customer_number: namedForm.customer_number.trim(),
                 max_payment_term: parseOptionalInt(namedForm.max_payment_term),
@@ -966,12 +982,12 @@ export default function CreditInsurancePolicyDetailPage() {
             };
             if (editingNamedRow) {
                 await api.put(
-                    `/api/entities/insurance-policies/${policyId}/named-policies/${editingNamedRow.id}`,
+                    `/api/entities/insurance-policy-named-policies/${editingNamedRow.id}`,
                     payload
                 );
             } else {
                 await api.post(
-                    `/api/entities/insurance-policies/${policyId}/named-policies`,
+                    `/api/entities/insurance-policy-named-policies`,
                     payload
                 );
             }

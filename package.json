@@ -17,6 +17,7 @@
         "check:db-types": "node scripts/generate-db-types.js --check",
         "check:amplify-imports": "node scripts/check-amplify-ui-imports.js",
         "check:nest-api-calls": "node scripts/check-no-relative-product-api.js",
+        "check:api-parity": "node scripts/check-fe-nest-api-parity.cjs",
         "test": "playwright test --config=test/playwright.config.ts",
         "test:unit": "vitest --config=vitest.config.mjs --run --reporter=verbose",
         "test:unit:watch": "vitest --config=vitest.config.mjs --watch",

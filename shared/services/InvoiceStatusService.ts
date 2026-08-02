@@ -40,7 +40,8 @@ export const fetchAvailableInvoices = async (customerId: number) => {
         const response = await api.get(
             `/entities/invoices/available-for-credit/${customerId}`
         );
-        return response.data;
+        const payload = response.data;
+        return Array.isArray(payload) ? payload : payload?.items || [];
     } catch (error) {
         throw new Error("Failed to fetch available invoices");
     }
@@ -63,10 +64,7 @@ export const assignCreditToInvoice = async (
 
 export const updateInvoice = async (invoiceId: number, updates: any) => {
     try {
-        const response = await api.put("/invoices/update", {
-            id: invoiceId,
-            updates,
-        });
+        const response = await api.put(`/entities/invoices/${invoiceId}`, updates);
         return response.data;
     } catch (error) {
         throw new Error("Failed to update invoice");

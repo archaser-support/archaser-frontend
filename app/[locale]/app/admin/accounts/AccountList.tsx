@@ -270,7 +270,7 @@ const AccountList: React.FC = () => {
 
         setIsDeleting(true);
         try {
-            await api.put(
+            await api.post(
                 `/api/entities/accounts/${selectedAccount.id}/restore`
             );
 

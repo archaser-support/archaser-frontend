@@ -539,7 +539,8 @@ export const fetchDisputeReasons: QueryFunction<
 export const fetchCompanies = async () => {
     try {
         const response = await api.get("/system/company");
-        return response.data;
+        const payload = response.data;
+        return Array.isArray(payload) ? payload : payload?.items || [];
     } catch (error) {
         handleApiError(error, "Failed to fetch companies");
     }
@@ -627,7 +628,8 @@ export const searchCustomers = async (
                     : {}),
             },
         });
-        return response.data.customers || [];
+        const payload = response.data;
+        return payload?.items || payload?.customers || [];
     } catch (error) {
         handleApiError(error, "Failed to search customers");
         throw error;
