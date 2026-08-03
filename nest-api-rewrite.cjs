@@ -1,7 +1,10 @@
 /**
- * Shared path list for local Nest API rewrite (D11–D15).
- * Keep in sync with backend/api Nest rewrite top-level list (PAGES_API_TOP_LEVEL).
+ * Shared path list for local Nest API rewrite.
+ * Keep in sync with backend Nest route tops.
  * /api/auth stays on Next (D2). /api/ws is Nest-owned (SSE).
+ *
+ * SMS peel (D24–D30): when USE_SMS_NEST_REWRITE=true, /api/sms* → SMS_PORT
+ * (default 3004). Otherwise SMS stays on main Nest API (reversible).
  */
 
 /** @type {readonly string[]} */
@@ -45,9 +48,8 @@ const NEST_API_REWRITE_TOP_LEVEL = [
     "metrics",
 ];
 
-    // Nest owns SSE — rewrite /api/ws when local Nest rewrite is on.
-    // /api/auth stays on Next (D2 cookie bridge until Amplify-only auth).
-    const NEST_API_REWRITE_KEEP_ON_NEXT = new Set(["auth"]);
+/** @type {ReadonlySet<string>} */
+const NEST_API_REWRITE_KEEP_ON_NEXT = new Set(["auth"]);
 
 /**
  * @returns {boolean}
@@ -60,11 +62,62 @@ function isNestApiRewriteEnabled() {
 }
 
 /**
+ * @returns {boolean}
+ */
+function isSmsNestRewriteEnabled() {
+    return process.env.USE_SMS_NEST_REWRITE === "true";
+}
+
+/**
  * @returns {string}
  */
 function getNestApiRewriteTarget() {
     const raw =
         process.env.NEST_API_REWRITE_TARGET || "http://127.0.0.1:3002";
+    return raw.replace(/\/$/, "");
+}
+
+/**
+ * @returns {string}
+ */
+function getSmsNestRewriteTarget() {
+    const raw =
+        process.env.SMS_NEST_REWRITE_TARGET ||
+        `http://127.0.0.1:${process.env.SMS_PORT || 3004}`;
+    return raw.replace(/\/$/, "");
+}
+
+/**
+ * @returns {boolean}
+ */
+function isConnectorsNestRewriteEnabled() {
+    return process.env.USE_CONNECTORS_NEST_REWRITE === "true";
+}
+
+/**
+ * @returns {string}
+ */
+function getConnectorsNestRewriteTarget() {
+    const raw =
+        process.env.CONNECTORS_NEST_REWRITE_TARGET ||
+        `http://127.0.0.1:${process.env.CONNECTORS_PORT || 3005}`;
+    return raw.replace(/\/$/, "");
+}
+
+/**
+ * @returns {boolean}
+ */
+function isReportsNestRewriteEnabled() {
+    return process.env.USE_REPORTS_NEST_REWRITE === "true";
+}
+
+/**
+ * @returns {string}
+ */
+function getReportsNestRewriteTarget() {
+    const raw =
+        process.env.REPORTS_NEST_REWRITE_TARGET ||
+        `http://127.0.0.1:${process.env.REPORTS_PORT || 3006}`;
     return raw.replace(/\/$/, "");
 }
 
@@ -77,12 +130,66 @@ function buildNestApiRewrites() {
         return [];
     }
     const target = getNestApiRewriteTarget();
+    const smsTarget = getSmsNestRewriteTarget();
+    const smsSplit = isSmsNestRewriteEnabled();
+    const connectorsTarget = getConnectorsNestRewriteTarget();
+    const connectorsSplit = isConnectorsNestRewriteEnabled();
+    const reportsTarget = getReportsNestRewriteTarget();
+    const reportsSplit = isReportsNestRewriteEnabled();
     /** @type {Array<{ source: string, destination: string }>} */
     const rules = [];
+
+    if (connectorsSplit) {
+        rules.push({
+            source: `/api/accounts`,
+            destination: `${connectorsTarget}/api/accounts`,
+        });
+        rules.push({
+            source: `/api/accounts/:path*`,
+            destination: `${connectorsTarget}/api/accounts/:path*`,
+        });
+        rules.push({
+            source: `/api/entities/accounts`,
+            destination: `${connectorsTarget}/api/entities/accounts`,
+        });
+        rules.push({
+            source: `/api/entities/accounts/:path*`,
+            destination: `${connectorsTarget}/api/entities/accounts/:path*`,
+        });
+    }
 
     for (const top of NEST_API_REWRITE_TOP_LEVEL) {
         if (NEST_API_REWRITE_KEEP_ON_NEXT.has(top)) {
             continue;
+        }
+        if (top === "sms" && smsSplit) {
+            rules.push({
+                source: `/api/sms`,
+                destination: `${smsTarget}/api/sms`,
+            });
+            rules.push({
+                source: `/api/sms/:path*`,
+                destination: `${smsTarget}/api/sms/:path*`,
+            });
+            continue;
+        }
+        if (top === "reports" && reportsSplit) {
+            rules.push({
+                source: `/api/reports`,
+                destination: `${reportsTarget}/api/reports`,
+            });
+            rules.push({
+                source: `/api/reports/:path*`,
+                destination: `${reportsTarget}/api/reports/:path*`,
+            });
+            continue;
+        }
+        if (
+            connectorsSplit &&
+            (top === "accounts" || top === "entities")
+        ) {
+            // accounts + entities/accounts handled above; keep other entities on main API
+            if (top === "accounts") continue;
         }
         rules.push({
             source: `/api/${top}`,
@@ -94,7 +201,6 @@ function buildNestApiRewrites() {
         });
     }
 
-    // Nest SSE realtime
     rules.push({
         source: "/api/ws",
         destination: `${target}/api/ws`,
@@ -111,6 +217,8 @@ module.exports = {
     NEST_API_REWRITE_TOP_LEVEL,
     NEST_API_REWRITE_KEEP_ON_NEXT,
     isNestApiRewriteEnabled,
+    isSmsNestRewriteEnabled,
     getNestApiRewriteTarget,
+    getSmsNestRewriteTarget,
     buildNestApiRewrites,
 };
