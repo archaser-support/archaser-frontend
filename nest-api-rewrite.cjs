@@ -148,13 +148,22 @@ function buildNestApiRewrites() {
             source: `/api/accounts/:path*`,
             destination: `${connectorsTarget}/api/accounts/:path*`,
         });
+        // Narrow peel only — bank-accounts / business-units stay on main Nest API.
         rules.push({
-            source: `/api/entities/accounts`,
-            destination: `${connectorsTarget}/api/entities/accounts`,
+            source: `/api/entities/accounts/:accountId/billing-connector`,
+            destination: `${connectorsTarget}/api/entities/accounts/:accountId/billing-connector`,
         });
         rules.push({
-            source: `/api/entities/accounts/:path*`,
-            destination: `${connectorsTarget}/api/entities/accounts/:path*`,
+            source: `/api/entities/accounts/:accountId/billing-connector/:path*`,
+            destination: `${connectorsTarget}/api/entities/accounts/:accountId/billing-connector/:path*`,
+        });
+        rules.push({
+            source: `/api/entities/accounts/:accountId/notification-rule-sets`,
+            destination: `${connectorsTarget}/api/entities/accounts/:accountId/notification-rule-sets`,
+        });
+        rules.push({
+            source: `/api/entities/accounts/:accountId/notification-rule-sets/:path*`,
+            destination: `${connectorsTarget}/api/entities/accounts/:accountId/notification-rule-sets/:path*`,
         });
     }
 
@@ -186,10 +195,9 @@ function buildNestApiRewrites() {
         }
         if (
             connectorsSplit &&
-            (top === "accounts" || top === "entities")
+            top === "accounts"
         ) {
-            // accounts + entities/accounts handled above; keep other entities on main API
-            if (top === "accounts") continue;
+            continue;
         }
         rules.push({
             source: `/api/${top}`,
@@ -218,7 +226,11 @@ module.exports = {
     NEST_API_REWRITE_KEEP_ON_NEXT,
     isNestApiRewriteEnabled,
     isSmsNestRewriteEnabled,
+    isConnectorsNestRewriteEnabled,
+    isReportsNestRewriteEnabled,
     getNestApiRewriteTarget,
     getSmsNestRewriteTarget,
+    getConnectorsNestRewriteTarget,
+    getReportsNestRewriteTarget,
     buildNestApiRewrites,
 };

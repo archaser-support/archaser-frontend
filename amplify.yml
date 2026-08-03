@@ -1,5 +1,6 @@
 # Amplify Hosting (SSR) — app root must be `frontend` in Amplify Console.
 # The frontend is UI-only: no database, no Prisma. All data comes from Nest.
+# Stage 1B: use `@archaser/openapi-client` via `utils/nestOpenApiClient.ts` for typed Nest calls.
 #
 # Required console env, per branch (staging example):
 #   AMPLIFY_SSR=true
@@ -11,6 +12,10 @@
 #   NEXTAUTH_SECRET=<signs the NextAuth cookie session>
 #   JWT_SECRET=<same secret Nest uses to sign access tokens>
 #   NEXT_PUBLIC_ENABLE_WS=true
+#
+# Nest staging `.env` must include:
+#   NEST_CORS_ORIGINS=https://staging.d2nb6pdzevzjzz.amplifyapp.com,<custom Amplify domain>
+#   ENABLE_CRON_JOBS=false
 #
 # NEXTAUTH_URL must match the branch domain — pointing it at another branch
 # makes /api/auth/session fail. Nest must list this exact origin in
