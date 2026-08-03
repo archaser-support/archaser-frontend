@@ -7,19 +7,19 @@ export default defineConfig({
     test: {
         environment: "node",
         globals: true,
-        setupFiles: ["./test/setup/vitest.setup.ts"],
+        setupFiles: ["../tests/frontend/setup/vitest.setup.ts"],
         // Increase timeouts for unit tests with database operations
         testTimeout: 30000, // 30 seconds for test execution
         hookTimeout: 30000, // 30 seconds for hooks (beforeEach, afterEach)
-        include: ["test/unit/**/*.test.ts", "test/unit/**/*.test.tsx"],
+        include: ["../tests/frontend/unit/**/*.test.ts", "../tests/frontend/unit/**/*.test.tsx"],
         // Use jsdom environment for React component tests
         environmentMatchGlobs: [
             ["**/*.test.tsx", "jsdom"],
             ["**/*.test.ts", "node"],
         ],
         exclude: [
-            "test/e2e/**/*",
-            "test/**/*.spec.ts",
+            "../tests/frontend/e2e/**/*",
+            "../tests/frontend/**/*.spec.ts",
             "**/node_modules/**",
             "**/dist/**",
             "**/.next/**",
@@ -35,7 +35,7 @@ export default defineConfig({
             "@/utils": path.resolve(__dirname, './utils'),
             "@/server": path.resolve(__dirname, './server'),
             "@/types": path.resolve(__dirname, './types'),
-            "@/test": path.resolve(__dirname, "./tests"),
+            "@/test": path.resolve(__dirname, "../tests/frontend"),
         },
     },
     optimizeDeps: {

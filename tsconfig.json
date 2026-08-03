@@ -16,18 +16,19 @@
     "plugins": [{ "name": "next" }],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@/test/*": ["../tests/frontend/*"]
     }
   },
   "exclude": [
     "node_modules",
     "build",
-    "test/**/*",
+    "../tests/frontend/**/*",
     "**/*.test.ts",
     "**/*.test.tsx",
     "**/*.spec.ts",
     "**/*.spec.tsx",
-    "test/playwright.config.ts",
+    "../tests/frontend/playwright.config.ts",
     "vitest.config.ts",
     "vitest.config.mjs",
     "vitest.config.js",

@@ -6,10 +6,10 @@ export default defineConfig({
     test: {
         environment: "node",
         globals: true,
-        include: ["test/unit/translation/**/*.test.ts"],
+        include: ["../tests/frontend/unit/translation/**/*.test.ts"],
         exclude: [
-            "test/e2e/**/*",
-            "test/**/*.spec.ts",
+            "../tests/frontend/e2e/**/*",
+            "../tests/frontend/**/*.spec.ts",
             "**/node_modules/**",
             "**/dist/**",
             "**/.next/**",

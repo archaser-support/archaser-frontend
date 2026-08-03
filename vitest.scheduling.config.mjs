@@ -5,7 +5,7 @@ export default defineConfig({
     test: {
         environment: "node",
         globals: true,
-        include: ["test/unit/scheduling/**/*.test.{ts,tsx}"],
+        include: ["../tests/frontend/unit/scheduling/**/*.test.{ts,tsx}"],
         setupFiles: [],
         pool: "forks",
         testTimeout: 10000, // 10 second timeout

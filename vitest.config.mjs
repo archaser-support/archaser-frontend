@@ -5,29 +5,45 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
     plugins: [react()],
+    server: {
+        fs: {
+            allow: [
+                path.dirname(fileURLToPath(import.meta.url)),
+                path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../tests/frontend"),
+            ],
+        },
+        deps: {
+            inline: [
+                /\/tests\/frontend\//,
+                "@testing-library/jest-dom",
+                "react",
+                "react-dom",
+            ],
+        },
+    },
     test: {
         environment: "jsdom",
         globals: true,
-        setupFiles: ["./test/setup/vitest.setup.ts"],
-        include: ["test/**/*.test.{ts,tsx}"],
+        setupFiles: ["../tests/frontend/setup/vitest.setup.ts"],
+        include: ["../tests/frontend/**/*.test.{ts,tsx}"],
         exclude: [
-            "test/e2e/**/*",
-            "test/**/*.spec.ts",
+            "../tests/frontend/e2e/**/*",
+            "../tests/frontend/**/*.spec.ts",
             "**/node_modules/**",
             "**/dist/**",
             "**/.next/**",
             // Exclude tests with EMFILE and module resolution issues
-            "test/unit/components/auth/ForgetPasswordPage.test.tsx",
-            "test/unit/components/auth/LoginPage.test.tsx",
-            "test/unit/components/auth/LogoutFunctionality.test.tsx",
-            "test/unit/components/business/UserDetails.test.tsx",
-            "test/unit/components/business/UserList.test.tsx",
-            "test/unit/components/data/StyledDataGrid.test.tsx",
-            "test/unit/components/data/UserList.test.tsx",
-            "test/unit/components/legal/LegalList.test.tsx",
-            "test/unit/portal/components/InvoiceDisplay.test.tsx", // EMFILE: too many open files
-            "test/unit/portal/components/InvoiceSelector.test.tsx", // EMFILE: too many open files
-            "test/unit/portal/components/PortalHeader.test.tsx", // EMFILE: too many open files
+            "../tests/frontend/unit/components/auth/ForgetPasswordPage.test.tsx",
+            "../tests/frontend/unit/components/auth/LoginPage.test.tsx",
+            "../tests/frontend/unit/components/auth/LogoutFunctionality.test.tsx",
+            "../tests/frontend/unit/components/business/UserDetails.test.tsx",
+            "../tests/frontend/unit/components/business/UserList.test.tsx",
+            "../tests/frontend/unit/components/data/StyledDataGrid.test.tsx",
+            "../tests/frontend/unit/components/data/UserList.test.tsx",
+            "../tests/frontend/unit/components/legal/LegalList.test.tsx",
+            "../tests/frontend/unit/portal/components/InvoiceDisplay.test.tsx", // EMFILE: too many open files
+            "../tests/frontend/unit/portal/components/InvoiceSelector.test.tsx", // EMFILE: too many open files
+            "../tests/frontend/unit/portal/components/PortalHeader.test.tsx", // EMFILE: too many open files
         ],
         poolOptions: {
             forks: {
@@ -55,7 +71,15 @@ export default defineConfig({
             "@/lib": fileURLToPath(new URL("./lib", import.meta.url)),
             "@/utils": fileURLToPath(new URL("./utils", import.meta.url)),
             "@/types": fileURLToPath(new URL("./types", import.meta.url)),
-            "@/test": fileURLToPath(new URL("./test", import.meta.url)),
+            "@/test": fileURLToPath(new URL("../tests/frontend", import.meta.url)),
+                        "@archaser/openapi-client": path.resolve(
+                path.dirname(fileURLToPath(import.meta.url)),
+                "../backend/packages/openapi-client/src/index.ts",
+            ),
+            "@testing-library/jest-dom/vitest": path.resolve(
+                path.dirname(fileURLToPath(import.meta.url)),
+                "node_modules/@testing-library/jest-dom/dist/vitest.mjs",
+            ),
             "@/pages": fileURLToPath(new URL("./pages", import.meta.url)),
         },
     },
