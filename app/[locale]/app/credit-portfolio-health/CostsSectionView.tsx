@@ -74,7 +74,7 @@ export function CostsSectionView({ section }: CostsSectionViewProps) {
     // from the calendar-month costs the API still reports. `daily` is kept as a
     // fallback for responses predating that change.
     const sparklineData = useMemo(() => {
-        if (section.monthly.length > 0) {
+        if (section.monthly && section.monthly.length > 0) {
             return section.monthly.map((point) => ({
                 date: point.month,
                 cost: point.totalCost,

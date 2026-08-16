@@ -369,8 +369,14 @@ export type PortfolioCostDailyPoint = {
     totalDailyCost: number;
 };
 
+export type PortfolioCostMonthlyPoint = {
+    month: string;
+    totalCost: number;
+};
+
 export type PortfolioCostsSection = {
     periodCost: number;
+    monthly?: PortfolioCostMonthlyPoint[];
     daily: PortfolioCostDailyPoint[];
     averageCompliantExposure: number;
     /**

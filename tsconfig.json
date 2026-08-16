@@ -17,7 +17,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./*"],
-      "@/test/*": ["../tests/frontend/*"]
+      "@/test/*": ["../tests/frontend/*"],
+      "@archaser/openapi-client": ["../backend/packages/openapi-client/src/index.ts"]
     }
   },
   "exclude": [
