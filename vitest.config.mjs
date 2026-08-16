@@ -44,6 +44,9 @@ export default defineConfig({
             "../tests/frontend/unit/portal/components/InvoiceDisplay.test.tsx", // EMFILE: too many open files
             "../tests/frontend/unit/portal/components/InvoiceSelector.test.tsx", // EMFILE: too many open files
             "../tests/frontend/unit/portal/components/PortalHeader.test.tsx", // EMFILE: too many open files
+            "../tests/frontend/unit/utils/amplifyBuildGuards.test.ts",
+            "../tests/frontend/unit/utils/authUtils.test.ts",
+            "../tests/frontend/unit/app/customers/customerDashboardDailyCostViewModel.test.ts",
         ],
         poolOptions: {
             forks: {

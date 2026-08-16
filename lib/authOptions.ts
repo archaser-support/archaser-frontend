@@ -68,7 +68,7 @@ async function authorizeFromNestAccessToken(
             account_name: claimString(payload.account_name) || "",
             primary_color: claimString(payload.primary_color) ?? null,
             secondary_color: claimString(payload.secondary_color) ?? null,
-            currency: claimString(payload.currency) ?? null,
+            currency: claimString(payload.currency),
             sidebar_collapsed: claimBool(payload.sidebar_collapsed),
         };
     } catch {
