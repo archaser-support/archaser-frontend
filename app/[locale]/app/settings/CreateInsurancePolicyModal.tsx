@@ -38,6 +38,7 @@ import {
     type MonthEndCutoffValidationErrorCode,
     validateMonthEndCutoffFormFields,
 } from "@/shared/creditInsurance/monthEndCutoffFields";
+import { validateRegistrationFeePercentFormField } from "@/shared/creditInsurance/registrationFeePercent";
 import { getDatePickerFormat } from "@/utils/datetimeOperations";
 import { CurrencySelect } from "@/components/LocationSelects";
 
@@ -148,6 +149,7 @@ export function CreateInsurancePolicyModal({
         "" | "ActualSales" | "Limit"
     >("");
     const [costPercent, setCostPercent] = useState("");
+    const [registrationFeePercent, setRegistrationFeePercent] = useState("");
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
     const { data: availablePolicies } = useQuery({
@@ -221,6 +223,7 @@ export function CreateInsurancePolicyModal({
         setAllowConcurrentTopUps(true);
         setCostCalculationMethod("");
         setCostPercent("");
+        setRegistrationFeePercent("");
         setFieldErrors({});
     }, [open, policyId]);
 
@@ -319,6 +322,9 @@ export function CreateInsurancePolicyModal({
                   : ""
         );
         setCostPercent(decimalToInputString(policyDetail.cost_percent));
+        setRegistrationFeePercent(
+            decimalToInputString(policyDetail.registration_fee_percent)
+        );
         setFieldErrors({});
     }, [open, policyId, policyDetail]);
 
@@ -470,6 +476,10 @@ export function CreateInsurancePolicyModal({
             const mam = parseOptionalInt(maxAllowedMep);
             const rd = parseOptionalInt(reportingDays);
             const costPct = parseOptionalDecimal(costPercent);
+            const registrationFee = validateRegistrationFeePercentFormField(
+                registrationFeePercent,
+                policyKind
+            );
 
             if (policyKind === "Primary") {
                 if (!maxTotalCover.trim()) {
@@ -570,6 +580,15 @@ export function CreateInsurancePolicyModal({
                     errors.cost_percent = tCi("credit_insurance.validation.invalid_number");
                 }
             }
+            if (registrationFee.error === "invalid_number") {
+                errors.registration_fee_percent = tCi(
+                    "credit_insurance.validation.invalid_number"
+                );
+            } else if (registrationFee.error === "out_of_range") {
+                errors.registration_fee_percent = tCi(
+                    "credit_insurance.validation.registration_fee_out_of_range"
+                );
+            }
 
             if (Object.keys(errors).length > 0) {
                 setFieldErrors(errors);
@@ -621,6 +640,8 @@ export function CreateInsurancePolicyModal({
                     policyKind === "TopUp" ? null : costCalculationMethod || null,
                 cost_percent:
                     policyKind === "TopUp" || !costCalculationMethod ? null : costPct,
+                registration_fee_percent:
+                    policyKind === "TopUp" ? null : registrationFee.value,
                 auto_activate_on_term_start:
                     policyKind === "Primary" ? autoActivateOnTermStart : false,
             };
@@ -842,8 +863,10 @@ export function CreateInsurancePolicyModal({
                                             setCurrency("");
                                             setCostCalculationMethod("");
                                             setCostPercent("");
+                                            setRegistrationFeePercent("");
                                             clearFieldError("currency");
                                             clearFieldError("cost_percent");
+                                            clearFieldError("registration_fee_percent");
                                         } else {
                                             setParentInsurancePolicyId(null);
                                         }
@@ -1112,6 +1135,31 @@ export function CreateInsurancePolicyModal({
                                             inputProps={{ min: 0, step: "any" }}
                                             error={!!fieldErrors.cost_percent}
                                             helperText={fieldErrors.cost_percent}
+                                            fullWidth
+                                            sx={textFieldDirSx}
+                                        />
+                                        <TextField
+                                            {...textFieldRtlProps}
+                                            label={tCi(
+                                                "credit_insurance.fields.registration_fee_percent"
+                                            )}
+                                            value={registrationFeePercent}
+                                            onChange={(e) => {
+                                                setRegistrationFeePercent(
+                                                    e.target.value
+                                                );
+                                                clearFieldError(
+                                                    "registration_fee_percent"
+                                                );
+                                            }}
+                                            inputMode="decimal"
+                                            inputProps={{ min: 0, max: 100, step: "any" }}
+                                            error={
+                                                !!fieldErrors.registration_fee_percent
+                                            }
+                                            helperText={
+                                                fieldErrors.registration_fee_percent
+                                            }
                                             fullWidth
                                             sx={textFieldDirSx}
                                         />

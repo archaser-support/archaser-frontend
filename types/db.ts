@@ -1358,6 +1358,8 @@ export type CustomerPolicy = {
     credit_score_input_date: Date | null;
     active_customer_since: Date | null;
     outdated_dcl: boolean;
+    cost_percent: Decimal | null;
+    registration_fee_percent: Decimal | null;
     is_active: boolean;
     capacity_gap_amount: number | null;
     capacity_gap_amount_date: Date | null;
@@ -1422,6 +1424,7 @@ export type CustomerPolicyTrend = {
     total_daily_cost: Decimal | null;
     cost_calculation_method: cost_calculation_method | null;
     cost_percent: Decimal | null;
+    registration_fee_percent: Decimal | null;
     financial_currency: string | null;
     total_receivables: Decimal | null;
     health_index: number | null;
@@ -1638,6 +1641,7 @@ export type InsurancePolicy = {
     payment_term_substitute_day_of_month: number | null;
     cost_calculation_method: cost_calculation_method | null;
     cost_percent: Decimal | null;
+    registration_fee_percent: Decimal | null;
     status: record_status;
     auto_activate_on_term_start: boolean;
     created_by: string | null;
@@ -1727,6 +1731,7 @@ export type InsurancePolicyTrend = {
     reporting_days: number | null;
     cost_calculation_method: cost_calculation_method | null;
     cost_percent: Decimal | null;
+    registration_fee_percent: Decimal | null;
     status: record_status;
     active_customer_count: number;
     total_approved_limit: Decimal | null;

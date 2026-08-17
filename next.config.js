@@ -52,9 +52,10 @@ const nextConfig = {
         ignoreBuildErrors: isAmplifySsr,
     },
 
-    // Disable ESLint during build to ignore ESLint-related TypeScript errors
-    eslint: {
-        ignoreDuringBuilds: true,
+    // Workspace deps are hoisted to ../node_modules, but this package has its
+    // own git root + lockfile, so Turbopack would otherwise stop at frontend/.
+    turbopack: {
+        root: path.join(__dirname, ".."),
     },
 
     // Optimize images

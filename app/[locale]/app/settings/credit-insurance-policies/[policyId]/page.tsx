@@ -56,6 +56,7 @@ import {
     type MonthEndCutoffValidationErrorCode,
     validateMonthEndCutoffFormFields,
 } from "@/shared/creditInsurance/monthEndCutoffFields";
+import { validateRegistrationFeePercentFormField } from "@/shared/creditInsurance/registrationFeePercent";
 import { filterTopUpParentPolicyOptions } from "@/shared/creditInsurance/topUpParentPolicy";
 import {
     formatDateOnlyYmdForSession,
@@ -155,6 +156,7 @@ type PolicyDetail = {
     payment_term_substitute_day_of_month?: number | null;
     cost_calculation_method?: "ActualSales" | "Limit" | null;
     cost_percent?: string | number | null;
+    registration_fee_percent?: string | number | null;
     InsurancePolicyCountry?: PolicyCountryRow[];
     NamedPolicy?: NamedPolicyRow[];
     insurer_name?: string | null;
@@ -332,6 +334,8 @@ export default function CreditInsurancePolicyDetailPage() {
         "" | "ActualSales" | "Limit"
     >("");
     const [costPercentInput, setCostPercentInput] = useState("");
+    const [registrationFeePercentInput, setRegistrationFeePercentInput] =
+        useState("");
     const [policyKindInput, setPolicyKindInput] = useState<"Primary" | "TopUp">("Primary");
     const [parentInsurancePolicyIdInput, setParentInsurancePolicyIdInput] = useState<number | null>(null);
     const [autoActivateOnTermStart, setAutoActivateOnTermStart] = useState(false);
@@ -636,6 +640,9 @@ export default function CreditInsurancePolicyDetailPage() {
                   : ""
         );
         setCostPercentInput(decimalToInputString(d.cost_percent));
+        setRegistrationFeePercentInput(
+            decimalToInputString(d.registration_fee_percent)
+        );
         setPolicyFormErrors({});
     }, []);
 
@@ -768,6 +775,10 @@ export default function CreditInsurancePolicyDetailPage() {
             const mam = parseOptionalInt(maxAllowedMepInput);
             const rd = parseOptionalInt(reportingDaysInput);
             const costPct = parseOptionalDecimal(costPercentInput);
+            const registrationFee = validateRegistrationFeePercentFormField(
+                registrationFeePercentInput,
+                policyKindInput
+            );
 
             if (policyKindInput === "Primary" && costCalculationMethodInput) {
                 if (!costPercentInput.trim()) {
@@ -777,6 +788,15 @@ export default function CreditInsurancePolicyDetailPage() {
                 } else if (costPct === null || costPct <= 0) {
                     errors.cost_percent = tCi("credit_insurance.validation.invalid_number");
                 }
+            }
+            if (registrationFee.error === "invalid_number") {
+                errors.registration_fee_percent = tCi(
+                    "credit_insurance.validation.invalid_number"
+                );
+            } else if (registrationFee.error === "out_of_range") {
+                errors.registration_fee_percent = tCi(
+                    "credit_insurance.validation.registration_fee_out_of_range"
+                );
             }
 
             if (policyKindInput !== "TopUp") {
@@ -868,6 +888,8 @@ export default function CreditInsurancePolicyDetailPage() {
                     policyKindInput === "TopUp" || !costCalculationMethodInput
                         ? null
                         : costPct,
+                registration_fee_percent:
+                    policyKindInput === "TopUp" ? null : registrationFee.value,
                 auto_activate_on_term_start:
                     policyKindInput === "Primary"
                         ? autoActivateOnTermStart
@@ -1150,6 +1172,9 @@ export default function CreditInsurancePolicyDetailPage() {
               ? "ActualSales"
               : "";
     const initialCostPercent = data ? decimalToInputString(data.cost_percent) : "";
+    const initialRegistrationFeePercent = data
+        ? decimalToInputString(data.registration_fee_percent)
+        : "";
     const showPrimaryOnlySections = isEditing
         ? policyKindInput !== "TopUp"
         : data?.policy_kind !== "TopUp";
@@ -1180,7 +1205,8 @@ export default function CreditInsurancePolicyDetailPage() {
         paymentTermSubstituteDayOfMonthInput !==
             initialPaymentTermSubstituteDayOfMonth ||
         costCalculationMethodInput !== initialCostCalculationMethod ||
-        costPercentInput !== initialCostPercent;
+        costPercentInput !== initialCostPercent ||
+        registrationFeePercentInput !== initialRegistrationFeePercent;
     const policyFormDisabled = savePolicyMutation.isPending || !isEditing;
     const countryFormDisabled = saveCountryMutation.isPending;
     const namedFormDisabled = saveNamedMutation.isPending;
@@ -2178,6 +2204,8 @@ export default function CreditInsurancePolicyDetailPage() {
                     setCostCalculationMethodInput={setCostCalculationMethodInput}
                     costPercentInput={costPercentInput}
                     setCostPercentInput={setCostPercentInput}
+                    registrationFeePercentInput={registrationFeePercentInput}
+                    setRegistrationFeePercentInput={setRegistrationFeePercentInput}
                     policyKindInput={policyKindInput}
                     setPolicyKindInput={setPolicyKindInput}
                     parentInsurancePolicyIdInput={parentInsurancePolicyIdInput}

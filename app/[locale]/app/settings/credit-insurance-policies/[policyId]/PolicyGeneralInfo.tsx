@@ -35,6 +35,7 @@ export type PolicyGeneralInfoPolicyData = {
     policy_kind?: "Primary" | "TopUp" | null;
     cost_calculation_method?: "ActualSales" | "Limit" | null;
     cost_percent?: string | number | null;
+    registration_fee_percent?: string | number | null;
     ParentInsurancePolicy?: { policy_number: string } | null;
 };
 
@@ -63,6 +64,8 @@ export interface PolicyGeneralInfoProps {
     setCostCalculationMethodInput: (value: "" | "ActualSales" | "Limit") => void;
     costPercentInput: string;
     setCostPercentInput: (value: string) => void;
+    registrationFeePercentInput: string;
+    setRegistrationFeePercentInput: (value: string) => void;
     policyKindInput: "Primary" | "TopUp";
     setPolicyKindInput: (value: "Primary" | "TopUp") => void;
     parentInsurancePolicyIdInput: number | null;
@@ -145,6 +148,8 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
         setCostCalculationMethodInput,
         costPercentInput,
         setCostPercentInput,
+        registrationFeePercentInput,
+        setRegistrationFeePercentInput,
         policyKindInput,
         setPolicyKindInput,
         parentInsurancePolicyIdInput,
@@ -440,6 +445,33 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                             fullWidth
                                             error={!!policyFormErrors.cost_percent}
                                             helperText={policyFormErrors.cost_percent}
+                                            sx={editFieldSx}
+                                        />
+                                        <TextField
+                                            {...modalTextFieldProps}
+                                            label={tCi(
+                                                "credit_insurance.fields.registration_fee_percent"
+                                            )}
+                                            value={registrationFeePercentInput}
+                                            onChange={(e) => {
+                                                setRegistrationFeePercentInput(
+                                                    e.target.value
+                                                );
+                                                clearPolicyFormError(
+                                                    "registration_fee_percent"
+                                                );
+                                            }}
+                                            inputMode="decimal"
+                                            inputProps={{ min: 0, max: 100, step: "any" }}
+                                            size="small"
+                                            fullWidth
+                                            error={
+                                                !!policyFormErrors.registration_fee_percent
+                                            }
+                                            helperText={
+                                                policyFormErrors.registration_fee_percent
+                                            }
+                                            disabled={policyFormDisabled}
                                             sx={editFieldSx}
                                         />
                                     </>
@@ -1100,6 +1132,19 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                     data?.cost_percent != null &&
                                     String(data.cost_percent).trim() !== ""
                                         ? `${decimalToInputString(data.cost_percent)}%`
+                                        : undefined
+                                }
+                            />
+                            <CreditInsuranceReadonlyField
+                                label={tCi(
+                                    "credit_insurance.fields.registration_fee_percent"
+                                )}
+                                value={
+                                    data?.registration_fee_percent != null &&
+                                    String(data.registration_fee_percent).trim() !== ""
+                                        ? `${decimalToInputString(
+                                              data.registration_fee_percent
+                                          )}%`
                                         : undefined
                                 }
                             />
