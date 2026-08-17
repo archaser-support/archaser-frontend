@@ -16,6 +16,42 @@ export interface MappingRule {
     archaserField: string;
     erpField: string;
     transform?: ConnectorFieldTransform;
+    /** Literal fallback when ERP value is empty, or constant when erpField is blank. */
+    defaultValue?: string;
+}
+
+/** Closed option sources for the mapping Default column. */
+export type MappingDefaultPicklistKind =
+    | "boolean"
+    | "country_iso2"
+    | "state_iso2"
+    | "business_unit";
+
+const BOOLEAN_MAPPING_FIELDS = new Set([
+    "company_wide_address",
+    "receives_standard_reminder",
+    "receives_escalated_reminder",
+]);
+
+export const MAPPING_DEFAULT_BOOLEAN_OPTIONS = ["true", "false"] as const;
+
+export function getMappingDefaultPicklistKind(
+    archaserField: string,
+    transform?: ConnectorFieldTransform
+): MappingDefaultPicklistKind | null {
+    if (transform === "boolean" || BOOLEAN_MAPPING_FIELDS.has(archaserField)) {
+        return "boolean";
+    }
+    if (archaserField === "country_iso2") {
+        return "country_iso2";
+    }
+    if (archaserField === "state_iso2") {
+        return "state_iso2";
+    }
+    if (archaserField === "business_unit") {
+        return "business_unit";
+    }
+    return null;
 }
 
 export interface ImportEntityFieldCatalog {

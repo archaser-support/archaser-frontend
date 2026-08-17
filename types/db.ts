@@ -707,6 +707,13 @@ export type BillingConnector = {
     backfill_import_batch_size: number;
     consecutive_auth_failures: number;
     backfill_started_at: Date | null;
+    pull_filters: JsonValue;
+    pull_filters_cleanup_pending: boolean;
+    pull_filters_cleanup_entities: JsonValue;
+    entity_sets: JsonValue;
+    entity_set_catalog: JsonValue | null;
+    entity_set_catalog_fetched_at: Date | null;
+    preview_passes: JsonValue;
     last_connection_test_at: Date | null;
     last_connection_error: string | null;
     created_at: Date;
@@ -834,6 +841,10 @@ export type ConnectorFieldMapping = {
     import_type: ImportType;
     mapping: JsonValue;
     is_complete: boolean;
+    discovered_headers: JsonValue | null;
+    discovered_example_values: JsonValue | null;
+    discovered_sample_count: number | null;
+    discovered_at: Date | null;
     modified_at: Date;
     modified_by: string | null;
 };

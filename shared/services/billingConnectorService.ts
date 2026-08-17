@@ -1,7 +1,44 @@
-﻿import api from "@/app/api";
 import type { ConnectorAuthType, BillingProvider, ImportType } from "@/types/db";
+import api from "@/app/api";
 
 import type { MappingRule } from "@/shared/constants/importEntityFields";
+
+export type EntityPullFilterMode = "advanced" | "rules";
+
+export const PULL_FILTER_OPERATORS = [
+    "eq",
+    "ne",
+    "startswith",
+    "contains",
+    "gt",
+    "lt",
+] as const;
+
+export type PullFilterOperator = (typeof PULL_FILTER_OPERATORS)[number];
+
+export interface PullFilterRule {
+    field: string;
+    operator: PullFilterOperator;
+    value: string;
+}
+
+export interface AdvancedEntityPullFilter {
+    mode: "advanced";
+    odata: string;
+}
+
+export interface RulesEntityPullFilter {
+    mode: "rules";
+    rules: PullFilterRule[];
+}
+
+export type EntityPullFilterConfig =
+    | AdvancedEntityPullFilter
+    | RulesEntityPullFilter;
+
+export type PullFiltersMap = Partial<
+    Record<ImportType, EntityPullFilterConfig | null>
+>;
 
 export interface BillingConnectorConfig {
     id: number;
@@ -29,8 +66,25 @@ export interface BillingConnectorConfig {
      * Default false. Incremental sync and overnight job ignore this.
      */
     skip_reporting_breach_on_backfill?: boolean;
+    /** Per-entity pull filters. */
+    pull_filters?: PullFiltersMap;
+    /** Compiled OData $filter text per entity. */
+    effective_pull_filters?: Partial<Record<ImportType, string | null>>;
+    /** Per-entity Priority table overrides. */
+    entity_sets?: Partial<Record<ImportType, string>>;
+    /** Cached EntitySet names from $metadata. */
+    entity_set_catalog?: string[];
+    entity_set_catalog_fetched_at?: string | null;
+    /** Contract default entity-set path per import type. */
+    default_entity_sets?: Partial<Record<ImportType, string>>;
     /** Locked after backfill starts until reset. */
     backfill_options_locked?: boolean;
+    /**
+     * Per-entity preview pass flags (sample rows are session-only).
+     */
+    preview_passes?: Partial<
+        Record<ImportType, { passed: boolean; completed_at: string }>
+    >;
     last_connection_test_at: string | null;
     last_connection_error: string | null;
     created_at: string;
@@ -74,7 +128,13 @@ export interface SyncRunSummary {
     duration_seconds: number | null;
     entity_stats: Record<
         string,
-        { pulled: number; success: number; failed: number; skipped: number }
+        {
+            pulled: number;
+            success: number;
+            failed: number;
+            skipped: number;
+            sample_errors?: string[];
+        }
     >;
     error_message: string | null;
     error_type: string | null;
@@ -108,6 +168,10 @@ export interface UpsertBillingConnectorPayload {
     backfill_start_date?: string | null;
     include_older_open_invoices?: boolean;
     skip_reporting_breach_on_backfill?: boolean;
+    /** Partial per-entity patch; null clears that entity. */
+    pull_filters?: PullFiltersMap;
+    /** Partial Priority table overrides; null/"" clears that entity. */
+    entity_sets?: Partial<Record<ImportType, string | null>>;
 }
 
 const basePath = (accountId: number) =>
@@ -154,6 +218,10 @@ export interface ConnectorFieldMappingResponse {
     is_complete: boolean;
     modified_at: string | null;
     modified_by: string | null;
+    discovered_headers: string[];
+    discovered_example_values: Record<string, unknown>;
+    discovered_sample_count: number | null;
+    discovered_at: string | null;
 }
 
 export interface DiscoverFieldsResponse {
@@ -161,6 +229,7 @@ export interface DiscoverFieldsResponse {
     raw_headers: string[];
     example_values: Record<string, unknown>;
     sample_count: number;
+    discovered_at?: string | null;
     archaser_fields: string[];
     required_fields: string[];
     highlighted_fields: string[];
@@ -169,10 +238,15 @@ export interface DiscoverFieldsResponse {
 export interface PreviewSyncEntityResult {
     import_type: ImportType;
     pulled: number;
+    /** Sample row count only — preview does not page for a full match total. */
+    match_count: number;
+    /** True when a sample page hit $top (more rows may exist). */
+    match_count_capped: boolean;
     sample_rows: Record<string, unknown>[];
     validation_errors: string[];
     sorted_preview: boolean;
     pull_phases?: string[];
+    effective_filter?: string | null;
 }
 
 export interface PreviewSyncResponse {
@@ -220,6 +294,16 @@ export async function saveBillingConnectorMapping(
     return response.data.mapping;
 }
 
+export async function fetchBillingConnectorDiscoveredFields(
+    accountId: number,
+    importType: ImportType
+): Promise<DiscoverFieldsResponse> {
+    const response = await api.get<DiscoverFieldsResponse>(
+        `${basePath(accountId)}/discover-fields/${importType}`
+    );
+    return response.data;
+}
+
 export async function discoverBillingConnectorFields(
     accountId: number,
     importType: ImportType
@@ -230,13 +314,34 @@ export async function discoverBillingConnectorFields(
     return response.data;
 }
 
-export async function runBillingConnectorPreviewSync(
+export async function refreshBillingConnectorEntitySetCatalog(
     accountId: number
+): Promise<{
+    entity_set_catalog: string[];
+    entity_set_catalog_fetched_at: string;
+}> {
+    const response = await api.post<{
+        entity_set_catalog: string[];
+        entity_set_catalog_fetched_at: string;
+    }>(`${basePath(accountId)}/entity-sets`);
+    return response.data;
+}
+
+export async function runBillingConnectorPreviewSync(
+    accountId: number,
+    options?: { importType?: ImportType }
 ): Promise<PreviewSyncResponse> {
     const response = await api.post<{ result: PreviewSyncResponse }>(
         `${basePath(accountId)}/sync`,
-        {},
-        { params: { mode: "preview" } }
+        options?.importType ? { importType: options.importType } : {},
+        {
+            params: {
+                mode: "preview",
+                ...(options?.importType
+                    ? { importType: options.importType }
+                    : {}),
+            },
+        }
     );
     return response.data.result;
 }
@@ -252,6 +357,17 @@ export async function runBillingConnectorIncrementalSync(accountId: number) {
     const response = await api.post(`${basePath(accountId)}/sync`, {}, {
         params: { mode: "incremental" },
     });
+    return response.data.result;
+}
+
+export async function cancelBillingConnectorSync(accountId: number): Promise<{
+    cancelled: boolean;
+    execution_id: string | null;
+}> {
+    const response = await api.post(
+        `${basePath(accountId)}/sync/cancel`,
+        {}
+    );
     return response.data.result;
 }
 
