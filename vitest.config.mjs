@@ -25,7 +25,10 @@ export default defineConfig({
         environment: "jsdom",
         globals: true,
         setupFiles: ["../tests/frontend/setup/vitest.setup.ts"],
-        include: ["../tests/frontend/**/*.test.{ts,tsx}"],
+        include: [
+            "../tests/frontend/**/*.test.{ts,tsx}",
+            "shared/**/*.test.{ts,tsx}",
+        ],
         exclude: [
             "../tests/frontend/e2e/**/*",
             "../tests/frontend/**/*.spec.ts",

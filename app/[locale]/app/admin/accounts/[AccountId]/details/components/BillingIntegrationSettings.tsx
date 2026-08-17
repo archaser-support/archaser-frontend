@@ -60,6 +60,7 @@ import {
     accountCardSx,
 } from "../accountCardStyles";
 import AccountSectionCardHeader from "./AccountSectionCardHeader";
+import AsOfBackfillCard from "./AsOfBackfillCard";
 
 const ENTITY_OPTIONS: { value: ImportType; label: string }[] = [
     { value: "Customer", label: "Customers" },
@@ -423,6 +424,7 @@ export default function BillingIntegrationSettings({
 
     return (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <AsOfBackfillCard accountId={accountId} />
             {circuitBreakerActive && (
                 <Alert severity="error">
                     Connector is in error state
