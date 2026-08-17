@@ -31,7 +31,7 @@
         "../tests/frontend/*"
       ],
       "@archaser/openapi-client": [
-        "../backend/packages/openapi-client/src/index.ts"
+        "./packages/openapi-client/src/index.ts"
       ]
     }
   },
