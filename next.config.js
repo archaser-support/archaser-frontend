@@ -33,10 +33,11 @@ const nextConfig = {
     // Amplify Hosting SSR expects default `.next`; EC2 deploy scripts use `frontend/build`.
     ...(isAmplifySsr ? {} : { distDir: "build" }),
 
+    // Do not modularize `@mui/material` — MUI v7 has no deep paths for hooks
+    // like `useTheme` / `useMediaQuery` (`@mui/material/useTheme` does not exist).
+    // That rewrite breaks Turbopack (`next build` without `--webpack`), which
+    // Amplify uses via `build:amplify`. Icons still have per-member entry points.
     modularizeImports: {
-        "@mui/material": {
-            transform: "@mui/material/{{member}}",
-        },
         "@mui/icons-material": {
             transform: "@mui/icons-material/{{member}}",
         },

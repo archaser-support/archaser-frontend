@@ -108,6 +108,9 @@ const result = spawnSync(
         "--max-old-space-size=4096",
         require.resolve("next/dist/bin/next"),
         "build",
+        // Match `npm run build`: Next 16 defaults to Turbopack; keep webpack for
+        // Amplify until the app is validated on the Turbopack production path.
+        "--webpack",
     ],
     { stdio: "inherit", env: process.env }
 );
