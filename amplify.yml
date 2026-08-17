@@ -1,6 +1,8 @@
 # Amplify Hosting (SSR) — app root must be `frontend` in Amplify Console.
 # The frontend is UI-only: no database, no Prisma. All data comes from Nest.
-# Stage 1B: use `@archaser/openapi-client` via `utils/nestOpenApiClient.ts` for typed Nest calls.
+# Stage 1B: use vendored `@archaser/openapi-client` (frontend/packages/openapi-client)
+# via `utils/nestOpenApiClient.ts`. Do not point at ../backend — Amplify clones
+# only this repo.
 #
 # Required console env, per branch (staging example):
 #   AMPLIFY_SSR=true
