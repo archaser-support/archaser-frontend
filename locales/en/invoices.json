@@ -7,6 +7,7 @@
     "invoice_date": "Invoice Date",
     "invoice_list": "Invoice List",
     "invoice_number": "Invoice Number",
+    "credit_for_invoice_number": "Credit for Invoice",
     "net_amount": "Net Amount",
     "no_invoices_found": "No results found.",
     "outstanding_debt": "Outstanding Debt",
