@@ -1808,6 +1808,7 @@ export type Invoice = {
     net_amount: number | null;
     credit_for_invoice_number: string | null;
     customer_net_amount: number | null;
+    priority_erp_debit: string | null;
     generic_text1: string | null;
     generic_text2: string | null;
     generic_number1: number | null;
