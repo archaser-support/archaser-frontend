@@ -171,6 +171,38 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
         [openCreditInsuranceReportingModal]
     );
 
+    const formatAmountCell = useCallback(
+        (val: any, rowCurrency: string) => {
+            if (val === undefined || val === null || val === "") return "";
+            const currency = rowCurrency || "";
+            if (typeof val === "number") {
+                return formatCurrencyWithRTLSupport(
+                    val,
+                    currency,
+                    getUserDateLocale(session),
+                    i18n.language
+                );
+            }
+            if (typeof val === "string") {
+                const trimmed = val.trim();
+                if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+                    const num = parseFloat(trimmed);
+                    if (!isNaN(num)) {
+                        return formatCurrencyWithRTLSupport(
+                            num,
+                            currency,
+                            getUserDateLocale(session),
+                            i18n.language
+                        );
+                    }
+                }
+                return trimmed;
+            }
+            return String(val);
+        },
+        [session, i18n.language]
+    );
+
     // Custom cell renderers for invoice columns
     const customCellRenderers = useMemo(() => {
         const base: Record<string, (params: any) => React.ReactNode> = {
@@ -201,14 +233,9 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
                 ) : null;
             },
             customer_amount: (params: any) => {
-                const amount = params?.value !== undefined && params?.value !== null ? params.value : params?.row?.customer_amount || 0;
-                const currency = params?.row?.customer_currency || "";
-                const formattedAmount = typeof amount === "string" ? amount : formatCurrencyWithRTLSupport(
-                    amount,
-                    currency,
-                    getUserDateLocale(session),
-                    i18n.language
-                );
+                const amount = params?.value !== undefined && params?.value !== null ? params.value : params?.row?.customer_amount ?? 0;
+                const currency = params?.row?.customer_currency || params?.row?.["Invoice.customer_currency"] || params?.row?.currency || "";
+                const formattedAmount = formatAmountCell(amount, currency);
                 const isRTL = i18n.language === "he";
                 return (
                     <Box
@@ -233,14 +260,9 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
                 );
             },
             customer_net_amount: (params: any) => {
-                const netAmount = params?.value !== undefined && params?.value !== null ? params.value : params?.row?.customer_net_amount || 0;
-                const currency = params?.row?.customer_currency || "";
-                const formattedAmount = typeof netAmount === "string" ? netAmount : formatCurrencyWithRTLSupport(
-                    netAmount,
-                    currency,
-                    getUserDateLocale(session),
-                    i18n.language
-                );
+                const netAmount = params?.value !== undefined && params?.value !== null ? params.value : params?.row?.customer_net_amount ?? 0;
+                const currency = params?.row?.customer_currency || params?.row?.["Invoice.customer_currency"] || params?.row?.currency || "";
+                const formattedAmount = formatAmountCell(netAmount, currency);
                 const isRTL = i18n.language === "he";
                 return (
                     <Box
@@ -321,14 +343,9 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
                 );
             },
             customer_outstanding_debt: (params: any) => {
-                const outstandingDebt = params?.value !== undefined && params?.value !== null ? params.value : params?.row?.customer_outstanding_debt || 0;
-                const currency = params?.row?.customer_currency || "";
-                const formattedAmount = typeof outstandingDebt === "string" ? outstandingDebt : formatCurrencyWithRTLSupport(
-                    outstandingDebt,
-                    currency,
-                    getUserDateLocale(session),
-                    i18n.language
-                );
+                const outstandingDebt = params?.value !== undefined && params?.value !== null ? params.value : params?.row?.customer_outstanding_debt ?? 0;
+                const currency = params?.row?.customer_currency || params?.row?.["Invoice.customer_currency"] || params?.row?.currency || "";
+                const formattedAmount = formatAmountCell(outstandingDebt, currency);
                 const isRTL = i18n.language === "he";
                 return (
                     <Box
@@ -363,6 +380,7 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
     }, [
         session,
         i18n.language,
+        formatAmountCell,
         translateStatusName,
         isCreditInsuranceAccount,
         hasCustomerPolicy,
