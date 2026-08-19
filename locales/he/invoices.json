@@ -7,6 +7,7 @@
     "invoice_date": "תאריך חשבונית",
     "invoice_list": "רשימת חשבוניות",
     "invoice_number": "מספר חשבונית",
+    "credit_for_invoice_number": "מספר חשבונית לזיכוי",
     "net_amount": "סכום נטו",
     "no_invoices_found": "לא נמצאו תוצאות.",
     "outstanding_debt": "חוב נותר",

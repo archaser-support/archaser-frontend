@@ -191,6 +191,9 @@ export function isAmountField(
         fieldNameLower.includes("total_invoices_overdue") ||
         fieldNameLower === "overdue_sum" ||
         fieldNameLower.includes("outstanding") ||
+        fieldNameLower.includes("total_paid") ||
+        fieldNameLower.endsWith("_paid") ||
+        fieldNameLower === "paid" ||
         fieldNameLower === "approved_limit" ||
         fieldNameLower === "top_up_total" ||
         fieldNameLower === "effective_approved_limit" ||
