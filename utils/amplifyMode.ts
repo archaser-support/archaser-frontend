@@ -43,19 +43,31 @@ function withApiSuffix(baseUrl: string): string {
     return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
 }
 
-/** Product API base URL for axios (Nest `/api` on Amplify / Nest UI mode). */
+/**
+ * Product API base URL for axios / apiFetch.
+ *
+ * Local Next and EC2 nginx: always same-origin `/api`. Next (or nginx) owns
+ * path peels — reports → :3006, sms → :3004, connectors → :3005, everything
+ * else → main Nest. Do not point the browser at an absolute Nest URL here.
+ *
+ * Amplify: there is no same-origin `/api` proxy, so the browser calls Nest
+ * directly via `NEXT_PUBLIC_API_BASE_URL` or `NEXT_PUBLIC_NEST_API_BASE_URL`.
+ */
 export function resolveProductApiBaseUrl(): string {
+    if (!isAmplifySsrBuild()) {
+        return "/api";
+    }
     const explicit = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
     if (explicit) {
         return withApiSuffix(explicit);
     }
-    if (isNestUiMode()) {
-        const nest = process.env.NEXT_PUBLIC_NEST_API_BASE_URL?.trim();
-        if (nest) {
-            return withApiSuffix(nest);
-        }
+    const nest = process.env.NEXT_PUBLIC_NEST_API_BASE_URL?.trim();
+    if (nest) {
+        return withApiSuffix(nest);
     }
-    return "/api";
+    throw new Error(
+        "Amplify UI requires NEXT_PUBLIC_API_BASE_URL or NEXT_PUBLIC_NEST_API_BASE_URL"
+    );
 }
 
 /**

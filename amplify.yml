@@ -7,6 +7,7 @@
 #   NEXT_PUBLIC_AMPLIFY_UI=true
 #   NEXT_PUBLIC_NEST_API_BASE_URL=https://api.staging.archaser.com
 #   NEXT_PUBLIC_API_BASE_URL=https://api.staging.archaser.com/api
+#     (Amplify-only product API base — local Next always uses same-origin /api)
 #   NEXT_PUBLIC_BASE_URL=https://<this-branch-domain>
 #   NEXTAUTH_URL=https://<this-branch-domain>
 #   NEXTAUTH_SECRET=<signs the NextAuth cookie session>
