@@ -442,6 +442,20 @@ const GeneralInformation: React.FC<GeneralInformationProps> = ({
                             }
                             label="Credit Insurance"
                         />
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={customer.has_file_import !== false}
+                                    onChange={(e) =>
+                                        onFieldChange(
+                                            "has_file_import",
+                                            e.target.checked
+                                        )
+                                    }
+                                />
+                            }
+                            label="File Import"
+                        />
                         {isArchaserAdmin ? (
                             <FormControlLabel
                                 control={

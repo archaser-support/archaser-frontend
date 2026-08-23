@@ -31,6 +31,10 @@ export interface BillingConnectorConfig {
     skip_reporting_breach_on_backfill?: boolean;
     /** Locked after backfill starts until reset. */
     backfill_options_locked?: boolean;
+    /** Optional account-extension key; null/empty = standard path. */
+    extension_key?: string | null;
+    /** Plugin-owned settings for the attached extension. */
+    extension_config?: Record<string, unknown> | null;
     last_connection_test_at: string | null;
     last_connection_error: string | null;
     created_at: string;
@@ -108,6 +112,9 @@ export interface UpsertBillingConnectorPayload {
     backfill_start_date?: string | null;
     include_older_open_invoices?: boolean;
     skip_reporting_breach_on_backfill?: boolean;
+    /** Null/"" clears the extension attachment. */
+    extension_key?: string | null;
+    extension_config?: Record<string, unknown> | null;
 }
 
 const basePath = (accountId: number) =>
