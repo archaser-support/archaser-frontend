@@ -70,7 +70,6 @@ import {
 } from "../components/AuthStyledComponents";
 
 // Constants
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const COOKIE_EXPIRY_DAYS = 30;
 const FOCUS_DELAY = 100;
 
@@ -361,6 +360,8 @@ function LoginPageContent() {
                                 has_collection: accountData.has_collection,
                                 has_credit_insurance:
                                     accountData.has_credit_insurance === true,
+                                has_file_import:
+                                    accountData.has_file_import !== false,
                             }
                             : undefined;
                         const permRes = await apiFetch("/api/permissions/me", {
@@ -601,6 +602,9 @@ function LoginPageContent() {
                                         has_credit_insurance:
                                             accountData.has_credit_insurance ===
                                             true,
+                                        has_file_import:
+                                            accountData.has_file_import !==
+                                            false,
                                     }
                                     : undefined;
 

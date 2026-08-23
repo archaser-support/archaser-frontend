@@ -207,6 +207,7 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
         ...(accountId === "new" && {
             has_collection: true,
             has_credit_insurance: false,
+            has_file_import: true,
             promise_to_pay: 1,
             default_first_activity_delay_days: 3,
             category_after_automated: "Agent",
@@ -497,6 +498,10 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
                 (account as any).has_credit_insurance === undefined
                     ? false
                     : (account as any).has_credit_insurance,
+            has_file_import:
+                (account as any).has_file_import === undefined
+                    ? true
+                    : (account as any).has_file_import,
             enable_customer_checkpoints:
                 (account as any).enable_customer_checkpoints === true,
             credit_limit_warning_threshold_pct:

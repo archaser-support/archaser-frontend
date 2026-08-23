@@ -37,7 +37,7 @@ import {
 } from "@mui/icons-material";
 import type { ConnectorAuthType, ImportType } from "@/types/db";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
     fetchBillingConnectorConfig,
@@ -54,6 +54,10 @@ import {
 import ConnectorFieldMapper from "@/shared/layout-components/import/ConnectorFieldMapper";
 import { normalizeConnectorEnabledEntities } from "@/shared/constants/importEntityFields";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
+import {
+    getBillingExtensionPanel,
+    listBillingExtensionPanelOptions,
+} from "@/shared/billing-extensions/registry";
 
 import {
     accountCardContentSx,
@@ -154,6 +158,10 @@ export default function BillingIntegrationSettings({
         useState(false);
     const [includeOlderOpenInvoices, setIncludeOlderOpenInvoices] =
         useState(true);
+    const [extensionKey, setExtensionKey] = useState("");
+    const [extensionConfig, setExtensionConfig] = useState<
+        Record<string, unknown>
+    >({});
 
     useEffect(() => {
         if (!config) {
@@ -178,6 +186,14 @@ export default function BillingIntegrationSettings({
         );
         setSkipReportingBreachOnBackfill(
             Boolean(config.skip_reporting_breach_on_backfill)
+        );
+        setExtensionKey(config.extension_key?.trim() ?? "");
+        setExtensionConfig(
+            config.extension_config &&
+                typeof config.extension_config === "object" &&
+                !Array.isArray(config.extension_config)
+                ? { ...config.extension_config }
+                : {}
         );
     }, [config]);
 
@@ -223,6 +239,10 @@ export default function BillingIntegrationSettings({
                 backfill_start_date: backfillStartDate.trim() || null,
                 include_older_open_invoices: includeOlderOpenInvoices,
                 skip_reporting_breach_on_backfill: skipReportingBreachOnBackfill,
+                extension_key: extensionKey.trim() || null,
+                extension_config: extensionKey.trim()
+                    ? extensionConfig
+                    : null,
             };
 
             if (schedulePreset === "custom") {
@@ -371,6 +391,11 @@ export default function BillingIntegrationSettings({
 
     const syncInProgress = syncRuns.some((run) => run.status === "RUNNING");
 
+    const extensionRegistration = useMemo(
+        () => getBillingExtensionPanel(extensionKey),
+        [extensionKey]
+    );
+
     const circuitBreakerActive = useMemo(
         () =>
             config?.status === "Error" ||
@@ -420,6 +445,8 @@ export default function BillingIntegrationSettings({
             </Box>
         );
     }
+
+    const ExtensionPanel = extensionRegistration?.Panel;
 
     return (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -637,6 +664,72 @@ export default function BillingIntegrationSettings({
                     </Grid>
                 </CardContent>
             </Card>
+
+            {canManage && (
+                <Card elevation={0} sx={accountCardSx}>
+                    <AccountSectionCardHeader
+                        icon={PsychologyIcon}
+                        title="Account extension"
+                    />
+                    <CardContent sx={accountCardContentSx}>
+                        <FormControl fullWidth sx={{ mb: 1 }}>
+                            <InputLabel id="billing-extension-key-label">
+                                Extension key
+                            </InputLabel>
+                            <Select
+                                labelId="billing-extension-key-label"
+                                label="Extension key"
+                                value={extensionKey}
+                                onChange={(event) => {
+                                    const next = String(event.target.value);
+                                    setExtensionKey(next);
+                                    if (!next) {
+                                        setExtensionConfig({});
+                                    }
+                                }}
+                            >
+                                <MenuItem value="">
+                                    <em>None (standard account)</em>
+                                </MenuItem>
+                                {listBillingExtensionPanelOptions().map(
+                                    (option) => (
+                                        <MenuItem
+                                            key={option.key}
+                                            value={option.key}
+                                        >
+                                            {option.label} ({option.key})
+                                        </MenuItem>
+                                    )
+                                )}
+                            </Select>
+                        </FormControl>
+                        <Typography variant="body2" color="text.secondary">
+                            Optional. Attach a registered extension for
+                            account-specific import logic. Sync still uses the
+                            standard path until the staged plugin pipeline
+                            ships. Save settings to persist.
+                        </Typography>
+                    </CardContent>
+                </Card>
+            )}
+
+            {ExtensionPanel && extensionRegistration && (
+                <Card elevation={0} sx={accountCardSx}>
+                    <AccountSectionCardHeader
+                        icon={PsychologyIcon}
+                        title={`${extensionRegistration.label} settings`}
+                    />
+                    <CardContent sx={accountCardContentSx}>
+                        <ExtensionPanel
+                            accountId={accountId}
+                            extensionKey={extensionRegistration.key}
+                            extensionConfig={extensionConfig}
+                            canManage={canManage}
+                            onConfigChange={setExtensionConfig}
+                        />
+                    </CardContent>
+                </Card>
+            )}
 
             <Card elevation={0} sx={accountCardSx}>
                 <AccountSectionCardHeader

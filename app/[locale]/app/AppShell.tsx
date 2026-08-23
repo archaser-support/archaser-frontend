@@ -599,6 +599,7 @@ const AppLayout = ({ children }: any) => {
     const { data: effectiveAccountProducts, isLoading: isLoadingAccountProducts } = useQuery<{
         has_collection?: boolean;
         has_credit_insurance?: boolean;
+        has_file_import?: boolean;
     }>({
         queryKey: ["account-products", effectiveUser.account_id],
         queryFn: async () => {
@@ -606,6 +607,7 @@ const AppLayout = ({ children }: any) => {
                 return {
                     has_collection: true,
                     has_credit_insurance: false,
+                    has_file_import: true,
                 };
             }
             const response = await api.get(
@@ -618,6 +620,7 @@ const AppLayout = ({ children }: any) => {
                         : true,
                 has_credit_insurance:
                     response.data?.has_credit_insurance === true,
+                has_file_import: response.data?.has_file_import !== false,
             };
         },
         enabled: !!effectiveUser.account_id,
@@ -647,6 +650,8 @@ const AppLayout = ({ children }: any) => {
             : true;
     const hasCreditInsuranceProduct =
         effectiveAccountProducts?.has_credit_insurance === true;
+    const hasFileImportProduct =
+        effectiveAccountProducts?.has_file_import !== false;
     const isCreditOnlyAccount =
         !hasCollectionProduct && hasCreditInsuranceProduct;
 
@@ -699,12 +704,13 @@ const AppLayout = ({ children }: any) => {
     // Settings section - show if user has view_settings permission
     const shouldShowSettingsSection = hasViewSettingsPermission;
 
-    // Import section - show if user has any import permission
+    // Import section - show if File Import product is on and user has any import permission
     const shouldShowImportSection =
-        hasImportCustomerPermission ||
-        hasImportInvoicePermission ||
-        hasImportContactPermission ||
-        hasImportPaymentPermission;
+        hasFileImportProduct &&
+        (hasImportCustomerPermission ||
+            hasImportInvoicePermission ||
+            hasImportContactPermission ||
+            hasImportPaymentPermission);
 
     // Main section - show if user has view_customers permission (or if they're not system admin)
     const shouldShowMainSection =
@@ -734,6 +740,7 @@ const AppLayout = ({ children }: any) => {
             let accountProducts: {
                 has_collection?: boolean;
                 has_credit_insurance?: boolean;
+                has_file_import?: boolean;
             } | undefined;
             if (viewAsUserAccountId) {
                 try {
@@ -747,6 +754,8 @@ const AppLayout = ({ children }: any) => {
                                 : true,
                         has_credit_insurance:
                             accountResponse.data?.has_credit_insurance === true,
+                        has_file_import:
+                            accountResponse.data?.has_file_import !== false,
                     };
                 } catch {
                     accountProducts = undefined;
@@ -1166,6 +1175,7 @@ const AppLayout = ({ children }: any) => {
         userPermissionsData,
         isCreditOnlyAccount,
         isLoadingAccountProducts,
+        hasFileImportProduct,
     ]);
 
     // Force refresh sidebar when view-as state changes

@@ -1,6 +1,8 @@
 export type AccountProducts = {
     has_collection?: boolean;
     has_credit_insurance?: boolean;
+    /** Defaults to true when omitted (existing accounts / pre-migration). */
+    has_file_import?: boolean;
 };
 
 export function isCreditOnlyAccount(
@@ -12,8 +14,19 @@ export function isCreditOnlyAccount(
     );
 }
 
+/** File Import nav/page/matrix surfaces are shown unless explicitly disabled. */
+export function isFileImportVisible(
+    accountProducts?: AccountProducts | null
+): boolean {
+    return accountProducts?.has_file_import !== false;
+}
+
 export function accountProductsFromRecord(
-    record?: { has_collection?: boolean; has_credit_insurance?: boolean } | null
+    record?: {
+        has_collection?: boolean;
+        has_credit_insurance?: boolean;
+        has_file_import?: boolean;
+    } | null
 ): AccountProducts | undefined {
     if (!record) {
         return undefined;
@@ -22,6 +35,10 @@ export function accountProductsFromRecord(
     return {
         has_collection: record.has_collection,
         has_credit_insurance: record.has_credit_insurance,
+        has_file_import:
+            record.has_file_import !== undefined
+                ? record.has_file_import
+                : true,
     };
 }
 
