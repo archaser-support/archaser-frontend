@@ -21,6 +21,8 @@ try {
 
 const {
     getNestApiRewriteTarget,
+    getReportsNestRewriteTarget,
+    isReportsNestRewriteEnabled,
     buildNestApiRewrites,
 } = require("./nest-api-rewrite.cjs");
 
@@ -69,9 +71,12 @@ const nextConfig = {
     async rewrites() {
         const nestRewrites = buildNestApiRewrites();
         if (nestRewrites.length > 0) {
+            const reportsNote = isReportsNestRewriteEnabled()
+                ? `; /api/reports → ${getReportsNestRewriteTarget()}`
+                : "";
             // eslint-disable-next-line no-console
             console.info(
-                `[nest-api-rewrite] Proxying /api/* → ${getNestApiRewriteTarget()} (excluding auth, ws)`
+                `[nest-api-rewrite] Proxying /api/* → ${getNestApiRewriteTarget()} (excluding auth, ws)${reportsNote}`
             );
         }
         return {

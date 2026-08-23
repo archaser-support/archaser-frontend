@@ -31,8 +31,9 @@ export async function middleware(request: NextRequest) {
         if (pathname.startsWith("/api/auth")) {
             return NextResponse.next();
         }
-        // Local dev may proxy product APIs to Nest via `next.config.js`
-        // rewrites; middleware runs first, so let those through.
+        // Local product APIs are always same-origin `/api`; Next rewrites
+        // peel them to Nest (reports/sms/connectors/main). Middleware runs
+        // before rewrites, so let those through when the rewrite is on.
         if (
             process.env.NODE_ENV === "development" &&
             process.env.USE_NEST_API_REWRITE === "true"
@@ -59,7 +60,8 @@ export async function middleware(request: NextRequest) {
         }
         return NextResponse.json(
             {
-                error: "API is served by Nest. Set NEXT_PUBLIC_API_BASE_URL to the Nest origin.",
+                error:
+                    "Product APIs are not served by this Next process. Locally set USE_NEST_API_REWRITE=true so /api peels to Nest; on Amplify the browser must call Nest via NEXT_PUBLIC_API_BASE_URL.",
             },
             { status: 404 }
         );
