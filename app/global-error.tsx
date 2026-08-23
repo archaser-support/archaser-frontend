@@ -1,7 +1,8 @@
 "use client";
 import { apiFetch } from "@/utils/apiFetch";
 
-import { Box, Button, ThemeProvider } from "@mui/material";
+import { Box, Button } from "@mui/material";
+import { ThemeProvider } from "@mui/material/styles";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 

@@ -32,6 +32,8 @@ interface ToolbarDropdownFilterProps<T> {
     required?: boolean;
     fullWidth?: boolean;
     noOptionsText?: string;
+    /** Show all options without a scrollable listbox (e.g. short preset menus). */
+    disableListboxScroll?: boolean;
 }
 
 export function ToolbarDropdownFilter<T>({
@@ -54,6 +56,7 @@ export function ToolbarDropdownFilter<T>({
     required = false,
     fullWidth = false,
     noOptionsText,
+    disableListboxScroll = false,
 }: ToolbarDropdownFilterProps<T>) {
     const { i18n } = useTranslation(["common"]);
     const theme = useTheme();
@@ -337,6 +340,21 @@ export function ToolbarDropdownFilter<T>({
             slotProps={{
                 popupIndicator: { size: "small" },
                 clearIndicator: { size: "small" },
+                ...(disableListboxScroll
+                    ? {
+                          listbox: {
+                              sx: {
+                                  maxHeight: "none",
+                                  overflow: "visible",
+                              },
+                          },
+                          paper: {
+                              sx: {
+                                  maxHeight: "none",
+                              },
+                          },
+                      }
+                    : {}),
             }}
             dir={i18n.language === "he" ? "rtl" : "ltr"}
             {...(i18n.language === "he" && {

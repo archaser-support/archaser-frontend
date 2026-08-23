@@ -34,9 +34,9 @@ const nextConfig = {
     ...(isAmplifySsr ? {} : { distDir: "build" }),
 
     modularizeImports: {
-        "@mui/material": {
-            transform: "@mui/material/{{member}}",
-        },
+        // Icons still map 1:1 to files. Do not transform `@mui/material` —
+        // ThemeProvider, useTheme, alpha, etc. live under `/styles` in MUI v7
+        // and Next 16 Turbopack cannot resolve `@mui/material/{{member}}`.
         "@mui/icons-material": {
             transform: "@mui/icons-material/{{member}}",
         },

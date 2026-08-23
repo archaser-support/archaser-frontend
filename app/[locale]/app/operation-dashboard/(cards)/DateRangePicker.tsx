@@ -18,6 +18,8 @@ type DatePreset =
     | "last_week"
     | "this_month"
     | "last_month"
+    | "this_year"
+    | "last_year"
     | "custom";
 
 interface PresetOption {
@@ -30,6 +32,8 @@ interface DateRangePickerProps {
     endDate: Date;
     onStartDateChange: (date: Date) => void;
     onEndDateChange: (date: Date) => void;
+    /** When both bounds change together (preset), prefer this over sequential start/end callbacks. */
+    onDateRangeChange?: (start: Date, end: Date) => void;
 }
 
 /** Slightly wider than default toolbar (22.5) for Hebrew preset labels + calendar icon. */
@@ -40,6 +44,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
     endDate,
     onStartDateChange,
     onEndDateChange,
+    onDateRangeChange,
 }) => {
     const { t, i18n } = useTranslation(["dashboard"]);
     const { data: session } = useSession();
@@ -141,6 +146,18 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
             { value: "last_week", label: t("fields.date_preset_last_week") },
             { value: "this_month", label: t("fields.date_preset_this_month") },
             { value: "last_month", label: t("fields.date_preset_last_month") },
+            {
+                value: "this_year",
+                label: t("fields.date_preset_this_year", {
+                    defaultValue: "This Year",
+                }),
+            },
+            {
+                value: "last_year",
+                label: t("fields.date_preset_last_year", {
+                    defaultValue: "Last Year",
+                }),
+            },
             { value: "custom", label: t("fields.date_preset_custom") },
         ],
         [t]
@@ -227,6 +244,25 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                 );
                 return { start, end };
             }
+            case "this_year": {
+                const start = new Date(today.getFullYear(), 0, 1);
+                const end = new Date(
+                    today.getFullYear(),
+                    11,
+                    31,
+                    23,
+                    59,
+                    59,
+                    999
+                );
+                return { start, end };
+            }
+            case "last_year": {
+                const year = today.getFullYear() - 1;
+                const start = new Date(year, 0, 1);
+                const end = new Date(year, 11, 31, 23, 59, 59, 999);
+                return { start, end };
+            }
             default:
                 return { start: startDate, end: endDate };
         }
@@ -282,67 +318,90 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                 999
             );
 
+            const thisYearStart = new Date(today.getFullYear(), 0, 1);
+            thisYearStart.setHours(0, 0, 0, 0);
+            const thisYearEndExpected = new Date(
+                today.getFullYear(),
+                11,
+                31,
+                23,
+                59,
+                59,
+                999
+            );
+
+            const lastYearStart = new Date(today.getFullYear() - 1, 0, 1);
+            lastYearStart.setHours(0, 0, 0, 0);
+            const lastYearEnd = new Date(
+                today.getFullYear() - 1,
+                11,
+                31,
+                23,
+                59,
+                59,
+                999
+            );
+
             const startTime = new Date(startDate);
             startTime.setHours(0, 0, 0, 0);
             const endTime = new Date(endDate);
+            const thisWeekEndExpected = new Date(
+                thisWeekStart.getTime() +
+                    6 * 24 * 60 * 60 * 1000 +
+                    86399999
+            );
+            const thisMonthEndExpected = new Date(
+                today.getFullYear(),
+                today.getMonth() + 1,
+                0,
+                23,
+                59,
+                59,
+                999
+            );
 
-            if (
+            const matchToday =
                 startTime.getTime() === today.getTime() &&
                 endTime.getTime() <= todayEnd.getTime() &&
-                endTime.getTime() >= today.getTime()
-            ) {
-                return "today";
-            }
-            if (
+                endTime.getTime() >= today.getTime();
+            const matchYesterday =
                 startTime.getTime() === yesterday.getTime() &&
                 endTime.getTime() >= yesterday.getTime() &&
-                endTime.getTime() <= yesterdayEnd.getTime()
-            ) {
-                return "yesterday";
-            }
-            if (
+                endTime.getTime() <= yesterdayEnd.getTime();
+            const matchThisWeek =
                 startTime.getTime() === thisWeekStart.getTime() &&
                 endTime.getTime() >= thisWeekStart.getTime() &&
                 (endTime.getTime() <= now.getTime() ||
-                    endTime.getTime() ===
-                        new Date(
-                            thisWeekStart.getTime() +
-                                6 * 24 * 60 * 60 * 1000 +
-                                86399999
-                        ).getTime())
-            ) {
-                return "this_week";
-            }
-            if (
+                    endTime.getTime() === thisWeekEndExpected.getTime());
+            const matchLastWeek =
                 startTime.getTime() === lastWeekStart.getTime() &&
                 endTime.getTime() >= lastWeekStart.getTime() &&
-                endTime.getTime() <= lastWeekEnd.getTime()
-            ) {
-                return "last_week";
-            }
-            if (
+                endTime.getTime() <= lastWeekEnd.getTime();
+            const matchThisMonth =
                 startTime.getTime() === thisMonthStart.getTime() &&
                 (endTime.getTime() <= now.getTime() ||
-                    endTime.getTime() ===
-                        new Date(
-                            today.getFullYear(),
-                            today.getMonth() + 1,
-                            0,
-                            23,
-                            59,
-                            59,
-                            999
-                        ).getTime())
-            ) {
-                return "this_month";
-            }
-            if (
+                    endTime.getTime() === thisMonthEndExpected.getTime());
+            const matchLastMonth =
                 startTime.getTime() === lastMonthStart.getTime() &&
                 endTime.getTime() >= lastMonthStart.getTime() &&
-                endTime.getTime() <= lastMonthEnd.getTime()
-            ) {
-                return "last_month";
-            }
+                endTime.getTime() <= lastMonthEnd.getTime();
+            const matchThisYear =
+                startTime.getTime() === thisYearStart.getTime() &&
+                (endTime.getTime() <= now.getTime() ||
+                    endTime.getTime() === thisYearEndExpected.getTime());
+            const matchLastYear =
+                startTime.getTime() === lastYearStart.getTime() &&
+                endTime.getTime() >= lastYearStart.getTime() &&
+                endTime.getTime() <= lastYearEnd.getTime();
+
+            if (matchToday) return "today";
+            if (matchYesterday) return "yesterday";
+            if (matchThisWeek) return "this_week";
+            if (matchLastWeek) return "last_week";
+            if (matchThisMonth) return "this_month";
+            if (matchLastMonth) return "last_month";
+            if (matchThisYear) return "this_year";
+            if (matchLastYear) return "last_year";
             return "custom";
         };
 
@@ -362,8 +421,12 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
         } else {
             setShowCustomDates(false);
             const { start, end } = calculateDateRange(newPreset);
-            onStartDateChange(start);
-            onEndDateChange(end);
+            if (onDateRangeChange) {
+                onDateRangeChange(start, end);
+            } else {
+                onStartDateChange(start);
+                onEndDateChange(end);
+            }
         }
     };
 
@@ -407,6 +470,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                         }
                         label={t("fields.toolbar_date_range_label")}
                         sx={presetFilterSx}
+                        disableListboxScroll
                         startAdornment={
                             <InputAdornment position="start">
                                 <CalendarTodayIcon sx={toolbarPresetIconSx} />
