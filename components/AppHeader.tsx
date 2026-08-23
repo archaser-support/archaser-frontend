@@ -483,8 +483,10 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                             alignItems: "center",
                             gap: 1,
                             px: 1.5,
-                            py: 0.75,
-                            height: "32px",
+                            py: 0,
+                            height: theme.appButton.sizeSmall.height,
+                            minHeight: theme.appButton.sizeSmall.height,
+                            boxSizing: "border-box",
                             background: `linear-gradient(135deg, ${alpha(theme.palette.common.white, 0.15)} 0%, ${alpha(theme.palette.common.white, 0.08)} 100%)`,
                             backdropFilter: "blur(12px)",
                             borderRadius: theme.spacing(3),
@@ -588,7 +590,10 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                                     alignItems: "center",
                                     gap: 0.75,
                                     px: 1.25,
-                                    py: 0.5,
+                                    py: 0,
+                                    height: theme.appButton.sizeSmall.height,
+                                    minHeight: theme.appButton.sizeSmall.height,
+                                    boxSizing: "border-box",
                                     backgroundColor: alpha(
                                         theme.palette.common.white,
                                         0.1
@@ -670,8 +675,10 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                                     textTransform: "none",
                                     fontSize: "0.8125rem",
                                     px: 1.5,
-                                    py: 0.5,
-                                    height: "28px",
+                                    py: 0,
+                                    height: theme.appButton.sizeSmall.height,
+                                    minHeight: theme.appButton.sizeSmall.height,
+                                    boxSizing: "border-box",
                                     direction: isHebrewUser ? "rtl" : "ltr",
                                     transition:
                                         "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
@@ -743,8 +750,8 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                     >
                         <Avatar
                             sx={{
-                                width: 32,
-                                height: 32,
+                                width: theme.appButton.sizeSmall.height,
+                                height: theme.appButton.sizeSmall.height,
                                 border: session?.user?.view_as_user_id
                                     ? `2px solid ${alpha(theme.palette.error.light, 0.6)}`
                                     : `2px solid ${alpha(theme.palette.common.white, 0.3)}`,
