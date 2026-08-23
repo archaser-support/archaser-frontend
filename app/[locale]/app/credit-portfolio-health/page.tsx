@@ -304,6 +304,21 @@ export default function CreditPortfolioHealthPage() {
         });
     };
 
+    const handleDateRangeChange = (start: Date, end: Date) => {
+        const nextStart = new Date(start);
+        nextStart.setHours(0, 0, 0, 0);
+        const nextEnd = endOfLocalDay(end);
+        setStartDate(nextStart);
+        setEndDate(nextEnd);
+        replacePortfolioHealthUrl({
+            from: toYmdLocal(nextStart),
+            to: toYmdLocal(nextEnd),
+            policyId: selectedPolicyId,
+            businessUnitId: selectedBusinessUnitId,
+            includeNoPolicyExposure,
+        });
+    };
+
     const handleTabChange = (tab: PortfolioHealthTabId) => {
         setActiveTab(tab);
         replacePortfolioHealthUrl({
@@ -364,6 +379,7 @@ export default function CreditPortfolioHealthPage() {
             endDate={endDate}
             onStartDateChange={handleStartDateChange}
             onEndDateChange={handleEndDateChange}
+            onDateRangeChange={handleDateRangeChange}
             activeTab={activeTab}
             onTabChange={handleTabChange}
             data={data}

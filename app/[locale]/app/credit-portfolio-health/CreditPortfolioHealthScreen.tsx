@@ -39,6 +39,7 @@ export type CreditPortfolioHealthScreenProps = {
     endDate: Date;
     onStartDateChange: (date: Date) => void;
     onEndDateChange: (date: Date) => void;
+    onDateRangeChange: (start: Date, end: Date) => void;
     activeTab: PortfolioHealthTabId;
     onTabChange: (tab: PortfolioHealthTabId) => void;
     data: CreditPortfolioHealthResponse | undefined;
@@ -59,6 +60,7 @@ export function CreditPortfolioHealthScreen({
     endDate,
     onStartDateChange,
     onEndDateChange,
+    onDateRangeChange,
     activeTab,
     onTabChange,
     data,
@@ -159,6 +161,18 @@ export function CreditPortfolioHealthScreen({
                         description={pageDescription}
                         sticky={false}
                     />
+                </Box>
+                <Box sx={contentAreaSx}>
+                    <Box
+                        sx={{
+                            pb: 2,
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "flex-start",
+                            width: "100%",
+                            gap: theme.spacing(2),
+                        }}
+                    >
                     <Box
                         className="endless-scroll-toolbar"
                         sx={{
@@ -176,6 +190,8 @@ export function CreditPortfolioHealthScreen({
                             overflow: "visible",
                             justifyContent: "flex-start",
                             boxSizing: "border-box",
+                            boxShadow: "none",
+                            width: "100%",
                         }}
                     >
                         <BusinessUnitDashboardFilter
@@ -198,10 +214,9 @@ export function CreditPortfolioHealthScreen({
                             endDate={endDate}
                             onStartDateChange={onStartDateChange}
                             onEndDateChange={onEndDateChange}
+                            onDateRangeChange={onDateRangeChange}
                         />
                     </Box>
-                </Box>
-                <Box sx={contentAreaSx}>
                     {isLoading ? (
                         <Box
                             sx={{
@@ -209,12 +224,13 @@ export function CreditPortfolioHealthScreen({
                                 alignItems: "center",
                                 justifyContent: "center",
                                 minHeight: { xs: "300px", sm: "400px" },
+                                width: "100%",
                             }}
                         >
                             <CircularProgress color="primary" size={48} />
                         </Box>
                     ) : isError ? (
-                        <Box sx={{ p: 3 }}>
+                        <Box sx={{ p: 3, width: "100%" }}>
                             <Typography color="error">
                                 {error?.message === "forbidden"
                                     ? t("messages.credit_dashboard_forbidden", {
@@ -231,15 +247,19 @@ export function CreditPortfolioHealthScreen({
                             </Typography>
                         </Box>
                     ) : (
-                        <div
+                        <Box
                             className="cph-island"
                             dir={isRtl ? "rtl" : "ltr"}
-                            style={{
-                                marginInline: "-0.25rem",
-                                paddingInline: "1rem",
-                                paddingTop: 24,
-                                paddingBottom: 24,
+                            sx={{
+                                width: "100%",
+                                maxWidth: "100%",
+                                m: 0,
+                                p: 0,
+                                pb: 3,
                                 minHeight: "60vh",
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "flex-start",
                             }}
                         >
                             <div className={layout.islandShell}>
@@ -275,11 +295,11 @@ export function CreditPortfolioHealthScreen({
                                     role="tabpanel"
                                     aria-labelledby={`cph-tab-${activeTab}`}
                                     key={activeTab}
-                                    className={
+                                    className={`${layout.panel}${
                                         prefersReducedMotion
-                                            ? undefined
-                                            : islandMotion.panelEnter
-                                    }
+                                            ? ""
+                                            : ` ${islandMotion.panelEnter}`
+                                    }`}
                                 >
                                     {activeTab === "health" ? (
                                         data?.portfolioHealth != null ? (
@@ -367,8 +387,9 @@ export function CreditPortfolioHealthScreen({
                                     ) : null}
                                 </div>
                             </div>
-                        </div>
+                        </Box>
                     )}
+                    </Box>
                 </Box>
             </Box>
         </>
