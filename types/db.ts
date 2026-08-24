@@ -390,6 +390,7 @@ export type Account = {
     sso_providers: string | null;
     has_collection: boolean;
     has_credit_insurance: boolean;
+    has_file_import: boolean;
     enable_customer_checkpoints: boolean;
     credit_limit_warning_threshold_pct: number | null;
     credit_score_validity_warning_days: number | null;
@@ -716,6 +717,8 @@ export type BillingConnector = {
     preview_passes: JsonValue;
     last_connection_test_at: Date | null;
     last_connection_error: string | null;
+    extension_key: string | null;
+    extension_config: JsonValue | null;
     created_at: Date;
     modified_at: Date;
     created_by: string | null;

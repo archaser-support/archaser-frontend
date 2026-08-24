@@ -1,6 +1,16 @@
 ﻿"use client";
 
-import { Box, CircularProgress, Typography, useTheme } from "@mui/material";
+import {
+    Box,
+    Button,
+    CircularProgress,
+    FormControlLabel,
+    LinearProgress,
+    Switch,
+    Tooltip,
+    Typography,
+    useTheme,
+} from "@mui/material";
 import { useTranslation } from "react-i18next";
 
 import PageHeader from "@/components/PageHeader";
@@ -12,10 +22,15 @@ import {
 import { CreditDashboardExcludedCustomersFilter } from "@/app/[locale]/app/credit-dashboard/CreditDashboardExcludedCustomersFilter";
 import BusinessUnitDashboardFilter from "@/shared/components/BusinessUnitDashboardFilter";
 import Seo from "@/shared/layout-components/seo/seo";
-import type { CreditPortfolioHealthResponse } from "@/types/creditInsurance";
+import { getRTLTooltipProps } from "@/utils/reportFieldUtils";
+import type {
+    CreditAsOfBackfillJobView,
+    CreditPortfolioHealthResponse,
+} from "@/types/creditInsurance";
 
 import { CostsSectionView } from "./CostsSectionView";
 import { CPH } from "./designTokens";
+import { spaceGrotesk } from "./fonts";
 import layout from "./islandLayout.module.css";
 import islandMotion from "./islandMotion.module.css";
 import { NoCoverageSectionView } from "./NoCoverageSectionView";
@@ -39,12 +54,22 @@ export type CreditPortfolioHealthScreenProps = {
     endDate: Date;
     onStartDateChange: (date: Date) => void;
     onEndDateChange: (date: Date) => void;
+    onDateRangeChange: (start: Date, end: Date) => void;
     activeTab: PortfolioHealthTabId;
     onTabChange: (tab: PortfolioHealthTabId) => void;
     data: CreditPortfolioHealthResponse | undefined;
     isLoading: boolean;
     isError: boolean;
     error: Error | null;
+    backfillJob: CreditAsOfBackfillJobView | undefined;
+    onGenerateSnapshots: () => void;
+    onStopGenerate: () => void;
+    onRetryGenerate: () => void;
+    generatePending: boolean;
+    stopPending: boolean;
+    retryPending: boolean;
+    ignoreReportingBreach: boolean;
+    onIgnoreReportingBreachChange: (value: boolean) => void;
 };
 
 export function CreditPortfolioHealthScreen({
@@ -59,12 +84,22 @@ export function CreditPortfolioHealthScreen({
     endDate,
     onStartDateChange,
     onEndDateChange,
+    onDateRangeChange,
     activeTab,
     onTabChange,
     data,
     isLoading,
     isError,
     error,
+    backfillJob,
+    onGenerateSnapshots,
+    onStopGenerate,
+    onRetryGenerate,
+    generatePending,
+    stopPending,
+    retryPending,
+    ignoreReportingBreach,
+    onIgnoreReportingBreachChange,
 }: CreditPortfolioHealthScreenProps) {
     const { t, i18n } = useTranslation(["dashboard"]);
     const theme = useTheme();
@@ -149,16 +184,49 @@ export function CreditPortfolioHealthScreen({
               })
             : null;
 
+    const backfillStatus = backfillJob?.status ?? "idle";
+    const isBackfillRunning = backfillStatus === "running";
+    const showProgress =
+        isBackfillRunning ||
+        backfillStatus === "paused" ||
+        backfillStatus === "failed";
+    const progressPct =
+        backfillJob != null && backfillJob.daysTotal > 0
+            ? Math.min(
+                  100,
+                  Math.round(
+                      (backfillJob.daysDone / backfillJob.daysTotal) * 100
+                  )
+              )
+            : 0;
+    const generateDisabled =
+        isBackfillRunning || generatePending || stopPending || retryPending;
+    const ignoreReportingBreachLocked =
+        backfillStatus === "running" ||
+        backfillStatus === "paused" ||
+        backfillStatus === "failed" ||
+        generatePending;
+
     return (
         <>
             <Seo title={pageTitle} />
-            <Box sx={dashboardShellSx}>
+            <Box sx={dashboardShellSx} className={spaceGrotesk.variable}>
                 <Box sx={stickyHeaderSx}>
                     <PageHeader
                         title={pageTitle}
                         description={pageDescription}
                         sticky={false}
                     />
+                </Box>
+                <Box sx={contentAreaSx}>
+                    <Box
+                        sx={{
+                            pb: 2,
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: theme.spacing(2),
+                        }}
+                    >
                     <Box
                         className="endless-scroll-toolbar"
                         sx={{
@@ -176,6 +244,8 @@ export function CreditPortfolioHealthScreen({
                             overflow: "visible",
                             justifyContent: "flex-start",
                             boxSizing: "border-box",
+                            boxShadow: "none",
+                            width: "100%",
                         }}
                     >
                         <BusinessUnitDashboardFilter
@@ -198,10 +268,119 @@ export function CreditPortfolioHealthScreen({
                             endDate={endDate}
                             onStartDateChange={onStartDateChange}
                             onEndDateChange={onEndDateChange}
+                            onDateRangeChange={onDateRangeChange}
                         />
+                        <Tooltip
+                            title={t(
+                                "credit_portfolio_health.ignore_reporting_breach_tooltip",
+                                {
+                                    ...ns,
+                                    defaultValue:
+                                        "Only this Generate. Snapshots treat reporting-late as off. Invoice records and the nightly job stay unchanged.",
+                                }
+                            )}
+                            {...getRTLTooltipProps(i18n)}
+                        >
+                            <span>
+                                <FormControlLabel
+                                    disabled={ignoreReportingBreachLocked}
+                                    control={
+                                        <Switch
+                                            color="primary"
+                                            checked={ignoreReportingBreach}
+                                            onChange={(event) =>
+                                                onIgnoreReportingBreachChange(
+                                                    event.target.checked
+                                                )
+                                            }
+                                            {...(isRtl
+                                                ? { "data-rtl": true }
+                                                : {})}
+                                        />
+                                    }
+                                    label={t(
+                                        "credit_portfolio_health.ignore_reporting_breach",
+                                        {
+                                            ...ns,
+                                            defaultValue:
+                                                "Ignore reporting breach",
+                                        }
+                                    )}
+                                />
+                            </span>
+                        </Tooltip>
+                        <Button
+                            variant="contained"
+                            size="small"
+                            disabled={generateDisabled}
+                            onClick={onGenerateSnapshots}
+                        >
+                            {t("credit_portfolio_health.generate_snapshots", {
+                                ...ns,
+                                defaultValue: "Generate",
+                            })}
+                        </Button>
+                        {isBackfillRunning ? (
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                disabled={stopPending}
+                                onClick={onStopGenerate}
+                            >
+                                {t("credit_portfolio_health.stop_generate", {
+                                    ...ns,
+                                    defaultValue: "Stop",
+                                })}
+                            </Button>
+                        ) : null}
+                        {backfillStatus === "paused" ||
+                        backfillStatus === "failed" ? (
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                disabled={retryPending || generatePending}
+                                onClick={onRetryGenerate}
+                            >
+                                {t("credit_portfolio_health.retry_generate", {
+                                    ...ns,
+                                    defaultValue: "Retry",
+                                })}
+                            </Button>
+                        ) : null}
                     </Box>
-                </Box>
-                <Box sx={contentAreaSx}>
+                    {showProgress ? (
+                        <Box
+                            sx={{
+                                width: "100%",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 0.75,
+                            }}
+                        >
+                            <Typography variant="body2" color="text.secondary">
+                                {t(
+                                    "credit_portfolio_health.generate_progress",
+                                    {
+                                        ...ns,
+                                        defaultValue:
+                                            "Generating snapshots: {{done}} of {{total}} days",
+                                        done: backfillJob?.daysDone ?? 0,
+                                        total: backfillJob?.daysTotal ?? 0,
+                                    }
+                                )}
+                            </Typography>
+                            <LinearProgress
+                                variant="determinate"
+                                value={progressPct}
+                                sx={{ height: 8, borderRadius: 4 }}
+                            />
+                            {backfillJob?.lastError ? (
+                                <Typography variant="body2" color="error">
+                                    {backfillJob.lastError}
+                                </Typography>
+                            ) : null}
+                        </Box>
+                    ) : null}
                     {isLoading ? (
                         <Box
                             sx={{
@@ -209,12 +388,13 @@ export function CreditPortfolioHealthScreen({
                                 alignItems: "center",
                                 justifyContent: "center",
                                 minHeight: { xs: "300px", sm: "400px" },
+                                width: "100%",
                             }}
                         >
                             <CircularProgress color="primary" size={48} />
                         </Box>
                     ) : isError ? (
-                        <Box sx={{ p: 3 }}>
+                        <Box sx={{ p: 3, width: "100%" }}>
                             <Typography color="error">
                                 {error?.message === "forbidden"
                                     ? t("messages.credit_dashboard_forbidden", {
@@ -231,15 +411,16 @@ export function CreditPortfolioHealthScreen({
                             </Typography>
                         </Box>
                     ) : (
-                        <div
+                        <Box
                             className="cph-island"
-                            dir={isRtl ? "rtl" : "ltr"}
-                            style={{
-                                marginInline: "-0.25rem",
-                                paddingInline: "1rem",
-                                paddingTop: 24,
-                                paddingBottom: 24,
+                            sx={{
+                                width: "100%",
+                                maxWidth: "100%",
+                                m: 0,
+                                p: 0,
+                                pb: 3,
                                 minHeight: "60vh",
+                                direction: isRtl ? "rtl" : "ltr",
                             }}
                         >
                             <div className={layout.islandShell}>
@@ -275,16 +456,18 @@ export function CreditPortfolioHealthScreen({
                                     role="tabpanel"
                                     aria-labelledby={`cph-tab-${activeTab}`}
                                     key={activeTab}
-                                    className={
+                                    className={`${layout.panel}${
                                         prefersReducedMotion
-                                            ? undefined
-                                            : islandMotion.panelEnter
-                                    }
+                                            ? ""
+                                            : ` ${islandMotion.panelEnter}`
+                                    }`}
                                 >
                                     {activeTab === "health" ? (
                                         data?.portfolioHealth != null ? (
                                             <PortfolioHealthSectionView
                                                 section={data.portfolioHealth}
+                                                fromYmd={data.from}
+                                                toYmd={data.to}
                                             />
                                         ) : (
                                             <p
@@ -327,6 +510,8 @@ export function CreditPortfolioHealthScreen({
                                         data?.utilization != null ? (
                                             <UtilizationSectionView
                                                 section={data.utilization}
+                                                fromYmd={data.from}
+                                                toYmd={data.to}
                                             />
                                         ) : (
                                             <p
@@ -348,6 +533,8 @@ export function CreditPortfolioHealthScreen({
                                         data?.costs != null ? (
                                             <CostsSectionView
                                                 section={data.costs}
+                                                fromYmd={data.from}
+                                                toYmd={data.to}
                                             />
                                         ) : (
                                             <p
@@ -367,8 +554,9 @@ export function CreditPortfolioHealthScreen({
                                     ) : null}
                                 </div>
                             </div>
-                        </div>
+                        </Box>
                     )}
+                    </Box>
                 </Box>
             </Box>
         </>

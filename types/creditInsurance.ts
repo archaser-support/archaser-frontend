@@ -361,6 +361,8 @@ export type PortfolioUtilizationSection = {
     distributionCustomerCount: number;
     /** Daily portfolio / DCL / Named utilization for the Utilization chart. */
     daily: PortfolioUtilizationDailyPoint[];
+    /** Snapshot day used for top customers and distribution; null when none. */
+    asOfDate: string | null;
 };
 
 export type PortfolioCostDailyPoint = {
@@ -388,10 +390,35 @@ export type PortfolioCostsSection = {
     accountCurrency: string;
     selfUnderwrittenCustomerPct: number;
     selfUnderwrittenArSharePct: number;
+    /** Mean daily DCL (self-underwriting) AR over the range. */
+    selfUnderwrittenAverageAr: number;
     approvedCustomerPct: number;
     approvedArSharePct: number;
+    /** Mean daily Named (insurer-approved) AR over the range. */
+    approvedAverageAr: number;
     /** Always null until a policy-level deductible field exists. */
     deductiblePct: null;
+};
+
+export type CreditAsOfBackfillJobStatus =
+    | "idle"
+    | "running"
+    | "paused"
+    | "failed"
+    | "complete";
+
+export type CreditAsOfBackfillJobView = {
+    status: CreditAsOfBackfillJobStatus;
+    fromDate: string | null;
+    toDate: string | null;
+    checkpointDate: string | null;
+    daysTotal: number;
+    daysDone: number;
+    lastError: string | null;
+    requestedBy: string | null;
+    startedAt: string | null;
+    updatedAt: string | null;
+    skipReportingBreach: boolean;
 };
 
 export type CreditPortfolioHealthResponse = {

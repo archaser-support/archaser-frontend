@@ -1897,29 +1897,43 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                     "& .MuiFormControl-root": {
                         margin: 0,
                         padding: 0,
+                        height: theme.appButton.sizeSmall.height,
                     },
-                    "& .MuiOutlinedInput-root": {
+                    "& .MuiOutlinedInput-root.MuiInputBase-root.MuiInputBase-sizeSmall":
+                    {
+                        height: `${theme.appButton.sizeSmall.height}px !important`,
+                        minHeight: `${theme.appButton.sizeSmall.height}px !important`,
+                        maxHeight: `${theme.appButton.sizeSmall.height}px !important`,
+                        boxSizing: "border-box",
                         borderRadius: theme.spacing(3),
-                        backgroundColor: "rgba(255, 255, 255, 0.1)",
+                        backgroundColor: "rgba(255, 255, 255, 0.1) !important",
                         color: "white",
                         // Add padding between border and magnifying glass
                         // For LTR: icon is at positionStart (left), add marginLeft
                         // For RTL: icon is at positionEnd (right), add marginRight
                         "& .MuiInputAdornment-positionStart": {
                             marginLeft:
-                                i18n.language === "he" ? 0 : theme.spacing(1.5),
+                                i18n.language === "he"
+                                    ? 0
+                                    : `${theme.spacing(1.5)} !important`,
                             marginRight: i18n.language === "he" ? 0 : 0,
                         },
                         "& .MuiInputAdornment-positionEnd": {
                             marginLeft: i18n.language === "he" ? 0 : 0,
                             marginRight:
-                                i18n.language === "he" ? theme.spacing(1.5) : 0,
+                                i18n.language === "he"
+                                    ? `${theme.spacing(1.5)} !important`
+                                    : 0,
                         },
                         "& input": {
                             color: "white",
+                            paddingTop: 0,
+                            paddingBottom: 0,
+                            height: "100%",
+                            boxSizing: "border-box",
                         },
                         "& fieldset": {
-                            borderRadius: theme.spacing(3),
+                            borderRadius: `${theme.spacing(3)} !important`,
                             borderColor: "rgba(255, 255, 255, 0.3)",
                         },
                         "&:hover fieldset": {
@@ -2829,6 +2843,12 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         dir={i18n.language === "he" ? "rtl" : "ltr"}
                         InputProps={{
                             ...params.InputProps,
+                            className: [
+                                params.InputProps?.className,
+                                "input-toolbar-height",
+                            ]
+                                .filter(Boolean)
+                                .join(" "),
                             endAdornment: null, // Remove dropdown icon
                             startAdornment:
                                 i18n.language === "he" ? (

@@ -1153,9 +1153,20 @@ export function buildThemeComponents(ctx: ThemeComponentsContext): ThemeOptions[
         },
         MuiFormControlLabel: {
             styleOverrides: {
-                root: {
+                root: ({ theme }) => ({
                     fontSize: TYPOGRAPHY.FONT_SIZE_SMALL,
-                },
+                    ".endless-scroll-toolbar &": {
+                        margin: 0,
+                        height: toolbarControlHeightPx,
+                        minHeight: toolbarControlHeightPx,
+                        alignItems: "center",
+                        "& .MuiFormControlLabel-label": {
+                            color: theme.palette.text.primary,
+                            marginInlineStart: theme.spacing(1),
+                            marginInlineEnd: 0,
+                        },
+                    },
+                }),
                 label: {
                     fontSize: TYPOGRAPHY.FONT_SIZE_SMALL,
                 },
@@ -2322,38 +2333,36 @@ export function buildThemeComponents(ctx: ThemeComponentsContext): ThemeOptions[
         },
         MuiSwitch: {
             styleOverrides: {
-                root: {
+                root: ({ theme }) => ({
                     "& .MuiSwitch-switchBase.Mui-checked": {
-                        color: "primary.main",
+                        color: theme.palette.primary.main,
                         "& + .MuiSwitch-track": {
-                            backgroundColor: "primary.light",
+                            backgroundColor: theme.palette.primary.light,
                         },
                     },
-                    // Ensure colorPrimary switches use primary.light for track
                     "&.MuiSwitch-colorPrimary .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track":
                     {
-                        backgroundColor: "primary.light",
+                        backgroundColor: theme.palette.primary.light,
                     },
-                },
+                }),
             },
             variants: [
                 {
                     props: { "data-rtl": true } as any,
-                    style: {
+                    style: ({ theme }) => ({
                         transform: "scaleX(-1)",
                         "& .MuiSwitch-switchBase.Mui-checked": {
-                            color: "primary.main",
+                            color: theme.palette.primary.main,
                             transform: "translateX(22px)",
                             "& + .MuiSwitch-track": {
-                                backgroundColor: "primary.light",
+                                backgroundColor: theme.palette.primary.light,
                             },
                         },
-                        // Ensure colorPrimary switches also use primary.light for RTL
                         "&.MuiSwitch-colorPrimary .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track":
                         {
-                            backgroundColor: "primary.light",
+                            backgroundColor: theme.palette.primary.light,
                         },
-                    },
+                    }),
                 },
                 {
                     props: { "data-rtl": true, size: "small" } as any,

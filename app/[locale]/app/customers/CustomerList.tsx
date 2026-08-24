@@ -3,7 +3,6 @@ import {
     Category,
     Email as EmailIcon,
     GroupAdd,
-    People,
 } from "@mui/icons-material";
 import {
     Box,
@@ -99,6 +98,7 @@ const CustomerList: React.FC<CustomerListProps> = ({
     const { data: accountProducts } = useQuery<{
         has_collection?: boolean;
         has_credit_insurance?: boolean;
+        has_file_import?: boolean;
     }>({
         queryKey: ["account-products", session?.user?.account_id],
         queryFn: async () => {
@@ -107,6 +107,7 @@ const CustomerList: React.FC<CustomerListProps> = ({
                 return {
                     has_collection: true,
                     has_credit_insurance: false,
+                    has_file_import: true,
                 };
             }
             const response = await api.get(
@@ -119,6 +120,7 @@ const CustomerList: React.FC<CustomerListProps> = ({
                         : true,
                 has_credit_insurance:
                     response.data?.has_credit_insurance === true,
+                has_file_import: response.data?.has_file_import !== false,
             };
         },
         enabled: !!session?.user?.account_id,

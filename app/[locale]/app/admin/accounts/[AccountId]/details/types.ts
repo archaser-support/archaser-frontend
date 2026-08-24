@@ -50,6 +50,7 @@ export interface AccountFormData {
     sso_providers?: string | null;
     has_collection?: boolean | null;
     has_credit_insurance?: boolean | null;
+    has_file_import?: boolean | null;
     enable_customer_checkpoints?: boolean | null;
     credit_limit_warning_threshold_pct?: number | null;
     credit_score_validity_warning_days?: number | null;

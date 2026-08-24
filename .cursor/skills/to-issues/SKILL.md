@@ -10,6 +10,8 @@ Break a plan into independently-grabbable issues using vertical slices (tracer b
 
 **Issue tracker:** Local markdown under `.scratch/` — see `docs/agents/issue-tracker.md` (and `.cursorrules` → **Local issue tracker**). Do **not** create ClickUp tasks from this skill.
 
+**Scratch I/O:** `.scratch/` is **gitignored**. Always list/read/write it via **Shell**. Never conclude “no existing slices” from Glob/Read/Grep alone.
+
 ## Process
 
 ### 1. Gather context

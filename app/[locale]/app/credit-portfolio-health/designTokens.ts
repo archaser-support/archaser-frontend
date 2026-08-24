@@ -15,7 +15,6 @@ export const CPH = {
     copperTint: "#FBEEE3",
     critical: "#DC2626",
     criticalTint: "#FDECEC",
-    maxWidth: 1180,
 } as const;
 
 export type IslandAccent = "jade" | "copper" | "critical" | "slate";

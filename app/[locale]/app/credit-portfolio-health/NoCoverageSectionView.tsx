@@ -148,11 +148,11 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                     icon={ShieldAlert}
                     tone={CPH.critical}
                     help={t(
-                        "credit_portfolio_health.kpi_uncovered_customer_pct_help",
+                        "credit_portfolio_health.kpi_uncovered_exposure_help",
                         {
                             ...ns,
                             defaultValue:
-                                "Mean daily share of customers with no linked policy or any exclusion reason.",
+                                "Customer %: mean daily share of customers with no linked policy or any exclusion reason. Amount: mean daily open AR for that uncovered cohort over available days.",
                         }
                     )}
                 >
@@ -204,7 +204,17 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                 accent="copper"
                 className={`${layout.span12} ${layout.mdSpan8} ${layout.cardPad}`}
             >
-                <Eyebrow icon={Info}>
+                <Eyebrow
+                    icon={Info}
+                    help={t(
+                        "credit_portfolio_health.no_coverage_reasons_help",
+                        {
+                            ...ns,
+                            defaultValue:
+                                "Average daily uncovered open AR by exclusion reason (or no linked policy) over available days in the range.",
+                        }
+                    )}
+                >
                     {t("credit_portfolio_health.no_coverage_reasons_title", {
                         ...ns,
                         defaultValue: "Reasons for lack of coverage",
@@ -290,7 +300,15 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                 accent="critical"
                 className={`${layout.span12} ${layout.cardPad}`}
             >
-                <Eyebrow icon={AlertTriangle} tone={CPH.critical}>
+                <Eyebrow
+                    icon={AlertTriangle}
+                    tone={CPH.critical}
+                    help={t("credit_portfolio_health.kpi_violations_help", {
+                        ...ns,
+                        defaultValue:
+                            "Average policy violation rate is the mean of daily (terms-breach AR ÷ approved total AR × 100). Leading cause is the reason with the largest summed breach amount among approved customers, and that reason’s share of total breach amount.",
+                    })}
+                >
                     {t("credit_portfolio_health.kpi_violations_title", {
                         ...ns,
                         defaultValue: "Policy violations",

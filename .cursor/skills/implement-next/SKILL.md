@@ -19,6 +19,8 @@ Require a **feature slug** (e.g. `ask-me-any-record`). Resolve issues at:
 
 If the user omitted the slug, stop and ask for it (do not invent a multi-feature queue).
 
+If the user passes a **PRD/plan path** instead (e.g. `.cursor/plans/billing-account-extensions.prd.md`), derive the slug from the filename (strip `.prd.md` / `.plan.md`) and continue — do not treat a PRD path as “no queue.”
+
 ## Locked behavior
 
 | Rule | Behavior |
@@ -34,18 +36,21 @@ If the user omitted the slug, stop and ask for it (do not invent a multi-feature
 | Failure | Leave `Status: in-progress`, stop the chain, report |
 | Resume | If any issue is `in-progress`, resume that issue (do not pick a different frontier item) |
 | End | Stop and report only — no auto-commit, no auto-PR |
+| Scratch I/O | **Always** list/read/write `.scratch/` via **Shell** (`ls`, `cat`, `python3`, etc.). Never use Glob/Read/Grep alone for the queue — `.scratch/` is **gitignored** and those tools often return empty |
 
 ## Process
 
 ### 1. Load the queue
 
-1. List `.scratch/<feature-slug>/issues/*.md`.
-2. Read each file’s `Status:` line and `## Blocked by` section.
+**Hard rule:** `.scratch/` is gitignored. Indexed search (`Glob`, workspace `Read`, `Grep`) routinely misses it. **First action** must be a Shell listing — never conclude “queue missing” from Glob/0 matches alone.
+
+1. Via Shell: `ls -la .scratch/<feature-slug>/issues/` (and `OVERVIEW.md` if present). If the directory is missing, then (and only then) report empty queue / suggest `/to-issues`.
+2. Via Shell: read each `*.md` (`cat` or equivalent). Capture `Status:` and `## Blocked by` / `**Blocked by:**`.
 3. Build the set of paths whose Status is `done`.
-4. An issue is **unblocked** when every Blocked-by path is `done` (or Blocked by is “None”).
+4. An issue is **unblocked** when every Blocked-by path is `done` (or Blocked by is “None” / `—`).
 5. **Frontier** = issues with `Status: ready-for-agent` that are unblocked.
 
-Completion criterion: you can name every issue’s Status and whether it is blocked.
+Completion criterion: you can name every issue’s Status and whether it is blocked — from **on-disk** Shell output, not from search tools.
 
 ### 2. Choose the next slice
 
@@ -66,7 +71,7 @@ Set the selected issue’s first line to:
 Status: in-progress
 ```
 
-Do this **before** spawning the implementer.
+Do this **before** spawning the implementer. Update Status via Shell (same gitignore rule as step 1).
 
 ### 4. Spawn a fresh implementer
 
