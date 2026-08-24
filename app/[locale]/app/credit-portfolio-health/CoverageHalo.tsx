@@ -7,7 +7,7 @@ import { CPH } from "./designTokens";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
 export type CoverageHaloProps = {
-    /** Health A average percentage (0–100+). */
+    /** Average health percentage (0–100+). */
     valuePct: number;
     label: string;
     locale?: string;
@@ -33,10 +33,10 @@ export function CoverageHalo({
     valuePct,
     label,
     locale = "en",
-    size = 208,
+    size = 148,
 }: CoverageHaloProps) {
     const prefersReducedMotion = usePrefersReducedMotion();
-    const stroke = 15;
+    const stroke = 12;
     const radius = (size - stroke) / 2;
     const circumference = 2 * Math.PI * radius;
     const target = clampPct(valuePct);
@@ -105,19 +105,18 @@ export function CoverageHalo({
                     position: "absolute",
                     inset: 0,
                     display: "flex",
-                    flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
                     pointerEvents: "none",
                     textAlign: "center",
-                    padding: 16,
+                    padding: 12,
                 }}
             >
                 <span
                     style={{
                         fontFamily: SPACE_GROTESK_FONT_FAMILY,
                         color: CPH.ink,
-                        fontSize: "2.75rem",
+                        fontSize: "2rem",
                         fontWeight: 600,
                         lineHeight: 1,
                         letterSpacing: "-0.02em",
@@ -125,18 +124,6 @@ export function CoverageHalo({
                     }}
                 >
                     {formatPct(valuePct, locale)}
-                </span>
-                <span
-                    style={{
-                        marginTop: 6,
-                        fontSize: 11,
-                        fontWeight: 500,
-                        letterSpacing: "0.12em",
-                        textTransform: "uppercase",
-                        color: CPH.slate,
-                    }}
-                >
-                    {label}
                 </span>
             </div>
         </div>

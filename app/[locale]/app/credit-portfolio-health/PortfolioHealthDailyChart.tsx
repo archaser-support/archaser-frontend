@@ -15,6 +15,7 @@ import {
 } from "recharts";
 
 import type { PortfolioHealthDailyPoint } from "@/types/creditInsurance";
+import { padSeriesByUtcYmd } from "@/shared/creditInsurance/portfolioHealthDateRange";
 
 import { ChartTooltip } from "./ChartTooltip";
 import { Eyebrow } from "./Eyebrow";
@@ -26,6 +27,8 @@ import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 export type PortfolioHealthDailyChartProps = {
     daily: PortfolioHealthDailyPoint[];
     averageHealthPct: number;
+    fromYmd: string;
+    toYmd: string;
 };
 
 function formatDayLabel(ymd: string, language: string): string {
@@ -51,6 +54,8 @@ function formatPct(value: number, language: string): string {
 export function PortfolioHealthDailyChart({
     daily,
     averageHealthPct,
+    fromYmd,
+    toYmd,
 }: PortfolioHealthDailyChartProps) {
     const { i18n, t } = useTranslation(["dashboard"]);
     const language = i18n.language;
@@ -60,12 +65,16 @@ export function PortfolioHealthDailyChart({
 
     const data = useMemo(
         () =>
-            daily.map((point) => ({
-                date: point.snapshotDate,
-                label: formatDayLabel(point.snapshotDate, language),
-                health: point.healthIndex,
+            padSeriesByUtcYmd(
+                daily,
+                fromYmd,
+                toYmd,
+                (point) => point.snapshotDate
+            ).map(({ ymd, point }) => ({
+                label: formatDayLabel(ymd, language),
+                health: point?.healthIndex ?? null,
             })),
-        [daily, language]
+        [daily, fromYmd, toYmd, language]
     );
 
     const avgLabel = t("credit_portfolio_health.chart_avg_health_ref", {
@@ -166,6 +175,7 @@ export function PortfolioHealthDailyChart({
                                 stroke={CPH.jade}
                                 strokeWidth={2.5}
                                 dot={false}
+                                connectNulls={false}
                                 animationDuration={animDuration}
                             />
                         </LineChart>

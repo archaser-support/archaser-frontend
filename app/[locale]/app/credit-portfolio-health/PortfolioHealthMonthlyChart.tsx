@@ -14,6 +14,7 @@ import {
 } from "recharts";
 
 import type { PortfolioHealthMonthlyPoint } from "@/types/creditInsurance";
+import { padSeriesByUtcMonth } from "@/shared/creditInsurance/portfolioHealthDateRange";
 
 import { ChartTooltip } from "./ChartTooltip";
 import { Eyebrow } from "./Eyebrow";
@@ -24,6 +25,8 @@ import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
 export type PortfolioHealthMonthlyChartProps = {
     monthly: PortfolioHealthMonthlyPoint[];
+    fromYmd: string;
+    toYmd: string;
 };
 
 function formatMonthLabel(month: string, language: string): string {
@@ -45,6 +48,8 @@ function formatAmount(value: number, language: string): string {
 
 export function PortfolioHealthMonthlyChart({
     monthly,
+    fromYmd,
+    toYmd,
 }: PortfolioHealthMonthlyChartProps) {
     const { i18n, t } = useTranslation(["dashboard"]);
     const language = i18n.language;
@@ -54,14 +59,18 @@ export function PortfolioHealthMonthlyChart({
 
     const data = useMemo(
         () =>
-            monthly.map((p) => ({
-                month: p.month,
-                label: formatMonthLabel(p.month, language),
-                total: p.totalReceivables,
-                covered: p.compliantExposure,
-                uncovered: p.atRiskExposure,
+            padSeriesByUtcMonth(
+                monthly,
+                fromYmd,
+                toYmd,
+                (p) => p.month
+            ).map(({ month, point }) => ({
+                label: formatMonthLabel(month, language),
+                total: point?.totalReceivables ?? null,
+                covered: point?.compliantExposure ?? null,
+                uncovered: point?.atRiskExposure ?? null,
             })),
-        [monthly, language]
+        [monthly, fromYmd, toYmd, language]
     );
 
     const seriesLabels = {
@@ -152,6 +161,7 @@ export function PortfolioHealthMonthlyChart({
                                 stroke={CPH.jade}
                                 strokeWidth={2}
                                 dot={false}
+                                connectNulls={false}
                                 animationDuration={animDuration}
                             />
                             <Line
@@ -161,6 +171,7 @@ export function PortfolioHealthMonthlyChart({
                                 stroke={CPH.copper}
                                 strokeWidth={2}
                                 dot={false}
+                                connectNulls={false}
                                 animationDuration={animDuration}
                                 animationBegin={prefersReducedMotion ? 0 : 150}
                             />
@@ -171,6 +182,7 @@ export function PortfolioHealthMonthlyChart({
                                 stroke={CPH.ink}
                                 strokeWidth={2}
                                 dot={false}
+                                connectNulls={false}
                                 animationDuration={animDuration}
                                 animationBegin={prefersReducedMotion ? 0 : 250}
                             />

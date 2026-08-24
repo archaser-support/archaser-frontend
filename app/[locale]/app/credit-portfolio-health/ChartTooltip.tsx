@@ -22,7 +22,10 @@ export function ChartTooltip({
     payload,
     formatValue,
 }: ChartTooltipProps) {
-    if (!active || payload == null || payload.length === 0) {
+    const items = (payload ?? []).filter(
+        (entry) => entry.value != null && entry.value !== ""
+    );
+    if (!active || items.length === 0) {
         return null;
     }
 
@@ -59,7 +62,7 @@ export function ChartTooltip({
                     gap: 4,
                 }}
             >
-                {payload.map((entry, index) => {
+                {items.map((entry, index) => {
                     const raw =
                         typeof entry.value === "number"
                             ? entry.value
