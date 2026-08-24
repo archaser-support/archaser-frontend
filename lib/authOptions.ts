@@ -20,6 +20,7 @@ type NestBridgeUser = User & {
     account_name?: string | null;
     primary_color?: string | null;
     secondary_color?: string | null;
+    chart_palette_color?: string | null;
     currency?: string | null;
     sidebar_collapsed?: boolean | null;
 };
@@ -68,6 +69,7 @@ async function authorizeFromNestAccessToken(
             account_name: claimString(payload.account_name) || "",
             primary_color: claimString(payload.primary_color) ?? null,
             secondary_color: claimString(payload.secondary_color) ?? null,
+            chart_palette_color: claimString(payload.chart_palette_color) ?? null,
             currency: claimString(payload.currency),
             sidebar_collapsed: claimBool(payload.sidebar_collapsed),
         };
@@ -120,7 +122,7 @@ export const authOptions: NextAuthOptions = {
         },
     },
     callbacks: {
-        async jwt({ token, user }) {
+        async jwt({ token, user, trigger, session }) {
             if (user) {
                 const u = user as NestBridgeUser;
                 token.id = u.id;
@@ -135,8 +137,30 @@ export const authOptions: NextAuthOptions = {
                 token.account_name = u.account_name;
                 token.primary_color = u.primary_color;
                 token.secondary_color = u.secondary_color;
+                token.chart_palette_color = u.chart_palette_color;
                 token.currency = u.currency ?? undefined;
                 token.sidebar_collapsed = u.sidebar_collapsed ?? undefined;
+            }
+            if (trigger === "update" && session) {
+                const source =
+                    typeof session === "object" &&
+                    session &&
+                    "user" in session &&
+                    session.user &&
+                    typeof session.user === "object"
+                        ? (session.user as Record<string, unknown>)
+                        : (session as Record<string, unknown>);
+                if ("primary_color" in source) {
+                    token.primary_color = claimString(source.primary_color) ?? null;
+                }
+                if ("secondary_color" in source) {
+                    token.secondary_color =
+                        claimString(source.secondary_color) ?? null;
+                }
+                if ("chart_palette_color" in source) {
+                    token.chart_palette_color =
+                        claimString(source.chart_palette_color) ?? null;
+                }
             }
             return token;
         },
@@ -174,6 +198,8 @@ export const authOptions: NextAuthOptions = {
                     session.user as { secondary_color?: string | null }
                 ).secondary_color =
                     (token.secondary_color as string) || null;
+                session.user.chart_palette_color =
+                    (token.chart_palette_color as string) || null;
                 session.user.currency =
                     (token.currency as string) || undefined;
             }
