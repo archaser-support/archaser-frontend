@@ -13,7 +13,8 @@
 #   NEXT_PUBLIC_BASE_URL=https://staging.archaser.com
 #   NEXTAUTH_URL=https://staging.archaser.com
 #   NEXTAUTH_SECRET=<signs the NextAuth cookie session>
-#   JWT_SECRET=<same secret Nest uses to sign access tokens>
+#   JWT_SECRET=<optional; same secret Nest uses. If unset/mismatched, Amplify
+#     verifies the Nest token via GET /auth/me instead>
 #   NEXT_PUBLIC_ENABLE_WS=true
 #
 # Nest staging `.env` on the API EC2 must include:
