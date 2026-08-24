@@ -15,6 +15,7 @@ import {
 } from "recharts";
 
 import type { PortfolioUtilizationDailyPoint } from "@/types/creditInsurance";
+import { padSeriesByUtcYmd } from "@/shared/creditInsurance/portfolioHealthDateRange";
 
 import { ChartTooltip } from "./ChartTooltip";
 import { Eyebrow } from "./Eyebrow";
@@ -25,6 +26,8 @@ import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
 export type UtilizationDailyChartProps = {
     daily: PortfolioUtilizationDailyPoint[];
+    fromYmd: string;
+    toYmd: string;
 };
 
 function formatDayLabel(ymd: string, language: string): string {
@@ -47,7 +50,11 @@ function formatPct(value: number, language: string): string {
     })}%`;
 }
 
-export function UtilizationDailyChart({ daily }: UtilizationDailyChartProps) {
+export function UtilizationDailyChart({
+    daily,
+    fromYmd,
+    toYmd,
+}: UtilizationDailyChartProps) {
     const { i18n, t } = useTranslation(["dashboard"]);
     const language = i18n.language;
     const ns = { ns: "dashboard" as const };
@@ -56,14 +63,18 @@ export function UtilizationDailyChart({ daily }: UtilizationDailyChartProps) {
 
     const data = useMemo(
         () =>
-            daily.map((point) => ({
-                date: point.snapshotDate,
-                label: formatDayLabel(point.snapshotDate, language),
-                portfolio: point.utilizationPct,
-                dcl: point.dclUtilizationPct,
-                named: point.namedUtilizationPct,
+            padSeriesByUtcYmd(
+                daily,
+                fromYmd,
+                toYmd,
+                (point) => point.snapshotDate
+            ).map(({ ymd, point }) => ({
+                label: formatDayLabel(ymd, language),
+                portfolio: point?.utilizationPct ?? null,
+                dcl: point?.dclUtilizationPct ?? null,
+                named: point?.namedUtilizationPct ?? null,
             })),
-        [daily, language]
+        [daily, fromYmd, toYmd, language]
     );
 
     const hasSignal = data.some(
@@ -149,7 +160,7 @@ export function UtilizationDailyChart({ daily }: UtilizationDailyChartProps) {
                                 stroke={CPH.jade}
                                 strokeWidth={2.5}
                                 dot={false}
-                                connectNulls
+                                connectNulls={false}
                                 animationDuration={animDuration}
                             />
                             <Line
@@ -165,7 +176,7 @@ export function UtilizationDailyChart({ daily }: UtilizationDailyChartProps) {
                                 stroke={CPH.copper}
                                 strokeWidth={2}
                                 dot={false}
-                                connectNulls
+                                connectNulls={false}
                                 animationDuration={animDuration}
                                 animationBegin={prefersReducedMotion ? 0 : 100}
                             />
@@ -182,7 +193,7 @@ export function UtilizationDailyChart({ daily }: UtilizationDailyChartProps) {
                                 stroke={CPH.ink}
                                 strokeWidth={2}
                                 dot={false}
-                                connectNulls
+                                connectNulls={false}
                                 animationDuration={animDuration}
                                 animationBegin={prefersReducedMotion ? 0 : 200}
                             />

@@ -71,6 +71,19 @@ export function resolveProductApiBaseUrl(): string {
 }
 
 /**
+ * Origin for clients whose paths already include `/api/...` (OpenAPI client).
+ * Local Next: empty so `/api/reports` stays same-origin and Next peels it.
+ * Amplify: Nest origin without `/api` (nginx peels on that host).
+ */
+export function resolveProductApiOrigin(): string {
+    const productBase = resolveProductApiBaseUrl().replace(/\/$/, "");
+    if (productBase === "/api" || productBase.endsWith("/api")) {
+        return productBase.slice(0, -"/api".length);
+    }
+    return productBase;
+}
+
+/**
  * Absolute Nest origin for auth + SSE (no trailing slash).
  * Empty when same-origin nginx proxies Nest (EC2 hybrid).
  */

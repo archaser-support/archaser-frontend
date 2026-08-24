@@ -1,14 +1,22 @@
 ﻿"use client";
 import { apiFetch } from "@/utils/apiFetch";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { parseDashboardBusinessUnitIdFromUrl } from "@/shared/dashboard/dashboardBusinessUnitParams";
-import { defaultPortfolioHealthDateRange } from "@/shared/creditInsurance/portfolioHealthDateRange";
-import type { CreditPortfolioHealthResponse } from "@/types/creditInsurance";
+import {
+    clampPortfolioHealthRangeEnd,
+    defaultPortfolioHealthDateRange,
+} from "@/shared/creditInsurance/portfolioHealthDateRange";
+import type {
+    CreditAsOfBackfillJobView,
+    CreditPortfolioHealthResponse,
+} from "@/types/creditInsurance";
 import { useCreditDashboardPoliciesQuery } from "@/app/[locale]/app/credit-dashboard/CreditDashboardPolicySelect";
+import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 
 import { CreditPortfolioHealthScreen } from "./CreditPortfolioHealthScreen";
 import {
@@ -84,6 +92,10 @@ export default function CreditPortfolioHealthPage() {
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const pathForRouter = pathname ?? "/";
+    const queryClient = useQueryClient();
+    const { error: showError } = useToast();
+    const { t } = useTranslation(["dashboard"]);
+    const prevBackfillStatusRef = useRef<string | null>(null);
 
     const defaults = useMemo(() => defaultLocalDateRange(), []);
 
@@ -136,6 +148,7 @@ export default function CreditPortfolioHealthPage() {
     const [activeTab, setActiveTab] = useState<PortfolioHealthTabId>(() =>
         parsePortfolioHealthTab(searchParams?.get("tab"))
     );
+    const [ignoreReportingBreach, setIgnoreReportingBreach] = useState(true);
 
     const policiesQuery = useCreditDashboardPoliciesQuery();
     const policies = useMemo(
@@ -145,6 +158,11 @@ export default function CreditPortfolioHealthPage() {
 
     const fromYmd = toYmdLocal(startDate);
     const toYmd = toYmdLocal(endDate);
+    const requestToYmd = clampPortfolioHealthRangeEnd(
+        fromYmd,
+        toYmd,
+        toYmdLocal(new Date())
+    );
 
     const replacePortfolioHealthUrl = useCallback(
         (next: {
@@ -331,12 +349,12 @@ export default function CreditPortfolioHealthPage() {
         });
     };
 
-    const { data, isLoading, isError, error } = useQuery({
+    const { data, isLoading, isError, error, refetch } = useQuery({
         queryKey: [
             "credit-insurance",
             "portfolio-health",
             fromYmd,
-            toYmd,
+            requestToYmd,
             selectedPolicyId,
             selectedBusinessUnitId,
             includeNoPolicyExposure,
@@ -344,7 +362,7 @@ export default function CreditPortfolioHealthPage() {
         queryFn: async () => {
             const params = buildPortfolioHealthSearchParams({
                 from: fromYmd,
-                to: toYmd,
+                to: requestToYmd,
                 policyId: selectedPolicyId,
                 businessUnitId: selectedBusinessUnitId,
                 includeNoPolicyExposure,
@@ -364,6 +382,131 @@ export default function CreditPortfolioHealthPage() {
         refetchOnMount: "always",
         refetchOnWindowFocus: false,
         placeholderData: (previousData) => previousData,
+    });
+
+    const { data: backfillJob } = useQuery({
+        queryKey: ["credit-insurance", "asof-backfill-status"],
+        queryFn: async () => {
+            const res = await apiFetch(
+                "/api/credit-insurance/asof-backfill-status"
+            );
+            if (res.status === 403) {
+                throw new Error("forbidden");
+            }
+            if (!res.ok) {
+                throw new Error("backfill_status_failed");
+            }
+            return (await res.json()) as CreditAsOfBackfillJobView;
+        },
+        retry: false,
+        refetchInterval: (query) => {
+            const status = query.state.data?.status;
+            return status === "running" || status === "paused" ? 2000 : false;
+        },
+    });
+
+    useEffect(() => {
+        const status = backfillJob?.status ?? null;
+        const prev = prevBackfillStatusRef.current;
+        prevBackfillStatusRef.current = status;
+        if (prev === "running" && status === "complete") {
+            void refetch();
+        }
+    }, [backfillJob?.status, refetch]);
+
+    useEffect(() => {
+        const status = backfillJob?.status;
+        if (
+            status === "running" ||
+            status === "paused" ||
+            status === "failed"
+        ) {
+            setIgnoreReportingBreach(
+                backfillJob?.skipReportingBreach !== false
+            );
+        }
+    }, [backfillJob?.status, backfillJob?.skipReportingBreach]);
+
+    const generateMutation = useMutation({
+        mutationFn: async () => {
+            const res = await apiFetch(
+                "/api/credit-insurance/asof-backfill-start",
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        from: fromYmd,
+                        to: requestToYmd,
+                        skipReportingBreach: ignoreReportingBreach,
+                    }),
+                }
+            );
+            if (res.status === 403) {
+                throw new Error("forbidden");
+            }
+            if (res.status === 409) {
+                throw new Error("already_running");
+            }
+            if (!res.ok) {
+                throw new Error("generate_failed");
+            }
+            return (await res.json()) as CreditAsOfBackfillJobView;
+        },
+        onSuccess: (job) => {
+            queryClient.setQueryData(
+                ["credit-insurance", "asof-backfill-status"],
+                job
+            );
+        },
+        onError: () => {
+            showError(
+                t("credit_portfolio_health.generate_failed", {
+                    ns: "dashboard",
+                    defaultValue: "Could not generate snapshots.",
+                })
+            );
+        },
+    });
+
+    const stopMutation = useMutation({
+        mutationFn: async () => {
+            const res = await apiFetch(
+                "/api/credit-insurance/asof-backfill-pause",
+                { method: "POST" }
+            );
+            if (!res.ok) {
+                throw new Error("stop_failed");
+            }
+            return (await res.json()) as CreditAsOfBackfillJobView;
+        },
+        onSuccess: (job) => {
+            queryClient.setQueryData(
+                ["credit-insurance", "asof-backfill-status"],
+                job
+            );
+        },
+    });
+
+    const retryMutation = useMutation({
+        mutationFn: async () => {
+            const res = await apiFetch(
+                "/api/credit-insurance/asof-backfill-retry",
+                { method: "POST" }
+            );
+            if (res.status === 409) {
+                throw new Error("already_running");
+            }
+            if (!res.ok) {
+                throw new Error("retry_failed");
+            }
+            return (await res.json()) as CreditAsOfBackfillJobView;
+        },
+        onSuccess: (job) => {
+            queryClient.setQueryData(
+                ["credit-insurance", "asof-backfill-status"],
+                job
+            );
+        },
     });
 
     return (
@@ -392,6 +535,15 @@ export default function CreditPortfolioHealthPage() {
                         : new Error(String(error))
                     : null
             }
+            backfillJob={backfillJob}
+            onGenerateSnapshots={() => generateMutation.mutate()}
+            onStopGenerate={() => stopMutation.mutate()}
+            onRetryGenerate={() => retryMutation.mutate()}
+            generatePending={generateMutation.isPending}
+            stopPending={stopMutation.isPending}
+            retryPending={retryMutation.isPending}
+            ignoreReportingBreach={ignoreReportingBreach}
+            onIgnoreReportingBreachChange={setIgnoreReportingBreach}
         />
     );
 }
