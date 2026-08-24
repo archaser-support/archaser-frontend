@@ -9,7 +9,7 @@ import type { NextAuthOptions, User } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 
 import { authCookiesAreSecure, getCookieName } from "@/utils/authUtils";
-import { getNestApiBaseUrl } from "@/utils/nestAuth";
+import { nestFetch } from "@/utils/nestAuth";
 
 const nestJwtSecret = () => process.env.JWT_SECRET || "";
 
@@ -82,7 +82,7 @@ async function profileFromNestMe(
     nestAccessToken: string
 ): Promise<NestBridgeUser | null> {
     try {
-        const response = await fetch(`${getNestApiBaseUrl()}/auth/me`, {
+        const response = await nestFetch("/auth/me", {
             headers: { Authorization: `Bearer ${nestAccessToken}` },
             cache: "no-store",
         });
