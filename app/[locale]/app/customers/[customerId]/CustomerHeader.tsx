@@ -175,9 +175,24 @@ const METADATA_CHIP_SX = {
 } as const;
 
 const getCurrencySymbol = (currencyCode: string): string => {
-    const currency = currencies.find((c) => c.code === currencyCode);
-    return currency?.symbol || currencyCode;
+    const code = currencyCode?.trim().toUpperCase();
+    if (!code) {
+        return "";
+    }
+    const currency = currencies.find((c) => c.code === code);
+    return currency?.symbol || code;
 };
+
+function formatCurrencyAmountPart(
+    langHebrew: boolean,
+    amount: string,
+    symbol: string
+): string {
+    if (!symbol) {
+        return amount;
+    }
+    return langHebrew ? `${amount} ${symbol}` : `${symbol} ${amount}`;
+}
 
 function formatDualCurrencyCreditInsuranceLine(
     langHebrew: boolean,
@@ -189,7 +204,7 @@ function formatDualCurrencyCreditInsuranceLine(
     const amountLocale = langHebrew ? "he-IL" : "en-US";
     const acctSym = getCurrencySymbol(accountCurrency);
     const main = formatAmountWithoutSymbol(accountAmount, amountLocale);
-    const mainPart = langHebrew ? `${main} ${acctSym}` : `${acctSym} ${main}`;
+    const mainPart = formatCurrencyAmountPart(langHebrew, main, acctSym);
     if (
         secondaryCurrency &&
         secondaryAmount != null &&
@@ -197,7 +212,7 @@ function formatDualCurrencyCreditInsuranceLine(
     ) {
         const secSym = getCurrencySymbol(secondaryCurrency);
         const sec = formatAmountWithoutSymbol(secondaryAmount, amountLocale);
-        const secPart = langHebrew ? `${sec} ${secSym}` : `${secSym} ${sec}`;
+        const secPart = formatCurrencyAmountPart(langHebrew, sec, secSym);
         return `${secPart} (${mainPart})`;
     }
     return mainPart;
@@ -298,6 +313,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
         "common",
         "activities",
         "agents",
+        "dashboard",
     ]);
     const queryClient = useQueryClient();
     const router = useRouter();
@@ -381,6 +397,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
             return response.json() as Promise<{
                 has_collection?: boolean;
                 has_credit_insurance?: boolean;
+                currency?: string | null;
             }>;
         },
         enabled:
@@ -798,10 +815,14 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
     };
 
     const isRtl = i18n.language === "he";
-    const accountCurrency = (
-        customer as { Account?: { currency?: string } } | undefined
-    )?.Account?.currency;
     const creditKpiCards = creditKpiQuery.data?.cards ?? null;
+    const accountCurrency =
+        (
+            customer as { Account?: { currency?: string } } | undefined
+        )?.Account?.currency?.trim() ||
+        accountData?.currency?.trim() ||
+        creditKpiCards?.accountCurrency?.trim() ||
+        undefined;
 
     const capacityGapDisplay = useMemo(() => {
         if (!customer) {
@@ -1578,15 +1599,15 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                     compact
                                     icon={<GavelIcon />}
                                     iconAccent="terms"
-                                    label={t("credit_insurance.uninsured_amount", {
-                                        ns: "customers",
+                                    label={t("credit_insurance_dashboard.terms_breach", {
+                                        ns: "dashboard",
                                     })}
                                     value={
                                         creditKpiQuery.isPending || !creditKpiCards
                                             ? t("messages.loading", { ns: "common" })
                                             : formatHeaderAmount(
-                                                  creditKpiCards.uninsuredAmount,
-                                                  creditKpiCards.uninsuredAmountSecondary
+                                                  creditKpiCards.termsBreachOutstanding,
+                                                  creditKpiCards.termsBreachOutstandingSecondary
                                               )
                                     }
                                     compactValueFontSize={headerCompactValueFontSize}

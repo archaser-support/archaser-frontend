@@ -27,8 +27,12 @@ export type DailyCostChangeKpiDisplay = {
 };
 
 function getCurrencySymbol(currencyCode: string): string {
-    const currency = currencies.find((c) => c.code === currencyCode);
-    return currency?.symbol || currencyCode;
+    const code = currencyCode?.trim().toUpperCase();
+    if (!code) {
+        return "";
+    }
+    const currency = currencies.find((c) => c.code === code);
+    return currency?.symbol || code;
 }
 
 export function normalizeUtcDateString(value: Date): string {
@@ -68,7 +72,7 @@ export function formatSignedCostChangeAmount(
     isRtl: boolean
 ): string {
     if (amount == null || !Number.isFinite(amount)) {
-        return "â€”";
+        return "—";
     }
     const absolute = formatAmountWithoutSymbol(Math.abs(amount), locale);
     const code = currency?.trim();
@@ -156,7 +160,7 @@ export function buildDailyCostChangeBreakdownLine(args: {
         );
     }
 
-    return parts.length > 0 ? parts.join(" Â· ") : null;
+    return parts.length > 0 ? parts.join(" · ") : null;
 }
 
 export function buildDailyCostChangeKpiDisplay(args: {

@@ -38,6 +38,9 @@ declare module "next-auth" {
         image?: string;
         account_id: number | null;
         account_name?: string;
+        primary_color?: string | null;
+        secondary_color?: string | null;
+        chart_palette_color?: string | null;
         language: string;
         role: string; // ✅ Add role field
         timezone?: string;

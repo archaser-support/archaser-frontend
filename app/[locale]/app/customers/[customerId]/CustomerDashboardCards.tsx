@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import FavoriteIcon from "@mui/icons-material/Favorite";
@@ -155,15 +155,30 @@ function DashboardSectionHeader({
 
 function formatUsagePct(value: number | null | undefined) {
     if (value == null || !Number.isFinite(value)) {
-        return "â€”";
+        return "—";
     }
     return `${value.toFixed(1)}%`;
 }
 
 const getCurrencySymbol = (currencyCode: string): string => {
-    const currency = currencies.find((c) => c.code === currencyCode);
-    return currency?.symbol || currencyCode;
+    const code = currencyCode?.trim().toUpperCase();
+    if (!code) {
+        return "";
+    }
+    const currency = currencies.find((c) => c.code === code);
+    return currency?.symbol || code;
 };
+
+function formatCurrencyAmountPart(
+    langHebrew: boolean,
+    amount: string,
+    symbol: string
+): string {
+    if (!symbol) {
+        return amount;
+    }
+    return langHebrew ? `${amount} ${symbol}` : `${symbol} ${amount}`;
+}
 
 function formatDualCurrencyCreditInsuranceLine(
     langHebrew: boolean,
@@ -175,7 +190,7 @@ function formatDualCurrencyCreditInsuranceLine(
     const amountLocale = langHebrew ? "he-IL" : "en-US";
     const acctSym = getCurrencySymbol(accountCurrency);
     const main = formatAmountWithoutSymbol(accountAmount, amountLocale);
-    const mainPart = langHebrew ? `${main} ${acctSym}` : `${acctSym} ${main}`;
+    const mainPart = formatCurrencyAmountPart(langHebrew, main, acctSym);
     if (
         secondaryCurrency &&
         secondaryAmount != null &&
@@ -183,7 +198,7 @@ function formatDualCurrencyCreditInsuranceLine(
     ) {
         const secSym = getCurrencySymbol(secondaryCurrency);
         const sec = formatAmountWithoutSymbol(secondaryAmount, amountLocale);
-        const secPart = langHebrew ? `${sec} ${secSym}` : `${secSym} ${sec}`;
+        const secPart = formatCurrencyAmountPart(langHebrew, sec, secSym);
         return `${secPart} (${mainPart})`;
     }
     return mainPart;
@@ -459,8 +474,9 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
     );
 
     const accountCurrency =
-        creditKpis?.accountCurrency ??
-        (customer as { Account?: { currency?: string } }).Account?.currency;
+        creditKpis?.accountCurrency?.trim() ||
+        (customer as { Account?: { currency?: string } }).Account?.currency?.trim() ||
+        undefined;
 
     const secondaryCurrency = creditKpis?.creditInsuranceSecondaryCurrency ?? null;
 
@@ -492,12 +508,16 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
     const formatAmount = useMemo(
         () => (amount: number | null | undefined) => {
             if (amount == null || !Number.isFinite(amount)) {
-                return "â€”";
+                return "—";
             }
             const base = formatAmountWithoutSymbol(amount, locale);
-            return accountCurrency ? `${base} ${accountCurrency}` : base;
+            const symbol = getCurrencySymbol(accountCurrency ?? "");
+            if (!symbol) {
+                return base;
+            }
+            return isRtl ? `${base} ${symbol}` : `${symbol} ${base}`;
         },
-        [accountCurrency, locale]
+        [accountCurrency, isRtl, locale]
     );
 
     const formatCreditInsuranceAmount = useMemo(
@@ -507,7 +527,7 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
             secondaryCurrencyOverride?: string | null
         ) => {
             if (amount == null || !Number.isFinite(amount)) {
-                return "â€”";
+                return "—";
             }
             return formatDualCurrencyCreditInsuranceLine(
                 isRtl,
