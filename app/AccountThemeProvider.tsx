@@ -5,8 +5,8 @@ import { ThemeProvider } from "@mui/material/styles";
 import { useSession } from "next-auth/react";
 import React, { useEffect, useMemo, useState } from "react";
 
-import { resolveAuthorizationHeader } from "@/utils/apiClientConfig";
-import { getNestAccessToken, getNestApiBaseUrl } from "@/utils/nestAuth";
+import { apiFetch } from "@/utils/apiFetch";
+import { getNestApiBaseUrl } from "@/utils/nestAuth";
 
 import {
     createAppTheme,
@@ -65,17 +65,7 @@ function readAccountThemeColors(payload: unknown): AccountThemeColors | null {
 }
 
 async function fetchJsonWithNestBearer(path: string): Promise<unknown | null> {
-    const authorization = resolveAuthorizationHeader({
-        nestAccessToken: getNestAccessToken(),
-        attachNestBearer: true,
-    });
-    if (!authorization) {
-        return null;
-    }
-    const response = await fetch(path, {
-        headers: { Authorization: authorization },
-        credentials: "omit",
-    });
+    const response = await apiFetch(path, { credentials: "omit" });
     if (!response.ok) {
         return null;
     }
