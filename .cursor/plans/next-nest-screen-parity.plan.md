@@ -7,19 +7,19 @@ todos:
     status: completed
   - id: slice-ar-screens
     content: "Slice 2: Collections screens — login, dashboard KPIs, customer detail header/actions, invoices, remaining AR forms"
-    status: in_progress
+    status: completed
   - id: slice-rest-app
     content: "Slice 3: Rest of internal app — agents, control-center, legal, import, reports builder, settings, activity sequences/templates, credit dashboards"
-    status: in_progress
+    status: completed
   - id: slice-portal
     content: "Slice 4: Portal — one portal customer; invoices, disputes, pay, promise-to-pay"
-    status: in_progress
+    status: completed
   - id: slice-admin-third-party
     content: "Slice 5: Admin + third-party — cron, logs, health, accounts, SMS/S3/ERP live actions on staging"
-    status: in_progress
+    status: completed
   - id: slice-he-rtl
     content: "Slice 6: Hebrew/RTL smoke on screens already proven in English"
-    status: pending
+    status: completed
 isProject: false
 ---
 

@@ -11,3 +11,5 @@ process.on("unhandledRejection", (reason) => {
 process.on("uncaughtException", (error) => {
     console.error("[INSTRUMENTATION] Uncaught exception:", error);
 });
+
+export {};

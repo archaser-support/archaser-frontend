@@ -3,6 +3,49 @@ import type { ConnectorAuthType, BillingProvider, ImportType } from "@/types/db"
 
 import type { MappingRule } from "@/shared/constants/importEntityFields";
 
+export type PullFilterOperator =
+    | "eq"
+    | "ne"
+    | "startswith"
+    | "contains"
+    | "gt"
+    | "lt";
+
+export const PULL_FILTER_OPERATORS: PullFilterOperator[] = [
+    "eq",
+    "ne",
+    "startswith",
+    "contains",
+    "gt",
+    "lt",
+];
+
+export interface PullFilterRule {
+    field: string;
+    operator: PullFilterOperator;
+    value: string;
+}
+
+export interface AdvancedEntityPullFilter {
+    mode: "advanced";
+    odata: string;
+}
+
+export interface RulesEntityPullFilter {
+    mode: "rules";
+    rules: PullFilterRule[];
+}
+
+export type EntityPullFilterConfig =
+    | AdvancedEntityPullFilter
+    | RulesEntityPullFilter;
+
+export type EntityPullFilterMode = EntityPullFilterConfig["mode"];
+
+export type PullFiltersMap = Partial<
+    Record<ImportType, EntityPullFilterConfig | null>
+>;
+
 export interface BillingConnectorConfig {
     id: number;
     account_id: number;
@@ -35,6 +78,8 @@ export interface BillingConnectorConfig {
     extension_key?: string | null;
     /** Plugin-owned settings for the attached extension. */
     extension_config?: Record<string, unknown> | null;
+    /** Per-entity Priority $filter (rules or advanced OData). */
+    pull_filters?: PullFiltersMap;
     last_connection_test_at: string | null;
     last_connection_error: string | null;
     created_at: string;
@@ -78,7 +123,13 @@ export interface SyncRunSummary {
     duration_seconds: number | null;
     entity_stats: Record<
         string,
-        { pulled: number; success: number; failed: number; skipped: number }
+        {
+            pulled: number;
+            success: number;
+            failed: number;
+            skipped: number;
+            sample_errors?: string[];
+        }
     >;
     error_message: string | null;
     error_type: string | null;
@@ -115,6 +166,7 @@ export interface UpsertBillingConnectorPayload {
     /** Null/"" clears the extension attachment. */
     extension_key?: string | null;
     extension_config?: Record<string, unknown> | null;
+    pull_filters?: PullFiltersMap;
 }
 
 const basePath = (accountId: number) =>
@@ -168,6 +220,7 @@ export interface DiscoverFieldsResponse {
     raw_headers: string[];
     example_values: Record<string, unknown>;
     sample_count: number;
+    discovered_at?: string | null;
     archaser_fields: string[];
     required_fields: string[];
     highlighted_fields: string[];
@@ -176,10 +229,12 @@ export interface DiscoverFieldsResponse {
 export interface PreviewSyncEntityResult {
     import_type: ImportType;
     pulled: number;
+    match_count_capped?: boolean;
     sample_rows: Record<string, unknown>[];
     validation_errors: string[];
     sorted_preview: boolean;
     pull_phases?: string[];
+    effective_filter?: string | null;
 }
 
 export interface PreviewSyncResponse {
@@ -225,6 +280,16 @@ export async function saveBillingConnectorMapping(
         { mapping }
     );
     return response.data.mapping;
+}
+
+export async function fetchBillingConnectorDiscoveredFields(
+    accountId: number,
+    importType: ImportType
+): Promise<DiscoverFieldsResponse> {
+    const response = await api.get<DiscoverFieldsResponse>(
+        `${basePath(accountId)}/discover-fields/${importType}`
+    );
+    return response.data;
 }
 
 export async function discoverBillingConnectorFields(
