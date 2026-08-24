@@ -770,7 +770,10 @@ const ChartDetailsPage: React.FC<ChartDetailsProps> = ({ params }) => {
             return collectedCount.toLocaleString(userLocale);
         }
         if (type === "active-customers") {
-            // Count users who exited overdue status from the actual data
+            const exitedFromSummary = chartDetails?.summary?.exitedCount;
+            if (typeof exitedFromSummary === "number") {
+                return exitedFromSummary.toLocaleString(userLocale);
+            }
             const exitedCount =
                 chartDetails?.data?.filter((row: any) => {
                     const status = (
@@ -842,6 +845,10 @@ const ChartDetailsPage: React.FC<ChartDetailsProps> = ({ params }) => {
             );
         }
         if (chartType === "active-customers") {
+            const enteredFromSummary = chartDetails?.summary?.enteredCount;
+            if (typeof enteredFromSummary === "number") {
+                return enteredFromSummary.toLocaleString(userLocale);
+            }
             const enteredCount =
                 chartDetails?.data?.filter((row: { overdueStatusChange?: string; status?: string; type?: string }) => {
                     const status = (

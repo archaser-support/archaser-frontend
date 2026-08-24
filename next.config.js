@@ -35,6 +35,10 @@ const nextConfig = {
     // Amplify Hosting SSR expects default `.next`; EC2 deploy scripts use `frontend/build`.
     ...(isAmplifySsr ? {} : { distDir: "build" }),
 
+    // Local browser automation / Cursor IDE may open http://127.0.0.1:3000 while
+    // Next binds as localhost — allow HMR/dev assets from both hosts.
+    allowedDevOrigins: ["127.0.0.1", "localhost"],
+
     modularizeImports: {
         // Icons still map 1:1 to files. Do not transform `@mui/material` —
         // ThemeProvider, useTheme, alpha, etc. live under `/styles` in MUI v7
