@@ -1,17 +1,17 @@
 /**
  * NextAuth options for the UI-only frontend: the browser authenticates against
- * Nest and exchanges the resulting access token for a NextAuth cookie session,
- * which middleware and server components read. Verification is JWT-only — the
- * frontend has no database.
+ * Nest and exchanges the resulting access token for a NextAuth cookie session.
+ * Amplify verifies that token with JWT_SECRET when it matches Nest, otherwise
+ * it asks Nest GET /auth/me so a mismatched Amplify secret does not 401 login.
  */
 import { jwtVerify } from "jose";
 import type { NextAuthOptions, User } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 
 import { authCookiesAreSecure, getCookieName } from "@/utils/authUtils";
+import { getNestApiBaseUrl } from "@/utils/nestAuth";
 
-const nestJwtSecret = () =>
-    process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || "";
+const nestJwtSecret = () => process.env.JWT_SECRET || "";
 
 type NestBridgeUser = User & {
     username: string;
@@ -33,49 +33,90 @@ function claimBool(value: unknown): boolean | null {
     return typeof value === "boolean" ? value : null;
 }
 
+/** Login posts `nestAccessToken`. */
+export function nestAccessTokenFromCredentials(
+    credentials: Record<string, unknown> | undefined
+): string | null {
+    const raw = credentials?.nestAccessToken;
+    if (typeof raw !== "string") {
+        return null;
+    }
+    const trimmed = raw.trim();
+    return trimmed.length > 0 ? trimmed : null;
+}
+
+function nestBridgeUserFromClaims(
+    claims: Record<string, unknown>
+): NestBridgeUser | null {
+    const sub = claimString(claims.sub);
+    if (!sub) {
+        return null;
+    }
+    const username = claimString(claims.username) || sub;
+    const name = claimString(claims.name) || username;
+    const email = claimString(claims.email) || "";
+    const role = claimString(claims.role) || "Collection_Agent";
+    const account_id =
+        typeof claims.account_id === "number" ? claims.account_id : null;
+
+    return {
+        id: sub,
+        name,
+        email,
+        account_id,
+        role,
+        language: claimString(claims.language) || "English",
+        locale: claimString(claims.locale),
+        timezone: claimString(claims.timezone),
+        username,
+        account_name: claimString(claims.account_name) || "",
+        primary_color: claimString(claims.primary_color) ?? null,
+        secondary_color: claimString(claims.secondary_color) ?? null,
+        chart_palette_color: claimString(claims.chart_palette_color) ?? null,
+        currency: claimString(claims.currency),
+        sidebar_collapsed: claimBool(claims.sidebar_collapsed),
+    };
+}
+
+async function profileFromNestMe(
+    nestAccessToken: string
+): Promise<NestBridgeUser | null> {
+    try {
+        const response = await fetch(`${getNestApiBaseUrl()}/auth/me`, {
+            headers: { Authorization: `Bearer ${nestAccessToken}` },
+            cache: "no-store",
+        });
+        if (!response.ok) {
+            return null;
+        }
+        const body = (await response.json()) as Record<string, unknown>;
+        return nestBridgeUserFromClaims(body);
+    } catch {
+        return null;
+    }
+}
+
 async function authorizeFromNestAccessToken(
     nestAccessToken: string
 ): Promise<NestBridgeUser | null> {
     const secret = nestJwtSecret();
-    if (!secret) {
-        return null;
-    }
-    try {
-        const { payload } = await jwtVerify(
-            nestAccessToken,
-            new TextEncoder().encode(secret)
-        );
-        const sub = typeof payload.sub === "string" ? payload.sub : null;
-        if (!sub) {
-            return null;
+    if (secret) {
+        try {
+            const { payload } = await jwtVerify(
+                nestAccessToken,
+                new TextEncoder().encode(secret)
+            );
+            const fromJwt = nestBridgeUserFromClaims(
+                payload as Record<string, unknown>
+            );
+            if (fromJwt) {
+                return fromJwt;
+            }
+        } catch {
+            // Amplify JWT_SECRET often differs from Nest; ask Nest instead.
         }
-        const username = claimString(payload.username) || sub;
-        const name = claimString(payload.name) || username;
-        const email = claimString(payload.email) || "";
-        const role = claimString(payload.role) || "Collection_Agent";
-        const account_id =
-            typeof payload.account_id === "number" ? payload.account_id : null;
-
-        return {
-            id: sub,
-            name,
-            email,
-            account_id,
-            role,
-            language: claimString(payload.language) || "English",
-            locale: claimString(payload.locale),
-            timezone: claimString(payload.timezone),
-            username,
-            account_name: claimString(payload.account_name) || "",
-            primary_color: claimString(payload.primary_color) ?? null,
-            secondary_color: claimString(payload.secondary_color) ?? null,
-            chart_palette_color: claimString(payload.chart_palette_color) ?? null,
-            currency: claimString(payload.currency),
-            sidebar_collapsed: claimBool(payload.sidebar_collapsed),
-        };
-    } catch {
-        return null;
     }
+    return profileFromNestMe(nestAccessToken);
 }
 
 export const authOptions: NextAuthOptions = {
@@ -87,15 +128,13 @@ export const authOptions: NextAuthOptions = {
                 nestAccessToken: { label: "Nest token", type: "text" },
             },
             async authorize(credentials) {
-                if (
-                    credentials?.nestAccessToken &&
-                    String(credentials.nestAccessToken).trim()
-                ) {
-                    return authorizeFromNestAccessToken(
-                        String(credentials.nestAccessToken)
-                    );
+                const nestAccessToken = nestAccessTokenFromCredentials(
+                    credentials as Record<string, unknown> | undefined
+                );
+                if (!nestAccessToken) {
+                    return null;
                 }
-                return null;
+                return authorizeFromNestAccessToken(nestAccessToken);
             },
         }),
     ],
