@@ -6,4 +6,4 @@ disable-model-invocation: true
 
 Run a `/grilling` session (plan-mode decision batches) using the `/domain-modeling` skill — update `CONTEXT.md` and ADRs inline as decisions land.
 
-Follow the same **simple language** rules as `/grill-me`: plain words, one idea per question, expand every acronym with its full name, concrete examples when the topic is abstract, outcome-worded options with `(Recommended)` first.
+Follow the same **simple language** rules as `/grill-me`: plain words, one idea per question, concrete examples when the topic is abstract, outcome-worded options with `(Recommended)` first.

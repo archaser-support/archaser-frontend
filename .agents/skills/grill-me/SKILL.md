@@ -38,11 +38,7 @@ Write every question so a non-expert teammate could answer it in one read.
 
 - Prefer everyday words over jargon (`retry later` not `idempotent re-ingress`).
 - One idea per question — if you need two concepts, split into two decisions.
-- Short sentences. Avoid nested clauses.
-- **Acronyms:** when you use an acronym, always write the full name with it
-  (e.g. `ERP (Enterprise Resource Planning)`, `API (Application Programming Interface)`,
-  `MVP (Minimum Viable Product)`, `KPI (Key Performance Indicator)`). Do this on
-  every mention in questions and options — do not assume the reader knows it.
+- Short sentences. Avoid nested clauses and acronyms unless the plan already uses them.
 - When a topic is abstract or easy to misread, **add a concrete example** (a fake
   record, a UI path, or a before/after) so the choice is obvious.
 - If you catch yourself writing a long setup paragraph, stop and either simplify
@@ -53,12 +49,10 @@ Write every question so a non-expert teammate could answer it in one read.
 > should we treat the row as immutable and skip, or upsert mutable fiscal fields?
 
 **Simple + example (good):**
-> Same payment comes back from the ERP (Enterprise Resource Planning) a second
-> time (account A, reference INV-9). We already stored it yesterday. What should
-> we do?
+> Same payment comes back from the ERP a second time (account A, reference INV-9).
+> We already stored it yesterday. What should we do?
 >
-> Example: yesterday we saved amount $100; today the ERP (Enterprise Resource
-> Planning) sends $120 for INV-9.
+> Example: yesterday we saved amount $100; today the ERP sends $120 for INV-9.
 
 ### AskQuestion (one at a time)
 
@@ -85,7 +79,6 @@ Example: {one concrete scenario that makes the choice clear}
 - **Options:** 2–4 concrete choices in plain language; put **(Recommended)** on
   the preferred option (and list it first). Prefer outcome wording
   (`Skip — keep the old row`) over mechanism wording (`No-op on unique conflict`).
-  Expand any acronym with its full name.
 - **Dependencies:** ask parent decisions before children; skip options that
   became invalid after a prior answer.
 - **Do not** ask the user to choose things already answerable from the codebase.
@@ -124,8 +117,8 @@ block.
 
 ## Dependency rules
 
-- Resolve **parent decisions before children** (e.g. MVP (Minimum Viable Product)
-  scope before per-entity idempotency details).
+- Resolve **parent decisions before children** (e.g. MVP scope before per-entity
+  idempotency details).
 - When a child option becomes invalid after a parent answer, drop it and only
   ask the remaining branches.
 - State explicitly when a decision **blocks** implementation (e.g. "blocks
@@ -144,11 +137,10 @@ recommendations in the Decision log Rationale column after the user answers.
 ```text
 D3 — Same payment twice
 
-The plan imports every payment. The DB (database) already blocks duplicates on
+The plan imports every payment. The DB already blocks duplicates on
 account + customer + reference.
 
-Example: we saved INV-9 for $100 yesterday. Today the ERP (Enterprise Resource
-Planning) sends INV-9 again for $120.
+Example: we saved INV-9 for $100 yesterday. Today the ERP sends INV-9 again for $120.
 
 What should we do with the second pull?
 ```

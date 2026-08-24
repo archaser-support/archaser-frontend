@@ -10,8 +10,6 @@ Break a plan into independently-grabbable issues using vertical slices (tracer b
 
 Issues are published as **local markdown files** under `.scratch/<feature-slug>/`. Do **not** create ClickUp tasks or call the ClickUp MCP from this skill.
 
-**Scratch I/O:** `.scratch/` is **gitignored**. Always list/read/write it via **Shell** (`ls`, `mkdir`, `cat`, redirect/Write through shell). Never conclude “no existing slices” from Glob/Read/Grep alone — they often miss ignored paths.
-
 **Project config:** Read path conventions and status defaults from **Local issue tracker** in `.cursorrules` (and `docs/agents/issue-tracker.md`). Do not hardcode tracker IDs in this skill.
 
 ## File conventions (this skill)

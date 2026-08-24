@@ -8,7 +8,8 @@
  * /api/auth stays on Next. /api/ws is Nest-owned (SSE).
  *
  * Flip flags: USE_SMS_NEST_REWRITE, USE_CONNECTORS_NEST_REWRITE,
- * USE_REPORTS_NEST_REWRITE (each reversible).
+ * USE_REPORTS_NEST_REWRITE (set "false" to send reports back to main API).
+ * Reports default ON: the main API no longer mounts /api/reports.
  */
 
 /** @type {readonly string[]} */
@@ -112,7 +113,8 @@ function getConnectorsNestRewriteTarget() {
  * @returns {boolean}
  */
 function isReportsNestRewriteEnabled() {
-    return process.env.USE_REPORTS_NEST_REWRITE === "true";
+    // Reports live on @archaser/reports (:3006). Opt out with =false.
+    return process.env.USE_REPORTS_NEST_REWRITE !== "false";
 }
 
 /**
