@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "ES2017",
     "lib": [
       "dom",
       "dom.iterable",
@@ -22,7 +22,6 @@
         "name": "next"
       }
     ],
-    "baseUrl": ".",
     "paths": {
       "@/*": [
         "./*"
@@ -31,7 +30,7 @@
         "../tests/frontend/*"
       ],
       "@archaser/openapi-client": [
-        "./packages/openapi-client/src/index.ts"
+        "../backend/packages/openapi-client/src/index.ts"
       ]
     }
   },
@@ -58,7 +57,6 @@
     ".next/types/**/*.ts",
     "next-env.d.ts",
     "build/types/**/*.ts",
-    "build/dev/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    "build/dev/types/**/*.ts"
   ]
 }

@@ -23,6 +23,8 @@ import layout from "./islandLayout.module.css";
 
 export type PortfolioHealthSectionViewProps = {
     section: PortfolioHealthSection;
+    fromYmd: string;
+    toYmd: string;
 };
 
 function formatYmdForDisplay(
@@ -42,6 +44,8 @@ function formatYmdForDisplay(
 
 export function PortfolioHealthSectionView({
     section,
+    fromYmd,
+    toYmd,
 }: PortfolioHealthSectionViewProps) {
     const { t, i18n } = useTranslation(["dashboard"]);
     const { data: session } = useSession();
@@ -70,7 +74,7 @@ export function PortfolioHealthSectionView({
             ? t("credit_portfolio_health.kpi_lowest_health_streak_window", {
                   ...ns,
                   defaultValue:
-                      "Longest trough: {{days}} days ({{start}} â€“ {{end}})",
+                      "Longest trough: {{days}} days ({{start}} – {{end}})",
                   days: section.seriesA.lowestHealthStreakDays,
                   start: startLabel,
                   end: endLabel,
@@ -174,11 +178,17 @@ export function PortfolioHealthSectionView({
                 <PortfolioHealthDailyChart
                     daily={section.dailyA}
                     averageHealthPct={section.seriesA.averageHealthPct}
+                    fromYmd={fromYmd}
+                    toYmd={toYmd}
                 />
             </div>
 
             <div className={layout.span12}>
-                <PortfolioHealthMonthlyChart monthly={section.monthlyA} />
+                <PortfolioHealthMonthlyChart
+                    monthly={section.monthlyA}
+                    fromYmd={fromYmd}
+                    toYmd={toYmd}
+                />
             </div>
         </div>
     );

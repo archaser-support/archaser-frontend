@@ -6,19 +6,16 @@ import { ToolbarDropdownFilter } from "@/shared/components/ToolbarDropdownFilter
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import moment from "moment";
 import { useSession } from "next-auth/react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { getDatePickerFormat } from "@/utils/datetimeOperations";
-
-type DatePreset =
-    | "today"
-    | "yesterday"
-    | "this_week"
-    | "last_week"
-    | "this_month"
-    | "last_month"
-    | "custom";
+import {
+    detectDateRangePreset,
+    isSameLocalCalendarDay,
+    resolvePresetAfterDateCommit,
+    type DatePreset,
+} from "./dateRangePreset";
 
 interface PresetOption {
     value: DatePreset;
@@ -30,6 +27,8 @@ interface DateRangePickerProps {
     endDate: Date;
     onStartDateChange: (date: Date) => void;
     onEndDateChange: (date: Date) => void;
+    /** When both bounds change together (preset), prefer this over sequential start/end callbacks. */
+    onDateRangeChange?: (start: Date, end: Date) => void;
 }
 
 /** Slightly wider than default toolbar (22.5) for Hebrew preset labels + calendar icon. */
@@ -40,12 +39,15 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
     endDate,
     onStartDateChange,
     onEndDateChange,
+    onDateRangeChange,
 }) => {
     const { t, i18n } = useTranslation(["dashboard"]);
     const { data: session } = useSession();
     const theme = useTheme();
     const [preset, setPreset] = useState<DatePreset>("today");
     const [showCustomDates, setShowCustomDates] = useState(false);
+    const presetRef = useRef(preset);
+    presetRef.current = preset;
 
     const [tempStartDate, setTempStartDate] = useState<moment.Moment | null>(moment(startDate));
     const [tempEndDate, setTempEndDate] = useState<moment.Moment | null>(moment(endDate));
@@ -141,6 +143,18 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
             { value: "last_week", label: t("fields.date_preset_last_week") },
             { value: "this_month", label: t("fields.date_preset_this_month") },
             { value: "last_month", label: t("fields.date_preset_last_month") },
+            {
+                value: "this_year",
+                label: t("fields.date_preset_this_year", {
+                    defaultValue: "This Year",
+                }),
+            },
+            {
+                value: "last_year",
+                label: t("fields.date_preset_last_year", {
+                    defaultValue: "Last Year",
+                }),
+            },
             { value: "custom", label: t("fields.date_preset_custom") },
         ],
         [t]
@@ -227,128 +241,38 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                 );
                 return { start, end };
             }
+            case "this_year": {
+                const start = new Date(today.getFullYear(), 0, 1);
+                const end = new Date(
+                    today.getFullYear(),
+                    11,
+                    31,
+                    23,
+                    59,
+                    59,
+                    999
+                );
+                return { start, end };
+            }
+            case "last_year": {
+                const year = today.getFullYear() - 1;
+                const start = new Date(year, 0, 1);
+                const end = new Date(year, 11, 31, 23, 59, 59, 999);
+                return { start, end };
+            }
             default:
                 return { start: startDate, end: endDate };
         }
     };
 
     useEffect(() => {
-        const detectPreset = (): DatePreset => {
-            const now = new Date();
-            const today = new Date(
-                now.getFullYear(),
-                now.getMonth(),
-                now.getDate()
-            );
-            const todayEnd = new Date(today);
-            todayEnd.setHours(23, 59, 59, 999);
-
-            const yesterday = new Date(today);
-            yesterday.setDate(today.getDate() - 1);
-            const yesterdayEnd = new Date(yesterday);
-            yesterdayEnd.setHours(23, 59, 59, 999);
-
-            const thisWeekStart = new Date(today);
-            thisWeekStart.setDate(today.getDate() - today.getDay());
-            thisWeekStart.setHours(0, 0, 0, 0);
-
-            const lastWeekStart = new Date(today);
-            lastWeekStart.setDate(today.getDate() - today.getDay() - 7);
-            lastWeekStart.setHours(0, 0, 0, 0);
-            const lastWeekEnd = new Date(lastWeekStart);
-            lastWeekEnd.setDate(lastWeekStart.getDate() + 6);
-            lastWeekEnd.setHours(23, 59, 59, 999);
-
-            const thisMonthStart = new Date(
-                today.getFullYear(),
-                today.getMonth(),
-                1
-            );
-            thisMonthStart.setHours(0, 0, 0, 0);
-
-            const lastMonthStart = new Date(
-                today.getFullYear(),
-                today.getMonth() - 1,
-                1
-            );
-            lastMonthStart.setHours(0, 0, 0, 0);
-            const lastMonthEnd = new Date(
-                today.getFullYear(),
-                today.getMonth(),
-                0,
-                23,
-                59,
-                59,
-                999
-            );
-
-            const startTime = new Date(startDate);
-            startTime.setHours(0, 0, 0, 0);
-            const endTime = new Date(endDate);
-
-            if (
-                startTime.getTime() === today.getTime() &&
-                endTime.getTime() <= todayEnd.getTime() &&
-                endTime.getTime() >= today.getTime()
-            ) {
-                return "today";
-            }
-            if (
-                startTime.getTime() === yesterday.getTime() &&
-                endTime.getTime() >= yesterday.getTime() &&
-                endTime.getTime() <= yesterdayEnd.getTime()
-            ) {
-                return "yesterday";
-            }
-            if (
-                startTime.getTime() === thisWeekStart.getTime() &&
-                endTime.getTime() >= thisWeekStart.getTime() &&
-                (endTime.getTime() <= now.getTime() ||
-                    endTime.getTime() ===
-                        new Date(
-                            thisWeekStart.getTime() +
-                                6 * 24 * 60 * 60 * 1000 +
-                                86399999
-                        ).getTime())
-            ) {
-                return "this_week";
-            }
-            if (
-                startTime.getTime() === lastWeekStart.getTime() &&
-                endTime.getTime() >= lastWeekStart.getTime() &&
-                endTime.getTime() <= lastWeekEnd.getTime()
-            ) {
-                return "last_week";
-            }
-            if (
-                startTime.getTime() === thisMonthStart.getTime() &&
-                (endTime.getTime() <= now.getTime() ||
-                    endTime.getTime() ===
-                        new Date(
-                            today.getFullYear(),
-                            today.getMonth() + 1,
-                            0,
-                            23,
-                            59,
-                            59,
-                            999
-                        ).getTime())
-            ) {
-                return "this_month";
-            }
-            if (
-                startTime.getTime() === lastMonthStart.getTime() &&
-                endTime.getTime() >= lastMonthStart.getTime() &&
-                endTime.getTime() <= lastMonthEnd.getTime()
-            ) {
-                return "last_month";
-            }
-            return "custom";
-        };
-
-        const detectedPreset = detectPreset();
-        setPreset(detectedPreset);
-        setShowCustomDates(detectedPreset === "custom");
+        const detectedPreset = detectDateRangePreset(startDate, endDate);
+        const nextPreset = resolvePresetAfterDateCommit(
+            presetRef.current,
+            detectedPreset
+        );
+        setPreset(nextPreset);
+        setShowCustomDates(nextPreset === "custom");
     }, [startDate, endDate]);
 
     const handlePresetChange = (_: unknown, newValue: PresetOption | null) => {
@@ -362,8 +286,12 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
         } else {
             setShowCustomDates(false);
             const { start, end } = calculateDateRange(newPreset);
-            onStartDateChange(start);
-            onEndDateChange(end);
+            if (onDateRangeChange) {
+                onDateRangeChange(start, end);
+            } else {
+                onStartDateChange(start);
+                onEndDateChange(end);
+            }
         }
     };
 
@@ -407,6 +335,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                         }
                         label={t("fields.toolbar_date_range_label")}
                         sx={presetFilterSx}
+                        disableListboxScroll
                         startAdornment={
                             <InputAdornment position="start">
                                 <CalendarTodayIcon sx={toolbarPresetIconSx} />
@@ -431,7 +360,10 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                                 }}
                                 onAccept={(newValue) => {
                                     if (newValue && newValue.isValid()) {
-                                        onStartDateChange(newValue.toDate());
+                                        const next = newValue.toDate();
+                                        if (!isSameLocalCalendarDay(next, startDate)) {
+                                            onStartDateChange(next);
+                                        }
                                     }
                                 }}
                                 maxDate={tempEndDate || undefined}
@@ -442,7 +374,10 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                                         ...customRangeDatePickerSlotProps.textField,
                                         onBlur: () => {
                                             if (tempStartDate && tempStartDate.isValid()) {
-                                                onStartDateChange(tempStartDate.toDate());
+                                                const next = tempStartDate.toDate();
+                                                if (!isSameLocalCalendarDay(next, startDate)) {
+                                                    onStartDateChange(next);
+                                                }
                                             }
                                         }
                                     }
@@ -458,7 +393,10 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                                 }}
                                 onAccept={(newValue) => {
                                     if (newValue && newValue.isValid()) {
-                                        onEndDateChange(newValue.toDate());
+                                        const next = newValue.toDate();
+                                        if (!isSameLocalCalendarDay(next, endDate)) {
+                                            onEndDateChange(next);
+                                        }
                                     }
                                 }}
                                 minDate={tempStartDate || undefined}
@@ -469,7 +407,10 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                                         ...customRangeDatePickerSlotProps.textField,
                                         onBlur: () => {
                                             if (tempEndDate && tempEndDate.isValid()) {
-                                                onEndDateChange(tempEndDate.toDate());
+                                                const next = tempEndDate.toDate();
+                                                if (!isSameLocalCalendarDay(next, endDate)) {
+                                                    onEndDateChange(next);
+                                                }
                                             }
                                         }
                                     }

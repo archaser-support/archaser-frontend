@@ -1,10 +1,14 @@
 /**
- * Shared path list for local Nest API rewrite.
- * Keep in sync with backend Nest route tops.
- * /api/auth stays on Next (D2). /api/ws is Nest-owned (SSE).
+ * Local product-API path peels for Next `rewrites()`.
  *
- * SMS peel (D24–D30): when USE_SMS_NEST_REWRITE=true, /api/sms* → SMS_PORT
- * (default 3004). Otherwise SMS stays on main Nest API (reversible).
+ * Local UI always calls same-origin `/api/*`. This module is how those
+ * requests reach Nest: main API (:3002) by default, with optional peels for
+ * SMS (:3004), connectors (:3005), and reports (:3006).
+ *
+ * /api/auth stays on Next. /api/ws is Nest-owned (SSE).
+ *
+ * Flip flags: USE_SMS_NEST_REWRITE, USE_CONNECTORS_NEST_REWRITE,
+ * USE_REPORTS_NEST_REWRITE (each reversible).
  */
 
 /** @type {readonly string[]} */

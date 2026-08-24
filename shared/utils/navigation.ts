@@ -3,9 +3,11 @@ import AppUrls from "../../utils/appUrls";
 import {
     type AccountProducts,
     isCreditOnlyAccount,
+    isFileImportVisible,
 } from "./accountProducts";
 
 export type { AccountProducts };
+export { isFileImportVisible };
 
 export const ARCHASER_ADMIN_ACCOUNT_ID = 10013;
 
@@ -159,7 +161,8 @@ export const sidebarStructure: NavSection[] = [
                 (permissions.includes("view_activity_sequences") &&
                     accountProducts?.has_collection !== false) ||
                 permissions.includes("view_system_logs") ||
-                permissions.some(p => p.startsWith("import_"))) &&
+                (isFileImportVisible(accountProducts) &&
+                    permissions.some((p) => p.startsWith("import_")))) &&
             (Number(accountId) === 10013 || Number(accountId) !== 10013), // logic from layout: (!hideForCustomer || effectiveUser.account_id === 10013)
         items: [
             {
@@ -177,7 +180,9 @@ export const sidebarStructure: NavSection[] = [
             {
                 label: "actions.navigation_import",
                 href: AppUrls.IMPORT || "/app/import",
-                show: (permissions) => permissions.some(p => p.startsWith("import_")),
+                show: (permissions, _accountId, accountProducts) =>
+                    isFileImportVisible(accountProducts) &&
+                    permissions.some((p) => p.startsWith("import_")),
             },
         ],
     },
