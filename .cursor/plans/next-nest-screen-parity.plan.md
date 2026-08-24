@@ -4,19 +4,19 @@ overview: Walk every live screen until it works against Nest. Keep Next as UI-on
 todos:
   - id: slice-grid-spine
     content: "Slice 1: Shared grids — reports execute + ViewBasedDataGrid (Customers, Disputes, dashboard chart details, operation-dashboard details, credit report, customer nested lists)"
-    status: in_progress
+    status: completed
   - id: slice-ar-screens
     content: "Slice 2: Collections screens — login, dashboard KPIs, customer detail header/actions, invoices, remaining AR forms"
-    status: pending
+    status: in_progress
   - id: slice-rest-app
     content: "Slice 3: Rest of internal app — agents, control-center, legal, import, reports builder, settings, activity sequences/templates, credit dashboards"
-    status: pending
+    status: in_progress
   - id: slice-portal
     content: "Slice 4: Portal — one portal customer; invoices, disputes, pay, promise-to-pay"
-    status: pending
+    status: in_progress
   - id: slice-admin-third-party
     content: "Slice 5: Admin + third-party — cron, logs, health, accounts, SMS/S3/ERP live actions on staging"
-    status: pending
+    status: in_progress
   - id: slice-he-rtl
     content: "Slice 6: Hebrew/RTL smoke on screens already proven in English"
     status: pending
@@ -160,7 +160,7 @@ Re-open Slice 1–5 screens under `/he/...`. Fix layout/copy only. No Nest JSON 
 
 - No big-bang flag. Ship Nest JSON/behavior fixes per slice; FE only when UI/RTL is wrong.
 - Paired FE+BE PRs only when OpenAPI or a page must change with Nest.
-- Reverse-proxy stays: `/api/auth` on Next; `/api/ws` and product `/api/*` on Nest; reports/SMS/connectors peels unchanged.
+- Reverse-proxy stays: Amplify UI at `staging.archaser.com`; Nest peels on `api.staging.archaser.com` (`/api/auth` on Amplify; `/api/ws` and product `/api/*` on Nest).
 
 ## Plan edits (other docs)
 
