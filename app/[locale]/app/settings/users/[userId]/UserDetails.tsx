@@ -37,6 +37,7 @@ import { useTranslation } from "react-i18next";
 import api, { apiFetch } from "@/app/api";
 import PageHeader from "@/components/PageHeader";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
+import { LANGUAGE_CHANGE_STORAGE_KEY } from "@/shared/utils/sessionLanguageKeys";
 import { getCountryTimezone } from "@/utils/datetimeOperations";
 import { validateEmail } from "@/utils/emailValidation";
 import { TimeZoneLabels } from "@/utils/timezones";
@@ -405,7 +406,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId }) => {
         if (user && !isNewUser) {
             // Check if we're in the middle of a language change to prevent form reset
             const isLanguageChangeInProgress =
-                sessionStorage.getItem("languageChangeInProgress") === "true";
+                sessionStorage.getItem(LANGUAGE_CHANGE_STORAGE_KEY) === "true";
 
             // Only prevent form reset if language change is in progress
             // Allow form reset on initial load or when not in language change
@@ -852,7 +853,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId }) => {
                 // race a second hard-nav while we are still on the old locale.
                 if (languageForReload) {
                     sessionStorage.setItem(
-                        "languageChangeInProgress",
+                        LANGUAGE_CHANGE_STORAGE_KEY,
                         "true"
                     );
                 }
@@ -880,7 +881,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId }) => {
                         return;
                     }
                 } else if (languageForReload) {
-                    sessionStorage.removeItem("languageChangeInProgress");
+                    sessionStorage.removeItem(LANGUAGE_CHANGE_STORAGE_KEY);
                 }
 
                 // If session update was required but no language change, continue with normal flow

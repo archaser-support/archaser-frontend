@@ -5,7 +5,12 @@ import { useSession } from "next-auth/react";
 import { useEffect } from "react";
 
 import {
+    LANGUAGE_CHANGE_STORAGE_KEY,
+    LOGIN_HANDOFF_STORAGE_KEY,
+} from "@/shared/utils/sessionLanguageKeys";
+import {
     expectedLocaleFromSessionLanguage,
+    isAuthRoute,
     localeFromPathname,
     shouldRedirectForSessionLocale,
 } from "@/shared/utils/sessionLanguageMonitor";
@@ -14,43 +19,45 @@ export default function SessionLanguageMonitor() {
     const { data: session, status } = useSession();
     const pathname = usePathname();
 
-    // Skip all logic for portal routes - portal uses URL as source of truth
     const isPortalRoute = pathname?.includes("/portal/") ?? false;
+    const onAuthRoute = isAuthRoute(pathname);
 
-    // Add timeout to force session resolution
+    // Never run locale redirects on login / password screens — login owns navigation.
     useEffect(() => {
-        if (isPortalRoute) return;
+        if (isPortalRoute || onAuthRoute) {
+            return;
+        }
+
         const timeoutId = setTimeout(() => {
             if (status === "loading") {
-                // Force a page reload to break the loading state
                 window.location.reload();
             }
-        }, 60000); // 60 second timeout
+        }, 60000);
 
         return () => {
             clearTimeout(timeoutId);
         };
-    }, [status, isPortalRoute]);
+    }, [status, isPortalRoute, onAuthRoute]);
 
     useEffect(() => {
-        // Skip all logic for portal routes - portal uses URL as source of truth
-        if (isPortalRoute) {
+        if (isPortalRoute || onAuthRoute) {
             return;
         }
 
-        // Add timeout to prevent hanging
-        const timeoutId = setTimeout(() => {
-            if (status === "loading") {
-                // Timeout handling
-            }
-        }, 60000); // 60 second timeout
-
         const languageChangeInProgress =
             typeof window !== "undefined" &&
-            sessionStorage.getItem("languageChangeInProgress") === "true";
+            sessionStorage.getItem(LANGUAGE_CHANGE_STORAGE_KEY) === "true";
 
-        // While UserDetails owns the locale hard-nav, never issue a competing redirect.
-        // Clear the flag only after path locale matches the (already updated) session.
+        const loginHandoffInProgress =
+            typeof window !== "undefined" &&
+            sessionStorage.getItem(LOGIN_HANDOFF_STORAGE_KEY) === "true";
+
+        // Login hard-nav landed on /app — consume the handoff and do not bounce.
+        if (loginHandoffInProgress && pathname?.includes("/app")) {
+            sessionStorage.removeItem(LOGIN_HANDOFF_STORAGE_KEY);
+            return;
+        }
+
         if (languageChangeInProgress) {
             if (session?.user?.language) {
                 const pathLocale = localeFromPathname(pathname);
@@ -58,10 +65,9 @@ export default function SessionLanguageMonitor() {
                     session.user.language
                 );
                 if (pathLocale === expectedLocale) {
-                    sessionStorage.removeItem("languageChangeInProgress");
+                    sessionStorage.removeItem(LANGUAGE_CHANGE_STORAGE_KEY);
                 }
             }
-            clearTimeout(timeoutId);
             return;
         }
 
@@ -70,29 +76,34 @@ export default function SessionLanguageMonitor() {
             status,
             sessionLanguage: session?.user?.language,
             languageChangeInProgress: false,
+            loginHandoffInProgress: false,
             isPortalRoute,
         });
 
         if (!decision.redirect) {
-            clearTimeout(timeoutId);
             return;
         }
 
-        // Small delay to avoid race conditions with session updates
         const redirectTimeout = setTimeout(() => {
-            // Double-check the flag before redirecting (it might have been set during the delay)
-            const stillInProgress =
-                sessionStorage.getItem("languageChangeInProgress") === "true";
-            if (!stillInProgress) {
+            const stillLanguageChange =
+                sessionStorage.getItem(LANGUAGE_CHANGE_STORAGE_KEY) === "true";
+            const stillLoginHandoff =
+                sessionStorage.getItem(LOGIN_HANDOFF_STORAGE_KEY) === "true";
+            if (!stillLanguageChange && !stillLoginHandoff) {
                 window.location.href = decision.newPath;
             }
         }, 100);
 
         return () => {
-            clearTimeout(timeoutId);
             clearTimeout(redirectTimeout);
         };
-    }, [session?.user?.language, status, pathname, isPortalRoute]);
+    }, [
+        session?.user?.language,
+        status,
+        pathname,
+        isPortalRoute,
+        onAuthRoute,
+    ]);
 
     return null;
 }

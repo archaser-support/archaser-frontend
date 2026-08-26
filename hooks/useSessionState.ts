@@ -37,24 +37,17 @@ export const useSessionState = () => {
                 return;
             }
 
-            // Check if this is a fresh login
+            // Check if this is a fresh login — clear flags only; never reload
+            // (reload raced the post-login hard-nav and loaded the app twice).
             if (typeof window !== "undefined") {
                 const freshLogin = localStorage.getItem("freshLogin");
                 const loginUserId = localStorage.getItem("loginUserId");
 
-                // If it's a fresh login, validate the session matches
                 if (freshLogin === "true" && loginUserId) {
-                    if (loginUserId !== session.user.id) {
-                        // Session mismatch, force reload
-                        window.location.reload();
-                        return;
-                    } else {
-                        // Clear fresh login flags after successful validation
-                        localStorage.removeItem("freshLogin");
-                        localStorage.removeItem("loginUserId");
-                        localStorage.removeItem("loginUserRole");
-                        localStorage.removeItem("loginAccountId");
-                    }
+                    localStorage.removeItem("freshLogin");
+                    localStorage.removeItem("loginUserId");
+                    localStorage.removeItem("loginUserRole");
+                    localStorage.removeItem("loginAccountId");
                 }
             }
 

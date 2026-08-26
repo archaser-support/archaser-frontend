@@ -3,12 +3,13 @@
 import { I18nextProvider } from "react-i18next";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterMoment } from "@mui/x-date-pickers/AdapterMoment";
-import { ReactNode, useMemo, useEffect } from "react";
+import { ReactNode, useEffect, useMemo, useRef } from "react";
 import moment from "moment";
 import "moment/locale/he";
 import "moment/locale/en-gb";
-import { Resource, createInstance } from "i18next";
+import { Resource, createInstance, type i18n as I18nInstance } from "i18next";
 import { useSession } from "next-auth/react";
+import { usePathname } from "next/navigation";
 import { initReactI18next } from "react-i18next/initReactI18next";
 
 import { getMomentAdapterLocale } from "@/utils/datetimeOperations";
@@ -18,75 +19,74 @@ export default function TranslationsProvider({
     locale: translationLocale,
     namespaces,
     resources,
-    isPortal = false, // New prop to indicate if this is the portal
+    isPortal = false,
+    lockLocaleToProp = false,
 }: {
     children: ReactNode;
-    locale: string; // This is the language for translations
+    locale: string;
     namespaces: string[];
     resources: Resource;
-    isPortal?: boolean; // Flag to disable session language override
+    isPortal?: boolean;
+    /** When true, never follow session language (auth + portal). */
+    lockLocaleToProp?: boolean;
 }) {
     const { data: session } = useSession();
+    const pathname = usePathname();
+    const isAuthRoute =
+        pathname?.includes("/login") ||
+        pathname?.includes("/forget-password") ||
+        pathname?.includes("/reset-password");
 
-    // Determine the effective language for i18n
-    // For portal, always use translationLocale (URL locale) and ignore session - URL is source of truth
+    const lockLocale = isPortal || isAuthRoute || lockLocaleToProp;
+
     const effectiveLanguage = useMemo(() => {
-        if (isPortal) {
-            // Portal: URL locale is the ONLY source of truth - never change based on session
+        if (lockLocale) {
             return translationLocale;
         }
-        // Non-portal: can use session language if available
         if (session?.user?.language) {
-            const sessionLang =
-                session.user.language === "Hebrew" ? "he" : "en";
-            return sessionLang;
+            return session.user.language.toLowerCase() === "hebrew"
+                ? "he"
+                : "en";
         }
         return translationLocale;
-    }, [isPortal, translationLocale, session?.user?.language]);
+    }, [lockLocale, translationLocale, session?.user?.language]);
 
-    const i18n = useMemo(() => {
+    // One i18n instance for the life of this provider. Recreating it (e.g. when
+    // RSC refresh passes a new `resources` object after signIn) remounts every
+    // consumer — on /login that flashes a blank form before dashboard redirect.
+    const i18nRef = useRef<I18nInstance | null>(null);
+    if (!i18nRef.current) {
         const instance = createInstance();
-
         instance.use(initReactI18next);
-
-        // Initialize with resources - for portal, this is set once based on URL and never changes
         instance.init({
-            lng: effectiveLanguage,
+            lng: translationLocale,
             resources: resources || {},
             ns: namespaces,
             defaultNS: namespaces[0] || "common",
-            fallbackLng: effectiveLanguage,
-            nsSeparator: false, // Disable namespace prefixing
+            fallbackLng: translationLocale,
+            nsSeparator: false,
             keySeparator: ".",
             initImmediate: false,
             interpolation: {
                 escapeValue: false,
             },
         });
+        i18nRef.current = instance;
+    }
+    const i18n = i18nRef.current;
 
-        return instance;
-    }, [effectiveLanguage, namespaces, resources]);
-
-    // Only update i18n language for non-portal pages when session loads
-    // Portal pages: language is set from URL and NEVER changes
     useEffect(() => {
-        if (isPortal) {
-            // Portal: never change language - URL is source of truth
-            return;
+        if (i18n.language !== effectiveLanguage) {
+            void i18n.changeLanguage(effectiveLanguage);
         }
-        // Non-portal: can update when session loads
-        if (i18n && i18n.language !== effectiveLanguage) {
-            i18n.changeLanguage(effectiveLanguage);
-        }
-    }, [effectiveLanguage, i18n, isPortal]);
+    }, [effectiveLanguage, i18n]);
 
-    // Calendar language follows logged-in user's language when session exists; portal without session uses URL locale
     const momentLocale = useMemo(() => {
-        if (isPortal && !session?.user?.language) {
+        if (lockLocale) {
             return translationLocale === "he" ? "he" : "en-gb";
         }
         return getMomentAdapterLocale(session ?? null);
-    }, [isPortal, session, translationLocale]);
+    }, [lockLocale, session, translationLocale]);
 
     useEffect(() => {
         moment.locale(momentLocale);

@@ -43,9 +43,14 @@ import BackgroundPattern from "@/components/BackgroundPattern";
 import i18nConfig from "@/i18nConfig";
 import { createLogRecord } from "@/shared/utility/LogCreator";
 import {
+    getDefaultLandingPage,
     getFirstAccessiblePage,
     isArchaserAdminAccount,
 } from "@/shared/utils/navigation";
+import {
+    LOGIN_HANDOFF_STORAGE_KEY,
+    PENDING_LOGIN_REDIRECT_KEY,
+} from "@/shared/utils/sessionLanguageKeys";
 import AppUrls from "@/utils/appUrls";
 import { getTenantSubdomain } from "@/utils/domainUtils";
 import {
@@ -55,8 +60,6 @@ import {
     isNestAuthEnabled,
     nestAccountBySubdomain,
     nestCredentialsLogin,
-    nestFetchMe,
-    persistNestLoginProfile,
     restoreNestAccessToken,
     setNestAccessToken,
 } from "@/utils/nestAuth";
@@ -72,6 +75,11 @@ import {
 // Constants
 const COOKIE_EXPIRY_DAYS = 30;
 const FOCUS_DELAY = 100;
+/**
+ * True while the live submit handler owns post-login work.
+ * Soft React remounts keep this true (skip duplicate nav); hard reloads reset it.
+ */
+let loginHandoffOwnedByLiveHandler = false;
 
 interface FormState {
     username: string;
@@ -230,6 +238,161 @@ function LoginPageContent() {
         setFormState((prev) => ({ ...prev, ...updates }));
     }, []);
 
+    const clearLoginHandoff = useCallback(() => {
+        if (typeof window === "undefined") return;
+        loginHandoffOwnedByLiveHandler = false;
+        sessionStorage.removeItem(LOGIN_HANDOFF_STORAGE_KEY);
+        sessionStorage.removeItem(PENDING_LOGIN_REDIRECT_KEY);
+    }, []);
+
+    const resolvePostLoginPath = useCallback(
+        async (session: Awaited<ReturnType<typeof getSession>>) => {
+            const language = mapLanguageToLocale(session?.user?.language);
+            const isAdmin = isArchaserAdminAccount(session?.user?.account_id);
+            if (isAdmin) {
+                return { language, redirectUrl: AppUrls.ACCOUNTS, isAdmin: true };
+            }
+            try {
+                const accountRes = await apiFetch(
+                    `/api/entities/accounts/${session?.user?.account_id}`,
+                    { credentials: "include" }
+                );
+                const accountData = accountRes.ok
+                    ? await accountRes.json()
+                    : null;
+                const accountProducts = accountData
+                    ? {
+                          has_collection: accountData.has_collection,
+                          has_credit_insurance:
+                              accountData.has_credit_insurance === true,
+                          has_file_import:
+                              accountData.has_file_import !== false,
+                      }
+                    : undefined;
+                const permRes = await apiFetch("/api/permissions/me", {
+                    credentials: "include",
+                });
+                const permData = permRes.ok ? await permRes.json() : null;
+                const permissions: string[] = permData?.permissions ?? [];
+                return {
+                    language,
+                    redirectUrl: getFirstAccessiblePage(
+                        permissions,
+                        session?.user?.account_id ?? 0,
+                        accountProducts
+                    ),
+                    isAdmin: false,
+                };
+            } catch {
+                return {
+                    language,
+                    redirectUrl: AppUrls.CUSTOMERS,
+                    isAdmin: false,
+                };
+            }
+        },
+        [mapLanguageToLocale]
+    );
+
+    /** Stamp handoff + provisional target before slow permission lookups. */
+    const beginLoginHandoff = useCallback(
+        (session: NonNullable<Awaited<ReturnType<typeof getSession>>>) => {
+            if (typeof window === "undefined") return;
+            loginHandoffOwnedByLiveHandler = true;
+            const language = mapLanguageToLocale(session.user?.language);
+            const provisional = `/${language}${getDefaultLandingPage(
+                session.user?.account_id
+            )}`;
+            sessionStorage.setItem(LOGIN_HANDOFF_STORAGE_KEY, "true");
+            sessionStorage.setItem(PENDING_LOGIN_REDIRECT_KEY, provisional);
+            updateFormState({
+                isLoading: true,
+                loadingType: "login",
+                error: null,
+            });
+        },
+        [mapLanguageToLocale, updateFormState]
+    );
+
+    /** Clear caches, stamp handoff, then leave login in one hard navigation. */
+    const leaveLoginForApp = useCallback(
+        (session: NonNullable<Awaited<ReturnType<typeof getSession>>>, path: {
+            language: string;
+            redirectUrl: string;
+        }) => {
+            const target = `/${path.language}${path.redirectUrl}`;
+            if (typeof window !== "undefined") {
+                localStorage.clear();
+                sessionStorage.clear();
+                sessionStorage.setItem(LOGIN_HANDOFF_STORAGE_KEY, "true");
+                sessionStorage.setItem(PENDING_LOGIN_REDIRECT_KEY, target);
+                restoreNestAccessToken(pendingNestTokenRef.current);
+                // Do not await /auth/me here — a 401 would signOut and flash /login
+                // while we navigate to /app. Profile is loaded after landing.
+                const timestamp = Date.now().toString();
+                localStorage.setItem("freshLogin", "true");
+                localStorage.setItem("loginTimestamp", timestamp);
+                localStorage.setItem("loginUserId", session.user?.id || "");
+                localStorage.setItem("loginUserRole", session.user?.role || "");
+                localStorage.setItem(
+                    "loginAccountId",
+                    session.user?.account_id?.toString() || ""
+                );
+            }
+            const date = new Date();
+            date.setTime(
+                date.getTime() + COOKIE_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+            );
+            document.cookie = `NEXT_LOCALE=${path.language};expires=${date.toUTCString()};path=/`;
+            loginHandoffOwnedByLiveHandler = false;
+            window.location.replace(target);
+        },
+        []
+    );
+
+    // Soft remount: keep spinner while the live handler finishes.
+    // Hard reload mid-login: resume navigation from sessionStorage.
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const pending = sessionStorage.getItem(PENDING_LOGIN_REDIRECT_KEY);
+        const handoff =
+            sessionStorage.getItem(LOGIN_HANDOFF_STORAGE_KEY) === "true";
+        if (!pending && !handoff) return;
+
+        updateFormState({
+            isLoading: true,
+            loadingType: "login",
+            error: null,
+        });
+
+        if (loginHandoffOwnedByLiveHandler) {
+            return;
+        }
+
+        let cancelled = false;
+        void (async () => {
+            const session = await getSession();
+            if (cancelled) return;
+            if (!session) {
+                clearLoginHandoff();
+                updateFormState({ isLoading: false, loadingType: null });
+                return;
+            }
+            const path = await resolvePostLoginPath(session);
+            if (cancelled) return;
+            leaveLoginForApp(session, path);
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [
+        updateFormState,
+        clearLoginHandoff,
+        resolvePostLoginPath,
+        leaveLoginForApp,
+    ]);
+
     const handleUsernameChange = useCallback(
         (e: React.ChangeEvent<HTMLInputElement>) => {
             const value = e.target.value;
@@ -295,6 +458,7 @@ function LoginPageContent() {
                 if (result?.error) {
                     clearNestAccessToken();
                     pendingNestTokenRef.current = null;
+                    clearLoginHandoff();
                     updateFormState({
                         error: t("messages.error"),
                         isLoading: false,
@@ -305,6 +469,7 @@ function LoginPageContent() {
 
                 const session = await getSession();
                 if (!session) {
+                    clearLoginHandoff();
                     updateFormState({
                         error: t("messages.error"),
                         isLoading: false,
@@ -313,79 +478,13 @@ function LoginPageContent() {
                     return;
                 }
 
-                if (typeof window !== "undefined") {
-                    localStorage.clear();
-                    sessionStorage.clear();
-                    restoreNestAccessToken(pendingNestTokenRef.current);
-                    const timestamp = Date.now().toString();
-                    localStorage.setItem("freshLogin", "true");
-                    localStorage.setItem("loginTimestamp", timestamp);
-                    localStorage.setItem(
-                        "loginUserId",
-                        session?.user?.id || ""
-                    );
-                    localStorage.setItem(
-                        "loginUserRole",
-                        session?.user?.role || ""
-                    );
-                    localStorage.setItem(
-                        "loginAccountId",
-                        session?.user?.account_id?.toString() || ""
-                    );
-                }
-
-                const language = mapLanguageToLocale(session?.user?.language);
-                const date = new Date();
-                date.setTime(
-                    date.getTime() + COOKIE_EXPIRY_DAYS * 24 * 60 * 60 * 1000
-                );
-                document.cookie = `NEXT_LOCALE=${language};expires=${date.toUTCString()};path=/`;
-
-                const isAdmin = isArchaserAdminAccount(
-                    session?.user?.account_id
-                );
-                let redirectUrl: string;
-                if (isAdmin) {
-                    redirectUrl = AppUrls.ACCOUNTS;
-                } else {
-                    try {
-                        const accountRes = await apiFetch(`/api/entities/accounts/${session?.user?.account_id}`,
-                            { credentials: "include" }
-                        );
-                        const accountData = accountRes.ok
-                            ? await accountRes.json()
-                            : null;
-                        const accountProducts = accountData
-                            ? {
-                                has_collection: accountData.has_collection,
-                                has_credit_insurance:
-                                    accountData.has_credit_insurance === true,
-                                has_file_import:
-                                    accountData.has_file_import !== false,
-                            }
-                            : undefined;
-                        const permRes = await apiFetch("/api/permissions/me", {
-                            credentials: "include",
-                        });
-                        const permData = permRes.ok
-                            ? await permRes.json()
-                            : null;
-                        const permissions: string[] =
-                            permData?.permissions ?? [];
-                        redirectUrl = getFirstAccessiblePage(
-                            permissions,
-                            session?.user?.account_id ?? 0,
-                            accountProducts
-                        );
-                    } catch {
-                        redirectUrl = AppUrls.CUSTOMERS;
-                    }
-                }
-
-                window.location.href = `/${language}${redirectUrl}`;
+                beginLoginHandoff(session);
+                const path = await resolvePostLoginPath(session);
+                leaveLoginForApp(session, path);
             } catch {
                 clearNestAccessToken();
                 pendingNestTokenRef.current = null;
+                clearLoginHandoff();
                 updateFormState({
                     error: t("messages.error"),
                     isLoading: false,
@@ -393,7 +492,15 @@ function LoginPageContent() {
                 });
             }
         })();
-    }, [searchParams, t, updateFormState, mapLanguageToLocale]);
+    }, [
+        searchParams,
+        t,
+        updateFormState,
+        clearLoginHandoff,
+        beginLoginHandoff,
+        resolvePostLoginPath,
+        leaveLoginForApp,
+    ]);
 
     const handlePasswordChange = useCallback(
         (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -439,6 +546,13 @@ function LoginPageContent() {
                 let result;
                 if (isNestAuthEnabled()) {
                     try {
+                        // Prevent locale monitors from racing while credentials exchange runs.
+                        if (typeof window !== "undefined") {
+                            sessionStorage.setItem(
+                                LOGIN_HANDOFF_STORAGE_KEY,
+                                "true"
+                            );
+                        }
                         const nestLogin = await nestCredentialsLogin(
                             formState.username,
                             formState.password
@@ -476,6 +590,7 @@ function LoginPageContent() {
                             : message.toLowerCase().includes("inactive")
                                 ? t("messages.account_inactive")
                                 : t("messages.invalid_credentials");
+                        clearLoginHandoff();
                         updateFormState({
                             error: errorMessage,
                             isLoading: false,
@@ -527,106 +642,14 @@ function LoginPageContent() {
                                 : t("messages.invalid_credentials");
 
                     updateFormState({ error: errorMessage, isLoading: false, loadingType: null });
+                    clearLoginHandoff();
                 } else {
                     // Authentication successful - will log complete result after session is established
 
                     const session = await getSession();
                     if (session) {
-                        // Clear React Query cache to prevent loading cached menu data
-                        // Use localStorage to clear persisted cache data
-                        if (typeof window !== "undefined") {
-                            // Clear ALL localStorage to ensure complete cache clearing
-                            localStorage.clear();
-
-                            // Also clear sessionStorage for any cached session data
-                            sessionStorage.clear();
-
-                            // Re-store Nest JWT after clear (Stage 1A auth ownership)
-                            restoreNestAccessToken(pendingNestTokenRef.current);
-
-                            try {
-                                const nestProfile = await nestFetchMe();
-                                persistNestLoginProfile(nestProfile);
-                            } catch {
-                                // Session cookie bridge still works from JWT claims
-                            }
-
-                            // Add a flag to indicate fresh login
-                            const timestamp = Date.now().toString();
-                            localStorage.setItem("freshLogin", "true");
-                            localStorage.setItem("loginTimestamp", timestamp);
-                            localStorage.setItem(
-                                "loginUserId",
-                                session?.user?.id || ""
-                            );
-                            localStorage.setItem(
-                                "loginUserRole",
-                                session?.user?.role || ""
-                            );
-                            localStorage.setItem(
-                                "loginAccountId",
-                                session?.user?.account_id?.toString() || ""
-                            );
-                        }
-
-                        const language = mapLanguageToLocale(
-                            session?.user?.language
-                        );
-                        // Set cookie for next-i18n-router
-                        const date = new Date();
-                        date.setTime(
-                            date.getTime() +
-                            COOKIE_EXPIRY_DAYS * 24 * 60 * 60 * 1000
-                        );
-                        document.cookie = `NEXT_LOCALE=${language};expires=${date.toUTCString()};path=/`;
-
-                        // Determine redirect URL based on role permissions
-                        const isAdmin = isArchaserAdminAccount(
-                            session?.user?.account_id
-                        );
-                        let redirectUrl: string;
-                        if (isAdmin) {
-                            redirectUrl = AppUrls.ACCOUNTS;
-                        } else {
-                            try {
-                                const accountRes = await apiFetch(`/api/entities/accounts/${session?.user?.account_id}`,
-                                    { credentials: "include" }
-                                );
-                                const accountData = accountRes.ok
-                                    ? await accountRes.json()
-                                    : null;
-                                const accountProducts = accountData
-                                    ? {
-                                        has_collection:
-                                            accountData.has_collection,
-                                        has_credit_insurance:
-                                            accountData.has_credit_insurance ===
-                                            true,
-                                        has_file_import:
-                                            accountData.has_file_import !==
-                                            false,
-                                    }
-                                    : undefined;
-
-                                const permRes = await apiFetch("/api/permissions/me",
-                                    { credentials: "include" }
-                                );
-                                const permData =
-                                    permRes.ok
-                                        ? await permRes.json()
-                                        : null;
-                                const permissions: string[] =
-                                    permData?.permissions ?? [];
-
-                                redirectUrl = getFirstAccessiblePage(
-                                    permissions,
-                                    session?.user?.account_id ?? 0,
-                                    accountProducts
-                                );
-                            } catch {
-                                redirectUrl = AppUrls.CUSTOMERS;
-                            }
-                        }
+                        beginLoginHandoff(session);
+                        const path = await resolvePostLoginPath(session);
 
                         const userName =
                             session?.user?.name ||
@@ -640,17 +663,18 @@ function LoginPageContent() {
                                 username: formState.username,
                                 userName: userName,
                                 userId: session?.user?.id,
-                                language: language,
-                                redirectUrl: `/${language}${redirectUrl}`,
+                                language: path.language,
+                                redirectUrl: `/${path.language}${path.redirectUrl}`,
                                 userRole: session?.user?.role,
-                                isAdmin: isAdmin,
+                                isAdmin: path.isAdmin,
                                 action: "login_successful",
                                 timestamp: new Date().toISOString(),
                             }
                         ).catch(() => { });
 
-                        window.location.href = `/${language}${redirectUrl}`;
+                        leaveLoginForApp(session, path);
                     } else {
+                        clearLoginHandoff();
                         updateFormState({
                             error: "Failed to establish session. Please try again.",
                             isLoading: false,
@@ -672,6 +696,7 @@ function LoginPageContent() {
                         timestamp: new Date().toISOString(),
                     }
                 ).catch(() => { });
+                clearLoginHandoff();
                 updateFormState({
                     error: t("messages.error"),
                     isLoading: false,
@@ -686,7 +711,10 @@ function LoginPageContent() {
             validatePassword,
             t,
             updateFormState,
-            mapLanguageToLocale,
+            clearLoginHandoff,
+            beginLoginHandoff,
+            resolvePostLoginPath,
+            leaveLoginForApp,
         ]
     );
 

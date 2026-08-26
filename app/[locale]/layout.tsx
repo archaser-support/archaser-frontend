@@ -43,18 +43,24 @@ export default async function RootLayout({
 }) {
     const resolvedParams = await params;
 
-    // Check if we're in portal context by examining the pathname
+    // Check if we're in portal / auth context by examining the pathname
     const headersList = await headers();
     const pathname =
         headersList.get("x-pathname") ||
         headersList.get("next-url") ||
         "";
     const isPortalContext = pathname.includes("/portal/");
+    const isAuthContext =
+        pathname.includes("/login") ||
+        pathname.includes("/forget-password") ||
+        pathname.includes("/reset-password");
 
     let effectiveLanguage = resolvedParams.locale;
 
-    // Only check user session for non-portal contexts
-    if (!isPortalContext) {
+    // Auth pages must stay on the URL locale. Reading the session here after
+    // signIn triggers an RSC refresh that remounts login (looks like a reload)
+    // before the client navigates to the app.
+    if (!isPortalContext && !isAuthContext) {
         const session = await getServerSessionSafe();
         const userLanguage = session?.user?.language;
         effectiveLanguage =
@@ -89,6 +95,7 @@ export default async function RootLayout({
                         locale={effectiveLanguage}
                         resources={resources}
                         isPortal={isPortalContext}
+                        lockLocaleToProp={isAuthContext || isPortalContext}
                     >
                         <ErrorBoundary>
                             <Provider>
