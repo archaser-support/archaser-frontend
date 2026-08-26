@@ -62,8 +62,6 @@ interface ConnectorFieldMapperProps {
     isRefreshingEntitySetCatalog?: boolean;
     /** Fires when local mapping rules diverge from the last loaded/saved baseline. */
     onDirtyChange?: (dirty: boolean) => void;
-    /** Optional content rendered under the Priority table toolbar and above the mapping grid. */
-    betweenHeaderAndGrid?: React.ReactNode;
 }
 
 export type ConnectorFieldMapperHandle = {
@@ -88,7 +86,6 @@ const ConnectorFieldMapper = React.forwardRef<
         onRefreshEntitySetCatalog,
         isRefreshingEntitySetCatalog = false,
         onDirtyChange,
-        betweenHeaderAndGrid,
     },
     ref
 ) {
@@ -101,6 +98,10 @@ const ConnectorFieldMapper = React.forwardRef<
 
     const [rules, setRules] = useState<MappingRule[]>([]);
     const [baselineRulesJson, setBaselineRulesJson] = useState("[]");
+    const [pullDateField, setPullDateField] = useState<string | null>(null);
+    const [baselinePullDateField, setBaselinePullDateField] = useState<
+        string | null
+    >(null);
     const [isComplete, setIsComplete] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -137,6 +138,9 @@ const ConnectorFieldMapper = React.forwardRef<
                     : buildDefaultConnectorMappingRules(importType);
             setRules(nextRules);
             setBaselineRulesJson(JSON.stringify(nextRules));
+            const loadedDate = mapping?.pull_date_field?.trim() || null;
+            setPullDateField(loadedDate);
+            setBaselinePullDateField(loadedDate);
             setIsComplete(Boolean(mapping?.is_complete));
             onCompletenessChangeRef.current?.(
                 importType,
@@ -147,6 +151,8 @@ const ConnectorFieldMapper = React.forwardRef<
             const fallback = buildDefaultConnectorMappingRules(importType);
             setRules(fallback);
             setBaselineRulesJson(JSON.stringify(fallback));
+            setPullDateField(null);
+            setBaselinePullDateField(null);
         } finally {
             setIsLoading(false);
         }
@@ -157,8 +163,17 @@ const ConnectorFieldMapper = React.forwardRef<
     }, [loadMapping]);
 
     useEffect(() => {
-        onDirtyChange?.(JSON.stringify(rules) !== baselineRulesJson);
-    }, [rules, baselineRulesJson, onDirtyChange]);
+        onDirtyChange?.(
+            JSON.stringify(rules) !== baselineRulesJson ||
+                pullDateField !== baselinePullDateField
+        );
+    }, [
+        rules,
+        baselineRulesJson,
+        pullDateField,
+        baselinePullDateField,
+        onDirtyChange,
+    ]);
 
     const updateRule = useCallback(
         (archaserField: string, patch: Partial<MappingRule>) => {
@@ -240,6 +255,15 @@ const ConnectorFieldMapper = React.forwardRef<
     };
 
     const handleSave = useCallback(async (): Promise<boolean> => {
+        if (isLoading) {
+            return true;
+        }
+        if (
+            JSON.stringify(rules) === baselineRulesJson &&
+            pullDateField === baselinePullDateField
+        ) {
+            return true;
+        }
         setIsSaving(true);
         try {
             const saved = await saveBillingConnectorMapping(
@@ -249,10 +273,14 @@ const ConnectorFieldMapper = React.forwardRef<
                     (rule) =>
                         rule.erpField.trim() ||
                         (rule.defaultValue?.trim() ?? "") !== ""
-                )
+                ),
+                { pullDateField }
             );
             setRules(saved.mapping);
             setBaselineRulesJson(JSON.stringify(saved.mapping));
+            const savedDate = saved.pull_date_field?.trim() || null;
+            setPullDateField(savedDate);
+            setBaselinePullDateField(savedDate);
             setIsComplete(saved.is_complete);
             onCompletenessChange?.(importType, saved.is_complete);
             if (!hideSaveButton) {
@@ -260,7 +288,12 @@ const ConnectorFieldMapper = React.forwardRef<
             }
             return true;
         } catch (err: unknown) {
-            showError(extractErrorMessage(err) ?? "Failed to save mapping");
+            const message =
+                extractErrorMessage(err) ?? "Failed to save mapping";
+            if (hideSaveButton) {
+                throw new Error(message);
+            }
+            showError(message);
             return false;
         } finally {
             setIsSaving(false);
@@ -269,8 +302,12 @@ const ConnectorFieldMapper = React.forwardRef<
         accountId,
         importType,
         rules,
+        baselineRulesJson,
+        pullDateField,
+        baselinePullDateField,
         onCompletenessChange,
         hideSaveButton,
+        isLoading,
         success,
         showError,
     ]);
@@ -588,6 +625,32 @@ const ConnectorFieldMapper = React.forwardRef<
                             )}
                         />
                     )}
+                    <Autocomplete
+                        size="small"
+                        sx={{ minWidth: 220 }}
+                        freeSolo
+                        options={rawHeaders}
+                        value={pullDateField}
+                        onChange={(_event, value) => {
+                            const next =
+                                typeof value === "string" ? value.trim() : "";
+                            setPullDateField(next || null);
+                        }}
+                        onInputChange={(_event, value, reason) => {
+                            if (reason === "input") {
+                                setPullDateField(value.trim() || null);
+                            }
+                        }}
+                        disabled={!canManage}
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                label="Date field"
+                                size="small"
+                                placeholder="Auto (from table)"
+                            />
+                        )}
+                    />
                     {onRefreshEntitySetCatalog && (
                         <Button
                             size="small"
@@ -632,8 +695,6 @@ const ConnectorFieldMapper = React.forwardRef<
                     )}
                 </Box>
             </Box>
-
-            {betweenHeaderAndGrid}
 
             <Box
                 sx={{

@@ -34,6 +34,11 @@ import {
 } from "./utils/heightUtils";
 import { enhanceColumnsWithHighlighting } from "./utils/highlightUtils";
 import { calculateLoadMoreTrigger } from "./utils/scrollUtils";
+import {
+    measureOverflowScrollbarWidth,
+    nextScrollbarPaddingPx,
+    shouldNotifyGridBecameVisible,
+} from "./utils/scrollbarWidth";
 
 // Re-export utilities and hooks for backward compatibility
 export { useVirtualInfiniteScroll } from "./hooks/useVirtualInfiniteScroll";
@@ -136,7 +141,6 @@ const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
     searchValue,
     onSearchChange,
     searchPlaceholder,
-    searchDebounceMs,
     searchDisabled,
     searchDirection,
     onSearchFocus,
@@ -342,7 +346,6 @@ const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
         resizeHandleClickRef,
         handleResizeStart,
         handleAutoResize,
-        setColumnWidths,
     } = useColumnResizing({
         resizableColumns,
         columns,
@@ -492,7 +495,7 @@ const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
     }, [hasMore, isLoading, isLoadingMore, totalRecords, onLoadMore]);
 
     // Use virtual scroll hook (must be before useColumnWidthSync to provide virtualMetrics)
-    const { scrollState, setScrollState, virtualMetrics } = useVirtualScroll({
+    const { setScrollState, virtualMetrics } = useVirtualScroll({
         rows,
         containerHeight: containerHeight ?? 0,
         itemHeight: ITEM_HEIGHT,
@@ -639,28 +642,38 @@ const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
         };
     }, [syncColumnWidths]);
 
-    // When grid becomes visible (e.g. tab switch from display:none), re-run scrollbar calc and column sync
+    // When grid becomes visible (e.g. tab switch from display:none), re-run scrollbar calc and column sync.
+    // Do not depend on syncColumnWidths: re-creating the observer while visible would fire
+    // isIntersecting again and loop setState (max update depth).
     useEffect(() => {
         const wrapper = wrapperRef.current;
         if (!wrapper) return;
 
+        let wasIntersecting = false;
         const observer = new IntersectionObserver(
             (entries) => {
                 const [entry] = entries;
-                if (!entry?.isIntersecting) return;
-
-                setVisibilitySyncTrigger((prev) => prev + 1);
-                requestAnimationFrame(() => {
+                const isIntersecting = Boolean(entry?.isIntersecting);
+                if (
+                    shouldNotifyGridBecameVisible(
+                        wasIntersecting,
+                        isIntersecting
+                    )
+                ) {
+                    setVisibilitySyncTrigger((prev) => prev + 1);
                     requestAnimationFrame(() => {
-                        syncColumnWidths(true, true);
+                        requestAnimationFrame(() => {
+                            syncColumnWidthsRefForResizing.current?.(true, true);
+                        });
                     });
-                });
+                }
+                wasIntersecting = isIntersecting;
             },
             { threshold: 0, rootMargin: "0px" }
         );
         observer.observe(wrapper);
         return () => observer.disconnect();
-    }, [syncColumnWidths]);
+    }, [isLoading]);
 
     // Cleanup scroll timeout on unmount
     useEffect(() => {
@@ -758,18 +771,8 @@ const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
             const container = containerRef.current;
             if (!container) return;
 
-            // Check if scrollbar is visible
-            const hasScrollbar =
-                container.scrollHeight > container.clientHeight;
-            if (!hasScrollbar) {
-                setScrollbarWidth(0);
-                return;
-            }
-
-            // Calculate scrollbar width
-            const calculatedScrollbarWidth =
-                container.offsetWidth - container.clientWidth;
-            setScrollbarWidth(calculatedScrollbarWidth);
+            const measured = measureOverflowScrollbarWidth(container);
+            setScrollbarWidth((prev) => nextScrollbarPaddingPx(prev, measured));
         };
 
         // Calculate initially

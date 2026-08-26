@@ -276,6 +276,21 @@ export function buildThemeComponents(ctx: ThemeComponentsContext): ThemeOptions[
                                     0.08
                                 ),
                             },
+                            "&:disabled, &.Mui-disabled": {
+                                borderColor: "rgba(0, 0, 0, 0.12)",
+                                color: "rgba(0, 0, 0, 0.38)",
+                                backgroundColor: "transparent",
+                                opacity: 1,
+                            },
+                            "&.MuiButton-colorWarning, &.MuiButton-colorError, &.MuiButton-colorSuccess, &.MuiButton-colorInfo, &.MuiButton-colorSecondary":
+                                {
+                                    "&:disabled, &.Mui-disabled": {
+                                        borderColor: "rgba(0, 0, 0, 0.12)",
+                                        color: "rgba(0, 0, 0, 0.38)",
+                                        backgroundColor: "transparent",
+                                        opacity: 1,
+                                    },
+                                },
                         },
                         "&.MuiButton-text": {
                             color: theme.palette.primary.main,

@@ -111,18 +111,75 @@ function clampPercent(pulled: number, total: number): number {
     return Math.min(100, Math.round((pulled / total) * 100));
 }
 
+type EntityStatSlice = NonNullable<
+    SyncRunSummary["entity_stats"]
+>[string];
+
+/**
+ * Live sync-run stats always include every entity key (often at 0). Prefer the
+ * higher of live vs checkpointed pulled so starting the next entity does not
+ * wipe a completed entity's count.
+ */
+export function resolveEntityPulledCount(
+    entityStats: EntityStatSlice | undefined,
+    state: ConnectorSyncStatePublic | undefined
+): number {
+    const fromStats = entityStats?.pulled;
+    const fromState = state?.backfill_records_pulled ?? 0;
+    if (fromStats == null) {
+        return fromState;
+    }
+    return Math.max(fromStats, fromState);
+}
+
+function hasMeaningfulEntityStats(
+    entityStats: EntityStatSlice | undefined
+): boolean {
+    if (!entityStats) {
+        return false;
+    }
+    return (
+        (entityStats.pulled ?? 0) > 0 ||
+        (entityStats.success ?? 0) > 0 ||
+        (entityStats.failed ?? 0) > 0 ||
+        (entityStats.skipped ?? 0) > 0
+    );
+}
+
+/**
+ * When the current run has zeroed placeholder stats for an already-completed
+ * entity, fall back to the checkpointed pulled count for the imported summary.
+ */
+function resolveCompletedSuccessCount(
+    entityStats: EntityStatSlice | undefined,
+    pulled: number,
+    backfillCompleted: boolean
+): number | undefined {
+    if (hasMeaningfulEntityStats(entityStats)) {
+        return entityStats?.success;
+    }
+    if (backfillCompleted && pulled > 0) {
+        return pulled;
+    }
+    return entityStats?.success;
+}
+
 /**
  * Build per-entity rows while a backfill execution is RUNNING.
- * Active entity = first enabled entity that is not backfill_completed.
+ * Always lists every enabled entity. Active entity = first that is not
+ * backfill_completed. Completed entities keep their checkpointed counts when
+ * the live run only has placeholder zeros for them.
  */
 export function buildRunningEntityProgressRows(params: {
     enabledEntities: ImportType[];
     syncStates: ConnectorSyncStatePublic[] | undefined;
+    entityStats?: SyncRunSummary["entity_stats"];
 }): EntityProgressRow[] {
     const ordered = orderEnabledBackfillEntities(params.enabledEntities);
     const byType = new Map(
         (params.syncStates ?? []).map((state) => [state.entity_type, state])
     );
+    const stats = params.entityStats ?? {};
 
     const activeIndex = ordered.findIndex((entity) => {
         const state = byType.get(entity);
@@ -131,11 +188,13 @@ export function buildRunningEntityProgressRows(params: {
 
     return ordered.map((entity, index) => {
         const state = byType.get(entity);
-        const pulled = state?.backfill_records_pulled ?? 0;
+        const entityStats = stats[entity];
+        const pulled = resolveEntityPulledCount(entityStats, state);
         const total = state?.backfill_total_records ?? null;
         const error = state?.last_error?.trim() || null;
+        const completed = Boolean(state?.backfill_completed);
 
-        if (state?.backfill_completed) {
+        if (completed) {
             return {
                 entity_type: entity,
                 phase: "done" as const,
@@ -143,6 +202,17 @@ export function buildRunningEntityProgressRows(params: {
                 total_records: total,
                 progress_percent: total != null ? 100 : null,
                 last_error: null,
+                success: resolveCompletedSuccessCount(
+                    entityStats,
+                    pulled,
+                    true
+                ),
+                failed: hasMeaningfulEntityStats(entityStats)
+                    ? entityStats?.failed
+                    : 0,
+                skipped: hasMeaningfulEntityStats(entityStats)
+                    ? entityStats?.skipped
+                    : 0,
             };
         }
 
@@ -155,6 +225,9 @@ export function buildRunningEntityProgressRows(params: {
                 progress_percent:
                     total != null ? clampPercent(pulled, total) : null,
                 last_error: error,
+                success: entityStats?.success,
+                failed: entityStats?.failed,
+                skipped: entityStats?.skipped,
             };
         }
 
@@ -170,7 +243,8 @@ export function buildRunningEntityProgressRows(params: {
 }
 
 /**
- * Build rows after the run finished — prefer entity_stats; fall back to sync state.
+ * Build rows after the run finished — prefer meaningful entity_stats; fall
+ * back to sync state. Zeroed placeholder stats do not mark an entity done.
  */
 export function buildFinishedEntityProgressRows(params: {
     enabledEntities: ImportType[];
@@ -186,16 +260,20 @@ export function buildFinishedEntityProgressRows(params: {
     return ordered.map((entity) => {
         const state = byType.get(entity);
         const entityStats = stats[entity];
-        const pulled =
-            entityStats?.pulled ?? state?.backfill_records_pulled ?? 0;
+        const meaningful = hasMeaningfulEntityStats(entityStats);
+        const pulled = resolveEntityPulledCount(entityStats, state);
         const total = state?.backfill_total_records ?? null;
-        const failedCount = entityStats?.failed ?? 0;
-        const success = entityStats?.success;
-        const skipped = entityStats?.skipped;
+        const failedCount = meaningful ? (entityStats?.failed ?? 0) : 0;
+        const success = resolveCompletedSuccessCount(
+            entityStats,
+            pulled,
+            Boolean(state?.backfill_completed)
+        );
+        const skipped = meaningful ? entityStats?.skipped : undefined;
         const sampleError = entityStats?.sample_errors?.[0]?.trim() || null;
         const stateError = state?.last_error?.trim() || null;
 
-        if (!entityStats && !state?.backfill_completed && pulled === 0) {
+        if (!meaningful && !state?.backfill_completed && pulled === 0) {
             return {
                 entity_type: entity,
                 phase: "not_started" as const,
@@ -209,13 +287,9 @@ export function buildFinishedEntityProgressRows(params: {
         const resolvedPhase: EntityProgressPhase =
             failedCount > 0
                 ? "failed"
-                : entityStats
+                : meaningful || state?.backfill_completed || pulled > 0
                   ? "done"
-                  : state?.backfill_completed
-                    ? "done"
-                    : pulled > 0
-                      ? "done"
-                      : "not_started";
+                  : "not_started";
 
         return {
             entity_type: entity,
@@ -249,6 +323,19 @@ export function buildBackfillProgressHeader(params: {
             title: "Backfill progress",
             subtitle: `Importing ${current}… · Actions are disabled until this finishes`,
             severity: "info",
+        };
+    }
+
+    if (
+        params.run.status === "TIMEOUT" &&
+        params.run.error_type === "cancelled" &&
+        !params.run.completed_at
+    ) {
+        return {
+            title: "Backfill progress",
+            subtitle:
+                "Stopping… · Start / resume will enable when this run ends",
+            severity: "warning",
         };
     }
 
@@ -335,25 +422,42 @@ export function writeBackfillProgressSession(
     window.sessionStorage.setItem(key, JSON.stringify(session));
 }
 
-/**
- * First backfill requires a passing preview for every enabled entity unless
- * backfill is already locked or incremental mode is active.
- */
-export function canStartFirstBackfill(params: {
+type FirstBackfillPreviewParams = {
     enabledEntities: ImportType[];
     previewPasses?: Partial<
         Record<ImportType, { passed: boolean; completed_at: string }>
     >;
     backfillOptionsLocked?: boolean;
     syncMode?: string;
-}): boolean {
+};
+
+/**
+ * Enabled entities that still need a passing preview. Empty when backfill is
+ * already locked or incremental mode is active.
+ */
+export function entitiesMissingPreview(
+    params: FirstBackfillPreviewParams
+): ImportType[] {
+    if (params.backfillOptionsLocked || params.syncMode === "INCREMENTAL") {
+        return [];
+    }
+    return params.enabledEntities.filter(
+        (entity) => params.previewPasses?.[entity]?.passed !== true
+    );
+}
+
+/**
+ * First backfill requires a passing preview for every enabled entity unless
+ * backfill is already locked or incremental mode is active.
+ */
+export function canStartFirstBackfill(
+    params: FirstBackfillPreviewParams
+): boolean {
     if (params.backfillOptionsLocked || params.syncMode === "INCREMENTAL") {
         return true;
     }
     if (params.enabledEntities.length === 0) {
         return false;
     }
-    return params.enabledEntities.every(
-        (entity) => params.previewPasses?.[entity]?.passed === true
-    );
+    return entitiesMissingPreview(params).length === 0;
 }

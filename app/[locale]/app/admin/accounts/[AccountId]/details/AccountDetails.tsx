@@ -20,7 +20,6 @@ import {
 import {
     Alert,
     Autocomplete,
-    Backdrop,
     Box,
     Button,
     Card,
@@ -36,14 +35,13 @@ import {
     TextField,
     Tooltip,
     Typography,
-    alpha,
     useTheme,
 } from "@mui/material";
 import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useDebounce } from "use-debounce";
 
@@ -65,15 +63,15 @@ import {
     accountCardContentSx,
     accountCardHeaderSx,
     accountCardSx,
-    accountCardTitleSx,
-    accountSectionIconSx,
 } from "./accountCardStyles";
 import AccountHeader from "./components/AccountHeader";
 import AccountRoles from "./components/AccountRoles";
 import AccountUsers from "./components/AccountUsers";
 import AddressInformation from "./components/AddressInformation";
 import AutomationSettings from "./components/AutomationSettings";
-import BillingIntegrationSettings from "./components/BillingIntegrationSettings";
+import BillingIntegrationSettings, {
+    type BillingIntegrationSettingsHandle,
+} from "./components/BillingIntegrationSettings";
 import { BusinessUnits } from "./components/BusinessUnits";
 import CommunicationSettings from "./components/CommunicationSettings";
 import GeneralInformation from "./components/GeneralInformation";
@@ -166,6 +164,7 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
     const queryClient = useQueryClient();
     const router = useRouter();
     const params = useParams();
+    const pathname = usePathname();
     const locale = (params?.locale as string) || "en";
     const searchParams = useSearchParams();
     const { success, error: showError } = useToast();
@@ -228,45 +227,63 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
     const ssoTabIndex = hasViewBusinessUnitsPermission ? 5 : 4;
     const billingTabIndex = showBillingIntegrationTab ? ssoTabIndex + 1 : -1;
     const securityRolesTabIndex = hasViewBusinessUnitsPermission ? 4 : 3;
-    const [validationErrors, setValidationErrors] = useState<
-        Record<string, string>
-    >({});
-    const [activeTab, setActiveTab] = useState(0);
-
-    // Handle tab parameter from URL
-    useEffect(() => {
-        if (searchParams) {
-            const tabParam = searchParams.get("tab");
-            if (tabParam === "security_roles" || tabParam === "roles") {
-                setActiveTab(securityRolesTabIndex);
-            } else if (tabParam === "billing_integration" && billingTabIndex >= 0) {
-                setActiveTab(billingTabIndex);
-            } else if (tabParam) {
-                // Map other tab names to indices if needed
-                const tabIndexMap: Record<string, number> = {
-                    general: 0,
-                    communication: 1,
-                    users: 2,
-                    business_units: hasViewBusinessUnitsPermission ? 3 : -1,
-                    security_roles: securityRolesTabIndex,
-                    roles: securityRolesTabIndex,
-                    sso: ssoTabIndex,
-                    billing_integration: billingTabIndex,
-                };
-                const tabIndex = tabIndexMap[tabParam];
-                if (tabIndex !== undefined && tabIndex >= 0) {
-                    setActiveTab(tabIndex);
-                }
-            }
-        }
+    const tabIndexByName = useMemo((): Record<string, number> => {
+        return {
+            general: 0,
+            communication: 1,
+            users: 2,
+            business_units: hasViewBusinessUnitsPermission ? 3 : -1,
+            security_roles: securityRolesTabIndex,
+            roles: securityRolesTabIndex,
+            sso: ssoTabIndex,
+            billing_integration: billingTabIndex,
+        };
     }, [
-        searchParams,
-        accountId,
         hasViewBusinessUnitsPermission,
         securityRolesTabIndex,
         ssoTabIndex,
         billingTabIndex,
     ]);
+    const tabNameByIndex = useMemo((): Record<number, string> => {
+        return {
+            0: "general",
+            1: "communication",
+            2: "users",
+            ...(hasViewBusinessUnitsPermission ? { 3: "business_units" } : {}),
+            [securityRolesTabIndex]: "security_roles",
+            [ssoTabIndex]: "sso",
+            ...(billingTabIndex >= 0
+                ? { [billingTabIndex]: "billing_integration" }
+                : {}),
+        };
+    }, [
+        hasViewBusinessUnitsPermission,
+        securityRolesTabIndex,
+        ssoTabIndex,
+        billingTabIndex,
+    ]);
+    const [validationErrors, setValidationErrors] = useState<
+        Record<string, string>
+    >({});
+    const [activeTab, setActiveTab] = useState(0);
+    const billingSettingsRef = useRef<BillingIntegrationSettingsHandle>(null);
+    const [billingTabVisited, setBillingTabVisited] = useState(false);
+
+    useEffect(() => {
+        if (billingTabIndex >= 0 && activeTab === billingTabIndex) {
+            setBillingTabVisited(true);
+        }
+    }, [activeTab, billingTabIndex]);
+
+    // Restore the selected tab from ?tab= so a refresh stays on the same tab
+    useEffect(() => {
+        const tabParam = searchParams?.get("tab");
+        if (!tabParam) return;
+        const tabIndex = tabIndexByName[tabParam];
+        if (tabIndex !== undefined && tabIndex >= 0) {
+            setActiveTab(tabIndex);
+        }
+    }, [searchParams, accountId, tabIndexByName]);
 
     // SMS Provider Configuration state
     const [selectedCountryForSMS, setSelectedCountryForSMS] =
@@ -338,9 +355,25 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
     // Add state to track SMS provider updates for IntelligentChannelSelection
     const [smsProvidersUpdated, setSmsProvidersUpdated] = useState(0);
 
-    const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-        setActiveTab(newValue);
-    };
+    const handleTabChange = useCallback(
+        (_event: React.SyntheticEvent, newValue: number) => {
+            setActiveTab(newValue);
+
+            const tabName = tabNameByIndex[newValue];
+            if (!tabName) return;
+
+            const newParams = new URLSearchParams(searchParams?.toString() || "");
+            if (newParams.get("tab") === tabName) return;
+            newParams.set("tab", tabName);
+
+            const currentPath =
+                pathname || window.location.pathname.split("?")[0];
+            router.replace(`${currentPath}?${newParams.toString()}`, {
+                scroll: false,
+            });
+        },
+        [pathname, router, searchParams, tabNameByIndex]
+    );
 
     // Map field names to their respective tab indices
     const getFieldTabIndex = (fieldName: string): number => {
@@ -417,9 +450,7 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
     const gracePeriodDaysRemaining = isAccountDeleted
         ? calculateGracePeriodDaysForAccount((currentAccount as any).deleted_at)
         : 0;
-    const isAccountAnonymized =
-        isAccountDeleted && gracePeriodDaysRemaining <= 0;
-    const isAccountViewOnly = isAccountDeleted; // Make view-only for both deleted and anonymized
+    const isAccountViewOnly = isAccountDeleted;
 
     const countryIdForStates = currentAccount?.country_id;
 
@@ -841,6 +872,10 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
             }
 
             const result = await response.json();
+
+            if (billingSettingsRef.current) {
+                await billingSettingsRef.current.save();
+            }
 
             if (isNewAccount) {
                 // Set the account data in editedAccount so currentAccount.id exists after redirect
@@ -2483,36 +2518,26 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
                                             }}
                                         />
                                     )}
-                                    {billingTabIndex >= 0 &&
-                                        activeTab === billingTabIndex && (
+                                    {billingTabIndex >= 0 && billingTabVisited && (
+                                        <Box
+                                            sx={{
+                                                display:
+                                                    activeTab === billingTabIndex
+                                                        ? "block"
+                                                        : "none",
+                                            }}
+                                        >
                                             <BillingIntegrationSettings
+                                                ref={billingSettingsRef}
                                                 accountId={Number(accountId)}
                                                 canManage={
                                                     hasManageBillingConnectorPermission &&
                                                     !isAccountViewOnly
                                                 }
                                             />
-                                        )}
+                                        </Box>
+                                    )}
                     </Box>
-
-                    {/* Saving Backdrop */}
-                    <Backdrop
-                        sx={{
-                            color: "#fff",
-                            zIndex: (theme) => theme.zIndex.drawer + 1,
-                            bgcolor: "rgba(0,0,0,0.5)",
-                        }}
-                        open={isSaving}
-                    >
-                        <Box
-                            display="flex"
-                            flexDirection="column"
-                            alignItems="center"
-                            gap={2}
-                        >
-                            <CircularProgress color="inherit" size={40} />
-                        </Box>
-                    </Backdrop>
 
                     {/* SMS Provider Configuration Modal */}
                     <AppDialog
