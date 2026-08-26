@@ -245,17 +245,20 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
         billingTabIndex,
     ]);
     const tabNameByIndex = useMemo((): Record<number, string> => {
-        return {
+        const map: Record<number, string> = {
             0: "general",
             1: "communication",
             2: "users",
-            ...(hasViewBusinessUnitsPermission ? { 3: "business_units" } : {}),
             [securityRolesTabIndex]: "security_roles",
             [ssoTabIndex]: "sso",
-            ...(billingTabIndex >= 0
-                ? { [billingTabIndex]: "billing_integration" }
-                : {}),
         };
+        if (hasViewBusinessUnitsPermission) {
+            map[3] = "business_units";
+        }
+        if (billingTabIndex >= 0) {
+            map[billingTabIndex] = "billing_integration";
+        }
+        return map;
     }, [
         hasViewBusinessUnitsPermission,
         securityRolesTabIndex,

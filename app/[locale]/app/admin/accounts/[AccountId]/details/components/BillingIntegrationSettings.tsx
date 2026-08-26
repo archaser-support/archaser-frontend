@@ -1731,9 +1731,9 @@ const BillingIntegrationSettings = forwardRef<
                                                     onEntitySetChange={
                                                         handleEntitySetChange
                                                     }
-                                                    onRefreshEntitySetCatalog={() =>
-                                                        refreshEntitySetsMutation.mutateAsync()
-                                                    }
+                                                    onRefreshEntitySetCatalog={async () => {
+                                                        await refreshEntitySetsMutation.mutateAsync();
+                                                    }}
                                                     isRefreshingEntitySetCatalog={
                                                         refreshEntitySetsMutation.isPending
                                                     }

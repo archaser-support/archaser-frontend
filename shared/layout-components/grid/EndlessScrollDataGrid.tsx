@@ -336,7 +336,9 @@ const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
     }, [visibleColumns, searchValue, language]);
 
     // Create a ref to store the sync function (will be set by useColumnWidthSync)
-    const syncColumnWidthsRefForResizing = useRef<(() => void) | undefined>();
+    const syncColumnWidthsRefForResizing = useRef<
+        ((forceClearCache?: boolean, forceSync?: boolean) => void) | undefined
+    >();
 
     // Use column resizing hook (must be after enhancedColumns is defined)
     // Note: columnWidths will be undefined initially, but that's okay
