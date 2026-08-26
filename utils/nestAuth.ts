@@ -63,14 +63,18 @@ export async function handleExpiredNestSession(): Promise<void> {
     if (typeof window === "undefined" || handlingExpiredSession) {
         return;
     }
-    // Mid-login: a 401 from /auth/me must not signOut + bounce back to /login
-    // (that flashes the login form while location.replace to /app is in flight).
+    // Mid-login / fresh app boot: a 401 must not signOut + bounce to /login.
+    // SessionLanguageMonitor used to clear the handoff on first /app paint,
+    // which allowed apiFetch 401 → signOut right after a successful login.
     try {
         if (sessionStorage.getItem(LOGIN_HANDOFF_STORAGE_KEY) === "true") {
             return;
         }
+        if (localStorage.getItem("freshLogin") === "true") {
+            return;
+        }
     } catch {
-        // sessionStorage may be unavailable
+        // storage may be unavailable
     }
     handlingExpiredSession = true;
     clearNestAccessToken();
