@@ -27,3 +27,23 @@ export function resolveAuthorizationHeader(
 export function getAxiosBaseUrl(): string {
     return resolveProductApiBaseUrl();
 }
+
+/**
+ * Global overlay spinner tracks in-flight non-GET axios calls.
+ * Billing integration actions already show button-level progress and must
+ * not cover the page (backfill can run for a long time).
+ */
+export function shouldCountRequestForPageSpinner(input: {
+    method?: string;
+    url?: string;
+}): boolean {
+    const method = (input.method ?? "get").toLowerCase();
+    if (method === "get") {
+        return false;
+    }
+    const url = input.url ?? "";
+    if (url.includes("/billing-connector")) {
+        return false;
+    }
+    return true;
+}

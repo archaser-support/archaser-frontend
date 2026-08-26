@@ -280,8 +280,6 @@ const ReportBuilderPage: React.FC = () => {
                     // Find relationships where the context table references another table via a foreign key
                     // Priority: Look for common parent relationships (Customer, Account, etc.)
                     // For Invoice, we want to find Invoice -> Customer via customer_id
-                    const commonParentTables = ["Customer", "Account"];
-
                     // First, try to find a relationship to a common parent table
                     const matchingRelationships = relationships.filter((rel: any) =>
                         rel.from === contextTableName &&
@@ -386,59 +384,6 @@ const ReportBuilderPage: React.FC = () => {
         return joins;
     }, [selectedTables, relationships]);
 
-    // Merge auto-detected joins with existing joins from report config
-    const displayJoins = useMemo(() => {
-        const existingJoins = reportConfig.joins || [];
-        const autoDetected = autoDetectJoins;
-        const selectedTableNames = selectedTables.map((t) => t.name);
-
-        // Convert existing joins (with "on" field) to display format (with fromField/toField)
-        // Only include existing joins that are between currently selected tables
-        const convertedExistingJoins = existingJoins
-            .filter((join: any) => {
-                return (
-                    selectedTableNames.includes(join.from) &&
-                    selectedTableNames.includes(join.to)
-                );
-            })
-            .map((join: any) => {
-                // Try to find the relationship to determine field names
-                const relationship = relationships.find(
-                    (rel: any) =>
-                        (rel.from === join.from && rel.to === join.to) ||
-                        (rel.from === join.to && rel.to === join.from)
-                );
-
-                return {
-                    type: join.type,
-                    from: join.from,
-                    to: join.to,
-                    fromField: relationship?.fromField || join.on || "",
-                    toField: relationship?.toField || join.on || "",
-                    relationshipType: relationship?.type as
-                        | "one-to-one"
-                        | "one-to-many"
-                        | "many-to-many"
-                        | undefined,
-                };
-            });
-
-        // Merge: combine existing joins (that are relevant) with auto-detected joins
-        // Remove duplicates by checking if a join between the same two tables already exists
-        const allJoins = [...convertedExistingJoins, ...autoDetected];
-        const uniqueJoins = allJoins.filter((join, index, self) => {
-            return (
-                self.findIndex(
-                    (j) =>
-                        (j.from === join.from && j.to === join.to) ||
-                        (j.from === join.to && j.to === join.from)
-                ) === index
-            );
-        });
-
-        return uniqueJoins;
-    }, [reportConfig.joins, autoDetectJoins, relationships, selectedTables]);
-
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
@@ -536,21 +481,6 @@ const ReportBuilderPage: React.FC = () => {
         setReportConfig((prev) => ({
             ...prev,
             tables: [...prev.tables, table.name],
-        }));
-    };
-
-    const handleTableRemove = (tableName: string) => {
-        setSelectedTables(selectedTables.filter((t) => t.name !== tableName));
-        setReportConfig((prev) => ({
-            ...prev,
-            tables: prev.tables.filter((t) => t !== tableName),
-            fields: prev.fields?.filter((f) => f.table !== tableName) || [],
-            filters: prev.filters?.filter((f) => f.table !== tableName) || [],
-            // Remove joins that reference the removed table
-            joins:
-                prev.joins?.filter(
-                    (j) => j.from !== tableName && j.to !== tableName
-                ) || [],
         }));
     };
 
@@ -752,10 +682,6 @@ const ReportBuilderPage: React.FC = () => {
 
     const handleGroupingChange = (grouping: string[]) => {
         setReportConfig((prev) => ({ ...prev, grouping }));
-    };
-
-    const handleChartChange = (chart: ReportConfig["chart"]) => {
-        setReportConfig((prev) => ({ ...prev, chart }));
     };
 
     // When leaving edit mode (new report / no id), allow re-init next time we open a report
@@ -1165,7 +1091,11 @@ const ReportBuilderPage: React.FC = () => {
                 let errorMessage = `Failed to ${reportId ? "update" : "create"} report`;
                 try {
                     const errorData = await response.json();
-                    errorMessage = errorData.error || errorMessage;
+                    const nestMessage = Array.isArray(errorData.message)
+                        ? errorData.message.join(", ")
+                        : errorData.message;
+                    errorMessage =
+                        nestMessage || errorData.error || errorMessage;
 
                     // Handle duplicate name error specifically
                     if (

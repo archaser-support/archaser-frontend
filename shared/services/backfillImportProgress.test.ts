@@ -97,6 +97,29 @@ describe("backfillImportProgress", () => {
         expect(rows[1].records_pulled).toBe(12400);
     });
 
+    it("uses live entity_stats pulled counts while the run is in progress", () => {
+        const rows = buildRunningEntityProgressRows({
+            enabledEntities: ["Invoice"],
+            syncStates: [
+                syncState({
+                    entity_type: "Invoice",
+                    backfill_records_pulled: 0,
+                }),
+            ],
+            entityStats: {
+                Invoice: {
+                    pulled: 500,
+                    success: 0,
+                    failed: 0,
+                    skipped: 0,
+                },
+            },
+        });
+
+        expect(rows[0].phase).toBe("running");
+        expect(rows[0].records_pulled).toBe(500);
+    });
+
     it("uses determinate percent when total is known", () => {
         const rows = buildRunningEntityProgressRows({
             enabledEntities: ["Customer"],
@@ -185,6 +208,18 @@ describe("backfillImportProgress", () => {
         });
         expect(runningHeader.subtitle).toContain("Importing Invoice");
         expect(runningHeader.subtitle).toContain("Actions are disabled");
+
+        const stoppingHeader = buildBackfillProgressHeader({
+            run: run({
+                id: "stop",
+                status: "TIMEOUT",
+                error_type: "cancelled",
+                completed_at: null,
+            }),
+            rows: runningRows,
+        });
+        expect(stoppingHeader.subtitle).toMatch(/stopping/i);
+        expect(stoppingHeader.severity).toBe("warning");
 
         const finishedRows = buildFinishedEntityProgressRows({
             enabledEntities: ["Invoice"],
