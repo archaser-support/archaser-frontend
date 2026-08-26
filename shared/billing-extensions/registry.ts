@@ -1,10 +1,15 @@
+import Account10149Panel from "./account_10149/Account10149Panel";
 import SampleNoopPanel from "./sample_noop/SampleNoopPanel";
 import {
+    ACCOUNT_10149_EXTENSION_KEY,
     SAMPLE_NOOP_EXTENSION_KEY,
     type BillingExtensionPanelRegistration,
 } from "./types";
 
-export { SAMPLE_NOOP_EXTENSION_KEY } from "./types";
+export {
+    ACCOUNT_10149_EXTENSION_KEY,
+    SAMPLE_NOOP_EXTENSION_KEY,
+} from "./types";
 export type {
     BillingExtensionPanelProps,
     BillingExtensionPanelRegistration,
@@ -20,6 +25,14 @@ const BILLING_EXTENSION_PANELS: ReadonlyMap<
             key: SAMPLE_NOOP_EXTENSION_KEY,
             label: "Sample (no-op)",
             Panel: SampleNoopPanel,
+        },
+    ],
+    [
+        ACCOUNT_10149_EXTENSION_KEY,
+        {
+            key: ACCOUNT_10149_EXTENSION_KEY,
+            label: "Account 10149",
+            Panel: Account10149Panel,
         },
     ],
 ]);

@@ -4,6 +4,7 @@ import store from "@/shared/redux/store";
 import {
     getAxiosBaseUrl,
     resolveAuthorizationHeader,
+    shouldCountRequestForPageSpinner,
 } from "@/utils/apiClientConfig";
 import { normalizeProductApiPath } from "@/utils/apiFetch";
 import { getNestAccessToken } from "@/utils/nestAuth";
@@ -20,13 +21,17 @@ const api = axios.create({
 
 // Add a request interceptor to include authentication headers
 api.interceptors.request.use((config) => {
-    // Only increment count for non-GET requests or if explicitly needed
-    if (config.method !== "get") {
-        store.dispatch({ type: "ADD_REQUEST_COUNT" });
-    }
-
     if (typeof config.url === "string") {
         config.url = normalizeProductApiPath(config.url);
+    }
+
+    if (
+        shouldCountRequestForPageSpinner({
+            method: config.method,
+            url: config.url,
+        })
+    ) {
+        store.dispatch({ type: "ADD_REQUEST_COUNT" });
     }
 
     const existing =
@@ -63,15 +68,23 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
     (response) => {
-        // Only decrement count for non-GET requests or if explicitly needed
-        if (response.config.method !== "get") {
+        if (
+            shouldCountRequestForPageSpinner({
+                method: response.config.method,
+                url: response.config.url,
+            })
+        ) {
             store.dispatch({ type: "SUBTRACT_REQUEST_COUNT" });
         }
         return response;
     },
     (error) => {
-        // Handle errors and ensure count is decremented
-        if (error.config?.method !== "get") {
+        if (
+            shouldCountRequestForPageSpinner({
+                method: error.config?.method,
+                url: error.config?.url,
+            })
+        ) {
             store.dispatch({ type: "SUBTRACT_REQUEST_COUNT" });
         }
         return Promise.reject(error);

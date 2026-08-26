@@ -136,7 +136,7 @@ const INVOICE_CATALOG: ImportEntityFieldCatalog = {
         "currency",
         "invoice_number",
         "credit_for_invoice_number",
-        "priority_erp_debit",
+        "custom_code1",
     ],
     requiredFields: [
         "customer_number",
@@ -156,7 +156,7 @@ const INVOICE_CATALOG: ImportEntityFieldCatalog = {
         currency: "USD",
         invoice_number: "INV-2025-0001",
         credit_for_invoice_number: null,
-        priority_erp_debit: "D",
+        custom_code1: "D",
     },
 };
 
@@ -261,7 +261,7 @@ const DEFAULT_ERP_FIELDS: Record<
         invoice_amount: { erpField: "TOTPRICE" },
         currency: { erpField: "CODE", transform: "currency_code" },
         credit_for_invoice_number: { erpField: "CREDITFOR" },
-        priority_erp_debit: { erpField: "DEBIT" },
+        custom_code1: { erpField: "DEBIT" },
     },
     Payment: {
         reference: { erpField: "PAYNUM", transform: "trim" },

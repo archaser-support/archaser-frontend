@@ -246,9 +246,7 @@ export default React.forwardRef<
     );
 
     return (
-        <Box sx={{ mb: 3, display: "flex", flexDirection: "column", gap: 1.5 }}>
-            <Typography variant="subtitle2">Pull filter</Typography>
-
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
             <Tabs
                 value={mode}
                 onChange={handleModeChange}

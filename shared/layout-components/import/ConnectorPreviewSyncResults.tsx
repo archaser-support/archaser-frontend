@@ -4,18 +4,10 @@ import {
     Cancel as CancelIcon,
     CheckCircle as CheckCircleIcon,
 } from "@mui/icons-material";
-import {
-    Alert,
-    Box,
-    List,
-    ListItem,
-    ListItemIcon,
-    ListItemText,
-    Typography,
-} from "@mui/material";
+import { Alert, Box, Typography } from "@mui/material";
 import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 import type { ImportType } from "@/types/db";
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { getImportEntityFieldCatalog } from "@/shared/constants/importEntityFields";
@@ -29,6 +21,26 @@ function formatSampleCountLabel(count: number, capped: boolean): string {
     return `${count.toLocaleString()}${capped ? "+" : ""}`;
 }
 
+function isPreviewGridField(key: string): boolean {
+    return (
+        key !== "id" &&
+        key !== "message" &&
+        key !== "status" &&
+        key !== "_rawRecord" &&
+        !key.startsWith("_")
+    );
+}
+
+function formatPreviewCellValue(value: unknown): string {
+    if (value === null || value === undefined || value === "") {
+        return "-";
+    }
+    if (typeof value === "object") {
+        return "-";
+    }
+    return String(value);
+}
+
 function buildPreviewColumns(
     importType: ImportType,
     sampleRows: Record<string, unknown>[]
@@ -38,14 +50,10 @@ function buildPreviewColumns(
     const extraKeys = new Set<string>();
     for (const row of sampleRows) {
         for (const key of Object.keys(row)) {
-            if (
-                key !== "id" &&
-                key !== "message" &&
-                key !== "status" &&
-                !catalogFields.includes(key)
-            ) {
-                extraKeys.add(key);
+            if (!isPreviewGridField(key) || catalogFields.includes(key)) {
+                continue;
             }
+            extraKeys.add(key);
         }
     }
     const fieldKeys = [...catalogFields, ...Array.from(extraKeys).sort()];
@@ -106,12 +114,10 @@ function buildPreviewColumns(
         maxWidth: 250,
         sortable: false,
         renderCell: (params: GridRenderCellParams) => {
-            const value = params.value;
+            const text = formatPreviewCellValue(params.value);
             return (
-                <Typography variant="body2" noWrap title={String(value ?? "")}>
-                    {value !== null && value !== undefined && value !== ""
-                        ? String(value)
-                        : "-"}
+                <Typography variant="body2" noWrap title={text === "-" ? "" : text}>
+                    {text}
                 </Typography>
             );
         },
@@ -125,16 +131,11 @@ interface ConnectorPreviewSyncResultsProps {
     previewResult?: PreviewSyncResponse;
     /** Single entity sample result for Mapping|Preview tabs. */
     entity?: PreviewSyncEntityResult;
-    /** Optional go/no-go from the last run that produced `entity`. */
-    goNoGo?: PreviewSyncResponse["go_no_go"];
-    cutoverSummary?: string | null;
 }
 
 export default function ConnectorPreviewSyncResults({
     previewResult,
     entity: entityProp,
-    goNoGo,
-    cutoverSummary,
 }: ConnectorPreviewSyncResultsProps) {
     const { i18n } = useTranslation();
 
@@ -143,21 +144,6 @@ export default function ConnectorPreviewSyncResults({
         (previewResult?.entities.length === 1
             ? previewResult.entities[0]
             : undefined);
-    const checks = goNoGo?.checks ?? previewResult?.go_no_go.checks;
-    const passed =
-        goNoGo?.passed ??
-        previewResult?.go_no_go.passed ??
-        (entity
-            ? entity.validation_errors.length === 0 &&
-              entity.sample_rows.length > 0
-            : undefined);
-    const requiredErrors =
-        goNoGo?.required_field_errors ??
-        previewResult?.go_no_go.required_field_errors ??
-        entity?.validation_errors.length ??
-        0;
-    const summary =
-        cutoverSummary ?? previewResult?.cutover_summary ?? null;
 
     const { columns, rows } = useMemo(() => {
         if (!entity) {
@@ -167,10 +153,13 @@ export default function ConnectorPreviewSyncResults({
             entity.import_type,
             entity.sample_rows
         );
-        const gridRows = entity.sample_rows.map((row, index) => ({
-            id: `${entity.import_type}-${index}`,
-            ...row,
-        }));
+        const gridRows = entity.sample_rows.map((row, index) => {
+            const { _rawRecord: _ignored, ...fields } = row;
+            return {
+                id: `${entity.import_type}-${index}`,
+                ...fields,
+            };
+        });
         return { columns: gridColumns, rows: gridRows };
     }, [entity]);
 
@@ -184,94 +173,55 @@ export default function ConnectorPreviewSyncResults({
     }
 
     return (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            {passed !== undefined && (
-                <Alert severity={passed ? "success" : "warning"}>
-                    Go/no-go: {passed ? "passed" : "needs attention"} (
-                    {requiredErrors} required-field error(s);{" "}
-                    {formatSampleCountLabel(
-                        entity.sample_rows.length,
-                        Boolean(entity.match_count_capped)
-                    )}{" "}
-                    sample row
-                    {entity.sample_rows.length === 1 ? "" : "s"})
-                    {summary ? ` — ${summary}` : ""}
-                </Alert>
-            )}
-
-            {checks && checks.length > 0 && (
-                <List dense>
-                    {checks.map((check) => (
-                        <ListItem key={check.id}>
-                            <ListItemIcon sx={{ minWidth: 36 }}>
-                                {check.passed ? (
-                                    <CheckCircleIcon
-                                        color="success"
-                                        fontSize="small"
-                                    />
-                                ) : (
-                                    <CancelIcon color="error" fontSize="small" />
-                                )}
-                            </ListItemIcon>
-                            <ListItemText
-                                primary={check.label}
-                                secondary={check.detail}
-                            />
-                        </ListItem>
-                    ))}
-                </List>
-            )}
-
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                <Typography variant="body2" color="text.secondary">
-                    {formatSampleCountLabel(
-                        entity.sample_rows.length,
-                        Boolean(entity.match_count_capped)
-                    )}{" "}
-                    sample row
-                    {entity.sample_rows.length === 1 ? "" : "s"} pulled (full
-                    match count skipped)
-                </Typography>
-                {entity.effective_filter ? (
-                    <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{
-                            fontFamily: "monospace",
-                            whiteSpace: "pre-wrap",
-                        }}
-                    >
-                        Effective filter: {entity.effective_filter}
-                    </Typography>
-                ) : null}
-                {entity.validation_errors.length > 0 && (
-                    <Alert severity="error">
-                        {entity.validation_errors.join("; ")}
-                    </Alert>
-                )}
-                <Box
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+                {formatSampleCountLabel(
+                    entity.sample_rows.length,
+                    Boolean(entity.match_count_capped)
+                )}{" "}
+                sample row
+                {entity.sample_rows.length === 1 ? "" : "s"} pulled (full
+                match count skipped)
+            </Typography>
+            {entity.effective_filter ? (
+                <Typography
+                    variant="caption"
+                    color="text.secondary"
                     sx={{
-                        width: "100%",
-                        bgcolor: "background.paper",
-                        borderRadius: 2,
-                        overflow: "hidden",
+                        fontFamily: "monospace",
+                        whiteSpace: "pre-wrap",
                     }}
                 >
-                    <EndlessScrollDataGrid
-                        rows={rows}
-                        columns={columns}
-                        totalRecords={rows.length}
-                        isLoading={false}
-                        onLoadMore={() => {}}
-                        hasMore={false}
-                        hideToolbar
-                        resizableColumns
-                        visibleRows={Math.min(Math.max(rows.length, 1), 8)}
-                        language={i18n.language}
-                        noRowsMessage="No preview rows"
-                        noRowsDescription="Preview returned no sample rows for this entity."
-                    />
-                </Box>
+                    Effective filter: {entity.effective_filter}
+                </Typography>
+            ) : null}
+            {entity.validation_errors.length > 0 && (
+                <Alert severity="error">
+                    {entity.validation_errors.join("; ")}
+                </Alert>
+            )}
+            <Box
+                sx={{
+                    width: "100%",
+                    bgcolor: "background.paper",
+                    borderRadius: 2,
+                    overflow: "hidden",
+                }}
+            >
+                <EndlessScrollDataGrid
+                    rows={rows}
+                    columns={columns}
+                    totalRecords={rows.length}
+                    isLoading={false}
+                    onLoadMore={() => {}}
+                    hasMore={false}
+                    hideToolbar
+                    resizableColumns
+                    visibleRows={Math.min(Math.max(rows.length, 1), 8)}
+                    language={i18n.language}
+                    noRowsMessage="No preview rows"
+                    noRowsDescription="Preview returned no sample rows for this entity."
+                />
             </Box>
         </Box>
     );
