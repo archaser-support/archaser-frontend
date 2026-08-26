@@ -200,6 +200,24 @@ export const authOptions: NextAuthOptions = {
                     token.chart_palette_color =
                         claimString(source.chart_palette_color) ?? null;
                 }
+                if ("language" in source) {
+                    const language = claimString(source.language);
+                    if (language) {
+                        token.language = language;
+                    }
+                }
+                if ("locale" in source) {
+                    token.locale = claimString(source.locale) ?? null;
+                }
+                if ("name" in source) {
+                    const name = claimString(source.name);
+                    if (name) {
+                        token.name = name;
+                    }
+                }
+                if ("timezone" in source) {
+                    token.timezone = claimString(source.timezone) ?? null;
+                }
             }
             return token;
         },
