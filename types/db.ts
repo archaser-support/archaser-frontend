@@ -425,7 +425,6 @@ export type AccountRelations = {
     Notification: Notification[];
     NotificationRuleSet: NotificationRuleSet[];
     NotificationDeliveryLog: NotificationDeliveryLog[];
-    Payment: Payment[];
     SequenceContainer: SequenceContainer[];
     User_User_account_idToAccount: User[];
     BusinessUnit: BusinessUnit[];
@@ -708,17 +707,20 @@ export type BillingConnector = {
     backfill_import_batch_size: number;
     consecutive_auth_failures: number;
     backfill_started_at: Date | null;
-    pull_filters: JsonValue;
-    pull_filters_cleanup_pending: boolean;
-    pull_filters_cleanup_entities: JsonValue;
+    backfill_start_date: Date | null;
+    include_older_open_invoices: boolean;
+    skip_reporting_breach_on_backfill: boolean;
     entity_sets: JsonValue;
     entity_set_catalog: JsonValue | null;
     entity_set_catalog_fetched_at: Date | null;
+    pull_filters: JsonValue;
+    pull_filters_cleanup_pending: boolean;
+    pull_filters_cleanup_entities: JsonValue;
     preview_passes: JsonValue;
-    last_connection_test_at: Date | null;
-    last_connection_error: string | null;
     extension_key: string | null;
     extension_config: JsonValue | null;
+    last_connection_test_at: Date | null;
+    last_connection_error: string | null;
     created_at: Date;
     modified_at: Date;
     created_by: string | null;
@@ -1194,7 +1196,6 @@ export type CustomerRelations = {
     CustomerDispute: CustomerDispute[];
     Invoice: Invoice[];
     InvoicePayment: InvoicePayment[];
-    Payment: Payment[];
     CustomerAggregatedData: CustomerAggregatedData | null;
     CustomerPolicy: CustomerPolicy[];
     CustomerPolicyTrend: CustomerPolicyTrend[];
@@ -1791,6 +1792,7 @@ export type Invoice = {
     customer_id: number | null;
     policy_id: number | null;
     invoice_number: string | null;
+    custom_code1: string | null;
     amount: number | null;
     due_date: Date | null;
     oldest_overdue_invoice_date: Date | null;
@@ -1812,7 +1814,6 @@ export type Invoice = {
     net_amount: number | null;
     credit_for_invoice_number: string | null;
     customer_net_amount: number | null;
-    custom_code1: string | null;
     generic_text1: string | null;
     generic_text2: string | null;
     generic_number1: number | null;
@@ -2053,34 +2054,6 @@ export type NotificationRuleUserOverride = {
 
 export type NotificationRuleUserOverrideRelations = {
     rule: NotificationRule;
-};
-
-export type Payment = {
-    id: number;
-    created_at: Date;
-    payment_date: Date;
-    amount: number;
-    payment_method: string | null;
-    reference: string | null;
-    customer_id: number;
-    account_id: number;
-    customer_amount: number | null;
-    customer_currency: string | null;
-    generic_text1: string | null;
-    generic_text2: string | null;
-    generic_number1: number | null;
-    generic_number2: number | null;
-    generic_date1: Date | null;
-    generic_date2: Date | null;
-    created_by: string | null;
-    modified_by: string | null;
-};
-
-export type PaymentRelations = {
-    User_Payment_created_byToUser: User | null;
-    User_Payment_modified_byToUser: User | null;
-    Account: Account;
-    Customer: Customer;
 };
 
 export type Person = {
@@ -2394,8 +2367,6 @@ export type UserRelations = {
     Notification_Notification_created_byToUser: Notification[];
     Notification_Notification_modified_byToUser: Notification[];
     Notification_Notification_user_idToUser: Notification[];
-    Payment_Payment_created_byToUser: Payment[];
-    Payment_Payment_modified_byToUser: Payment[];
     Person_Person_created_byToUser: Person[];
     Person_Person_modified_byToUser: Person[];
     SMSVendor_SMSVendor_created_byToUser: SMSVendor[];
