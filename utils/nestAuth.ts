@@ -6,6 +6,7 @@
 import { isNestUiMode } from "@/utils/amplifyMode";
 
 const NEST_TOKEN_KEY = "archaser_nest_access_token";
+const LOGIN_HANDOFF_STORAGE_KEY = "loginHandoffInProgress";
 let handlingExpiredSession = false;
 
 export function isNestAuthEnabled(): boolean {
@@ -61,6 +62,15 @@ function resolveLoginPathname(pathname: string): string {
 export async function handleExpiredNestSession(): Promise<void> {
     if (typeof window === "undefined" || handlingExpiredSession) {
         return;
+    }
+    // Mid-login: a 401 from /auth/me must not signOut + bounce back to /login
+    // (that flashes the login form while location.replace to /app is in flight).
+    try {
+        if (sessionStorage.getItem(LOGIN_HANDOFF_STORAGE_KEY) === "true") {
+            return;
+        }
+    } catch {
+        // sessionStorage may be unavailable
     }
     handlingExpiredSession = true;
     clearNestAccessToken();

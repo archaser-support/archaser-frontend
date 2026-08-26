@@ -3,6 +3,11 @@
  * Keep redirect decisions here so they stay unit-testable without mounting React.
  */
 
+export {
+    LANGUAGE_CHANGE_STORAGE_KEY,
+    LOGIN_HANDOFF_STORAGE_KEY,
+} from "./sessionLanguageKeys";
+
 const LOCALES = ["en", "he"] as const;
 
 export function localeFromPathname(pathname: string | null): string | null {
@@ -28,7 +33,10 @@ export function isAuthRoute(pathname: string | null): boolean {
 export function expectedLocaleFromSessionLanguage(
     language: string | undefined | null
 ): "he" | "en" {
-    return language === "Hebrew" ? "he" : "en";
+    if (!language) {
+        return "en";
+    }
+    return language.toLowerCase() === "hebrew" ? "he" : "en";
 }
 
 export function buildLocaleRedirectPath(
@@ -47,6 +55,7 @@ export function shouldRedirectForSessionLocale(args: {
     status: string;
     sessionLanguage: string | undefined | null;
     languageChangeInProgress: boolean;
+    loginHandoffInProgress?: boolean;
     isPortalRoute: boolean;
 }): { redirect: false } | { redirect: true; newPath: string } {
     const {
@@ -54,10 +63,16 @@ export function shouldRedirectForSessionLocale(args: {
         status,
         sessionLanguage,
         languageChangeInProgress,
+        loginHandoffInProgress = false,
         isPortalRoute,
     } = args;
 
     if (isPortalRoute || isAuthRoute(pathname)) {
+        return { redirect: false };
+    }
+
+    // Login owns the first destination URL; do not bounce on first /app paint.
+    if (loginHandoffInProgress) {
         return { redirect: false };
     }
 

@@ -14,10 +14,16 @@ interface ProviderProps {
 }
 
 export function SessionProviderWrapper({ children }: ProviderProps) {
+    const pathname = usePathname();
+    const isAuthRoute =
+        pathname?.includes("/login") ||
+        pathname?.includes("/forget-password") ||
+        pathname?.includes("/reset-password");
+
     return (
         <SessionProvider
             refetchInterval={0}
-            refetchOnWindowFocus={true}
+            refetchOnWindowFocus={!isAuthRoute}
             refetchWhenOffline={false}
         >
             {children}
@@ -27,12 +33,16 @@ export function SessionProviderWrapper({ children }: ProviderProps) {
 
 export default function Provider({ children }: ProviderProps) {
     const pathname = usePathname();
-    const isPortalRoute = pathname?.includes("/portal/");
+    const isPortalRoute = pathname?.includes("/portal/") ?? false;
+    const isAuthRoute =
+        pathname?.includes("/login") ||
+        pathname?.includes("/forget-password") ||
+        pathname?.includes("/reset-password");
 
     return (
         <>
-            {!isPortalRoute && <SessionLanguageMonitor />}
-            {!isPortalRoute && <InactivityMonitor />}
+            {!isPortalRoute && !isAuthRoute && <SessionLanguageMonitor />}
+            {!isPortalRoute && !isAuthRoute && <InactivityMonitor />}
             <ThemeRegistry>
                 <ToastProvider>{children}</ToastProvider>
             </ThemeRegistry>
