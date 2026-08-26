@@ -206,8 +206,7 @@ const AgentList: React.FC<AgentListProps> = ({
     });
 
     const followUpCount = followUpCountData || 0;
-    const showFollowUpTab = followUpCount > 0;
-    const effectiveActiveTab = showFollowUpTab ? activeTab : ALL_CUSTOMERS_TAB;
+    const effectiveActiveTab = activeTab;
 
     // Query key for All Customers tab (stable; no tab in key)
     const queryKeyAll = useMemo(
@@ -437,12 +436,7 @@ const AgentList: React.FC<AgentListProps> = ({
         refetchOnWindowFocus: false,
     });
 
-    // Switch to All Customers when Follow-up tab becomes empty
-    React.useEffect(() => {
-        if (!showFollowUpTab && activeTab === FOLLOW_UP_TAB) {
-            setActiveTab(ALL_CUSTOMERS_TAB);
-        }
-    }, [showFollowUpTab, activeTab]);
+    // Follow-up tab stays available even when count is 0 (empty state in grid).
 
     // Handle page-wide scrolling to scroll the table
     React.useEffect(() => {
@@ -1733,44 +1727,42 @@ const AgentList: React.FC<AgentListProps> = ({
 
             <AgentStats statsData={statsData} statsLoading={statsLoading} />
 
-            {/* Tabs Navigation - only show when Follow-up tab has data */}
-            {showFollowUpTab && (
-                <Box
+            {/* Tabs Navigation — always show both tabs (badge may be 0) */}
+            <Box
+                sx={{
+                    width: "100%",
+                    bgcolor: "background.paper",
+                    borderRadius: theme.shape.borderRadius,
+                    mb: 2,
+                }}
+            >
+                <Tabs
+                    value={activeTab}
+                    onChange={(_, newValue) => setActiveTab(newValue)}
                     sx={{
-                        width: "100%",
-                        bgcolor: "background.paper",
-                        borderRadius: theme.shape.borderRadius,
-                        mb: 2,
+                        borderBottom: 1,
+                        borderColor: "divider",
+                        direction: i18n.language === "he" ? "rtl" : "ltr",
                     }}
                 >
-                    <Tabs
-                        value={activeTab}
-                        onChange={(_, newValue) => setActiveTab(newValue)}
+                    <Tab
+                        label={t("fields.all_customers")}
+                        value={ALL_CUSTOMERS_TAB}
                         sx={{
-                            borderBottom: 1,
-                            borderColor: "divider",
-                            direction: i18n.language === "he" ? "rtl" : "ltr",
+                            textTransform: "none",
+                            fontWeight: theme.typography.fontWeightMedium,
                         }}
-                    >
-                        <Tab
-                            label={t("fields.all_customers")}
-                            value={ALL_CUSTOMERS_TAB}
-                            sx={{
-                                textTransform: "none",
-                                fontWeight: theme.typography.fontWeightMedium,
-                            }}
-                        />
-                        <Tab
-                            label={`${t("fields.scheduled_follow_ups")} (${followUpCount})`}
-                            value={FOLLOW_UP_TAB}
-                            sx={{
-                                textTransform: "none",
-                                fontWeight: theme.typography.fontWeightMedium,
-                            }}
-                        />
-                    </Tabs>
-                </Box>
-            )}
+                    />
+                    <Tab
+                        label={`${t("fields.scheduled_follow_ups")} (${followUpCount})`}
+                        value={FOLLOW_UP_TAB}
+                        sx={{
+                            textTransform: "none",
+                            fontWeight: theme.typography.fontWeightMedium,
+                        }}
+                    />
+                </Tabs>
+            </Box>
 
             {/* Grid – mount only after stats have loaded; show each grid only after its data is loaded (see CustomerList) */}
             {statsLoading ? (

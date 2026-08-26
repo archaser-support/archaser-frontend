@@ -398,13 +398,9 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId }) => {
     }, [isNewUser, account]);
 
     useEffect(() => {
-        // Clear any stale language change flag on initial load
-        const isLanguageChangeInProgress =
-            sessionStorage.getItem("languageChangeInProgress") === "true";
-        if (isLanguageChangeInProgress && !user) {
-            // If we have a flag but no user data yet, it might be stale
-            sessionStorage.removeItem("languageChangeInProgress");
-        }
+        // Do not clear languageChangeInProgress while user data is still loading —
+        // that flag blocks SessionLanguageMonitor during the locale hard-nav. Clearing
+        // it early (user === undefined) causes en↔he bounce loops after save.
 
         if (user && !isNewUser) {
             // Check if we're in the middle of a language change to prevent form reset
@@ -810,39 +806,70 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId }) => {
                 return;
             }
 
-            if (responseData.sessionUpdateRequired) {
-                const updateData: any = {};
+            const previousLanguage = user?.language ?? session?.user?.language;
+            const nextLanguage =
+                (typeof responseData.newLanguage === "string"
+                    ? responseData.newLanguage
+                    : null) ||
+                (typeof responseData.language === "string"
+                    ? responseData.language
+                    : null) ||
+                editedUser.language;
+            const ownLanguageChanged =
+                isOwnProfile &&
+                typeof nextLanguage === "string" &&
+                Boolean(previousLanguage) &&
+                nextLanguage !== previousLanguage;
+
+            const nestWantsSessionUpdate = Boolean(
+                responseData.sessionUpdateRequired
+            );
+
+            if (nestWantsSessionUpdate || ownLanguageChanged) {
+                const updateData: Record<string, string> = {};
                 if (responseData.newLocale)
                     updateData.locale = responseData.newLocale;
+                else if (isOwnProfile && editedUser.locale)
+                    updateData.locale = editedUser.locale;
                 if (responseData.newLanguage)
                     updateData.language = responseData.newLanguage;
+                else if (ownLanguageChanged && nextLanguage)
+                    updateData.language = nextLanguage;
                 if (responseData.newName)
                     updateData.name = responseData.newName;
+                else if (isOwnProfile && payload.name)
+                    updateData.name = payload.name;
                 if (responseData.newTimezone)
                     updateData.timezone = responseData.newTimezone;
+                else if (isOwnProfile && editedUser.time_zone)
+                    updateData.timezone = editedUser.time_zone;
+
+                const languageForReload =
+                    responseData.newLanguage ||
+                    (ownLanguageChanged ? nextLanguage : null);
+
+                // Set before updateSession so SessionLanguageMonitor does not
+                // race a second hard-nav while we are still on the old locale.
+                if (languageForReload) {
+                    sessionStorage.setItem(
+                        "languageChangeInProgress",
+                        "true"
+                    );
+                }
 
                 if (Object.keys(updateData).length > 0) {
-                    // Update the session
                     await updateSession(updateData);
 
-                    // Show success message
                     success(
                         t("messages.toast_user_saved_success", { ns: "users" })
                     );
 
-                    // Handle language change - simple redirect
-                    if (responseData.newLanguage) {
-                        // Set flag to prevent form reset during redirect
-                        sessionStorage.setItem(
-                            "languageChangeInProgress",
-                            "true"
-                        );
+                    if (languageForReload) {
                         setIsEditing(false);
 
-                        // Immediate redirect - let the page reload handle everything
                         saveInFlightRef.current = true;
                         const newLocale =
-                            responseData.newLanguage === "Hebrew" ? "he" : "en";
+                            languageForReload === "Hebrew" ? "he" : "en";
                         const currentPath = window.location.pathname;
                         const newPath = currentPath.replace(
                             /^\/[a-z]{2}/,
@@ -852,6 +879,8 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId }) => {
                         window.location.href = newPath;
                         return;
                     }
+                } else if (languageForReload) {
+                    sessionStorage.removeItem("languageChangeInProgress");
                 }
 
                 // If session update was required but no language change, continue with normal flow
