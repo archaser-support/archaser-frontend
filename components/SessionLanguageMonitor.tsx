@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import {
     LANGUAGE_CHANGE_STORAGE_KEY,
     LOGIN_HANDOFF_STORAGE_KEY,
+    PENDING_LOGIN_REDIRECT_KEY,
 } from "@/shared/utils/sessionLanguageKeys";
 import {
     expectedLocaleFromSessionLanguage,
@@ -52,10 +53,16 @@ export default function SessionLanguageMonitor() {
             typeof window !== "undefined" &&
             sessionStorage.getItem(LOGIN_HANDOFF_STORAGE_KEY) === "true";
 
-        // Login hard-nav landed on /app — consume the handoff and do not bounce.
+        // Login hard-nav landed on /app — keep handoff briefly so early Nest
+        // 401s during boot cannot signOut before the JWT is usable.
         if (loginHandoffInProgress && pathname?.includes("/app")) {
-            sessionStorage.removeItem(LOGIN_HANDOFF_STORAGE_KEY);
-            return;
+            sessionStorage.removeItem(PENDING_LOGIN_REDIRECT_KEY);
+            const clearHandoff = window.setTimeout(() => {
+                sessionStorage.removeItem(LOGIN_HANDOFF_STORAGE_KEY);
+            }, 8000);
+            return () => {
+                window.clearTimeout(clearHandoff);
+            };
         }
 
         if (languageChangeInProgress) {

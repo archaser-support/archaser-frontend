@@ -55,6 +55,7 @@ import AppUrls from "@/utils/appUrls";
 import { getTenantSubdomain } from "@/utils/domainUtils";
 import {
     clearNestAccessToken,
+    getNestAccessToken,
     getNestAzureStartUrl,
     getNestGoogleStartUrl,
     isNestAuthEnabled,
@@ -80,6 +81,24 @@ const FOCUS_DELAY = 100;
  * Soft React remounts keep this true (skip duplicate nav); hard reloads reset it.
  */
 let loginHandoffOwnedByLiveHandler = false;
+
+/** Survives LoginPage remounts so leaveLoginForApp can restore after storage clear. */
+let nestTokenHeldForLogin: string | null = null;
+
+function isLoginHandoffActive(): boolean {
+    if (typeof window === "undefined") return false;
+    try {
+        return sessionStorage.getItem(LOGIN_HANDOFF_STORAGE_KEY) === "true";
+    } catch {
+        return false;
+    }
+}
+
+/** Remove leftover overlay from an earlier experimental login lock. */
+function removeStaleLoginNavLock() {
+    if (typeof document === "undefined") return;
+    document.getElementById("archaser-login-nav-lock")?.remove();
+}
 
 interface FormState {
     username: string;
@@ -109,15 +128,20 @@ function LoginPageContent() {
         null
     );
 
-    const [formState, setFormState] = useState<FormState>({
-        username: "",
-        password: "",
-        passwordShow: false,
-        isLoading: false,
-        loadingType: null,
-        error: null,
-        usernameError: "",
-        passwordError: "",
+    // Remount-safe: if handoff is in progress, keep the original login spinner
+    // on first paint (no second custom overlay spinner).
+    const [formState, setFormState] = useState<FormState>(() => {
+        const handingOff = isLoginHandoffActive();
+        return {
+            username: "",
+            password: "",
+            passwordShow: false,
+            isLoading: handingOff,
+            loadingType: handingOff ? "login" : null,
+            error: null,
+            usernameError: "",
+            passwordError: "",
+        };
     });
 
     // SSO state
@@ -129,6 +153,10 @@ function LoginPageContent() {
     } | null>(null);
     const [organizationError, setOrganizationError] = useState("");
     const [isLoadingAccount, setIsLoadingAccount] = useState(false);
+
+    useEffect(() => {
+        removeStaleLoginNavLock();
+    }, []);
 
     // Handle SSO Error from URL
     useEffect(() => {
@@ -322,13 +350,19 @@ function LoginPageContent() {
         }) => {
             const target = `/${path.language}${path.redirectUrl}`;
             if (typeof window !== "undefined") {
+                // Capture BEFORE clear — remounts null the ref but storage still
+                // has the Nest JWT from setNestAccessToken during credentials.
+                const nestToken =
+                    pendingNestTokenRef.current ||
+                    nestTokenHeldForLogin ||
+                    getNestAccessToken();
+
                 localStorage.clear();
                 sessionStorage.clear();
                 sessionStorage.setItem(LOGIN_HANDOFF_STORAGE_KEY, "true");
                 sessionStorage.setItem(PENDING_LOGIN_REDIRECT_KEY, target);
-                restoreNestAccessToken(pendingNestTokenRef.current);
-                // Do not await /auth/me here — a 401 would signOut and flash /login
-                // while we navigate to /app. Profile is loaded after landing.
+                restoreNestAccessToken(nestToken);
+                nestTokenHeldForLogin = nestToken;
                 const timestamp = Date.now().toString();
                 localStorage.setItem("freshLogin", "true");
                 localStorage.setItem("loginTimestamp", timestamp);
@@ -442,6 +476,7 @@ function LoginPageContent() {
         }
         nestTokenHandledRef.current = true;
         pendingNestTokenRef.current = nestToken;
+        nestTokenHeldForLogin = nestToken;
         setNestAccessToken(nestToken);
 
         const url = new URL(window.location.href);
@@ -458,6 +493,7 @@ function LoginPageContent() {
                 if (result?.error) {
                     clearNestAccessToken();
                     pendingNestTokenRef.current = null;
+                    nestTokenHeldForLogin = null;
                     clearLoginHandoff();
                     updateFormState({
                         error: t("messages.error"),
@@ -479,11 +515,23 @@ function LoginPageContent() {
                 }
 
                 beginLoginHandoff(session);
-                const path = await resolvePostLoginPath(session);
+                const language = mapLanguageToLocale(session.user?.language);
+                const fallback = {
+                    language,
+                    redirectUrl: getDefaultLandingPage(session.user?.account_id),
+                    isAdmin: isArchaserAdminAccount(session.user?.account_id),
+                };
+                const path = await Promise.race([
+                    resolvePostLoginPath(session),
+                    new Promise<typeof fallback>((resolve) => {
+                        window.setTimeout(() => resolve(fallback), 400);
+                    }),
+                ]);
                 leaveLoginForApp(session, path);
             } catch {
                 clearNestAccessToken();
                 pendingNestTokenRef.current = null;
+                nestTokenHeldForLogin = null;
                 clearLoginHandoff();
                 updateFormState({
                     error: t("messages.error"),
@@ -498,6 +546,7 @@ function LoginPageContent() {
         updateFormState,
         clearLoginHandoff,
         beginLoginHandoff,
+        mapLanguageToLocale,
         resolvePostLoginPath,
         leaveLoginForApp,
     ]);
@@ -542,22 +591,21 @@ function LoginPageContent() {
                 return;
             }
 
+            // So a mid-login remount keeps the same button spinner (not an empty form).
+            if (typeof window !== "undefined") {
+                sessionStorage.setItem(LOGIN_HANDOFF_STORAGE_KEY, "true");
+            }
+
             try {
                 let result;
                 if (isNestAuthEnabled()) {
                     try {
-                        // Prevent locale monitors from racing while credentials exchange runs.
-                        if (typeof window !== "undefined") {
-                            sessionStorage.setItem(
-                                LOGIN_HANDOFF_STORAGE_KEY,
-                                "true"
-                            );
-                        }
                         const nestLogin = await nestCredentialsLogin(
                             formState.username,
                             formState.password
                         );
                         pendingNestTokenRef.current = nestLogin.access_token;
+                        nestTokenHeldForLogin = nestLogin.access_token;
                         setNestAccessToken(nestLogin.access_token);
                         result = await signIn("credentials", {
                             nestAccessToken: nestLogin.access_token,
@@ -649,7 +697,29 @@ function LoginPageContent() {
                     const session = await getSession();
                     if (session) {
                         beginLoginHandoff(session);
-                        const path = await resolvePostLoginPath(session);
+                        // Prefer permission-based landing, but never block leave on
+                        // slow APIs — those waits remount /login under the spinner.
+                        const language = mapLanguageToLocale(
+                            session.user?.language
+                        );
+                        const fallback = {
+                            language,
+                            redirectUrl: getDefaultLandingPage(
+                                session.user?.account_id
+                            ),
+                            isAdmin: isArchaserAdminAccount(
+                                session.user?.account_id
+                            ),
+                        };
+                        const path = await Promise.race([
+                            resolvePostLoginPath(session),
+                            new Promise<typeof fallback>((resolve) => {
+                                window.setTimeout(
+                                    () => resolve(fallback),
+                                    400
+                                );
+                            }),
+                        ]);
 
                         const userName =
                             session?.user?.name ||
@@ -713,6 +783,7 @@ function LoginPageContent() {
             updateFormState,
             clearLoginHandoff,
             beginLoginHandoff,
+            mapLanguageToLocale,
             resolvePostLoginPath,
             leaveLoginForApp,
         ]
