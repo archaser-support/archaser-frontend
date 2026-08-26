@@ -80,6 +80,17 @@ export interface BillingConnectorConfig {
     extension_config?: Record<string, unknown> | null;
     /** Per-entity Priority $filter (rules or advanced OData). */
     pull_filters?: PullFiltersMap;
+    /** Per-entity Priority EntitySet name overrides. */
+    entity_sets?: Partial<Record<ImportType, string>>;
+    /** Cached EntitySet names from $metadata. */
+    entity_set_catalog?: string[];
+    entity_set_catalog_fetched_at?: string | null;
+    /** Contract default table names. */
+    default_entity_sets?: Partial<Record<ImportType, string>>;
+    /** Per-entity preview go/no-go pass flags. */
+    preview_passes?: Partial<
+        Record<ImportType, { passed: boolean; completed_at: string }>
+    >;
     last_connection_test_at: string | null;
     last_connection_error: string | null;
     created_at: string;
@@ -167,6 +178,7 @@ export interface UpsertBillingConnectorPayload {
     extension_key?: string | null;
     extension_config?: Record<string, unknown> | null;
     pull_filters?: PullFiltersMap;
+    entity_sets?: Partial<Record<ImportType, string | null>>;
 }
 
 const basePath = (accountId: number) =>
@@ -213,6 +225,8 @@ export interface ConnectorFieldMappingResponse {
     is_complete: boolean;
     modified_at: string | null;
     modified_by: string | null;
+    pull_date_field?: string | null;
+    discovered_headers?: string[];
 }
 
 export interface DiscoverFieldsResponse {
@@ -273,11 +287,17 @@ export async function fetchBillingConnectorMapping(
 export async function saveBillingConnectorMapping(
     accountId: number,
     importType: ImportType,
-    mapping: MappingRule[]
+    mapping: MappingRule[],
+    options?: { pullDateField?: string | null }
 ): Promise<ConnectorFieldMappingResponse> {
     const response = await api.put<{ mapping: ConnectorFieldMappingResponse }>(
         `${basePath(accountId)}/mappings/${importType}`,
-        { mapping }
+        {
+            mapping,
+            ...(options && "pullDateField" in options
+                ? { pull_date_field: options.pullDateField ?? null }
+                : {}),
+        }
     );
     return response.data.mapping;
 }
@@ -303,12 +323,13 @@ export async function discoverBillingConnectorFields(
 }
 
 export async function runBillingConnectorPreviewSync(
-    accountId: number
+    accountId: number,
+    importType?: ImportType
 ): Promise<PreviewSyncResponse> {
     const response = await api.post<{ result: PreviewSyncResponse }>(
         `${basePath(accountId)}/sync`,
-        {},
-        { params: { mode: "preview" } }
+        importType ? { importType } : {},
+        { params: { mode: "preview", ...(importType ? { importType } : {}) } }
     );
     return response.data.result;
 }
@@ -353,4 +374,25 @@ export async function resetBillingConnectorBackfill(
     await api.post(`${basePath(accountId)}/backfill/reset`, {
         reset_all: true,
     });
+}
+
+export async function cancelBillingConnectorSync(accountId: number): Promise<{
+    cancelled: boolean;
+    execution_id: string | null;
+}> {
+    const response = await api.post<{
+        result: { cancelled: boolean; execution_id: string | null };
+    }>(`${basePath(accountId)}/sync/cancel`);
+    return response.data.result;
+}
+
+export async function refreshBillingConnectorEntitySets(accountId: number): Promise<{
+    entity_set_catalog: string[];
+    entity_set_catalog_fetched_at: string;
+}> {
+    const response = await api.post<{
+        entity_set_catalog: string[];
+        entity_set_catalog_fetched_at: string;
+    }>(`${basePath(accountId)}/entity-sets`);
+    return response.data;
 }

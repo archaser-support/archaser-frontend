@@ -11,7 +11,7 @@ import {
     Typography,
 } from "@mui/material";
 import type { ImportType } from "@/types/db";
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 
 import {
     buildBackfillProgressHeader,
@@ -109,12 +109,17 @@ export default function BackfillImportProgress({
     stopPending = false,
 }: BackfillImportProgressProps) {
     const isRunning = run.status === "RUNNING";
+    const isStopping =
+        run.status === "TIMEOUT" &&
+        run.error_type === "cancelled" &&
+        !run.completed_at;
 
     const rows = useMemo(() => {
         if (isRunning) {
             return buildRunningEntityProgressRows({
                 enabledEntities,
                 syncStates,
+                entityStats: run.entity_stats,
             });
         }
         return buildFinishedEntityProgressRows({
@@ -194,12 +199,27 @@ export default function BackfillImportProgress({
                             >
                                 {stopPending ? "Stopping…" : "Stop import"}
                             </Button>
+                        ) : isStopping ? (
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                color="error"
+                                disabled
+                                startIcon={
+                                    <CircularProgress
+                                        size={14}
+                                        color="inherit"
+                                    />
+                                }
+                            >
+                                Stopping…
+                            </Button>
                         ) : null}
                         <Button
                             size="small"
                             variant="outlined"
                             onClick={onDismiss}
-                            disabled={isRunning || stopPending}
+                            disabled={isRunning || isStopping || stopPending}
                         >
                             Close
                         </Button>
@@ -264,7 +284,12 @@ export default function BackfillImportProgress({
                                         variant="body2"
                                         color="text.secondary"
                                     >
-                                        {formatCounts(row, !isRunning)}
+                                        {formatCounts(
+                                            row,
+                                            !isRunning ||
+                                                row.phase === "done" ||
+                                                row.phase === "failed"
+                                        )}
                                     </Typography>
                                 </Box>
                                 {showBar ? (
