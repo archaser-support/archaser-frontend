@@ -207,7 +207,7 @@ export const authOptions: NextAuthOptions = {
                     }
                 }
                 if ("locale" in source) {
-                    token.locale = claimString(source.locale) ?? null;
+                    token.locale = claimString(source.locale);
                 }
                 if ("name" in source) {
                     const name = claimString(source.name);
@@ -216,7 +216,7 @@ export const authOptions: NextAuthOptions = {
                     }
                 }
                 if ("timezone" in source) {
-                    token.timezone = claimString(source.timezone) ?? null;
+                    token.timezone = claimString(source.timezone);
                 }
             }
             return token;
