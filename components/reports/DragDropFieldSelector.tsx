@@ -976,7 +976,6 @@ const DragDropFieldSelector: React.FC<DragDropFieldSelectorProps> = ({
         "invoices",
         "disputes",
         "activities",
-        "payments",
         "contacts",
         "companies",
         "accounts",
@@ -1322,10 +1321,6 @@ const DragDropFieldSelector: React.FC<DragDropFieldSelectorProps> = ({
                 Activity: [
                     { key: "sections.title", ns: "activities" },
                     { key: "tables.activities", ns: "reports" },
-                ],
-                Payment: [
-                    { key: "sections.title", ns: "payments" },
-                    { key: "tables.payments", ns: "reports" },
                 ],
                 InvoicePayment: [
                     { key: "tables.invoice_payments", ns: "reports" },

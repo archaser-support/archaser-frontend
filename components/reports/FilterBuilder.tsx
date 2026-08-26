@@ -434,7 +434,6 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
         "invoices",
         "disputes",
         "activities",
-        "payments",
         "contacts",
         "companies",
         "accounts",
@@ -1091,9 +1090,8 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                     { key: "sections.title", ns: "activities" },
                     { key: "tables.activities", ns: "reports" },
                 ],
-                Payment: [
-                    { key: "sections.title", ns: "payments" },
-                    { key: "tables.payments", ns: "reports" },
+                InvoicePayment: [
+                    { key: "tables.invoice_payments", ns: "reports" },
                 ],
                 Contact: [
                     { key: "sections.title", ns: "contacts" },

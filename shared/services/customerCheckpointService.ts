@@ -3,7 +3,6 @@ import { apiFetch } from "@/utils/apiFetch";
 export type CustomerCheckpointRowCounts = {
     invoices: number;
     invoicePayments: number;
-    payments: number;
     collectionPeriods: number;
     activities: number;
     activityContacts: number;

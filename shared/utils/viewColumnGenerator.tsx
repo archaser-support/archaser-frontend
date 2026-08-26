@@ -40,7 +40,7 @@ const REPORT_TABLE_NAME_TO_I18N_SLUG: Record<string, string> = {
     Invoice: "invoices",
     Dispute: "disputes",
     Activity: "activities",
-    Payment: "payments",
+    InvoicePayment: "invoice_payments",
     Contact: "contacts",
     Company: "companies",
     Person: "person",

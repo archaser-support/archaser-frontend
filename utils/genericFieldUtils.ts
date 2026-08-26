@@ -1,7 +1,7 @@
 /**
  * Generic Field Utilities
  *
- * Centralized logic for generic field configuration across Customer, Contact, Invoice, Payment.
+ * Centralized logic for generic field configuration across Customer, Contact, Invoice.
  * All consumers must import from this module - no inline generic field config logic.
  */
 
@@ -9,7 +9,6 @@ export const GENERIC_ENTITY_KEYS = [
     "customer",
     "contact",
     "invoice",
-    "payment",
 ] as const;
 
 export const GENERIC_FIELD_KEYS = [
@@ -110,13 +109,12 @@ function createEntityDefaultConfig(): EntityGenericFieldConfig {
     };
 }
 
-/** Returns full default generic field config (24 fields across 4 entities) */
+/** Returns full default generic field config (18 fields across 3 entities) */
 export function getDefaultGenericFieldConfig(): GenericFieldConfig {
     return {
         customer: createEntityDefaultConfig(),
         contact: createEntityDefaultConfig(),
         invoice: createEntityDefaultConfig(),
-        payment: createEntityDefaultConfig(),
     };
 }
 

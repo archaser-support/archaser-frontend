@@ -827,11 +827,11 @@ const ReportBuilderPage: React.FC = () => {
             const subjectMap: Record<string, string> = {
                 "customer,dispute": "disputes",
                 "customer,invoice": "invoices",
-                "customer,payment": "payments",
+                "customer,invoicepayment": "payments",
                 "customer,contact": "contacts",
                 "customer,activity": "activities",
                 "dispute,invoice": "invoices",
-                "invoice,payment": "payments",
+                "invoice,invoicepayment": "payments",
             };
 
             return (
@@ -876,11 +876,11 @@ const ReportBuilderPage: React.FC = () => {
             const combinations: Record<string, string> = {
                 "customer,dispute": "All customer disputes",
                 "customer,invoice": "All customer invoices",
-                "customer,payment": "All customer payments",
+                "customer,invoicepayment": "All customer payments",
                 "customer,contact": "All customer contacts",
                 "customer,activity": "All customer activities",
                 "dispute,invoice": "All disputed invoices",
-                "invoice,payment": "All invoice payments",
+                "invoice,invoicepayment": "All invoice payments",
                 "activity,customer": "All customer activities",
                 "contact,customer": "All customer contacts",
             };

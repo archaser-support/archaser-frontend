@@ -25,7 +25,6 @@
         "entity_customer": "לקוח",
         "entity_contact": "איש קשר",
         "entity_invoice": "חשבונית",
-        "entity_payment": "תשלום",
         "field_type_text": "טקסט",
         "field_type_number": "מספר",
         "field_type_date": "תאריך"
