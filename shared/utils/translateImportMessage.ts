@@ -114,6 +114,23 @@ export function translateImportMessage(message: string, t: TFunction): string {
         return message;
     }
 
+    // Sync state may join several sample errors with "; " (runInProcessSync).
+    // Collapse identical translated segments so 3× the same key does not read thrice.
+    if (msg.includes("; ")) {
+        const translatedParts = msg
+            .split("; ")
+            .map((part) => translateImportMessage(part.trim(), t));
+        const counts = new Map<string, number>();
+        for (const part of translatedParts) {
+            counts.set(part, (counts.get(part) ?? 0) + 1);
+        }
+        return Array.from(counts.entries())
+            .map(([text, count]) =>
+                count > 1 ? `${text} (×${count})` : text
+            )
+            .join("; ");
+    }
+
     if (msg.includes(", ") && msg.includes(":")) {
         const parts = msg.split(", ");
         return parts
