@@ -140,6 +140,8 @@ export interface SyncRunSummary {
             failed: number;
             skipped: number;
             sample_errors?: string[];
+            /** Present for `_maturity` while linking / after it finishes. */
+            status?: "running" | "done" | "failed";
         }
     >;
     error_message: string | null;
@@ -355,6 +357,16 @@ export async function fetchBillingConnectorSyncRuns(
     const response = await api.get<{ runs: SyncRunSummary[] }>(
         `${basePath(accountId)}/sync-runs`,
         { params: { limit } }
+    );
+    return response.data.runs;
+}
+
+/** Durable Mongo sync history (last 90 days). Live progress stays on `/sync-runs`. */
+export async function fetchBillingConnectorSyncHistory(
+    accountId: number
+): Promise<SyncRunSummary[]> {
+    const response = await api.get<{ runs: SyncRunSummary[] }>(
+        `${basePath(accountId)}/sync-history`
     );
     return response.data.runs;
 }
