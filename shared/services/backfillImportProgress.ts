@@ -5,13 +5,21 @@ import type {
     SyncRunSummary,
 } from "@/shared/services/billingConnectorService";
 
-/** Matches BillingConnectorSyncService backfill walk order. */
+/** Matches connector ingest order: Customer → Payment → Invoice → Contact. */
 export const BACKFILL_ENTITY_ORDER: ImportType[] = [
     "Customer",
-    "Invoice",
     "Payment",
+    "Invoice",
     "Contact",
 ];
+
+/** Orchestration step after Invoice — links deferred payments to invoices. */
+export const MATURITY_ENTITY_STATS_KEY = "_maturity";
+
+/** Progress-panel label for deferred payment → invoice linking. */
+export const BACKFILL_LINK_PAYMENTS_LABEL = "Link payments";
+
+export type BackfillProgressRowKey = ImportType | typeof BACKFILL_LINK_PAYMENTS_LABEL;
 
 export type EntityProgressPhase =
     | "waiting"
@@ -21,7 +29,7 @@ export type EntityProgressPhase =
     | "not_started";
 
 export interface EntityProgressRow {
-    entity_type: ImportType;
+    entity_type: BackfillProgressRowKey;
     phase: EntityProgressPhase;
     records_pulled: number;
     total_records: number | null;
@@ -111,25 +119,341 @@ function clampPercent(pulled: number, total: number): number {
     return Math.min(100, Math.round((pulled / total) * 100));
 }
 
+/** Pull-count samples used to estimate records/sec for remaining-time ETA. */
+export type ProgressRateSample = { atMs: number; pulled: number };
+
+/**
+ * Append a sample when pulled advances. Same pulled → unchanged list (stalled
+ * imports keep the last measured rate instead of looking instant).
+ */
+export function appendProgressRateSample(
+    samples: ProgressRateSample[],
+    pulled: number,
+    atMs: number,
+    maxSamples = 12
+): ProgressRateSample[] {
+    const last = samples[samples.length - 1];
+    if (last && last.pulled === pulled) {
+        return samples;
+    }
+    return [...samples, { atMs, pulled }].slice(-maxSamples);
+}
+
+/**
+ * Estimate seconds left from recent pull-rate samples when a total is known.
+ * Needs ≥2 samples, ≥2s span, and a positive pull gain.
+ */
+export function estimateRemainingSeconds(params: {
+    pulled: number;
+    total: number | null;
+    samples: ProgressRateSample[];
+}): number | null {
+    const total = params.total;
+    if (total == null || total <= 0) {
+        return null;
+    }
+    const remaining = total - params.pulled;
+    if (remaining <= 0) {
+        return 0;
+    }
+    const samples = params.samples;
+    if (samples.length < 2) {
+        return null;
+    }
+    const first = samples[0];
+    const last = samples[samples.length - 1];
+    const elapsedMs = last.atMs - first.atMs;
+    const gained = last.pulled - first.pulled;
+    if (elapsedMs < 2000 || gained <= 0) {
+        return null;
+    }
+    const perSecond = gained / (elapsedMs / 1000);
+    if (!Number.isFinite(perSecond) || perSecond <= 0) {
+        return null;
+    }
+    return Math.max(0, Math.ceil(remaining / perSecond));
+}
+
+/** Human-readable ETA, e.g. `~45s left`, `~3m left`, `~1h 5m left`. */
+export function formatEstimatedRemaining(
+    seconds: number | null
+): string | null {
+    if (seconds == null) {
+        return null;
+    }
+    if (seconds <= 0) {
+        return "~0s left";
+    }
+    if (seconds < 60) {
+        return `~${seconds}s left`;
+    }
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (minutes < 60) {
+        if (minutes < 10 && secs > 0) {
+            return `~${minutes}m ${secs}s left`;
+        }
+        return `~${minutes}m left`;
+    }
+    const hours = Math.floor(minutes / 60);
+    const remMin = minutes % 60;
+    return remMin > 0 ? `~${hours}h ${remMin}m left` : `~${hours}h left`;
+}
+
 type EntityStatSlice = NonNullable<
     SyncRunSummary["entity_stats"]
 >[string];
 
+function readMaturityStats(
+    entityStats: SyncRunSummary["entity_stats"] | undefined
+): EntityStatSlice | undefined {
+    return entityStats?.[MATURITY_ENTITY_STATS_KEY];
+}
+
+function shouldShowLinkPaymentsRow(enabledEntities: ImportType[]): boolean {
+    return enabledEntities.includes("Invoice");
+}
+
+function buildLinkPaymentsRunningRow(params: {
+    maturity: EntityStatSlice | undefined;
+    invoiceDone: boolean;
+    runHasProgress: boolean;
+}): EntityProgressRow {
+    const maturity = params.maturity;
+    const status = maturity?.status;
+    const linked = maturity?.success ?? 0;
+    const total =
+        maturity?.pulled && maturity.pulled > 0
+            ? maturity.pulled
+            : linked + (maturity?.skipped ?? 0) > 0
+              ? linked + (maturity?.skipped ?? 0)
+              : null;
+    const deferred =
+        total != null ? Math.max(0, total - linked) : (maturity?.skipped ?? 0);
+    const error =
+        maturity?.sample_errors?.[0]?.trim() ||
+        (status === "failed" ? "Failed to link payments to invoices" : null);
+
+    if (status === "failed") {
+        return {
+            entity_type: BACKFILL_LINK_PAYMENTS_LABEL,
+            phase: "failed",
+            records_pulled: linked,
+            total_records: total,
+            progress_percent:
+                total != null ? clampPercent(linked, total) : null,
+            last_error: error,
+            success: linked,
+            failed: maturity?.failed ?? 1,
+            skipped: deferred,
+        };
+    }
+
+    if (status === "done") {
+        return {
+            entity_type: BACKFILL_LINK_PAYMENTS_LABEL,
+            phase: "done",
+            records_pulled: linked,
+            total_records: total,
+            progress_percent: 100,
+            last_error: null,
+            success: linked,
+            failed: 0,
+            skipped: deferred,
+        };
+    }
+
+    if (status === "running") {
+        return {
+            entity_type: BACKFILL_LINK_PAYMENTS_LABEL,
+            phase: "running",
+            records_pulled: linked,
+            total_records: total,
+            progress_percent:
+                total != null ? clampPercent(linked, total) : null,
+            last_error: null,
+            success: linked,
+            failed: 0,
+            skipped: deferred,
+        };
+    }
+
+    // Invoice finished this run; maturity may not have emitted status yet.
+    if (
+        params.invoiceDone &&
+        params.runHasProgress &&
+        status !== "done" &&
+        status !== "failed"
+    ) {
+        return {
+            entity_type: BACKFILL_LINK_PAYMENTS_LABEL,
+            phase: "running",
+            records_pulled: linked,
+            total_records: total,
+            progress_percent:
+                total != null ? clampPercent(linked, total) : null,
+            last_error: null,
+            success: linked,
+            failed: 0,
+            skipped: deferred,
+        };
+    }
+
+    return {
+        entity_type: BACKFILL_LINK_PAYMENTS_LABEL,
+        phase: "waiting",
+        records_pulled: 0,
+        total_records: null,
+        progress_percent: null,
+        last_error: null,
+    };
+}
+
+function buildLinkPaymentsFinishedRow(params: {
+    maturity: EntityStatSlice | undefined;
+    invoiceCompletedInRun: boolean;
+}): EntityProgressRow {
+    const maturity = params.maturity;
+
+    if (!maturity) {
+        // Invoice finished in this run ⇒ linking step already ran (or had
+        // nothing to link). Never leave the row as Not started.
+        if (params.invoiceCompletedInRun) {
+            return {
+                entity_type: BACKFILL_LINK_PAYMENTS_LABEL,
+                phase: "done",
+                records_pulled: 0,
+                total_records: null,
+                progress_percent: 100,
+                last_error: null,
+                success: 0,
+                failed: 0,
+                skipped: 0,
+            };
+        }
+        return {
+            entity_type: BACKFILL_LINK_PAYMENTS_LABEL,
+            phase: "not_started",
+            records_pulled: 0,
+            total_records: null,
+            progress_percent: null,
+            last_error: null,
+        };
+    }
+
+    const linked = maturity.success ?? 0;
+    const total =
+        maturity.pulled && maturity.pulled > 0
+            ? maturity.pulled
+            : linked + (maturity.skipped ?? 0) > 0
+              ? linked + (maturity.skipped ?? 0)
+              : null;
+    const deferred =
+        maturity.status === "done"
+            ? (maturity.skipped ?? 0)
+            : total != null
+              ? Math.max(0, total - linked)
+              : (maturity.skipped ?? 0);
+    const failed = maturity.failed ?? 0;
+    const error = maturity.sample_errors?.[0]?.trim() || null;
+
+    if (maturity.status === "failed" || failed > 0) {
+        return {
+            entity_type: BACKFILL_LINK_PAYMENTS_LABEL,
+            phase: "failed",
+            records_pulled: linked,
+            total_records: total,
+            progress_percent: null,
+            last_error: error ?? "Failed to link payments to invoices",
+            success: linked,
+            failed,
+            skipped: deferred,
+        };
+    }
+
+    // status=done, or any counts, or invoice completed in this run
+    if (
+        maturity.status === "done" ||
+        maturity.status === "running" ||
+        linked > 0 ||
+        deferred > 0 ||
+        (maturity.pulled ?? 0) > 0 ||
+        params.invoiceCompletedInRun
+    ) {
+        return {
+            entity_type: BACKFILL_LINK_PAYMENTS_LABEL,
+            phase: "done",
+            records_pulled: linked,
+            total_records: total,
+            progress_percent: 100,
+            last_error: null,
+            success: linked,
+            failed: 0,
+            skipped: deferred,
+        };
+    }
+
+    return {
+        entity_type: BACKFILL_LINK_PAYMENTS_LABEL,
+        phase: "not_started",
+        records_pulled: 0,
+        total_records: null,
+        progress_percent: null,
+        last_error: null,
+    };
+}
+
+function insertLinkPaymentsRow(
+    rows: EntityProgressRow[],
+    linkRow: EntityProgressRow
+): EntityProgressRow[] {
+    const invoiceIndex = rows.findIndex((row) => row.entity_type === "Invoice");
+    if (invoiceIndex < 0) {
+        return [...rows, linkRow];
+    }
+    const next = [...rows];
+    next.splice(invoiceIndex + 1, 0, linkRow);
+    return next;
+}
+
 /**
- * Live sync-run stats always include every entity key (often at 0). Prefer the
- * higher of live vs checkpointed pulled so starting the next entity does not
- * wipe a completed entity's count.
+ * Resolve pulled counts for progress rows.
+ *
+ * - Completed entities: live runs often ship placeholder zeros for every key —
+ *   keep the higher of live vs checkpointed so finishing entity N does not wipe
+ *   entity N-1's count.
+ * - Incomplete entities while a run is RUNNING: prefer live stats (including 0)
+ *   so Start backfill resets counters immediately instead of Math.max-ing stale
+ *   sync_state. When live stats are absent (reload mid-run / run just created),
+ *   fall back to checkpointed state — entity start zeros pulled on the backend
+ *   so sampling does not flash a prior run's total.
+ * - Finished runs: fall back to checkpointed state when live stats are missing.
  */
 export function resolveEntityPulledCount(
     entityStats: EntityStatSlice | undefined,
-    state: ConnectorSyncStatePublic | undefined
+    state: ConnectorSyncStatePublic | undefined,
+    options?: { running?: boolean }
 ): number {
     const fromStats = entityStats?.pulled;
     const fromState = state?.backfill_records_pulled ?? 0;
-    if (fromStats == null) {
-        return fromState;
+
+    if (state?.backfill_completed) {
+        if (fromStats == null) {
+            return fromState;
+        }
+        return Math.max(fromStats, fromState);
     }
-    return Math.max(fromStats, fromState);
+
+    if (fromStats != null) {
+        if (options?.running) {
+            return fromStats;
+        }
+        return Math.max(fromStats, fromState);
+    }
+
+    // Live stats missing (e.g. page reload before the next onProgress patch) —
+    // fall back to checkpointed sync_state so the bar can keep moving.
+    return fromState;
 }
 
 function hasMeaningfulEntityStats(
@@ -142,7 +466,10 @@ function hasMeaningfulEntityStats(
         (entityStats.pulled ?? 0) > 0 ||
         (entityStats.success ?? 0) > 0 ||
         (entityStats.failed ?? 0) > 0 ||
-        (entityStats.skipped ?? 0) > 0
+        (entityStats.skipped ?? 0) > 0 ||
+        entityStats.status === "running" ||
+        entityStats.status === "done" ||
+        entityStats.status === "failed"
     );
 }
 
@@ -169,6 +496,14 @@ function resolveCompletedSuccessCount(
  * Always lists every enabled entity. Active entity = first that is not
  * backfill_completed. Completed entities keep their checkpointed counts when
  * the live run only has placeholder zeros for them.
+ *
+ * When the live run has not reported any meaningful stats yet (just started),
+ * ignore prior backfill_completed / last_error / pulled / totals so Start
+ * resets chips and counters to Running / Waiting with zeros — same as Link
+ * payments — instead of leaving Done / Failed counts from the previous run.
+ * Waiting entities also keep counters clear until they become active.
+ *
+ * After Invoice completes, deferred payments are linked before Contact starts.
  */
 export function buildRunningEntityProgressRows(params: {
     enabledEntities: ImportType[];
@@ -180,19 +515,152 @@ export function buildRunningEntityProgressRows(params: {
         (params.syncStates ?? []).map((state) => [state.entity_type, state])
     );
     const stats = params.entityStats ?? {};
+    const maturity = readMaturityStats(stats);
+    const runHasProgress = Object.entries(stats).some(
+        ([key, entityStats]) =>
+            key !== MATURITY_ENTITY_STATS_KEY &&
+            hasMeaningfulEntityStats(entityStats)
+    );
+    // Placeholder zeros (Start backfill / pending run) are not a reload — do
+    // not resume from prior-run sync_state checkpoints.
+    const hasFreshPlaceholderStats =
+        ordered.length > 0 &&
+        ordered.every((entity) => {
+            const entityStats = stats[entity];
+            return (
+                entityStats != null && !hasMeaningfulEntityStats(entityStats)
+            );
+        });
+    // Page reload mid-import: live entity_stats may be empty until the next
+    // poll, but sync_state checkpoints still have pulled/cursor — resume from
+    // those instead of zeroing the bar.
+    const resumeFromCheckpoint =
+        !runHasProgress &&
+        !hasFreshPlaceholderStats &&
+        ordered.some((entity) => {
+            const state = byType.get(entity);
+            if (!state || state.backfill_completed) {
+                return false;
+            }
+            return (
+                (state.backfill_records_pulled ?? 0) > 0 ||
+                Boolean(state.backfill_cursor_present)
+            );
+        });
+    const useLiveOrCheckpoint = runHasProgress || resumeFromCheckpoint;
+    const showLinkRow = shouldShowLinkPaymentsRow(params.enabledEntities);
 
-    const activeIndex = ordered.findIndex((entity) => {
-        const state = byType.get(entity);
-        return !state?.backfill_completed;
+    // Furthest entity that has live counts in this run (the fetch frontier).
+    let lastTouchedIndex = -1;
+    for (let i = 0; i < ordered.length; i++) {
+        if (hasMeaningfulEntityStats(stats[ordered[i]])) {
+            lastTouchedIndex = i;
+        }
+    }
+
+    /**
+     * Done only after this entity’s records are fully fetched in *this* run.
+     * Never treat prior-run backfill_completed as Done for entities we have not
+     * touched yet — that made Invoice look Done (and Link payments start) while
+     * Payment was still importing / sampling.
+     */
+    const firstIncompleteIndex = ordered.findIndex(
+        (entity) => !byType.get(entity)?.backfill_completed
+    );
+
+    const completedInThisRun = (
+        entity: ImportType,
+        index: number,
+        state: ConnectorSyncStatePublic | undefined
+    ): boolean => {
+        if (!state?.backfill_completed || state.backfill_cursor_present) {
+            return false;
+        }
+
+        if (!runHasProgress) {
+            // Checkpoint-only resume: Done only for entities before the first
+            // incomplete checkpoint (not every stale completed flag).
+            if (firstIncompleteIndex < 0) {
+                return true;
+            }
+            return index < firstIncompleteIndex;
+        }
+
+        if (!hasMeaningfulEntityStats(stats[entity])) {
+            return false;
+        }
+
+        const livePulled = stats[entity]?.pulled ?? 0;
+        const checkpointPulled = state.backfill_records_pulled ?? 0;
+        if (livePulled < checkpointPulled) {
+            return false;
+        }
+
+        // Earlier entity: Done once a later entity has live progress *and*
+        // this entity’s sync_state says completed.
+        if (lastTouchedIndex > index) {
+            return true;
+        }
+
+        // Frontier: Done only after pages are exhausted (backfill_completed).
+        return true;
+    };
+
+    const invoiceIndex = ordered.indexOf("Invoice");
+    const invoiceDone =
+        invoiceIndex >= 0 &&
+        completedInThisRun(
+            "Invoice",
+            invoiceIndex,
+            byType.get("Invoice")
+        ) &&
+        // Link payments must not start on stale Invoice completion alone.
+        (runHasProgress
+            ? hasMeaningfulEntityStats(stats.Invoice)
+            : firstIncompleteIndex < 0 || firstIncompleteIndex > invoiceIndex);
+    const linkComplete =
+        !showLinkRow ||
+        maturity?.status === "done" ||
+        maturity?.status === "failed";
+
+    const activeIndex = ordered.findIndex((entity, index) => {
+        if (!useLiveOrCheckpoint) {
+            return true;
+        }
+        if (
+            showLinkRow &&
+            !linkComplete &&
+            invoiceIndex >= 0 &&
+            index > invoiceIndex
+        ) {
+            return false;
+        }
+        return !completedInThisRun(entity, index, byType.get(entity));
     });
 
-    return ordered.map((entity, index) => {
+    const entityRows = ordered.map((entity, index) => {
         const state = byType.get(entity);
         const entityStats = stats[entity];
-        const pulled = resolveEntityPulledCount(entityStats, state);
+        const isActive = activeIndex >= 0 && index === activeIndex;
+
+        // Fresh Start: no live progress yet — zero counters like Link payments
+        // so stale sync_state Done counts/totals do not flash back.
+        if (!useLiveOrCheckpoint) {
+            return {
+                entity_type: entity,
+                phase: isActive ? ("running" as const) : ("waiting" as const),
+                records_pulled: 0,
+                total_records: null,
+                progress_percent: null,
+                last_error: null,
+            };
+        }
+
+        const pulled = resolveEntityPulledCount(entityStats, state, {
+            running: true,
+        });
         const total = state?.backfill_total_records ?? null;
-        const error = state?.last_error?.trim() || null;
-        const completed = Boolean(state?.backfill_completed);
+        const completed = completedInThisRun(entity, index, state);
 
         if (completed) {
             return {
@@ -216,7 +684,18 @@ export function buildRunningEntityProgressRows(params: {
             };
         }
 
-        if (activeIndex >= 0 && index === activeIndex) {
+        if (isActive) {
+            // Live failure only — ignore stale sync_state.last_error from a
+            // previous run so Start resets the Failed chip and validation text.
+            const liveIndicatesFailure =
+                (entityStats?.failed ?? 0) > 0 ||
+                entityStats?.status === "failed" ||
+                Boolean(entityStats?.sample_errors?.[0]?.trim());
+            const error = liveIndicatesFailure
+                ? entityStats?.sample_errors?.[0]?.trim() ||
+                  state?.last_error?.trim() ||
+                  null
+                : null;
             return {
                 entity_type: entity,
                 phase: error ? ("failed" as const) : ("running" as const),
@@ -231,15 +710,30 @@ export function buildRunningEntityProgressRows(params: {
             };
         }
 
+        // Waiting entities: clear counters (same as Link payments waiting).
+        // Ignore stale backfill_completed from a previous run.
         return {
             entity_type: entity,
             phase: "waiting" as const,
-            records_pulled: pulled,
-            total_records: total,
+            records_pulled: 0,
+            total_records: null,
             progress_percent: null,
             last_error: null,
         };
     });
+
+    if (!showLinkRow) {
+        return entityRows;
+    }
+
+    return insertLinkPaymentsRow(
+        entityRows,
+        buildLinkPaymentsRunningRow({
+            maturity,
+            invoiceDone,
+            runHasProgress,
+        })
+    );
 }
 
 /**
@@ -257,7 +751,7 @@ export function buildFinishedEntityProgressRows(params: {
     );
     const stats = params.run.entity_stats ?? {};
 
-    return ordered.map((entity) => {
+    const entityRows = ordered.map((entity) => {
         const state = byType.get(entity);
         const entityStats = stats[entity];
         const meaningful = hasMeaningfulEntityStats(entityStats);
@@ -304,6 +798,23 @@ export function buildFinishedEntityProgressRows(params: {
             skipped,
         };
     });
+
+    if (!shouldShowLinkPaymentsRow(params.enabledEntities)) {
+        return entityRows;
+    }
+
+    const invoiceRow = entityRows.find((row) => row.entity_type === "Invoice");
+    const invoiceCompletedInRun =
+        invoiceRow?.phase === "done" ||
+        Boolean(byType.get("Invoice")?.backfill_completed);
+
+    return insertLinkPaymentsRow(
+        entityRows,
+        buildLinkPaymentsFinishedRow({
+            maturity: readMaturityStats(stats),
+            invoiceCompletedInRun,
+        })
+    );
 }
 
 export function buildBackfillProgressHeader(params: {
@@ -318,6 +829,14 @@ export function buildBackfillProgressHeader(params: {
     ).length;
 
     if (isRunning) {
+        if (runningRow?.entity_type === BACKFILL_LINK_PAYMENTS_LABEL) {
+            return {
+                title: "Backfill progress",
+                subtitle:
+                    "Linking payments to invoices… · Actions are disabled until this finishes",
+                severity: "info",
+            };
+        }
         const current = runningRow?.entity_type ?? "entities";
         return {
             title: "Backfill progress",
@@ -420,6 +939,44 @@ export function writeBackfillProgressSession(
         return;
     }
     window.sessionStorage.setItem(key, JSON.stringify(session));
+}
+
+/** Zero pulled/total/error fields so Start backfill can clear the panel immediately. */
+export function zeroBackfillProgressSyncStates(
+    syncStates: ConnectorSyncStatePublic[] | undefined
+): ConnectorSyncStatePublic[] | undefined {
+    if (!syncStates) {
+        return syncStates;
+    }
+    return syncStates.map((state) => ({
+        ...state,
+        backfill_completed: false,
+        backfill_completed_at: null,
+        backfill_records_pulled: 0,
+        backfill_total_records: null,
+        last_error: null,
+    }));
+}
+
+/** Placeholder RUNNING run used until the server returns a real execution. */
+export function createPendingBackfillRun(): SyncRunSummary {
+    return {
+        id: "pending-backfill",
+        trigger: "backfill",
+        sync_mode: "BACKFILL",
+        status: "RUNNING",
+        started_at: new Date().toISOString(),
+        completed_at: null,
+        duration_seconds: null,
+        entity_stats: {
+            Customer: { pulled: 0, success: 0, failed: 0, skipped: 0 },
+            Payment: { pulled: 0, success: 0, failed: 0, skipped: 0 },
+            Invoice: { pulled: 0, success: 0, failed: 0, skipped: 0 },
+            Contact: { pulled: 0, success: 0, failed: 0, skipped: 0 },
+        },
+        error_message: null,
+        error_type: null,
+    };
 }
 
 type FirstBackfillPreviewParams = {
