@@ -26,9 +26,9 @@ function formatEntityList(entities: string[]): string {
 /** Why first backfill is blocked until preview sync passes. */
 export function getPreviewBlockedReason(entities: string[]): string {
     if (entities.length === 0) {
-        return "Run preview sync for each enabled entity in Field mapping before starting backfill.";
+        return "Run preview sync for each enabled entity before starting backfill.";
     }
-    return `Run preview sync for ${formatEntityList(entities)} in Field mapping before starting backfill. Every enabled entity needs a passing preview, including any you just turned on.`;
+    return `Run preview sync for ${formatEntityList(entities)} before starting backfill. Every enabled entity needs a passing preview, including any you just turned on.`;
 }
 
 export function getStartBackfillDisabledReason(params: {

@@ -415,14 +415,6 @@ export default React.forwardRef<
                 </Alert>
             )}
 
-            {!locked && (
-                <Alert severity="warning">
-                    Saving a tighter filter soft-excludes unmatched imported
-                    rows on the next Backfill (not deleted). Matching rows can
-                    return when re-imported.
-                </Alert>
-            )}
-
             {!hideSaveButton && (
                 <Box>
                     <Button
