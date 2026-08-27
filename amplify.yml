@@ -23,7 +23,6 @@
 #   NEST_CORS_ORIGINS=https://staging.archaser.com,<old amplifyapp.com until custom-domain soak>
 #   NEXT_PUBLIC_BASE_URL=https://staging.archaser.com
 #   NEXT_PUBLIC_NEST_API_BASE_URL=https://api.staging.archaser.com
-#   ENABLE_CRON_JOBS=false
 #
 # Email pixels and account logos use NEST_PUBLIC_URL (the API host). Portal
 # and login links in mail use NEXT_PUBLIC_BASE_URL (the UI host).
