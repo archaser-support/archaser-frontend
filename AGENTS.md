@@ -2,6 +2,8 @@
 
 ## Agent skills
 
+**Shared skills live in the backend repo** — `archaser-backend/.agents/skills/`. This repo keeps only frontend-specific skills under `.cursor/skills/`: `implement-next`, `pre-commit-cleanup`, `review-ui`, `wayfinder`. Do not re-add copies of the shared skills here — duplicates make every skill appear twice in the agent skills list.
+
 ### Issue tracker
 
 **`/to-issues` vertical slices** live as local markdown under `.scratch/<feature-slug>/`. PRDs/plans stay in `.cursor/plans/`. ClickUp is for ad-hoc human workflow only. See `docs/agents/issue-tracker.md`.
