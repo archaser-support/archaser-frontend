@@ -1039,13 +1039,9 @@ const BillingIntegrationSettings = forwardRef<
                     </AccordionSummary>
                     <AccordionDetails sx={billingAccordionDetailsSx}>
                 <CardContent sx={billingAccordionContentSx}>
-                    <Grid container spacing={2}>
-                        <Grid size={{ xs: 12, md: 6 }}>
-                            <FormControl
-                                fullWidth
-                                sx={{ mb: 2 }}
-                                disabled={!canManage}
-                            >
+                    <Grid container spacing={2} alignItems="flex-start">
+                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                            <FormControl fullWidth disabled={!canManage}>
                                 <InputLabel id="billing-provider-label">
                                     Provider
                                 </InputLabel>
@@ -1067,7 +1063,9 @@ const BillingIntegrationSettings = forwardRef<
                                     </MenuItem>
                                 </Select>
                             </FormControl>
+                        </Grid>
 
+                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                             <TextField
                                 fullWidth
                                 label="Base URL"
@@ -1078,12 +1076,8 @@ const BillingIntegrationSettings = forwardRef<
                             />
                         </Grid>
 
-                        <Grid size={{ xs: 12, md: 6 }}>
-                            <FormControl
-                                fullWidth
-                                sx={{ mb: 2 }}
-                                disabled={!canManage}
-                            >
+                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                            <FormControl fullWidth disabled={!canManage}>
                                 <InputLabel id="billing-auth-type-label">
                                     Authentication
                                 </InputLabel>
@@ -1104,8 +1098,10 @@ const BillingIntegrationSettings = forwardRef<
                                     ))}
                                 </Select>
                             </FormControl>
+                        </Grid>
 
-                            {authType === "API_KEY" && (
+                        {authType === "API_KEY" && (
+                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                 <TextField
                                     fullWidth
                                     type="password"
@@ -1119,16 +1115,12 @@ const BillingIntegrationSettings = forwardRef<
                                             : "REST access token"
                                     }
                                 />
-                            )}
+                            </Grid>
+                        )}
 
-                            {authType === "BASIC" && (
-                                <Box
-                                    sx={{
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        gap: 2,
-                                    }}
-                                >
+                        {authType === "BASIC" && (
+                            <>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                     <TextField
                                         fullWidth
                                         label="Username"
@@ -1138,6 +1130,8 @@ const BillingIntegrationSettings = forwardRef<
                                         }
                                         disabled={!canManage}
                                     />
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                     <TextField
                                         fullWidth
                                         type="password"
@@ -1153,17 +1147,13 @@ const BillingIntegrationSettings = forwardRef<
                                                 : ""
                                         }
                                     />
-                                </Box>
-                            )}
+                                </Grid>
+                            </>
+                        )}
 
-                            {authType === "OAUTH2_CLIENT_CREDENTIALS" && (
-                                <Box
-                                    sx={{
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        gap: 2,
-                                    }}
-                                >
+                        {authType === "OAUTH2_CLIENT_CREDENTIALS" && (
+                            <>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                     <TextField
                                         fullWidth
                                         label="Client ID"
@@ -1173,6 +1163,8 @@ const BillingIntegrationSettings = forwardRef<
                                         }
                                         disabled={!canManage}
                                     />
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                     <TextField
                                         fullWidth
                                         type="password"
@@ -1183,6 +1175,8 @@ const BillingIntegrationSettings = forwardRef<
                                         }
                                         disabled={!canManage}
                                     />
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                     <TextField
                                         fullWidth
                                         label="Token endpoint"
@@ -1192,9 +1186,9 @@ const BillingIntegrationSettings = forwardRef<
                                         }
                                         disabled={!canManage}
                                     />
-                                </Box>
-                            )}
-                        </Grid>
+                                </Grid>
+                            </>
+                        )}
 
                         <Grid size={{ xs: 12 }}>
                             {config?.has_credentials && (
