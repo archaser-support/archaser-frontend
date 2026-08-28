@@ -16,7 +16,7 @@
 
 ### Local issue tracker (`/to-issues`)
 
-**`/to-issues` publishes vertical slices as markdown under `.scratch/`, not ClickUp.** See `docs/agents/issue-tracker.md` and `.agents/skills/to-issues/SKILL.md`.
+**`/to-issues` publishes vertical slices as markdown under `.scratch/`, not ClickUp.** See `docs/agents/issue-tracker.md` and the `to-issues` skill in the backend repo (`archaser-backend/.agents/skills/to-issues/SKILL.md`).
 
 | Key | Value |
 |-----|-------|
@@ -123,7 +123,7 @@ When a decision is genuinely the user's to make — planning, grilling (`/grill-
 - If the answer is discoverable by reading the codebase, **explore first** — only ask when still blocked on a product/design choice.
 - After the user answers, incorporate it into the plan, PRD, or next implementation step before continuing.
 
-**Grilling (`/grill-me`, `/grilling`):** same rules — one `AskQuestion` per turn, recommended option first, no multi-question dumps. Use **simple language** (everyday words, short sentences, concrete examples when abstract; expand every acronym with its full name); see `.agents/skills/grill-me/SKILL.md`.
+**Grilling (`/grill-me`, `/grilling`):** same rules — one `AskQuestion` per turn, recommended option first, no multi-question dumps. Use **simple language** (everyday words, short sentences, concrete examples when abstract; expand every acronym with its full name); see the `grill-me` skill in the backend repo (`archaser-backend/.agents/skills/grill-me/SKILL.md`).
 
 ### 📚 Rule Files
 All detailed rules are organized in `.cursor/rules/` directory for better maintainability and topic-specific reference.
