@@ -37,6 +37,7 @@ export type CustomerCreditKpiCards = {
     policyUsagePct: number | null;
     activePolicyCount: number;
     termsBreachOutstanding: number;
+    termsBreachInvoiceCount: number;
     capacityGapAmount: number;
     uninsuredAmount: number;
     accountCurrency: string | null;
@@ -173,16 +174,6 @@ function readUninsuredFromPolicyRow(
     return Math.max(0, Number(row.uninsured_amount));
 }
 
-function getCustomerFxRate(customer: CustomerWithProductInfo | null | undefined): number | null {
-    if (!customer) return null;
-    const totalAr = Number(customer.total_ar ?? 0);
-    const totalArSec = Number((customer as any).total_ar_secondary ?? 0);
-    if (totalAr > 0 && totalArSec > 0) {
-        return totalAr / totalArSec;
-    }
-    return null;
-}
-
 function readCapacityGapFromPolicyRow(
     row: CustomerPolicyHistoryItem | null,
     policyOpenAr: number | null | undefined
@@ -276,7 +267,6 @@ function resolveCapacityGapSecondaryForDisplay(args: {
 export function buildPolicyCards(
     customer: CustomerWithProductInfo | null | undefined
 ): DashboardPolicyCard[] {
-    const fxRate = getCustomerFxRate(customer);
     const effectiveLimitFromCustomer = normalizeNumber(
         (customer as CustomerWithProductInfo & { effective_approved_limit?: unknown })
             ?.effective_approved_limit
@@ -338,19 +328,29 @@ function sumOptionalAmounts(
     a1?: number | null,
     a2?: number | null
 ): number {
-    return Math.max(0, Number(a1 ?? 0)) + Math.max(0, Number(a2 ?? 0));
+    return Number(a1 ?? 0) + Number(a2 ?? 0);
+}
+
+/** Prefer the most informative overdue total; keep sign (credits can be negative). */
+function pickPreferredOverdueAmount(...values: number[]): number {
+    return values.reduce(
+        (best, value) =>
+            Math.abs(value) > Math.abs(best) ? value : best,
+        0
+    );
 }
 
 /**
  * Overdue KPI for the customer dashboard card.
  * Uses the best available denormalized total (customer row, open collection period, or currency buckets).
  * Avoids showing 0 when the open period is stale but `Customer.total_overdue_amount` is populated.
+ * Signed amounts are preserved so credit-note-only overdue is not floored to 0.
  */
 export function resolveCustomerOverdueDisplayMetrics(
     customer: OverdueCustomerLike,
     openPeriod?: OverdueCollectionPeriodLike
 ): { amount: number; invoiceCount: number } {
-    const amount = Math.max(
+    const amount = pickPreferredOverdueAmount(
         Number(customer.total_overdue_amount ?? 0),
         Number(openPeriod?.total_outstanding_amount ?? 0),
         sumOptionalAmounts(
@@ -394,7 +394,6 @@ export function buildDashboardCardContract(args: {
     termsBreachReasonSlices?: TermsBreachReasonSlice[];
 }): DashboardCardContract {
     const typedCustomer = args.customer as CustomerWithProductInfo | null | undefined;
-    const fxRate = getCustomerFxRate(typedCustomer);
     const policyCards = buildPolicyCards(typedCustomer);
     const effectiveSelectedPolicyId =
         args.selectedPolicyId != null &&

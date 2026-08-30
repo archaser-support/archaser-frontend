@@ -84,7 +84,7 @@ Give the implementer:
 - Instruction to satisfy **Acceptance criteria** and automated parts of **How to test**
 - Permission to edit backend **and** portal when the slice needs both
 - **Do not commit, push, or open a PR**
-- Prefer TDD when adding behavior (`.cursor/skills/tdd/SKILL.md` if useful)
+- Prefer TDD when adding behavior (`archaser-backend/.agents/skills/tdd/SKILL.md` if useful)
 - Return a short result: what changed, suggested automated test commands, any blockers, leftover manual checks
 
 Wait until the Task finishes before continuing.
