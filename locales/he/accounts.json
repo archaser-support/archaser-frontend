@@ -211,6 +211,11 @@
         "no_spaces_allowed": "אסור להשתמש ברווחים",
         "please_fix_errors": "אנא תקן שגיאות לפני השליחה"
     },
+    "billing_connector": {
+        "mep_breach_start_date_label": "תאריך תחילת חריגת MEP",
+        "mep_breach_start_date_helper": "אופציונלי. חשבוניות שהונפקו לפני יום זה אינן נכללות בחישוב חריגת MEP. השאירו ריק כדי לחשב על כל ההיסטוריה.",
+        "mep_breach_start_date_locked": "נעול לאחר תחילת מילוי ההיסטוריה. אפסו את המילוי כדי לשנות את תאריך תחילת חריגת MEP."
+    },
     "as_of_backfill": {
         "open_button": "מילוי היסטוריה לפי תאריך",
         "title": "מילוי היסטוריה לפי תאריך",

@@ -70,20 +70,16 @@ const DataGridHeader: React.FC<DataGridHeaderProps> = React.memo(
                 return;
             }
 
-            // Check if this click is part of a double-click on resize handle
-            if (
-                resizeHandleClickRef.current &&
-                resizeHandleClickRef.current.field === field
-            ) {
-                const timeSinceLastClick =
+            // Skip sorting when this click is the tail of a resize interaction
+            // (drag end or double-click on the handle). The field is not compared
+            // because a drag can end over a different column than it started on.
+            if (resizeHandleClickRef.current) {
+                const timeSinceResizeInteraction =
                     Date.now() - resizeHandleClickRef.current.timestamp;
-                // If double-click happened recently (within 500ms), don't sort
-                if (timeSinceLastClick < 500) {
-                    resizeHandleClickRef.current = null;
+                resizeHandleClickRef.current = null;
+                if (timeSinceResizeInteraction < 500) {
                     return;
                 }
-                // Clear the tracker after checking
-                resizeHandleClickRef.current = null;
             }
 
             if (onSort) {
