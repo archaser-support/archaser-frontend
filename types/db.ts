@@ -1170,6 +1170,7 @@ export type Customer = {
     generic_date2: Date | null;
     automation_stuck_no_contacts: boolean | null;
     oldest_invoice_overdue_date: Date | null;
+    oldest_invoice_overdue_date_all: Date | null;
     overdue_block: boolean;
     zero_limit_alert_exist: boolean;
 };

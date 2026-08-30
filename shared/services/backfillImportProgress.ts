@@ -448,14 +448,49 @@ const TAIL_STEP_DETAIL_LABELS: Record<string, { label: string; unit: string }> =
         as_of_rewrite: { label: "Queueing as-of rewrite", unit: "customers" },
     };
 
+/**
+ * The replay only walks history from the MEP breach start date onward, so the
+ * label names that date — otherwise the event count looks unexplainably small
+ * against the customer's full invoice history.
+ */
+function formatMepBreachStartDate(value: string | null | undefined): string | null {
+    if (!value) {
+        return null;
+    }
+    const ymd = /^(\d{4})-(\d{2})-(\d{2})/.exec(value.trim());
+    if (!ymd) {
+        return null;
+    }
+    const date = new Date(
+        Number(ymd[1]),
+        Number(ymd[2]) - 1,
+        Number(ymd[3])
+    );
+    if (Number.isNaN(date.getTime())) {
+        return null;
+    }
+    return date.toLocaleDateString(undefined, {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+    });
+}
+
 function formatTailStepDetail(
-    detail: EntityStatSlice["detail"]
+    detail: EntityStatSlice["detail"],
+    mepBreachStartDate?: string | null
 ): string | undefined {
     if (!detail) {
         return undefined;
     }
     const known = TAIL_STEP_DETAIL_LABELS[detail.step];
-    const label = known?.label ?? detail.step;
+    let label = known?.label ?? detail.step;
+    if (detail.step === "replay") {
+        const from = formatMepBreachStartDate(mepBreachStartDate);
+        if (from) {
+            label = `${label} from ${from}`;
+        }
+    }
     if (detail.total == null || detail.total <= 0) {
         return label;
     }
@@ -471,6 +506,7 @@ function buildTailStepRow(params: {
     label: BackfillTailStepLabel;
     slice: EntityStatSlice | undefined;
     runFinished: boolean;
+    mepBreachStartDate?: string | null;
 }): EntityProgressRow {
     const slice = params.slice;
     if (!slice?.status) {
@@ -526,8 +562,13 @@ function buildTailStepRow(params: {
         success: processed,
         failed: 0,
         skipped: 0,
-        ...(formatTailStepDetail(slice.detail)
-            ? { detail: formatTailStepDetail(slice.detail) }
+        ...(formatTailStepDetail(slice.detail, params.mepBreachStartDate)
+            ? {
+                  detail: formatTailStepDetail(
+                      slice.detail,
+                      params.mepBreachStartDate
+                  ),
+              }
             : {}),
     };
 }
@@ -536,6 +577,7 @@ function appendTailStepRows(params: {
     rows: EntityProgressRow[];
     stats: SyncRunSummary["entity_stats"] | undefined;
     runFinished: boolean;
+    mepBreachStartDate?: string | null;
 }): EntityProgressRow[] {
     const stats = params.stats ?? {};
     const tailRows = BACKFILL_TAIL_STEPS.filter(
@@ -547,6 +589,7 @@ function appendTailStepRows(params: {
             label: step.label,
             slice: stats[step.key],
             runFinished: params.runFinished,
+            mepBreachStartDate: params.mepBreachStartDate,
         })
     );
     return tailRows.length > 0 ? [...params.rows, ...tailRows] : params.rows;
@@ -658,6 +701,8 @@ export function buildRunningEntityProgressRows(params: {
     enabledEntities: ImportType[];
     syncStates: ConnectorSyncStatePublic[] | undefined;
     entityStats?: SyncRunSummary["entity_stats"];
+    /** Names the replay window in the AR replay sub-line. */
+    mepBreachStartDate?: string | null;
 }): EntityProgressRow[] {
     const ordered = orderEnabledBackfillEntities(params.enabledEntities);
     const byType = new Map(
@@ -886,6 +931,7 @@ export function buildRunningEntityProgressRows(params: {
         rows: withLinkRow,
         stats,
         runFinished: false,
+        mepBreachStartDate: params.mepBreachStartDate,
     });
 }
 
@@ -971,6 +1017,7 @@ export function buildFinishedEntityProgressRows(params: {
         rows: withLinkRow,
         stats,
         runFinished: true,
+        mepBreachStartDate: params.run.cutover_options?.mep_breach_start_date,
     });
 }
 
