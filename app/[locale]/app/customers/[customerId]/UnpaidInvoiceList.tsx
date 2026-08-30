@@ -50,8 +50,11 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
 
     // Get invoice ID to highlight from query parameter
     const highlightInvoiceId = searchParams?.get("highlightInvoice");
-    const invoiceIdToHighlight = highlightInvoiceId
+    const parsedHighlightInvoiceId = highlightInvoiceId
         ? parseInt(highlightInvoiceId, 10)
+        : null;
+    const invoiceIdToHighlight = Number.isFinite(parsedHighlightInvoiceId)
+        ? parsedHighlightInvoiceId
         : null;
 
     // Search state
@@ -59,7 +62,6 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
     // Track if view was manually selected (not from URL or auto-selected)
     const [isManualSelection, setIsManualSelection] = useState(false);
     const [selectedViewId, setSelectedViewId] = useState<number | null>(null);
-    const [rows, setRows] = useState<any[]>([]);
     const [gridRefreshTrigger, setGridRefreshTrigger] = useState(0);
     const [reportingModalOpen, setReportingModalOpen] = useState(false);
     const [reportingRow, setReportingRow] = useState<Record<
@@ -500,6 +502,35 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
         ]
     );
 
+    const showActionsColumn =
+        hasCustomerPolicy && (isCreditInsuranceAccount || isCollectionAccount);
+
+    const additionalDataColumns = useMemo(
+        () =>
+            isCreditInsuranceAccount && hasCustomerPolicy
+                ? [creditInsuranceViolationsColumn]
+                : undefined,
+        [
+            isCreditInsuranceAccount,
+            hasCustomerPolicy,
+            creditInsuranceViolationsColumn,
+        ]
+    );
+
+    const actionsColumnConfig = useMemo(
+        () =>
+            showActionsColumn
+                ? {
+                    minWidth:
+                        isCreditInsuranceAccount && isCollectionAccount
+                            ? 88
+                            : 52,
+                    flex: 0.55,
+                }
+                : undefined,
+        [showActionsColumn, isCreditInsuranceAccount, isCollectionAccount]
+    );
+
     // Handle page-wide scrolling to scroll the table
     React.useEffect(() => {
         const findScrollableContainer = (): HTMLElement | null => {
@@ -649,36 +680,17 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
                     }}
                     additionalFilters={additionalFilters}
                     customCellRenderers={customCellRenderers}
-                    onRowsChange={setRows}
                     exportDisabled={false}
                     refreshTrigger={gridRefreshTrigger}
                     includeInvoiceCreditInsuranceViolationFields={
                         isCreditInsuranceAccount
                     }
-                    additionalDataColumns={
-                        isCreditInsuranceAccount && hasCustomerPolicy
-                            ? [creditInsuranceViolationsColumn]
-                            : undefined
-                    }
+                    additionalDataColumns={additionalDataColumns}
+                    highlightedRowId={invoiceIdToHighlight}
                     actionsColumn={
-                        hasCustomerPolicy &&
-                            (isCreditInsuranceAccount || isCollectionAccount)
-                            ? actionsColumnRenderer
-                            : undefined
+                        showActionsColumn ? actionsColumnRenderer : undefined
                     }
-                    actionsColumnConfig={
-                        hasCustomerPolicy &&
-                            (isCreditInsuranceAccount || isCollectionAccount)
-                            ? {
-                                minWidth:
-                                    isCreditInsuranceAccount &&
-                                        isCollectionAccount
-                                        ? 88
-                                        : 52,
-                                flex: 0.55,
-                            }
-                            : undefined
-                    }
+                    actionsColumnConfig={actionsColumnConfig}
                 />
             </Box>
 
