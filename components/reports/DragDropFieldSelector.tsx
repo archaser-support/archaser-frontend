@@ -1,6 +1,32 @@
 "use client";
 
 import {
+    DndContext,
+    DragOverlay,
+    useSensor,
+    useSensors,
+    PointerSensor,
+    closestCenter,
+    useDroppable,
+} from "@dnd-kit/core";
+import { SortableContext, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
+    DragIndicator,
+    Numbers,
+    CalendarToday,
+    TextFields,
+    List,
+    Functions,
+    Calculate,
+    Search,
+    ExpandMore,
+    FilterList,
+    Close,
+    ArrowUpward,
+    ArrowDownward,
+} from "@mui/icons-material";
+import {
     Box,
     Button,
     Paper,
@@ -18,34 +44,15 @@ import {
     Checkbox,
     Badge,
 } from "@mui/material";
-import {
-    DragIndicator,
-    Numbers,
-    CalendarToday,
-    TextFields,
-    List,
-    Functions,
-    Search,
-    ExpandMore,
-    FilterList,
-    Close,
-    ArrowUpward,
-    ArrowDownward,
-} from "@mui/icons-material";
 import { useTheme, alpha } from "@mui/material/styles";
 import React, { useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import {
-    DndContext,
-    DragOverlay,
-    useSensor,
-    useSensors,
-    PointerSensor,
-    closestCenter,
-    useDroppable,
-} from "@dnd-kit/core";
-import { SortableContext, useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+
+import { useDragDropFields } from "@/hooks/useDragDropFields";
+import { useFieldFiltering } from "@/hooks/useFieldFiltering";
+import EmptyState from "@/shared/layout-components/grid/components/EmptyState";
+import { buildColumnListItems } from "@/shared/reportFormula/columnOrder";
+import type { ReportFormula } from "@/shared/reportFormula/types";
 import {
     TableField,
     Table,
@@ -63,11 +70,6 @@ import {
     getFieldOutputKey,
     resolveNextPaletteFieldCandidate,
 } from "@/utils/reportTableUtils";
-import type { ReportFormula } from "@/shared/reportFormula/types";
-import { buildColumnListItems } from "@/shared/reportFormula/columnOrder";
-import { useFieldFiltering } from "@/hooks/useFieldFiltering";
-import { useDragDropFields } from "@/hooks/useDragDropFields";
-import EmptyState from "@/shared/layout-components/grid/components/EmptyState";
 
 interface DragDropFieldSelectorProps {
     selectedTables: Array<{ name: string; label: string }>;
@@ -109,11 +111,9 @@ const DraggableFieldItem: React.FC<DraggableFieldItemProps> = React.memo(
     ({
         field,
         tableName,
-        tableLabel,
         isSelected,
         showCheckbox = false,
         onCheckboxToggle,
-        disabled = false,
         paletteAllowsDuplicateDrag = false,
     }) => {
         const theme = useTheme();
@@ -267,6 +267,7 @@ const DraggableFieldItem: React.FC<DraggableFieldItemProps> = React.memo(
         );
     }
 );
+DraggableFieldItem.displayName = "DraggableFieldItem";
 
 interface SortableFieldCardProps {
     field: Field;
@@ -295,7 +296,6 @@ const SortableFieldCard: React.FC<SortableFieldCardProps> = React.memo(
         fieldInfo,
         onRemove,
         onUpdateField,
-        getTableLabel,
         t,
         i18n,
         theme,
@@ -304,7 +304,6 @@ const SortableFieldCard: React.FC<SortableFieldCardProps> = React.memo(
         sorting = [],
         onSortingChange,
     }) => {
-        const isRTL = i18n?.language === "he";
         const [aggregationMenuAnchor, setAggregationMenuAnchor] =
             React.useState<null | HTMLElement>(null);
 
@@ -695,6 +694,7 @@ const SortableFieldCard: React.FC<SortableFieldCardProps> = React.memo(
         );
     }
 );
+SortableFieldCard.displayName = "SortableFieldCard";
 
 interface SortableFormulaCardProps {
     formula: ReportFormula;
@@ -704,7 +704,6 @@ interface SortableFormulaCardProps {
     validationError?: string;
     t: any;
     theme: any;
-    isHebrew: boolean;
     isHovered?: boolean;
     isActive?: boolean;
 }
@@ -718,7 +717,6 @@ const SortableFormulaCard: React.FC<SortableFormulaCardProps> = React.memo(
         validationError,
         t,
         theme,
-        isHebrew,
         isHovered = false,
         isActive = false,
     }) => {
@@ -811,12 +809,11 @@ const SortableFormulaCard: React.FC<SortableFormulaCardProps> = React.memo(
                                 sx={{ fontSize: 18 }}
                             />
                         </Box>
-                        <Functions
+                        <Calculate
                             fontSize="small"
                             sx={{
                                 color: theme.palette.primary.main,
                                 flexShrink: 0,
-                                transform: isHebrew ? "scaleX(-1)" : "none",
                             }}
                         />
                         <Typography
@@ -922,8 +919,6 @@ const DroppableFieldsArea: React.FC<{
     const { setNodeRef } = useDroppable({
         id: "fields-area",
     });
-
-    const theme = useTheme();
 
     return (
         <Box
@@ -1660,7 +1655,7 @@ const DragDropFieldSelector: React.FC<DragDropFieldSelectorProps> = ({
                                         key={table.name}
                                         expanded={isExpanded}
                                         disableGutters
-                                        onChange={(event, expanded) => {
+                                        onChange={() => {
                                             if (!isTableDisabled) {
                                                 handleAccordionChange(
                                                     table.name
@@ -1785,10 +1780,6 @@ const DragDropFieldSelector: React.FC<DragDropFieldSelectorProps> = ({
                                                 {availableBaseFields.map(
                                                     (field) => {
                                                         const fieldKey = `${table.name}.${field.name}`;
-                                                        const FieldTypeIcon =
-                                                            getFieldTypeIcon(
-                                                                field.type
-                                                            );
                                                         const fieldDisabled =
                                                             isTableDisabled ||
                                                             !canAddFieldFromTableMemo(
@@ -2003,7 +1994,6 @@ const DragDropFieldSelector: React.FC<DragDropFieldSelectorProps> = ({
                                                                 }
                                                                 t={t}
                                                                 theme={theme}
-                                                                isHebrew={isHebrew}
                                                                 isHovered={
                                                                     hoveredFieldId ===
                                                                         itemId &&
@@ -2052,14 +2042,7 @@ const DragDropFieldSelector: React.FC<DragDropFieldSelectorProps> = ({
                                         size="small"
                                         variant="outlined"
                                         startIcon={
-                                            <Functions
-                                                fontSize="small"
-                                                sx={{
-                                                    transform: isHebrew
-                                                        ? "scaleX(-1)"
-                                                        : "none",
-                                                }}
-                                            />
+                                            <Calculate fontSize="small" />
                                         }
                                         disabled={addFormulaDisabled}
                                         onClick={onAddFormula}
@@ -2119,14 +2102,9 @@ const DragDropFieldSelector: React.FC<DragDropFieldSelectorProps> = ({
                             }}
                         />
                         {draggedFormulaLabel ? (
-                            <Functions
+                            <Calculate
                                 fontSize="small"
-                                sx={{
-                                    color: theme.palette.primary.main,
-                                    transform: isHebrew
-                                        ? "scaleX(-1)"
-                                        : "none",
-                                }}
+                                sx={{ color: theme.palette.primary.main }}
                             />
                         ) : null}
                         <Typography
