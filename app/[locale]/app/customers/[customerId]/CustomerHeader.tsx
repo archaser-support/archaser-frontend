@@ -1086,12 +1086,17 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
     const formatInvoiceCountSecondary = (count: number) =>
         `(${count} ${t("fields.invoices", { ns: "customers" })})`;
     const headerCompactValueFontSize = "0.875rem";
-    const overdueDays = customer.oldest_invoice_overdue_date
+    // The ungated column counts invoices issued before the MEP breach start date;
+    // the gated one is only a fallback for rows synced before it existed.
+    const oldestOverdueDateForDisplay =
+        customer.oldest_invoice_overdue_date_all ??
+        customer.oldest_invoice_overdue_date;
+    const overdueDays = oldestOverdueDateForDisplay
         ? Math.max(
             0,
             Math.floor(
                 (Date.now() -
-                    new Date(customer.oldest_invoice_overdue_date).getTime()) /
+                    new Date(oldestOverdueDateForDisplay).getTime()) /
                 86_400_000
             )
         )
