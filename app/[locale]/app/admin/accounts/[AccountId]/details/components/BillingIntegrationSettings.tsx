@@ -231,6 +231,8 @@ const BillingIntegrationSettings = forwardRef<
     >({});
     const [previewResult, setPreviewResult] =
         useState<PreviewSyncResponse | null>(null);
+    /** Blocks re-running preview until mapping or pull filters change again. */
+    const [previewUpToDate, setPreviewUpToDate] = useState(false);
     const [mappingEntityTab, setMappingEntityTab] = useState<number | null>(
         null
     );
@@ -255,8 +257,6 @@ const BillingIntegrationSettings = forwardRef<
     /** Clears progress counters immediately on Start, before the new run polls in. */
     const [pendingBackfillReset, setPendingBackfillReset] = useState(false);
     const cutoverDirtyRef = useRef(false);
-    /** True once the user edits the MEP date, so the backfill date stops seeding it. */
-    const mepBreachStartDateTouchedRef = useRef(false);
     const mapperRefs = useRef<
         Partial<Record<ImportType, ConnectorFieldMapperHandle | null>>
     >({});
@@ -274,8 +274,8 @@ const BillingIntegrationSettings = forwardRef<
         setProgressExpanded(null);
         setHistoryExpanded(false);
         setMappingEntityTab(null);
+        setPreviewUpToDate(false);
         entityTabFocusPendingRef.current = true;
-        mepBreachStartDateTouchedRef.current = false;
     }, [accountId]);
 
     useEffect(() => {
@@ -299,15 +299,9 @@ const BillingIntegrationSettings = forwardRef<
                 config.backfill_start_date
             );
             setBackfillStartDate(nextBackfillStartDate);
-            const storedMepBreachStartDate = toDateInputValue(
-                config.mep_breach_start_date
+            setMepBreachStartDate(
+                toDateInputValue(config.mep_breach_start_date)
             );
-            if (storedMepBreachStartDate) {
-                mepBreachStartDateTouchedRef.current = true;
-                setMepBreachStartDate(storedMepBreachStartDate);
-            } else if (!mepBreachStartDateTouchedRef.current) {
-                setMepBreachStartDate(nextBackfillStartDate);
-            }
             setIncludeOlderOpenInvoices(
                 config.include_older_open_invoices ?? true
             );
@@ -489,6 +483,7 @@ const BillingIntegrationSettings = forwardRef<
         mutationFn: () => runBillingConnectorPreviewSync(accountId),
         onSuccess: (result) => {
             setPreviewResult(result);
+            setPreviewUpToDate(true);
             queryClient.invalidateQueries({
                 queryKey: ["billing-connector", accountId],
             });
@@ -523,9 +518,16 @@ const BillingIntegrationSettings = forwardRef<
         },
     });
 
+    const handleEntityConfigDirtyChange = useCallback((dirty: boolean) => {
+        if (dirty) {
+            setPreviewUpToDate(false);
+        }
+    }, []);
+
     const handleEntitySetChange = useCallback(
         async (importType: ImportType, value: string | null) => {
             try {
+                setPreviewUpToDate(false);
                 await saveBillingConnectorConfig(accountId, {
                     entity_sets: { [importType]: value },
                 });
@@ -1122,7 +1124,7 @@ const BillingIntegrationSettings = forwardRef<
                                 <TextField
                                     fullWidth
                                     type="password"
-                                    label="API token"
+                                    label="API Token"
                                     value={apiKeyToken}
                                     onChange={(e) => setApiKeyToken(e.target.value)}
                                     disabled={!canManage}
@@ -1185,7 +1187,7 @@ const BillingIntegrationSettings = forwardRef<
                                     <TextField
                                         fullWidth
                                         type="password"
-                                        label="Client secret"
+                                        label="Client Secret"
                                         value={oauthClientSecret}
                                         onChange={(e) =>
                                             setOauthClientSecret(e.target.value)
@@ -1196,7 +1198,7 @@ const BillingIntegrationSettings = forwardRef<
                                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                     <TextField
                                         fullWidth
-                                        label="Token endpoint"
+                                        label="Token Endpoint"
                                         value={oauthTokenEndpoint}
                                         onChange={(e) =>
                                             setOauthTokenEndpoint(e.target.value)
@@ -1296,7 +1298,7 @@ const BillingIntegrationSettings = forwardRef<
                                         {...(isHebrew && { "data-rtl": true })}
                                     />
                                 }
-                                label="Sync enabled"
+                                label="Sync Enabled"
                                 sx={{
                                     alignItems: "center",
                                     mt: 0.5,
@@ -1316,11 +1318,11 @@ const BillingIntegrationSettings = forwardRef<
                                 disabled={!canManage}
                             >
                                 <InputLabel id="billing-schedule-preset-label">
-                                    Sync schedule
+                                    Sync Schedule
                                 </InputLabel>
                                 <Select
                                     labelId="billing-schedule-preset-label"
-                                    label="Sync schedule"
+                                    label="Sync Schedule"
                                     value={schedulePreset}
                                     onChange={(e) => {
                                         const value = e.target
@@ -1344,7 +1346,7 @@ const BillingIntegrationSettings = forwardRef<
                                 <TextField
                                     fullWidth
                                     size="small"
-                                    label="Cron expression (UTC)"
+                                    label="Cron Expression (UTC)"
                                     value={syncCron}
                                     onChange={(e) => {
                                         setSyncCron(e.target.value);
@@ -1381,11 +1383,11 @@ const BillingIntegrationSettings = forwardRef<
                                     disabled={!canManage}
                                 >
                                     <InputLabel id="billing-weekly-day-label">
-                                        Day of week (UTC)
+                                        Day of Week (UTC)
                                     </InputLabel>
                                     <Select
                                         labelId="billing-weekly-day-label"
-                                        label="Day of week (UTC)"
+                                        label="Day of Week (UTC)"
                                         value={weeklyDay}
                                         onChange={(e) =>
                                             setWeeklyDay(
@@ -1447,28 +1449,17 @@ const BillingIntegrationSettings = forwardRef<
                                     <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                         <TextField
                                             fullWidth
-                                            label="Backfill start date"
+                                            label="Backfill Start Date"
                                             type="date"
                                             size="small"
                                             value={backfillStartDate}
                                             onChange={(e) => {
                                                 const next = e.target.value;
                                                 setBackfillStartDate(next);
-                                                const patch: UpsertBillingConnectorPayload =
-                                                    {
-                                                        backfill_start_date:
-                                                            next.trim() || null,
-                                                    };
-                                                if (
-                                                    !mepBreachStartDateTouchedRef.current
-                                                ) {
-                                                    setMepBreachStartDate(next);
-                                                    patch.mep_breach_start_date =
-                                                        next.trim() || null;
-                                                }
-                                                void persistCutoverOptions(
-                                                    patch
-                                                );
+                                                void persistCutoverOptions({
+                                                    backfill_start_date:
+                                                        next.trim() || null,
+                                                });
                                             }}
                                             disabled={
                                                 !canManage ||
@@ -1516,14 +1507,12 @@ const BillingIntegrationSettings = forwardRef<
                                     <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                         <TextField
                                             fullWidth
-                                            label="MEP breach start date"
+                                            label="MEP Breach Start Date"
                                             type="date"
                                             size="small"
                                             value={mepBreachStartDate}
                                             onChange={(e) => {
                                                 const next = e.target.value;
-                                                mepBreachStartDateTouchedRef.current =
-                                                    true;
                                                 setMepBreachStartDate(next);
                                                 void persistCutoverOptions({
                                                     mep_breach_start_date:
@@ -1543,7 +1532,7 @@ const BillingIntegrationSettings = forwardRef<
                                                         title={
                                                             config.backfill_options_locked
                                                                 ? "Locked after backfill started. Reset backfill to change the MEP breach start date."
-                                                                : "Optional. Invoices issued before this day are excluded from MEP breach evaluation. Leave blank to evaluate all history."
+                                                                : "Optional. Invoices issued before this day are excluded from MEP breach evaluation. Leave blank to evaluate all history. Commonly set to the backfill start date."
                                                         }
                                                         arrow
                                                         enterDelay={300}
@@ -1788,7 +1777,7 @@ const BillingIntegrationSettings = forwardRef<
                                     renderInput={(params) => (
                                         <TextField
                                             {...params}
-                                            label="Extension key"
+                                            label="Extension Key"
                                             variant="outlined"
                                             size="small"
                                             fullWidth
@@ -2014,11 +2003,11 @@ const BillingIntegrationSettings = forwardRef<
                                                     value="mapping"
                                                 />
                                                 <Tab
-                                                    label="Pull filter"
+                                                    label="Pull Filter"
                                                     value="pullFilter"
                                                 />
                                                 <Tab
-                                                    label="Preview sample records"
+                                                    label="Preview Sample Records"
                                                     value="preview"
                                                 />
                                             </Tabs>
@@ -2066,6 +2055,9 @@ const BillingIntegrationSettings = forwardRef<
                                                     onCompletenessChange={
                                                         handleMappingCompleteness
                                                     }
+                                                    onDirtyChange={
+                                                        handleEntityConfigDirtyChange
+                                                    }
                                                 />
                                             </Box>
                                             <Box
@@ -2088,6 +2080,9 @@ const BillingIntegrationSettings = forwardRef<
                                                     )}
                                                     config={config}
                                                     hideSaveButton
+                                                    onDirtyChange={
+                                                        handleEntityConfigDirtyChange
+                                                    }
                                                     onSaved={(saved) => {
                                                         queryClient.setQueryData(
                                                             [
@@ -2160,14 +2155,18 @@ const BillingIntegrationSettings = forwardRef<
                                             ? "A sync is already running. Cancel it or wait for it to finish."
                                             : !canManage
                                               ? "You do not have permission to run preview sync."
-                                              : ""
+                                              : previewUpToDate
+                                                ? "Preview already ran for the current mapping and pull filters. Change a mapping or pull filter to run it again."
+                                                : ""
                                     }
                                     arrow
                                     enterDelay={300}
                                     leaveDelay={100}
                                     placement="bottom"
                                     disableHoverListener={
-                                        !importBusy && canManage
+                                        !importBusy &&
+                                        canManage &&
+                                        !previewUpToDate
                                     }
                                 >
                                     <span>
@@ -2179,7 +2178,8 @@ const BillingIntegrationSettings = forwardRef<
                                             disabled={
                                                 !canManage ||
                                                 previewMutation.isPending ||
-                                                importBusy
+                                                importBusy ||
+                                                previewUpToDate
                                             }
                                         >
                                             {previewMutation.isPending
