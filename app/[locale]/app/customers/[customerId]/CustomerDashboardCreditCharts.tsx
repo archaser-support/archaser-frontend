@@ -115,17 +115,25 @@ export function CustomerDashboardCreditCharts({
 
     const donutTotal = useMemo(
         () =>
-            termsBreachReasonSlices.reduce((sum, slice) => sum + slice.count, 0),
+            termsBreachReasonSlices.reduce(
+                (sum, slice) => sum + Math.max(0, Number(slice.count) || 0),
+                0
+            ),
         [termsBreachReasonSlices]
     );
 
     const donutChart = useMemo(() => {
-        const labels = termsBreachReasonSlices.map((slice) =>
+        const activeSlices = termsBreachReasonSlices.filter(
+            (slice) => Math.max(0, Number(slice.count) || 0) > 0
+        );
+        const labels = activeSlices.map((slice) =>
             t(`credit_insurance_dashboard.${slice.labelKey}`, {
                 ns: "dashboard",
             })
         );
-        const values = termsBreachReasonSlices.map((slice) => slice.count);
+        const values = activeSlices.map((slice) =>
+            Math.max(0, Number(slice.count) || 0)
+        );
         const showEmptyRing = donutTotal === 0;
         const effectiveLabels = showEmptyRing ? [noBreachesLabel] : labels;
         const effectiveValues = showEmptyRing ? [1] : values;
@@ -169,8 +177,25 @@ export function CustomerDashboardCreditCharts({
                 },
             },
             dataLabels: { enabled: donutTotal > 0 },
-            legend: { show: donutTotal > 0, position: "bottom" },
-            tooltip: { enabled: donutTotal > 0 },
+            legend: {
+                show: donutTotal > 0,
+                position: "bottom",
+                formatter: (legendName: string, opts) => {
+                    const value =
+                        opts?.w?.globals?.series?.[opts.seriesIndex] ?? 0;
+                    return `${legendName}: ${value}`;
+                },
+            },
+            tooltip: {
+                enabled: donutTotal > 0,
+                y: {
+                    formatter: (val: number) =>
+                        t(
+                            "credit_insurance_dashboard.terms_breach_chart_tooltip_y",
+                            { ns: "dashboard", count: val }
+                        ),
+                },
+            },
         };
 
         return { series: effectiveValues, options };

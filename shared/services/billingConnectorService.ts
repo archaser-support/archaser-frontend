@@ -63,6 +63,11 @@ export interface BillingConnectorConfig {
     /** YYYY-MM-DD, or null for full-history backfill. */
     backfill_start_date?: string | null;
     /**
+     * YYYY-MM-DD, or null for no gate. Invoices issued before this UTC calendar
+     * day are out of scope for MEP breach evaluation.
+     */
+    mep_breach_start_date?: string | null;
+    /**
      * When start date is set: also pull unpaid pre-date invoices + related payments.
      * Default true.
      */
@@ -142,6 +147,12 @@ export interface SyncRunSummary {
             sample_errors?: string[];
             /** Present for `_maturity` while linking / after it finishes. */
             status?: "running" | "done" | "failed";
+            /** Present for tail steps while running: the sub-step in flight. */
+            detail?: {
+                step: string;
+                processed?: number;
+                total?: number;
+            };
         }
     >;
     error_message: string | null;
@@ -149,6 +160,7 @@ export interface SyncRunSummary {
     /** Present on backfill runs — start date / older-open / skip-breach. */
     cutover_options?: {
         backfill_start_date: string | null;
+        mep_breach_start_date?: string | null;
         include_older_open_invoices: boolean;
         skip_reporting_breach_on_backfill: boolean;
     } | null;
@@ -174,6 +186,8 @@ export interface UpsertBillingConnectorPayload {
     enabled_entities?: ImportType[];
     /** YYYY-MM-DD, null/"" to clear. */
     backfill_start_date?: string | null;
+    /** YYYY-MM-DD, null/"" to clear. */
+    mep_breach_start_date?: string | null;
     include_older_open_invoices?: boolean;
     skip_reporting_breach_on_backfill?: boolean;
     /** Null/"" clears the extension attachment. */

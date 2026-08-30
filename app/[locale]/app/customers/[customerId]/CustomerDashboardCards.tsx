@@ -91,7 +91,7 @@ function mapBreachDistributionToSlices(
         key,
         labelKey,
         count: Number(distribution[key] ?? 0),
-    })).filter((slice) => slice.count > 0);
+    }));
 }
 
 function formatHealthIndexPercent(value: number, locale: string): string {
@@ -378,6 +378,8 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                       activePolicyCount: kpiQuery.data.cards.activePolicyCount,
                       termsBreachOutstanding:
                           kpiQuery.data.cards.termsBreachOutstanding,
+                      termsBreachInvoiceCount:
+                          kpiQuery.data.cards.termsBreachInvoiceCount ?? 0,
                       capacityGapAmount: kpiQuery.data.cards.capacityGapAmount,
                       uninsuredAmount: kpiQuery.data.cards.uninsuredAmount,
                       accountCurrency: kpiQuery.data.cards.accountCurrency,
@@ -413,30 +415,29 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
     const termsBreachReasonSlices = useMemo(() => {
         const dist = kpiQuery.data?.termsBreachReasonDistribution;
         const isExcluded = kpiQuery.data?.cards?.isExcludedFromPolicy === true;
-        const excludedSlice = {
-            key: "excludedFromPolicy",
-            labelKey: "breach_type_customer_excluded_from_policy",
-            count: 1,
+        const emptyDist: TermsBreachCountByReason & { other: number } = {
+            reportingBreach: 0,
+            paymentTerm: 0,
+            customerOverdueMep: 0,
+            outdatedDcl: 0,
+            invoiceAfterPolicyEnd: 0,
+            other: 0,
         };
-
-        if (!dist) {
-            return isExcluded ? [excludedSlice] : [];
-        }
-
+        const baseDist = dist ?? emptyDist;
         const slices = mapBreachDistributionToSlices(
             isExcluded
                 ? {
-                      ...dist,
-                      other: Math.max(1, Number(dist.other ?? 0)),
+                      ...baseDist,
+                      other: Math.max(1, Number(baseDist.other ?? 0)),
                   }
-                : dist
+                : baseDist
         );
 
         if (!isExcluded) {
             return slices;
         }
 
-        const remapped = slices.map((slice) =>
+        return slices.map((slice) =>
             slice.key === "other"
                 ? {
                       ...slice,
@@ -445,7 +446,6 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                   }
                 : slice
         );
-        return remapped.length > 0 ? remapped : [excludedSlice];
     }, [
         kpiQuery.data?.cards?.isExcludedFromPolicy,
         kpiQuery.data?.termsBreachReasonDistribution,
@@ -866,15 +866,7 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                         <>
                             <CustomerDashboardCreditCharts
                                 riskExposureByPolicy={vm.riskExposureByPolicy}
-                                termsBreachReasonSlices={
-                                    termsBreachReasonSlices.length > 0
-                                        ? termsBreachReasonSlices
-                                        : BREACH_SLICE_ORDER.map(({ key, labelKey }) => ({
-                                            key,
-                                            labelKey,
-                                            count: 0,
-                                        }))
-                                }
+                                termsBreachReasonSlices={termsBreachReasonSlices}
                                 formatAmount={(amount) => formatAmount(amount)}
                                 zeroLineSubtitle={creditInsuranceLabels.zeroLineSubtitle}
                                 noBreachesLabel={creditInsuranceLabels.noBreaches}

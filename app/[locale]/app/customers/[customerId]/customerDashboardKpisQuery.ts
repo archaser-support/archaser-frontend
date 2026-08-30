@@ -8,6 +8,7 @@ export function customerDashboardKpisQueryKey(
 ) {
     return [
         "customer-dashboard-kpis",
+        "v2-terms-breach-invoice-count",
         customerId,
         accountId,
         policyId ?? "all",

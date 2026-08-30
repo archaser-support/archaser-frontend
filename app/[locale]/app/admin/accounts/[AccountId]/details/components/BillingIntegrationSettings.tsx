@@ -238,6 +238,7 @@ const BillingIntegrationSettings = forwardRef<
         "mapping" | "pullFilter" | "preview"
     >("mapping");
     const [backfillStartDate, setBackfillStartDate] = useState("");
+    const [mepBreachStartDate, setMepBreachStartDate] = useState("");
     const [skipReportingBreachOnBackfill, setSkipReportingBreachOnBackfill] =
         useState(false);
     const [includeOlderOpenInvoices, setIncludeOlderOpenInvoices] =
@@ -254,6 +255,8 @@ const BillingIntegrationSettings = forwardRef<
     /** Clears progress counters immediately on Start, before the new run polls in. */
     const [pendingBackfillReset, setPendingBackfillReset] = useState(false);
     const cutoverDirtyRef = useRef(false);
+    /** True once the user edits the MEP date, so the backfill date stops seeding it. */
+    const mepBreachStartDateTouchedRef = useRef(false);
     const mapperRefs = useRef<
         Partial<Record<ImportType, ConnectorFieldMapperHandle | null>>
     >({});
@@ -272,6 +275,7 @@ const BillingIntegrationSettings = forwardRef<
         setHistoryExpanded(false);
         setMappingEntityTab(null);
         entityTabFocusPendingRef.current = true;
+        mepBreachStartDateTouchedRef.current = false;
     }, [accountId]);
 
     useEffect(() => {
@@ -291,7 +295,19 @@ const BillingIntegrationSettings = forwardRef<
             normalizeConnectorEnabledEntities(config.enabled_entities)
         );
         if (!cutoverDirtyRef.current) {
-            setBackfillStartDate(toDateInputValue(config.backfill_start_date));
+            const nextBackfillStartDate = toDateInputValue(
+                config.backfill_start_date
+            );
+            setBackfillStartDate(nextBackfillStartDate);
+            const storedMepBreachStartDate = toDateInputValue(
+                config.mep_breach_start_date
+            );
+            if (storedMepBreachStartDate) {
+                mepBreachStartDateTouchedRef.current = true;
+                setMepBreachStartDate(storedMepBreachStartDate);
+            } else if (!mepBreachStartDateTouchedRef.current) {
+                setMepBreachStartDate(nextBackfillStartDate);
+            }
             setIncludeOlderOpenInvoices(
                 config.include_older_open_invoices ?? true
             );
@@ -349,6 +365,7 @@ const BillingIntegrationSettings = forwardRef<
                 sync_enabled: syncEnabled,
                 enabled_entities: enabledEntities,
                 backfill_start_date: backfillStartDate.trim() || null,
+                mep_breach_start_date: mepBreachStartDate.trim() || null,
                 include_older_open_invoices: includeOlderOpenInvoices,
                 skip_reporting_breach_on_backfill: skipReportingBreachOnBackfill,
                 extension_key: extensionKey.trim() || null,
@@ -1039,13 +1056,9 @@ const BillingIntegrationSettings = forwardRef<
                     </AccordionSummary>
                     <AccordionDetails sx={billingAccordionDetailsSx}>
                 <CardContent sx={billingAccordionContentSx}>
-                    <Grid container spacing={2}>
-                        <Grid size={{ xs: 12, md: 6 }}>
-                            <FormControl
-                                fullWidth
-                                sx={{ mb: 2 }}
-                                disabled={!canManage}
-                            >
+                    <Grid container spacing={2} alignItems="flex-start">
+                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                            <FormControl fullWidth disabled={!canManage}>
                                 <InputLabel id="billing-provider-label">
                                     Provider
                                 </InputLabel>
@@ -1067,7 +1080,9 @@ const BillingIntegrationSettings = forwardRef<
                                     </MenuItem>
                                 </Select>
                             </FormControl>
+                        </Grid>
 
+                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                             <TextField
                                 fullWidth
                                 label="Base URL"
@@ -1078,12 +1093,8 @@ const BillingIntegrationSettings = forwardRef<
                             />
                         </Grid>
 
-                        <Grid size={{ xs: 12, md: 6 }}>
-                            <FormControl
-                                fullWidth
-                                sx={{ mb: 2 }}
-                                disabled={!canManage}
-                            >
+                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                            <FormControl fullWidth disabled={!canManage}>
                                 <InputLabel id="billing-auth-type-label">
                                     Authentication
                                 </InputLabel>
@@ -1104,8 +1115,10 @@ const BillingIntegrationSettings = forwardRef<
                                     ))}
                                 </Select>
                             </FormControl>
+                        </Grid>
 
-                            {authType === "API_KEY" && (
+                        {authType === "API_KEY" && (
+                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                 <TextField
                                     fullWidth
                                     type="password"
@@ -1119,16 +1132,12 @@ const BillingIntegrationSettings = forwardRef<
                                             : "REST access token"
                                     }
                                 />
-                            )}
+                            </Grid>
+                        )}
 
-                            {authType === "BASIC" && (
-                                <Box
-                                    sx={{
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        gap: 2,
-                                    }}
-                                >
+                        {authType === "BASIC" && (
+                            <>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                     <TextField
                                         fullWidth
                                         label="Username"
@@ -1138,6 +1147,8 @@ const BillingIntegrationSettings = forwardRef<
                                         }
                                         disabled={!canManage}
                                     />
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                     <TextField
                                         fullWidth
                                         type="password"
@@ -1153,17 +1164,13 @@ const BillingIntegrationSettings = forwardRef<
                                                 : ""
                                         }
                                     />
-                                </Box>
-                            )}
+                                </Grid>
+                            </>
+                        )}
 
-                            {authType === "OAUTH2_CLIENT_CREDENTIALS" && (
-                                <Box
-                                    sx={{
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        gap: 2,
-                                    }}
-                                >
+                        {authType === "OAUTH2_CLIENT_CREDENTIALS" && (
+                            <>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                     <TextField
                                         fullWidth
                                         label="Client ID"
@@ -1173,6 +1180,8 @@ const BillingIntegrationSettings = forwardRef<
                                         }
                                         disabled={!canManage}
                                     />
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                     <TextField
                                         fullWidth
                                         type="password"
@@ -1183,6 +1192,8 @@ const BillingIntegrationSettings = forwardRef<
                                         }
                                         disabled={!canManage}
                                     />
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                     <TextField
                                         fullWidth
                                         label="Token endpoint"
@@ -1192,9 +1203,9 @@ const BillingIntegrationSettings = forwardRef<
                                         }
                                         disabled={!canManage}
                                     />
-                                </Box>
-                            )}
-                        </Grid>
+                                </Grid>
+                            </>
+                        )}
 
                         <Grid size={{ xs: 12 }}>
                             {config?.has_credentials && (
@@ -1443,10 +1454,21 @@ const BillingIntegrationSettings = forwardRef<
                                             onChange={(e) => {
                                                 const next = e.target.value;
                                                 setBackfillStartDate(next);
-                                                void persistCutoverOptions({
-                                                    backfill_start_date:
-                                                        next.trim() || null,
-                                                });
+                                                const patch: UpsertBillingConnectorPayload =
+                                                    {
+                                                        backfill_start_date:
+                                                            next.trim() || null,
+                                                    };
+                                                if (
+                                                    !mepBreachStartDateTouchedRef.current
+                                                ) {
+                                                    setMepBreachStartDate(next);
+                                                    patch.mep_breach_start_date =
+                                                        next.trim() || null;
+                                                }
+                                                void persistCutoverOptions(
+                                                    patch
+                                                );
                                             }}
                                             disabled={
                                                 !canManage ||
@@ -1462,6 +1484,66 @@ const BillingIntegrationSettings = forwardRef<
                                                             config.backfill_options_locked
                                                                 ? "Locked after backfill started. Reset backfill to change the start date."
                                                                 : "Optional. Invoices and payments created on/after this account-local day. Leave blank for full history. Customers and contacts always pull full history."
+                                                        }
+                                                        arrow
+                                                        enterDelay={300}
+                                                        leaveDelay={100}
+                                                        placement="bottom"
+                                                        PopperProps={{
+                                                            sx: {
+                                                                "& .MuiTooltip-tooltip":
+                                                                    {
+                                                                        direction:
+                                                                            isHebrew
+                                                                                ? "rtl"
+                                                                                : "ltr",
+                                                                    },
+                                                            },
+                                                        }}
+                                                    >
+                                                        <InfoIcon
+                                                            fontSize="small"
+                                                            color="action"
+                                                            sx={{
+                                                                cursor: "help",
+                                                            }}
+                                                        />
+                                                    </Tooltip>
+                                                ),
+                                            }}
+                                        />
+                                    </Grid>
+                                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                        <TextField
+                                            fullWidth
+                                            label="MEP breach start date"
+                                            type="date"
+                                            size="small"
+                                            value={mepBreachStartDate}
+                                            onChange={(e) => {
+                                                const next = e.target.value;
+                                                mepBreachStartDateTouchedRef.current =
+                                                    true;
+                                                setMepBreachStartDate(next);
+                                                void persistCutoverOptions({
+                                                    mep_breach_start_date:
+                                                        next.trim() || null,
+                                                });
+                                            }}
+                                            disabled={
+                                                !canManage ||
+                                                Boolean(
+                                                    config.backfill_options_locked
+                                                )
+                                            }
+                                            InputLabelProps={{ shrink: true }}
+                                            InputProps={{
+                                                endAdornment: (
+                                                    <Tooltip
+                                                        title={
+                                                            config.backfill_options_locked
+                                                                ? "Locked after backfill started. Reset backfill to change the MEP breach start date."
+                                                                : "Optional. Invoices issued before this day are excluded from MEP breach evaluation. Leave blank to evaluate all history."
                                                         }
                                                         arrow
                                                         enterDelay={300}
