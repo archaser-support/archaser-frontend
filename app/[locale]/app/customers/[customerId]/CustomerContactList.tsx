@@ -877,6 +877,15 @@ const CustomerContactList: React.FC<CustomerProp> = ({ customer }) => {
         [customerId]
     );
 
+    const actionsColumnConfig = useMemo(
+        () => ({
+            headerName: t("actions.actions", { ns: "common" }),
+            flex: 0.6,
+            minWidth: 100,
+        }),
+        [t]
+    );
+
     // Check if user has permission to view contacts
     if (!hasViewContactsPermission) {
         return null; // Don't render the contact list if user doesn't have view permission
@@ -940,11 +949,7 @@ const CustomerContactList: React.FC<CustomerProp> = ({ customer }) => {
                     additionalFilters={additionalFilters}
                     customCellRenderers={customCellRenderers}
                     actionsColumn={actionsColumnRenderer}
-                    actionsColumnConfig={{
-                        headerName: t("actions.actions", { ns: "common" }),
-                        flex: 0.6,
-                        minWidth: 100,
-                    }}
+                    actionsColumnConfig={actionsColumnConfig}
                     fillViewport={false}
                     visibleRows={5}
                     onViewChange={(viewId) => {
