@@ -144,6 +144,31 @@ const WEEKDAY_OPTIONS: { value: number; label: string }[] = [
     { value: 6, label: "Saturday" },
 ];
 
+const DEFAULT_PAID_TOLERANCE = 0.2;
+const PAID_TOLERANCE_MIN = 0;
+const PAID_TOLERANCE_MAX = 10;
+
+function formatPaidTolerance(value: number | undefined | null): string {
+    const n = Number(value);
+    return (Number.isFinite(n) ? n : DEFAULT_PAID_TOLERANCE).toFixed(2);
+}
+
+function parsePaidToleranceInput(raw: string): number | null {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+        return null;
+    }
+    const n = Number(trimmed);
+    if (!Number.isFinite(n)) {
+        return null;
+    }
+    const rounded = Math.round(n * 100) / 100;
+    if (rounded < PAID_TOLERANCE_MIN || rounded > PAID_TOLERANCE_MAX) {
+        return null;
+    }
+    return rounded;
+}
+
 const NONE_EXTENSION_OPTION = {
     key: "",
     label: "None (standard account)",
@@ -243,6 +268,12 @@ const BillingIntegrationSettings = forwardRef<
         useState(false);
     const [includeOlderOpenInvoices, setIncludeOlderOpenInvoices] =
         useState(true);
+    const [invoicePaidTolerance, setInvoicePaidTolerance] = useState(
+        formatPaidTolerance(DEFAULT_PAID_TOLERANCE)
+    );
+    const [invoicePaidToleranceError, setInvoicePaidToleranceError] = useState<
+        string | null
+    >(null);
     const [extensionKey, setExtensionKey] = useState("");
     const [extensionConfig, setExtensionConfig] = useState<
         Record<string, unknown>
@@ -315,6 +346,10 @@ const BillingIntegrationSettings = forwardRef<
                 Boolean(config.skip_reporting_breach_on_backfill)
             );
         }
+        setInvoicePaidTolerance(
+            formatPaidTolerance(config.invoice_paid_tolerance)
+        );
+        setInvoicePaidToleranceError(null);
         setExtensionKey(config.extension_key?.trim() ?? "");
         setExtensionConfig(
             config.extension_config &&
@@ -368,6 +403,9 @@ const BillingIntegrationSettings = forwardRef<
                 mep_breach_start_date: mepBreachStartDate.trim() || null,
                 include_older_open_invoices: includeOlderOpenInvoices,
                 skip_reporting_breach_on_backfill: skipReportingBreachOnBackfill,
+                invoice_paid_tolerance:
+                    parsePaidToleranceInput(invoicePaidTolerance) ??
+                    DEFAULT_PAID_TOLERANCE,
                 extension_key: extensionKey.trim() || null,
                 extension_config: extensionKey.trim()
                     ? extensionConfig
@@ -411,6 +449,12 @@ const BillingIntegrationSettings = forwardRef<
     saveBillingSettingsRef.current = async () => {
         if (!canManage) {
             return;
+        }
+        const paidTolerance = parsePaidToleranceInput(invoicePaidTolerance);
+        if (paidTolerance == null) {
+            throw new Error(
+                "Paid leftover tolerance must be a number from 0 to 10."
+            );
         }
         const pullFiltersLocked = Boolean(config?.backfill_options_locked);
         const pull_filters: PullFiltersMap = {};
@@ -544,6 +588,29 @@ const BillingIntegrationSettings = forwardRef<
             }
         },
         [accountId, queryClient, showError, success]
+    );
+
+    const persistPaidTolerance = useCallback(
+        async (value: number) => {
+            if (!canManage) {
+                return;
+            }
+            try {
+                const saved = await saveBillingConnectorConfig(accountId, {
+                    invoice_paid_tolerance: value,
+                });
+                queryClient.setQueryData(
+                    ["billing-connector", accountId],
+                    saved
+                );
+            } catch (err: unknown) {
+                showError(
+                    axiosErrorMessage(err) ??
+                        "Failed to save paid leftover tolerance"
+                );
+            }
+        },
+        [accountId, canManage, queryClient, showError]
     );
 
     const persistCutoverOptions = useCallback(
@@ -1440,6 +1507,75 @@ const BillingIntegrationSettings = forwardRef<
                                 ) : null}
                             </Grid>
                         )}
+
+                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                            <TextField
+                                fullWidth
+                                required
+                                label="Paid leftover tolerance"
+                                type="number"
+                                size="small"
+                                value={invoicePaidTolerance}
+                                onChange={(e) => {
+                                    setInvoicePaidTolerance(e.target.value);
+                                    setInvoicePaidToleranceError(null);
+                                }}
+                                onBlur={() => {
+                                    const parsed = parsePaidToleranceInput(
+                                        invoicePaidTolerance
+                                    );
+                                    if (parsed == null) {
+                                        setInvoicePaidToleranceError(
+                                            "Enter a number from 0 to 10 (two decimals). 0 means leftover must be exactly 0."
+                                        );
+                                        return;
+                                    }
+                                    setInvoicePaidTolerance(
+                                        formatPaidTolerance(parsed)
+                                    );
+                                    setInvoicePaidToleranceError(null);
+                                    if (config) {
+                                        void persistPaidTolerance(parsed);
+                                    }
+                                }}
+                                disabled={!canManage}
+                                error={Boolean(invoicePaidToleranceError)}
+                                helperText={invoicePaidToleranceError ?? undefined}
+                                inputProps={{
+                                    min: PAID_TOLERANCE_MIN,
+                                    max: PAID_TOLERANCE_MAX,
+                                    step: 0.01,
+                                }}
+                                InputProps={{
+                                    endAdornment: (
+                                        <Tooltip
+                                            title="Leftover in each invoice's customer currency. Paid when leftover is within +/- this amount. 0 means leftover must be exactly 0. Saving does not restamp invoices until the next connector sync or nightly leftover job."
+                                            arrow
+                                            enterDelay={300}
+                                            leaveDelay={100}
+                                            placement="bottom"
+                                            PopperProps={{
+                                                sx: {
+                                                    "& .MuiTooltip-tooltip": {
+                                                        direction: isHebrew
+                                                            ? "rtl"
+                                                            : "ltr",
+                                                    },
+                                                },
+                                            }}
+                                        >
+                                            <InfoIcon
+                                                fontSize="small"
+                                                color="action"
+                                                sx={{
+                                                    cursor: "help",
+                                                }}
+                                            />
+                                        </Tooltip>
+                                    ),
+                                }}
+                            />
+                        </Grid>
 
                         {config?.has_credentials &&
                             allEnabledMappingsComplete && (
