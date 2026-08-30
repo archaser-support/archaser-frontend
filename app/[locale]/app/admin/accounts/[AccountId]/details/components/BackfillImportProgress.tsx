@@ -29,6 +29,7 @@ import {
     estimateRemainingSeconds,
     formatEstimatedRemaining,
     BACKFILL_LINK_PAYMENTS_LABEL,
+    BACKFILL_TAIL_STEPS,
     type EntityProgressPhase,
     type EntityProgressRow,
     type ProgressRateSample,
@@ -81,7 +82,14 @@ function phaseLabel(phase: EntityProgressPhase): string {
 function formatCounts(row: EntityProgressRow, finished: boolean): string {
     const isLinkPayments =
         row.entity_type === BACKFILL_LINK_PAYMENTS_LABEL;
-    const unit = isLinkPayments ? "linked" : "imported";
+    const isTailStep = BACKFILL_TAIL_STEPS.some(
+        (step) => step.label === row.entity_type
+    );
+    const unit = isLinkPayments
+        ? "linked"
+        : isTailStep
+          ? "processed"
+          : "imported";
 
     if (
         !finished &&
@@ -451,6 +459,19 @@ export default function BackfillImportProgress({
                                                               : "primary"
                                                     }
                                                 />
+                                            ) : null}
+                                            {row.detail &&
+                                            row.phase === "running" ? (
+                                                <Typography
+                                                    variant="caption"
+                                                    color="text.secondary"
+                                                    sx={{
+                                                        display: "block",
+                                                        mt: 0.5,
+                                                    }}
+                                                >
+                                                    {row.detail}
+                                                </Typography>
                                             ) : null}
                                             {row.last_error ? (
                                                 <Typography

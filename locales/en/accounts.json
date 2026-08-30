@@ -218,6 +218,11 @@
         "subdomain_numbers_only": "Subdomain cannot be only numbers",
         "subdomain_reserved_word": "This subdomain is reserved and cannot be used"
     },
+    "billing_connector": {
+        "mep_breach_start_date_label": "MEP breach start date",
+        "mep_breach_start_date_helper": "Optional. Invoices issued before this day are excluded from MEP breach evaluation. Leave blank to evaluate all history.",
+        "mep_breach_start_date_locked": "Locked after backfill started. Reset backfill to change the MEP breach start date."
+    },
     "as_of_backfill": {
         "open_button": "As-of history backfill",
         "title": "As-of history backfill",

@@ -19,7 +19,36 @@ export const MATURITY_ENTITY_STATS_KEY = "_maturity";
 /** Progress-panel label for deferred payment → invoice linking. */
 export const BACKFILL_LINK_PAYMENTS_LABEL = "Link payments";
 
-export type BackfillProgressRowKey = ImportType | typeof BACKFILL_LINK_PAYMENTS_LABEL;
+/**
+ * Tail steps after entity ingest. They run while the sync is still RUNNING, so
+ * without their own rows the panel froze on the last entity and gave no reason
+ * for the disabled action buttons.
+ */
+export const POST_INGEST_ENTITY_STATS_KEY = "_post_ingest";
+export const PENDING_CLOSES_ENTITY_STATS_KEY = "_pending_closes";
+export const BALANCES_ENTITY_STATS_KEY = "_balances";
+
+export const BACKFILL_POST_INGEST_LABEL = "Refresh AR & insurance";
+export const BACKFILL_PENDING_CLOSES_LABEL = "Settle closed invoices";
+export const BACKFILL_BALANCES_LABEL = "Recalculate balances";
+
+/** Rendered in run order, after the entity rows. */
+export const BACKFILL_TAIL_STEPS = [
+    {
+        key: PENDING_CLOSES_ENTITY_STATS_KEY,
+        label: BACKFILL_PENDING_CLOSES_LABEL,
+    },
+    { key: POST_INGEST_ENTITY_STATS_KEY, label: BACKFILL_POST_INGEST_LABEL },
+    { key: BALANCES_ENTITY_STATS_KEY, label: BACKFILL_BALANCES_LABEL },
+] as const;
+
+export type BackfillTailStepLabel =
+    (typeof BACKFILL_TAIL_STEPS)[number]["label"];
+
+export type BackfillProgressRowKey =
+    | ImportType
+    | typeof BACKFILL_LINK_PAYMENTS_LABEL
+    | BackfillTailStepLabel;
 
 export type EntityProgressPhase =
     | "waiting"
@@ -39,6 +68,8 @@ export interface EntityProgressRow {
     success?: number;
     failed?: number;
     skipped?: number;
+    /** Sub-line for tail steps, e.g. "Replaying AR history · 1,240 / 2,027 events". */
+    detail?: string;
 }
 
 export interface BackfillProgressSession {
@@ -403,6 +434,124 @@ function buildLinkPaymentsFinishedRow(params: {
     };
 }
 
+/**
+ * A tail step can spend minutes inside one customer, so the coarse
+ * customers-done count barely moves. The sub-step tells the user what is
+ * actually happening, with its own counter when the step can report one.
+ */
+const TAIL_STEP_DETAIL_LABELS: Record<string, { label: string; unit: string }> =
+    {
+        replay: { label: "Replaying AR history", unit: "events" },
+        maturity: { label: "Applying matured payments", unit: "payments" },
+        process_overdue: { label: "Recomputing overdue", unit: "customers" },
+        live_refresh: { label: "Refreshing insurance fields", unit: "customers" },
+        as_of_rewrite: { label: "Queueing as-of rewrite", unit: "customers" },
+    };
+
+function formatTailStepDetail(
+    detail: EntityStatSlice["detail"]
+): string | undefined {
+    if (!detail) {
+        return undefined;
+    }
+    const known = TAIL_STEP_DETAIL_LABELS[detail.step];
+    const label = known?.label ?? detail.step;
+    if (detail.total == null || detail.total <= 0) {
+        return label;
+    }
+    const processed = detail.processed ?? 0;
+    return `${label} · ${processed.toLocaleString()} / ${detail.total.toLocaleString()} ${known?.unit ?? "items"}`;
+}
+
+/**
+ * Tail steps report an explicit status, so the row maps straight off it. A
+ * missing slice means the step has not started (or had nothing to do).
+ */
+function buildTailStepRow(params: {
+    label: BackfillTailStepLabel;
+    slice: EntityStatSlice | undefined;
+    runFinished: boolean;
+}): EntityProgressRow {
+    const slice = params.slice;
+    if (!slice?.status) {
+        return {
+            entity_type: params.label,
+            phase: params.runFinished ? "not_started" : "waiting",
+            records_pulled: 0,
+            total_records: null,
+            progress_percent: null,
+            last_error: null,
+        };
+    }
+
+    const processed = slice.success ?? 0;
+    const total = slice.pulled && slice.pulled > 0 ? slice.pulled : null;
+    const error = slice.sample_errors?.[0]?.trim() || null;
+
+    if (slice.status === "failed") {
+        return {
+            entity_type: params.label,
+            phase: "failed",
+            records_pulled: processed,
+            total_records: total,
+            progress_percent: null,
+            last_error: error ?? `${params.label} failed`,
+            success: processed,
+            failed: slice.failed ?? 1,
+            skipped: 0,
+        };
+    }
+
+    if (slice.status === "done") {
+        return {
+            entity_type: params.label,
+            phase: "done",
+            records_pulled: processed,
+            total_records: total,
+            progress_percent: 100,
+            last_error: null,
+            success: processed,
+            failed: 0,
+            skipped: 0,
+        };
+    }
+
+    return {
+        entity_type: params.label,
+        phase: "running",
+        records_pulled: processed,
+        total_records: total,
+        progress_percent: total != null ? clampPercent(processed, total) : null,
+        last_error: null,
+        success: processed,
+        failed: 0,
+        skipped: 0,
+        ...(formatTailStepDetail(slice.detail)
+            ? { detail: formatTailStepDetail(slice.detail) }
+            : {}),
+    };
+}
+
+function appendTailStepRows(params: {
+    rows: EntityProgressRow[];
+    stats: SyncRunSummary["entity_stats"] | undefined;
+    runFinished: boolean;
+}): EntityProgressRow[] {
+    const stats = params.stats ?? {};
+    const tailRows = BACKFILL_TAIL_STEPS.filter(
+        // Only surface a step once it has reported, so runs that never reach it
+        // (collection-only accounts, cancelled runs) do not show dead rows.
+        (step) => stats[step.key]?.status != null
+    ).map((step) =>
+        buildTailStepRow({
+            label: step.label,
+            slice: stats[step.key],
+            runFinished: params.runFinished,
+        })
+    );
+    return tailRows.length > 0 ? [...params.rows, ...tailRows] : params.rows;
+}
+
 function insertLinkPaymentsRow(
     rows: EntityProgressRow[],
     linkRow: EntityProgressRow
@@ -722,18 +871,22 @@ export function buildRunningEntityProgressRows(params: {
         };
     });
 
-    if (!showLinkRow) {
-        return entityRows;
-    }
+    const withLinkRow = showLinkRow
+        ? insertLinkPaymentsRow(
+              entityRows,
+              buildLinkPaymentsRunningRow({
+                  maturity,
+                  invoiceDone,
+                  runHasProgress,
+              })
+          )
+        : entityRows;
 
-    return insertLinkPaymentsRow(
-        entityRows,
-        buildLinkPaymentsRunningRow({
-            maturity,
-            invoiceDone,
-            runHasProgress,
-        })
-    );
+    return appendTailStepRows({
+        rows: withLinkRow,
+        stats,
+        runFinished: false,
+    });
 }
 
 /**
@@ -799,22 +952,26 @@ export function buildFinishedEntityProgressRows(params: {
         };
     });
 
-    if (!shouldShowLinkPaymentsRow(params.enabledEntities)) {
-        return entityRows;
-    }
-
     const invoiceRow = entityRows.find((row) => row.entity_type === "Invoice");
     const invoiceCompletedInRun =
         invoiceRow?.phase === "done" ||
         Boolean(byType.get("Invoice")?.backfill_completed);
 
-    return insertLinkPaymentsRow(
-        entityRows,
-        buildLinkPaymentsFinishedRow({
-            maturity: readMaturityStats(stats),
-            invoiceCompletedInRun,
-        })
-    );
+    const withLinkRow = shouldShowLinkPaymentsRow(params.enabledEntities)
+        ? insertLinkPaymentsRow(
+              entityRows,
+              buildLinkPaymentsFinishedRow({
+                  maturity: readMaturityStats(stats),
+                  invoiceCompletedInRun,
+              })
+          )
+        : entityRows;
+
+    return appendTailStepRows({
+        rows: withLinkRow,
+        stats,
+        runFinished: true,
+    });
 }
 
 export function buildBackfillProgressHeader(params: {
@@ -834,6 +991,16 @@ export function buildBackfillProgressHeader(params: {
                 title: "Backfill progress",
                 subtitle:
                     "Linking payments to invoices… · Actions are disabled until this finishes",
+                severity: "info",
+            };
+        }
+        const tailStep = BACKFILL_TAIL_STEPS.find(
+            (step) => step.label === runningRow?.entity_type
+        );
+        if (tailStep) {
+            return {
+                title: "Backfill progress",
+                subtitle: `${tailStep.label}… · Actions are disabled until this finishes`,
                 severity: "info",
             };
         }
