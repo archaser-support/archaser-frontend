@@ -38,7 +38,7 @@ import api, { apiFetch } from "@/app/api";
 import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import FollowUpReminder from "@/app/[locale]/app/agents/components/FollowUpReminder";
@@ -57,6 +57,8 @@ import {
     isAppRouteAccessible,
     normalizeAppPathname,
 } from "@/shared/utils/navigation";
+import { resolveAppHomePath } from "@/shared/utils/resolveAppHomePath";
+import { LOGIN_HANDOFF_STORAGE_KEY } from "@/shared/utils/sessionLanguageKeys";
 import { getLocalizedPath } from "@/utils/navigationUtils";
 import AppUrls from "@/utils/appUrls";
 
@@ -2007,6 +2009,54 @@ const AppLayout = ({ children }: any) => {
             effectiveUser.account_id ?? 0,
             effectiveAccountProducts
         );
+
+    // After login we may briefly land on the account default page. If the user
+    // cannot open it, send them to their first accessible page instead of Access Denied.
+    const postLoginAccessRedirectRef = useRef(false);
+    useEffect(() => {
+        if (postLoginAccessRedirectRef.current) {
+            return;
+        }
+        if (!isRouteAccessResolved || isCurrentRouteAccessible) {
+            return;
+        }
+        let loginHandoff = false;
+        try {
+            loginHandoff =
+                sessionStorage.getItem(LOGIN_HANDOFF_STORAGE_KEY) === "true";
+        } catch {
+            loginHandoff = false;
+        }
+        if (!loginHandoff) {
+            return;
+        }
+
+        const homePath = resolveAppHomePath({
+            accountId: effectiveUser.account_id,
+            permissions: userPermissions ?? [],
+            accountProducts: effectiveAccountProducts,
+        });
+        if (
+            !homePath ||
+            homePath === pathWithoutLocale ||
+            pathWithoutLocale.startsWith(`${homePath}/`)
+        ) {
+            return;
+        }
+
+        postLoginAccessRedirectRef.current = true;
+        const locale = (params?.locale as string) || "en";
+        router.replace(`/${locale}${homePath}`);
+    }, [
+        isRouteAccessResolved,
+        isCurrentRouteAccessible,
+        effectiveUser.account_id,
+        userPermissions,
+        effectiveAccountProducts,
+        pathWithoutLocale,
+        params?.locale,
+        router,
+    ]);
 
     const shouldBlockLayoutRender =
         status === "authenticated" &&

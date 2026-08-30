@@ -1,6 +1,4 @@
 "use client";
-import { apiFetch } from "@/utils/apiFetch";
-
 import {
     ArrowForward,
     Google,
@@ -28,7 +26,7 @@ import {
     useMediaQuery,
     useTheme,
 } from "@mui/material";
-import { getSession, signIn } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import React, {
@@ -44,14 +42,14 @@ import i18nConfig from "@/i18nConfig";
 import { createLogRecord } from "@/shared/utility/LogCreator";
 import {
     getDefaultLandingPage,
-    getFirstAccessiblePage,
     isArchaserAdminAccount,
 } from "@/shared/utils/navigation";
+import { resolveAppHomePath } from "@/shared/utils/resolveAppHomePath";
 import {
     LOGIN_HANDOFF_STORAGE_KEY,
     PENDING_LOGIN_REDIRECT_KEY,
 } from "@/shared/utils/sessionLanguageKeys";
-import AppUrls from "@/utils/appUrls";
+import { apiFetch } from "@/utils/apiFetch";
 import { getTenantSubdomain } from "@/utils/domainUtils";
 import {
     clearNestAccessToken,
@@ -61,6 +59,7 @@ import {
     isNestAuthEnabled,
     nestAccountBySubdomain,
     nestCredentialsLogin,
+    nestJwtClaimsFromToken,
     restoreNestAccessToken,
     setNestAccessToken,
 } from "@/utils/nestAuth";
@@ -82,8 +81,11 @@ const FOCUS_DELAY = 100;
  */
 let loginHandoffOwnedByLiveHandler = false;
 
-/** Survives LoginPage remounts so leaveLoginForApp can restore after storage clear. */
+/** Survives LoginPage remounts so exit can restore Nest JWT after storage clear. */
 let nestTokenHeldForLogin: string | null = null;
+
+/** Survives remounts so the form does not flash empty mid-handoff. */
+let usernameHeldForLogin = "";
 
 function isLoginHandoffActive(): boolean {
     if (typeof window === "undefined") return false;
@@ -133,7 +135,7 @@ function LoginPageContent() {
     const [formState, setFormState] = useState<FormState>(() => {
         const handingOff = isLoginHandoffActive();
         return {
-            username: "",
+            username: handingOff ? usernameHeldForLogin : "",
             password: "",
             passwordShow: false,
             isLoading: handingOff,
@@ -269,122 +271,180 @@ function LoginPageContent() {
     const clearLoginHandoff = useCallback(() => {
         if (typeof window === "undefined") return;
         loginHandoffOwnedByLiveHandler = false;
+        usernameHeldForLogin = "";
         sessionStorage.removeItem(LOGIN_HANDOFF_STORAGE_KEY);
         sessionStorage.removeItem(PENDING_LOGIN_REDIRECT_KEY);
     }, []);
 
-    const resolvePostLoginPath = useCallback(
-        async (session: Awaited<ReturnType<typeof getSession>>) => {
-            const language = mapLanguageToLocale(session?.user?.language);
-            const isAdmin = isArchaserAdminAccount(session?.user?.account_id);
-            if (isAdmin) {
-                return { language, redirectUrl: AppUrls.ACCOUNTS, isAdmin: true };
-            }
-            try {
-                const accountRes = await apiFetch(
-                    `/api/entities/accounts/${session?.user?.account_id}`,
-                    { credentials: "include" }
-                );
-                const accountData = accountRes.ok
-                    ? await accountRes.json()
-                    : null;
-                const accountProducts = accountData
-                    ? {
-                          has_collection: accountData.has_collection,
-                          has_credit_insurance:
-                              accountData.has_credit_insurance === true,
-                          has_file_import:
-                              accountData.has_file_import !== false,
-                      }
-                    : undefined;
-                const permRes = await apiFetch("/api/permissions/me", {
-                    credentials: "include",
-                });
-                const permData = permRes.ok ? await permRes.json() : null;
-                const permissions: string[] = permData?.permissions ?? [];
-                return {
-                    language,
-                    redirectUrl: getFirstAccessiblePage(
-                        permissions,
-                        session?.user?.account_id ?? 0,
-                        accountProducts
-                    ),
-                    isAdmin: false,
-                };
-            } catch {
-                return {
-                    language,
-                    redirectUrl: AppUrls.CUSTOMERS,
-                    isAdmin: false,
-                };
-            }
-        },
-        [mapLanguageToLocale]
-    );
+    const claimLoginHandoff = useCallback(() => {
+        if (typeof window === "undefined") return;
+        loginHandoffOwnedByLiveHandler = true;
+        sessionStorage.setItem(LOGIN_HANDOFF_STORAGE_KEY, "true");
+    }, []);
 
-    /** Stamp handoff + provisional target before slow permission lookups. */
-    const beginLoginHandoff = useCallback(
-        (session: NonNullable<Awaited<ReturnType<typeof getSession>>>) => {
-            if (typeof window === "undefined") return;
-            loginHandoffOwnedByLiveHandler = true;
-            const language = mapLanguageToLocale(session.user?.language);
-            const provisional = `/${language}${getDefaultLandingPage(
-                session.user?.account_id
-            )}`;
-            sessionStorage.setItem(LOGIN_HANDOFF_STORAGE_KEY, "true");
-            sessionStorage.setItem(PENDING_LOGIN_REDIRECT_KEY, provisional);
-            updateFormState({
-                isLoading: true,
-                loadingType: "login",
-                error: null,
-            });
-        },
-        [mapLanguageToLocale, updateFormState]
-    );
-
-    /** Clear caches, stamp handoff, then leave login in one hard navigation. */
-    const leaveLoginForApp = useCallback(
-        (session: NonNullable<Awaited<ReturnType<typeof getSession>>>, path: {
-            language: string;
-            redirectUrl: string;
-        }) => {
+    /** Stamp handoff storage before leaving /login (NextAuth redirect or hard nav). */
+    const stampLoginExitStorage = useCallback(
+        (
+            nestToken: string | null,
+            path: { language: string; redirectUrl: string },
+            user: {
+                id?: string;
+                role?: string;
+                account_id?: number | null;
+            }
+        ) => {
             const target = `/${path.language}${path.redirectUrl}`;
-            if (typeof window !== "undefined") {
-                // Capture BEFORE clear — remounts null the ref but storage still
-                // has the Nest JWT from setNestAccessToken during credentials.
-                const nestToken =
-                    pendingNestTokenRef.current ||
-                    nestTokenHeldForLogin ||
-                    getNestAccessToken();
-
-                localStorage.clear();
-                sessionStorage.clear();
-                sessionStorage.setItem(LOGIN_HANDOFF_STORAGE_KEY, "true");
-                sessionStorage.setItem(PENDING_LOGIN_REDIRECT_KEY, target);
-                restoreNestAccessToken(nestToken);
-                nestTokenHeldForLogin = nestToken;
-                const timestamp = Date.now().toString();
-                localStorage.setItem("freshLogin", "true");
-                localStorage.setItem("loginTimestamp", timestamp);
-                localStorage.setItem("loginUserId", session.user?.id || "");
-                localStorage.setItem("loginUserRole", session.user?.role || "");
-                localStorage.setItem(
-                    "loginAccountId",
-                    session.user?.account_id?.toString() || ""
-                );
+            if (typeof window === "undefined") {
+                return target;
             }
+
+            sessionStorage.setItem(LOGIN_HANDOFF_STORAGE_KEY, "true");
+            sessionStorage.setItem(PENDING_LOGIN_REDIRECT_KEY, target);
+
+            const sessionKeep = new Set([
+                LOGIN_HANDOFF_STORAGE_KEY,
+                PENDING_LOGIN_REDIRECT_KEY,
+            ]);
+            const sessionKeysToRemove: string[] = [];
+            for (let i = 0; i < sessionStorage.length; i++) {
+                const key = sessionStorage.key(i);
+                if (key && !sessionKeep.has(key)) {
+                    sessionKeysToRemove.push(key);
+                }
+            }
+            for (const key of sessionKeysToRemove) {
+                sessionStorage.removeItem(key);
+            }
+
+            localStorage.clear();
+            restoreNestAccessToken(nestToken);
+            nestTokenHeldForLogin = nestToken;
+            const timestamp = Date.now().toString();
+            localStorage.setItem("freshLogin", "true");
+            localStorage.setItem("loginTimestamp", timestamp);
+            localStorage.setItem("loginUserId", user.id || "");
+            localStorage.setItem("loginUserRole", user.role || "");
+            localStorage.setItem(
+                "loginAccountId",
+                user.account_id?.toString() || ""
+            );
+
             const date = new Date();
             date.setTime(
                 date.getTime() + COOKIE_EXPIRY_DAYS * 24 * 60 * 60 * 1000
             );
             document.cookie = `NEXT_LOCALE=${path.language};expires=${date.toUTCString()};path=/`;
-            loginHandoffOwnedByLiveHandler = false;
-            window.location.replace(target);
+            return target;
         },
         []
     );
 
-    // Soft remount: keep spinner while the live handler finishes.
+    /**
+     * Bridge Nest JWT → NextAuth, then leave /login in the same turn.
+     * Must use redirect:true — redirect:false calls _getSession first, which
+     * re-renders the login form (looks like a reload) before we can navigate.
+     *
+     * Resolve first accessible page with the Nest bearer token *before* signIn
+     * so we do not land on a default route the user cannot open.
+     */
+    const signInAndLeaveLogin = useCallback(
+        async (
+            nestAccessToken: string,
+            urlLocale: string,
+            logContext?: { username?: string; userName?: string }
+        ) => {
+            const claims = nestJwtClaimsFromToken(nestAccessToken);
+            const language = claims?.language
+                ? mapLanguageToLocale(claims.language)
+                : urlLocale;
+            const accountId = claims?.account_id ?? null;
+            const fallbackRedirect = getDefaultLandingPage(accountId);
+
+            let redirectUrl = fallbackRedirect;
+            if (!isArchaserAdminAccount(accountId) && accountId != null) {
+                try {
+                    redirectUrl = await Promise.race([
+                        (async () => {
+                            const [accountRes, permRes] = await Promise.all([
+                                apiFetch(
+                                    `/api/entities/accounts/${accountId}`,
+                                    { credentials: "include" }
+                                ),
+                                apiFetch("/api/permissions/me", {
+                                    credentials: "include",
+                                }),
+                            ]);
+                            const accountData = accountRes.ok
+                                ? await accountRes.json()
+                                : null;
+                            const permData = permRes.ok
+                                ? await permRes.json()
+                                : null;
+                            return resolveAppHomePath({
+                                accountId,
+                                permissions: permData?.permissions ?? [],
+                                accountProducts: accountData
+                                    ? {
+                                          has_collection:
+                                              accountData.has_collection,
+                                          has_credit_insurance:
+                                              accountData.has_credit_insurance ===
+                                              true,
+                                          has_file_import:
+                                              accountData.has_file_import !==
+                                              false,
+                                      }
+                                    : undefined,
+                            });
+                        })(),
+                        new Promise<string>((resolve) => {
+                            window.setTimeout(
+                                () => resolve(fallbackRedirect),
+                                3000
+                            );
+                        }),
+                    ]);
+                } catch {
+                    redirectUrl = fallbackRedirect;
+                }
+            }
+
+            const path = { language, redirectUrl };
+            const target = stampLoginExitStorage(nestAccessToken, path, {
+                id: claims?.sub,
+                role: claims?.role,
+                account_id: accountId,
+            });
+
+            if (logContext) {
+                createLogRecord(
+                    "INFO",
+                    `User logged in successfully: ${logContext.userName || logContext.username || "unknown"}`,
+                    "Login",
+                    {
+                        username: logContext.username,
+                        userName: logContext.userName,
+                        userId: claims?.sub,
+                        language: path.language,
+                        redirectUrl: target,
+                        userRole: claims?.role,
+                        isAdmin: isArchaserAdminAccount(accountId),
+                        action: "login_successful",
+                        timestamp: new Date().toISOString(),
+                    }
+                ).catch(() => { });
+            }
+
+            loginHandoffOwnedByLiveHandler = false;
+            await signIn("credentials", {
+                nestAccessToken,
+                redirect: true,
+                callbackUrl: target,
+            });
+        },
+        [mapLanguageToLocale, stampLoginExitStorage]
+    );
+
     // Hard reload mid-login: resume navigation from sessionStorage.
     useEffect(() => {
         if (typeof window === "undefined") return;
@@ -403,29 +463,14 @@ function LoginPageContent() {
             return;
         }
 
-        let cancelled = false;
-        void (async () => {
-            const session = await getSession();
-            if (cancelled) return;
-            if (!session) {
-                clearLoginHandoff();
-                updateFormState({ isLoading: false, loadingType: null });
-                return;
-            }
-            const path = await resolvePostLoginPath(session);
-            if (cancelled) return;
-            leaveLoginForApp(session, path);
-        })();
+        if (pending) {
+            window.location.replace(pending);
+            return;
+        }
 
-        return () => {
-            cancelled = true;
-        };
-    }, [
-        updateFormState,
-        clearLoginHandoff,
-        resolvePostLoginPath,
-        leaveLoginForApp,
-    ]);
+        clearLoginHandoff();
+        updateFormState({ isLoading: false, loadingType: null });
+    }, [updateFormState, clearLoginHandoff]);
 
     const handleUsernameChange = useCallback(
         (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -478,6 +523,7 @@ function LoginPageContent() {
         pendingNestTokenRef.current = nestToken;
         nestTokenHeldForLogin = nestToken;
         setNestAccessToken(nestToken);
+        claimLoginHandoff();
 
         const url = new URL(window.location.href);
         url.searchParams.delete("nest_token");
@@ -486,48 +532,13 @@ function LoginPageContent() {
         (async () => {
             updateFormState({ isLoading: true, loadingType: "login", error: null });
             try {
-                const result = await signIn("credentials", {
-                    nestAccessToken: nestToken,
-                    redirect: false,
-                });
-                if (result?.error) {
-                    clearNestAccessToken();
-                    pendingNestTokenRef.current = null;
-                    nestTokenHeldForLogin = null;
-                    clearLoginHandoff();
-                    updateFormState({
-                        error: t("messages.error"),
-                        isLoading: false,
-                        loadingType: null,
-                    });
-                    return;
-                }
-
-                const session = await getSession();
-                if (!session) {
-                    clearLoginHandoff();
-                    updateFormState({
-                        error: t("messages.error"),
-                        isLoading: false,
-                        loadingType: null,
-                    });
-                    return;
-                }
-
-                beginLoginHandoff(session);
-                const language = mapLanguageToLocale(session.user?.language);
-                const fallback = {
-                    language,
-                    redirectUrl: getDefaultLandingPage(session.user?.account_id),
-                    isAdmin: isArchaserAdminAccount(session.user?.account_id),
-                };
-                const path = await Promise.race([
-                    resolvePostLoginPath(session),
-                    new Promise<typeof fallback>((resolve) => {
-                        window.setTimeout(() => resolve(fallback), 400);
-                    }),
-                ]);
-                leaveLoginForApp(session, path);
+                const urlLocale =
+                    i18n.language === "he"
+                        ? "he"
+                        : i18n.language === "en"
+                            ? "en"
+                            : i18nConfig.defaultLocale;
+                await signInAndLeaveLogin(nestToken, urlLocale);
             } catch {
                 clearNestAccessToken();
                 pendingNestTokenRef.current = null;
@@ -543,12 +554,11 @@ function LoginPageContent() {
     }, [
         searchParams,
         t,
+        i18n.language,
         updateFormState,
         clearLoginHandoff,
-        beginLoginHandoff,
-        mapLanguageToLocale,
-        resolvePostLoginPath,
-        leaveLoginForApp,
+        claimLoginHandoff,
+        signInAndLeaveLogin,
     ]);
 
     const handlePasswordChange = useCallback(
@@ -592,12 +602,10 @@ function LoginPageContent() {
             }
 
             // So a mid-login remount keeps the same button spinner (not an empty form).
-            if (typeof window !== "undefined") {
-                sessionStorage.setItem(LOGIN_HANDOFF_STORAGE_KEY, "true");
-            }
+            usernameHeldForLogin = formState.username;
+            claimLoginHandoff();
 
             try {
-                let result;
                 if (isNestAuthEnabled()) {
                     try {
                         const nestLogin = await nestCredentialsLogin(
@@ -607,10 +615,21 @@ function LoginPageContent() {
                         pendingNestTokenRef.current = nestLogin.access_token;
                         nestTokenHeldForLogin = nestLogin.access_token;
                         setNestAccessToken(nestLogin.access_token);
-                        result = await signIn("credentials", {
-                            nestAccessToken: nestLogin.access_token,
-                            redirect: false,
-                        });
+                        const urlLocale =
+                            i18n.language === "he"
+                                ? "he"
+                                : i18n.language === "en"
+                                    ? "en"
+                                    : i18nConfig.defaultLocale;
+                        await signInAndLeaveLogin(
+                            nestLogin.access_token,
+                            urlLocale,
+                            {
+                                username: formState.username,
+                                userName: formState.username,
+                            }
+                        );
+                        return;
                     } catch (nestError) {
                         const message =
                             nestError instanceof Error
@@ -646,13 +665,13 @@ function LoginPageContent() {
                         });
                         return;
                     }
-                } else {
-                    result = await signIn("credentials", {
-                        username: formState.username,
-                        password: formState.password,
-                        redirect: false,
-                    });
                 }
+
+                const result = await signIn("credentials", {
+                    username: formState.username,
+                    password: formState.password,
+                    redirect: false,
+                });
 
                 if (result?.error) {
                     // Log authentication failure
@@ -692,64 +711,28 @@ function LoginPageContent() {
                     updateFormState({ error: errorMessage, isLoading: false, loadingType: null });
                     clearLoginHandoff();
                 } else {
-                    // Authentication successful - will log complete result after session is established
-
-                    const session = await getSession();
-                    if (session) {
-                        beginLoginHandoff(session);
-                        // Prefer permission-based landing, but never block leave on
-                        // slow APIs — those waits remount /login under the spinner.
-                        const language = mapLanguageToLocale(
-                            session.user?.language
-                        );
-                        const fallback = {
-                            language,
-                            redirectUrl: getDefaultLandingPage(
-                                session.user?.account_id
-                            ),
-                            isAdmin: isArchaserAdminAccount(
-                                session.user?.account_id
-                            ),
-                        };
-                        const path = await Promise.race([
-                            resolvePostLoginPath(session),
-                            new Promise<typeof fallback>((resolve) => {
-                                window.setTimeout(
-                                    () => resolve(fallback),
-                                    400
-                                );
-                            }),
-                        ]);
-
-                        const userName =
-                            session?.user?.name ||
-                            session?.user?.email ||
-                            formState.username;
-                        createLogRecord(
-                            "INFO",
-                            `User logged in successfully: ${userName}`,
-                            "Login",
-                            {
-                                username: formState.username,
-                                userName: userName,
-                                userId: session?.user?.id,
-                                language: path.language,
-                                redirectUrl: `/${path.language}${path.redirectUrl}`,
-                                userRole: session?.user?.role,
-                                isAdmin: path.isAdmin,
-                                action: "login_successful",
-                                timestamp: new Date().toISOString(),
-                            }
-                        ).catch(() => { });
-
-                        leaveLoginForApp(session, path);
-                    } else {
-                        clearLoginHandoff();
-                        updateFormState({
-                            error: "Failed to establish session. Please try again.",
-                            isLoading: false,
-                            loadingType: null,
+                    const nestToken =
+                        pendingNestTokenRef.current ||
+                        nestTokenHeldForLogin ||
+                        getNestAccessToken();
+                    const urlLocale =
+                        i18n.language === "he"
+                            ? "he"
+                            : i18n.language === "en"
+                                ? "en"
+                                : i18nConfig.defaultLocale;
+                    if (nestToken) {
+                        await signInAndLeaveLogin(nestToken, urlLocale, {
+                            username: formState.username,
+                            userName: formState.username,
                         });
+                    } else {
+                        const fallback = `/${urlLocale}${getDefaultLandingPage(null)}`;
+                        stampLoginExitStorage(null, {
+                            language: urlLocale,
+                            redirectUrl: getDefaultLandingPage(null),
+                        }, {});
+                        window.location.replace(fallback);
                     }
                 }
             } catch (error) {
@@ -780,12 +763,12 @@ function LoginPageContent() {
             validateUsername,
             validatePassword,
             t,
+            i18n.language,
             updateFormState,
             clearLoginHandoff,
-            beginLoginHandoff,
-            mapLanguageToLocale,
-            resolvePostLoginPath,
-            leaveLoginForApp,
+            claimLoginHandoff,
+            signInAndLeaveLogin,
+            stampLoginExitStorage,
         ]
     );
 

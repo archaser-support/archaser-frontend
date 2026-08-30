@@ -9,7 +9,7 @@ const FALLBACK_HOME_PATH = "/app/dashboard";
 
 /**
  * Default in-app landing path after login or from Access Denied "Go Home".
- * Mirrors post-login redirect in `login/page.tsx`.
+ * Login resolves the same path (via Nest bearer) before NextAuth redirect.
  */
 export function resolveAppHomePath(args: {
     accountId: number | string | null | undefined;
