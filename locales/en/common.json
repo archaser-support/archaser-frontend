@@ -189,6 +189,7 @@
         "hours_ago": "{{count}}h ago",
         "days_ago": "{{count}}d ago",
         "sync_status_very_old_sync": "Data outdated",
+        "sync_status_erp_scheduled_only": "Reflects completed ERP billing sync, scheduled or manual; file import is excluded",
         "sync_status_click_to_refresh": "Click to refresh",
         "file_attachments_drag_drop_files": "Drag and drop files here, or click to browse",
         "file_attachments_uploading_files": "Uploading files...",

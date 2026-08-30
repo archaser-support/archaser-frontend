@@ -127,6 +127,8 @@ export interface ViewBasedDataGridProps {
     includeInvoiceCreditInsuranceViolationFields?: boolean;
     /** Extra columns inserted after view columns (e.g. CI violations summary). */
     additionalDataColumns?: GridColDef[];
+    /** Row to highlight and scroll into view (e.g. invoice opened from global search). */
+    highlightedRowId?: number | string | null;
     /** Credit-only accounts: blank category column and hide automation-stuck icon. */
     hideCollectionCategoryDisplay?: boolean;
 }
@@ -167,6 +169,7 @@ export const ViewBasedDataGrid: React.FC<ViewBasedDataGridProps> = ({
     refreshTrigger,
     includeInvoiceCreditInsuranceViolationFields = false,
     additionalDataColumns,
+    highlightedRowId,
     hideCollectionCategoryDisplay = false,
 }) => {
     const { t, i18n } = useTranslation([context, "common", "reports"]);
@@ -1123,6 +1126,7 @@ export const ViewBasedDataGrid: React.FC<ViewBasedDataGridProps> = ({
                 viewportRecalcDependency={viewportRecalcDependency}
                 visibleRows={visibleRows}
                 resizableColumns={true}
+                highlightedRowId={highlightedRowId}
                 columnVisibilityModel={columnVisibilityModel}
                 noRowsMessage={t("messages.no_results", { ns: "common" })}
                 noRowsDescription={t("messages.no_results_description", {

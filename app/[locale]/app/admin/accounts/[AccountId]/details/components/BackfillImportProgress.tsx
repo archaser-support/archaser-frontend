@@ -180,6 +180,8 @@ export default function BackfillImportProgress({
                 enabledEntities,
                 syncStates,
                 entityStats: run.entity_stats,
+                mepBreachStartDate:
+                    run.cutover_options?.mep_breach_start_date,
             });
         }
         return buildFinishedEntityProgressRows({
