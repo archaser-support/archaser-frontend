@@ -710,6 +710,7 @@ export type BillingConnector = {
     backfill_start_date: Date | null;
     include_older_open_invoices: boolean;
     skip_reporting_breach_on_backfill: boolean;
+    invoice_paid_tolerance: number;
     entity_sets: JsonValue;
     entity_set_catalog: JsonValue | null;
     entity_set_catalog_fetched_at: Date | null;
