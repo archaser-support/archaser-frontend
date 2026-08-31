@@ -148,6 +148,7 @@ const FieldMapper: React.FC<FieldMapperProps> = ({
     const autoMappingTriggeredRef = useRef(false);
     const mappingRef = useRef(mapping);
     const hasLoadedSavedMappingRef = useRef(false);
+    const lastHandledHeadersRef = useRef<string | null>(null);
 
     useEffect(() => {
         mappingRef.current = mapping;
@@ -162,7 +163,10 @@ const FieldMapper: React.FC<FieldMapperProps> = ({
 
             setSavedMappings(mappings as unknown as UserImportMapping[]);
 
-            if (mappings.length > 0 && Object.keys(mapping).length === 0) {
+            if (
+                mappings.length > 0 &&
+                Object.keys(mappingRef.current).length === 0
+            ) {
                 const defaultMapping =
                     mappings.find((m) => m.is_default) || mappings[0];
 
@@ -172,7 +176,7 @@ const FieldMapper: React.FC<FieldMapperProps> = ({
             }
 
             setHasFinishedLoadingMappings(true);
-        } catch (error) {
+        } catch {
             setHasFinishedLoadingMappings(true);
         } finally {
             setIsLoadingMappings(false);
@@ -689,11 +693,31 @@ const FieldMapper: React.FC<FieldMapperProps> = ({
         loadSavedMappings();
     }, [loadSavedMappings]);
 
-    // Reset auto-mapping trigger when rawHeaders change (new file loaded)
+    // Reset auto-mapping trigger when rawHeaders change (new file loaded).
+    // Saved mappings are only fetched on mount, so re-apply the stored default
+    // here — otherwise a second file falls through to auto-mapping.
     useEffect(() => {
-        autoMappingTriggeredRef.current = false;
-        hasLoadedSavedMappingRef.current = false; // Reset the saved mapping flag for new file
-    }, [rawHeaders]);
+        const headersKey = (rawHeaders || []).join("\u0000");
+        const isNewFile = headersKey !== lastHandledHeadersRef.current;
+
+        if (isNewFile) {
+            lastHandledHeadersRef.current = headersKey;
+            autoMappingTriggeredRef.current = false;
+            hasLoadedSavedMappingRef.current = false;
+        }
+
+        if (!rawHeaders || rawHeaders.length === 0) return;
+        if (hasLoadedSavedMappingRef.current) return;
+        if (Object.keys(mappingRef.current).length > 0) return;
+
+        const savedMapping =
+            savedMappings.find((m) => m.is_default) || savedMappings[0];
+        if (!savedMapping) return;
+
+        setMapping(savedMapping.mapping as Record<string, string>);
+        setHasUnsavedChanges(false);
+        hasLoadedSavedMappingRef.current = true;
+    }, [rawHeaders, savedMappings, setMapping]);
 
     // Auto-map only when we've finished loading mappings and there are no saved mappings
     useEffect(() => {
@@ -725,9 +749,13 @@ const FieldMapper: React.FC<FieldMapperProps> = ({
             } else {
                 // Check if we need to auto-map specific fields that might be missing
                 const currentMapping = mappingRef.current;
+                const hasReminderFields =
+                    databaseFields.includes("receives_standard_reminder") ||
+                    databaseFields.includes("receives_escalated_reminder");
                 const needsReminderMapping =
-                    !currentMapping.receives_standard_reminder ||
-                    !currentMapping.receives_escalated_reminder;
+                    hasReminderFields &&
+                    (!currentMapping.receives_standard_reminder ||
+                        !currentMapping.receives_escalated_reminder);
 
                 if (needsReminderMapping) {
                     autoMappingTriggeredRef.current = true;
