@@ -378,14 +378,26 @@ const PolicyProcessor: React.FC = () => {
     };
 
     const handleSubmit = useCallback(async () => {
+        const recordsWithErrors = mappedData.filter(
+            (row) => row.status === "Validation Failed"
+        );
+        console.warn("[PolicyProcessor] handleSubmit entered:", {
+            mappedDataCount: mappedData.length,
+            recordsWithErrorsCount: recordsWithErrors.length,
+            willBailNoData: mappedData.length === 0,
+            willBailAllErrors:
+                mappedData.length > 0 &&
+                recordsWithErrors.length === mappedData.length,
+            mappedFieldCount: Object.keys(mapping).filter((k) => mapping[k])
+                .length,
+            firstErrorMessage: recordsWithErrors[0]?.message ?? null,
+        });
+
         if (mappedData.length === 0) {
             showError(t("validation.no_data_to_submit", { ns: "import" }));
             return;
         }
 
-        const recordsWithErrors = mappedData.filter(
-            (row) => row.status === "Validation Failed"
-        );
         if (recordsWithErrors.length === mappedData.length) {
             showError(
                 t("validation.some_records_have_errors", { ns: "import" })
@@ -400,6 +412,7 @@ const PolicyProcessor: React.FC = () => {
         setImportStatus("loading");
 
         try {
+            console.warn("[PolicyProcessor] Creating import job...");
             const jobResponse = await apiFetch("/api/import/job/create", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -414,6 +427,11 @@ const PolicyProcessor: React.FC = () => {
             });
 
             if (!jobResponse.ok) {
+                console.error("[PolicyProcessor] Create import job failed:", {
+                    responseStatus: jobResponse.status,
+                    responseStatusText: jobResponse.statusText,
+                    responseBody: (await jobResponse.text()).slice(0, 500),
+                });
                 throw new Error(
                     `Failed to create import job: ${jobResponse.status}`
                 );
@@ -421,6 +439,11 @@ const PolicyProcessor: React.FC = () => {
 
             const jobData = await jobResponse.json();
             const createdJobId = jobData.jobId;
+            console.warn("[PolicyProcessor] Import job created:", {
+                responseStatus: jobResponse.status,
+                createdJobId: createdJobId ?? null,
+                responseKeys: Object.keys(jobData ?? {}).join(","),
+            });
 
             if (!createdJobId) {
                 throw new Error("Failed to create import job");
@@ -428,7 +451,9 @@ const PolicyProcessor: React.FC = () => {
 
             setJobId(createdJobId);
 
-            const BATCH_SIZE = 20;
+            // Policy rows are query-heavy (~1.5s each), and the dev proxy aborts a
+            // request after 30s. Keep batches small enough to stay well under it.
+            const BATCH_SIZE = 5;
             const batches: PolicyRow[][] = [];
 
             for (let i = 0; i < mappedData.length; i += BATCH_SIZE) {
@@ -457,13 +482,37 @@ const PolicyProcessor: React.FC = () => {
                     globalStartIndex: processedCount,
                 };
 
+                const batchStartedAt = Date.now();
+                console.warn("[PolicyProcessor] Batch request starting:", {
+                    batchNumber: batchIndex + 1,
+                    totalBatches: batches.length,
+                    batchSize: batch.length,
+                    bodyBytes: JSON.stringify(requestBody).length,
+                });
+
                 const response = await apiFetch("/api/import/policy", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(requestBody),
                 });
 
+                console.warn("[PolicyProcessor] Batch response received:", {
+                    batchNumber: batchIndex + 1,
+                    responseStatus: response.status,
+                    elapsedMs: Date.now() - batchStartedAt,
+                });
+
                 if (!response.ok) {
+                    console.error("[PolicyProcessor] Batch failed:", {
+                        batchIndex,
+                        batchNumber: batchIndex + 1,
+                        totalBatches: batches.length,
+                        batchSize: batch.length,
+                        processedCount,
+                        responseStatus: response.status,
+                        responseStatusText: response.statusText,
+                        responseBody: (await response.text()).slice(0, 500),
+                    });
                     throw new Error(
                         `Batch ${batchIndex + 1} failed: ${response.status}`
                     );
@@ -542,7 +591,12 @@ const PolicyProcessor: React.FC = () => {
 
                 router.push(`/app/import/result?jobId=${createdJobId}`);
             }
-        } catch {
+        } catch (error: any) {
+            console.error("[PolicyProcessor] Import submission failed:", {
+                errorName: error?.name,
+                errorMessage: error?.message,
+                mappedDataCount: mappedData.length,
+            });
             showError(t("messages.errors_submission_failed", { ns: "import" }));
             setImportStatus("error");
         } finally {
