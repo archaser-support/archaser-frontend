@@ -1,6 +1,6 @@
 "use client";
 
-import { Functions } from "@mui/icons-material";
+import { Calculate } from "@mui/icons-material";
 import {
     Autocomplete,
     Alert,
@@ -14,33 +14,33 @@ import {
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { OUTLINED_LABEL_HELPER_OFFSET } from "@/app/theme/appButton";
+import AppDialog from "@/shared/layout-components/modal/AppDialog";
+import ModalScrollBox from "@/shared/layout-components/modal/ModalScrollBox";
+import { expressionHasRedundantAutoScalePercentDivision } from "@/shared/reportFormula/autoScalePercentFields";
+import {
+    filterFormulaOperandOptionsForFormat,
+    getFormulaOperandReferencesFromTables,
+} from "@/shared/reportFormula/columnOrder";
 import {
     buildEditTimeFormulaReference,
     expressionToEditTime,
     expressionToStorage,
 } from "@/shared/reportFormula/editTimeExpression";
 import {
-    filterFormulaOperandOptionsForFormat,
-    getFormulaOperandReferencesFromTables,
-} from "@/shared/reportFormula/columnOrder";
-import { expressionHasRedundantAutoScalePercentDivision } from "@/shared/reportFormula/autoScalePercentFields";
-import {
     buildCanonicalFieldReference,
     isFormulaOperandReference,
     normalizeFormulaExpression,
 } from "@/shared/reportFormula/parser";
 import {
-    resolveFormulaValidationMessage,
-    validateFormulaDraft,
-} from "@/shared/reportFormula/validateFormulaDraft";
-import {
     FORMULA_AGGREGATION_TYPES,
     type FormulaResultFormat,
     type ReportFormula,
 } from "@/shared/reportFormula/types";
-import AppDialog from "@/shared/layout-components/modal/AppDialog";
-import ModalScrollBox from "@/shared/layout-components/modal/ModalScrollBox";
-import { OUTLINED_LABEL_HELPER_OFFSET } from "@/app/theme/appButton";
+import {
+    resolveFormulaValidationMessage,
+    validateFormulaDraft,
+} from "@/shared/reportFormula/validateFormulaDraft";
 
 const SCROLL_CONTAINER_ID = "formula-upsert-modal-scroll";
 const DIALOG_HEIGHT_FRACTION = 0.62;
@@ -463,12 +463,7 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
                     : t("formulas.edit", { defaultValue: "Edit formula" })
             }
             titleIcon={
-                <Functions
-                    aria-hidden="true"
-                    sx={{
-                        transform: isHebrew ? "scaleX(-1)" : "none",
-                    }}
-                />
+                <Calculate aria-hidden="true" />
             }
             ariaLabelledBy="formula-upsert-dialog-title"
             ariaDescribedBy="formula-upsert-dialog-description"

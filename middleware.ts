@@ -167,6 +167,17 @@ export async function middleware(request: NextRequest) {
         // Capture original pathname before i18n router processes it
         const originalPathname = pathname;
 
+        // Forward pathname on the *request* so Server Components (layouts)
+        // can detect /login vs /app. Response headers alone are not visible
+        // to `headers()` in RSC.
+        const requestHeaders = new Headers(request.headers);
+        requestHeaders.set("x-pathname", originalPathname);
+        requestHeaders.set("x-search", request.nextUrl.search);
+        const requestWithPath = new NextRequest(request.url, {
+            method: request.method,
+            headers: requestHeaders,
+        });
+
         // For portal routes, skip i18n router to prevent automatic redirects
         // Portal uses customer-specific language, not account-level locale
         // Pathname includes locale: /en/portal/... or /he/portal/...
@@ -174,12 +185,6 @@ export async function middleware(request: NextRequest) {
         const isPortalRoute = originalPathname.includes("/portal/");
 
         if (isPortalRoute) {
-            // Pass the current pathname via request headers so Server Components
-            // (e.g. portal layout) can reliably detect when we're already on /verify.
-            const requestHeaders = new Headers(request.headers);
-            requestHeaders.set("x-pathname", originalPathname);
-            requestHeaders.set("x-search", request.nextUrl.search);
-
             const cid = request.nextUrl.searchParams.get("cid");
             if (cid) {
                 requestHeaders.set("x-cid", cid);
@@ -200,7 +205,7 @@ export async function middleware(request: NextRequest) {
             );
         } else {
             // Non-portal routes use i18n router (which may redirect based on locale)
-            response = i18nRouter(request, i18nConfig);
+            response = i18nRouter(requestWithPath, i18nConfig);
         }
 
         // Add pathname header for portal subdomain routing

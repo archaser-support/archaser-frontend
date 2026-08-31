@@ -189,6 +189,7 @@
         "hours_ago": "לפני {{count}} שעות",
         "days_ago": "לפני {{count}} ימים",
         "sync_status_very_old_sync": "נתונים מיושנים",
+        "sync_status_erp_scheduled_only": "משקף סנכרון חיוב מה-ERP שהושלם, מתוזמן או ידני; ייבוא קבצים אינו נכלל",
         "sync_status_click_to_refresh": "לחץ לרענון",
         "file_attachments_drag_drop_files": "גרור ושחרר קבצים כאן, או לחץ לדפדוף",
         "file_attachments_uploading_files": "מעלה קבצים...",

@@ -710,6 +710,7 @@ export type BillingConnector = {
     backfill_start_date: Date | null;
     include_older_open_invoices: boolean;
     skip_reporting_breach_on_backfill: boolean;
+    invoice_paid_tolerance: number;
     entity_sets: JsonValue;
     entity_set_catalog: JsonValue | null;
     entity_set_catalog_fetched_at: Date | null;
@@ -1170,6 +1171,7 @@ export type Customer = {
     generic_date2: Date | null;
     automation_stuck_no_contacts: boolean | null;
     oldest_invoice_overdue_date: Date | null;
+    oldest_invoice_overdue_date_all: Date | null;
     overdue_block: boolean;
     zero_limit_alert_exist: boolean;
 };

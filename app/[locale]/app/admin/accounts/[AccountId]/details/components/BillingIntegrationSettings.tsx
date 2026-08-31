@@ -144,6 +144,31 @@ const WEEKDAY_OPTIONS: { value: number; label: string }[] = [
     { value: 6, label: "Saturday" },
 ];
 
+const DEFAULT_PAID_TOLERANCE = 0.2;
+const PAID_TOLERANCE_MIN = 0;
+const PAID_TOLERANCE_MAX = 10;
+
+function formatPaidTolerance(value: number | undefined | null): string {
+    const n = Number(value);
+    return (Number.isFinite(n) ? n : DEFAULT_PAID_TOLERANCE).toFixed(2);
+}
+
+function parsePaidToleranceInput(raw: string): number | null {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+        return null;
+    }
+    const n = Number(trimmed);
+    if (!Number.isFinite(n)) {
+        return null;
+    }
+    const rounded = Math.round(n * 100) / 100;
+    if (rounded < PAID_TOLERANCE_MIN || rounded > PAID_TOLERANCE_MAX) {
+        return null;
+    }
+    return rounded;
+}
+
 const NONE_EXTENSION_OPTION = {
     key: "",
     label: "None (standard account)",
@@ -231,6 +256,8 @@ const BillingIntegrationSettings = forwardRef<
     >({});
     const [previewResult, setPreviewResult] =
         useState<PreviewSyncResponse | null>(null);
+    /** Blocks re-running preview until mapping or pull filters change again. */
+    const [previewUpToDate, setPreviewUpToDate] = useState(false);
     const [mappingEntityTab, setMappingEntityTab] = useState<number | null>(
         null
     );
@@ -243,6 +270,12 @@ const BillingIntegrationSettings = forwardRef<
         useState(false);
     const [includeOlderOpenInvoices, setIncludeOlderOpenInvoices] =
         useState(true);
+    const [invoicePaidTolerance, setInvoicePaidTolerance] = useState(
+        formatPaidTolerance(DEFAULT_PAID_TOLERANCE)
+    );
+    const [invoicePaidToleranceError, setInvoicePaidToleranceError] = useState<
+        string | null
+    >(null);
     const [extensionKey, setExtensionKey] = useState("");
     const [extensionConfig, setExtensionConfig] = useState<
         Record<string, unknown>
@@ -255,8 +288,6 @@ const BillingIntegrationSettings = forwardRef<
     /** Clears progress counters immediately on Start, before the new run polls in. */
     const [pendingBackfillReset, setPendingBackfillReset] = useState(false);
     const cutoverDirtyRef = useRef(false);
-    /** True once the user edits the MEP date, so the backfill date stops seeding it. */
-    const mepBreachStartDateTouchedRef = useRef(false);
     const mapperRefs = useRef<
         Partial<Record<ImportType, ConnectorFieldMapperHandle | null>>
     >({});
@@ -274,8 +305,8 @@ const BillingIntegrationSettings = forwardRef<
         setProgressExpanded(null);
         setHistoryExpanded(false);
         setMappingEntityTab(null);
+        setPreviewUpToDate(false);
         entityTabFocusPendingRef.current = true;
-        mepBreachStartDateTouchedRef.current = false;
     }, [accountId]);
 
     useEffect(() => {
@@ -299,15 +330,9 @@ const BillingIntegrationSettings = forwardRef<
                 config.backfill_start_date
             );
             setBackfillStartDate(nextBackfillStartDate);
-            const storedMepBreachStartDate = toDateInputValue(
-                config.mep_breach_start_date
+            setMepBreachStartDate(
+                toDateInputValue(config.mep_breach_start_date)
             );
-            if (storedMepBreachStartDate) {
-                mepBreachStartDateTouchedRef.current = true;
-                setMepBreachStartDate(storedMepBreachStartDate);
-            } else if (!mepBreachStartDateTouchedRef.current) {
-                setMepBreachStartDate(nextBackfillStartDate);
-            }
             setIncludeOlderOpenInvoices(
                 config.include_older_open_invoices ?? true
             );
@@ -315,6 +340,10 @@ const BillingIntegrationSettings = forwardRef<
                 Boolean(config.skip_reporting_breach_on_backfill)
             );
         }
+        setInvoicePaidTolerance(
+            formatPaidTolerance(config.invoice_paid_tolerance)
+        );
+        setInvoicePaidToleranceError(null);
         setExtensionKey(config.extension_key?.trim() ?? "");
         setExtensionConfig(
             config.extension_config &&
@@ -368,6 +397,9 @@ const BillingIntegrationSettings = forwardRef<
                 mep_breach_start_date: mepBreachStartDate.trim() || null,
                 include_older_open_invoices: includeOlderOpenInvoices,
                 skip_reporting_breach_on_backfill: skipReportingBreachOnBackfill,
+                invoice_paid_tolerance:
+                    parsePaidToleranceInput(invoicePaidTolerance) ??
+                    DEFAULT_PAID_TOLERANCE,
                 extension_key: extensionKey.trim() || null,
                 extension_config: extensionKey.trim()
                     ? extensionConfig
@@ -411,6 +443,12 @@ const BillingIntegrationSettings = forwardRef<
     saveBillingSettingsRef.current = async () => {
         if (!canManage) {
             return;
+        }
+        const paidTolerance = parsePaidToleranceInput(invoicePaidTolerance);
+        if (paidTolerance == null) {
+            throw new Error(
+                "Paid leftover tolerance must be a number from 0 to 10."
+            );
         }
         const pullFiltersLocked = Boolean(config?.backfill_options_locked);
         const pull_filters: PullFiltersMap = {};
@@ -489,6 +527,7 @@ const BillingIntegrationSettings = forwardRef<
         mutationFn: () => runBillingConnectorPreviewSync(accountId),
         onSuccess: (result) => {
             setPreviewResult(result);
+            setPreviewUpToDate(true);
             queryClient.invalidateQueries({
                 queryKey: ["billing-connector", accountId],
             });
@@ -523,9 +562,16 @@ const BillingIntegrationSettings = forwardRef<
         },
     });
 
+    const handleEntityConfigDirtyChange = useCallback((dirty: boolean) => {
+        if (dirty) {
+            setPreviewUpToDate(false);
+        }
+    }, []);
+
     const handleEntitySetChange = useCallback(
         async (importType: ImportType, value: string | null) => {
             try {
+                setPreviewUpToDate(false);
                 await saveBillingConnectorConfig(accountId, {
                     entity_sets: { [importType]: value },
                 });
@@ -544,6 +590,29 @@ const BillingIntegrationSettings = forwardRef<
             }
         },
         [accountId, queryClient, showError, success]
+    );
+
+    const persistPaidTolerance = useCallback(
+        async (value: number) => {
+            if (!canManage) {
+                return;
+            }
+            try {
+                const saved = await saveBillingConnectorConfig(accountId, {
+                    invoice_paid_tolerance: value,
+                });
+                queryClient.setQueryData(
+                    ["billing-connector", accountId],
+                    saved
+                );
+            } catch (err: unknown) {
+                showError(
+                    axiosErrorMessage(err) ??
+                        "Failed to save paid leftover tolerance"
+                );
+            }
+        },
+        [accountId, canManage, queryClient, showError]
     );
 
     const persistCutoverOptions = useCallback(
@@ -1122,7 +1191,7 @@ const BillingIntegrationSettings = forwardRef<
                                 <TextField
                                     fullWidth
                                     type="password"
-                                    label="API token"
+                                    label="API Token"
                                     value={apiKeyToken}
                                     onChange={(e) => setApiKeyToken(e.target.value)}
                                     disabled={!canManage}
@@ -1185,7 +1254,7 @@ const BillingIntegrationSettings = forwardRef<
                                     <TextField
                                         fullWidth
                                         type="password"
-                                        label="Client secret"
+                                        label="Client Secret"
                                         value={oauthClientSecret}
                                         onChange={(e) =>
                                             setOauthClientSecret(e.target.value)
@@ -1196,7 +1265,7 @@ const BillingIntegrationSettings = forwardRef<
                                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                     <TextField
                                         fullWidth
-                                        label="Token endpoint"
+                                        label="Token Endpoint"
                                         value={oauthTokenEndpoint}
                                         onChange={(e) =>
                                             setOauthTokenEndpoint(e.target.value)
@@ -1296,7 +1365,7 @@ const BillingIntegrationSettings = forwardRef<
                                         {...(isHebrew && { "data-rtl": true })}
                                     />
                                 }
-                                label="Sync enabled"
+                                label="Sync Enabled"
                                 sx={{
                                     alignItems: "center",
                                     mt: 0.5,
@@ -1316,11 +1385,11 @@ const BillingIntegrationSettings = forwardRef<
                                 disabled={!canManage}
                             >
                                 <InputLabel id="billing-schedule-preset-label">
-                                    Sync schedule
+                                    Sync Schedule
                                 </InputLabel>
                                 <Select
                                     labelId="billing-schedule-preset-label"
-                                    label="Sync schedule"
+                                    label="Sync Schedule"
                                     value={schedulePreset}
                                     onChange={(e) => {
                                         const value = e.target
@@ -1344,7 +1413,7 @@ const BillingIntegrationSettings = forwardRef<
                                 <TextField
                                     fullWidth
                                     size="small"
-                                    label="Cron expression (UTC)"
+                                    label="Cron Expression (UTC)"
                                     value={syncCron}
                                     onChange={(e) => {
                                         setSyncCron(e.target.value);
@@ -1381,11 +1450,11 @@ const BillingIntegrationSettings = forwardRef<
                                     disabled={!canManage}
                                 >
                                     <InputLabel id="billing-weekly-day-label">
-                                        Day of week (UTC)
+                                        Day of Week (UTC)
                                     </InputLabel>
                                     <Select
                                         labelId="billing-weekly-day-label"
-                                        label="Day of week (UTC)"
+                                        label="Day of Week (UTC)"
                                         value={weeklyDay}
                                         onChange={(e) =>
                                             setWeeklyDay(
@@ -1441,34 +1510,92 @@ const BillingIntegrationSettings = forwardRef<
                             </Grid>
                         )}
 
+                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                            <TextField
+                                fullWidth
+                                required
+                                label="Paid leftover tolerance"
+                                type="number"
+                                size="small"
+                                value={invoicePaidTolerance}
+                                onChange={(e) => {
+                                    setInvoicePaidTolerance(e.target.value);
+                                    setInvoicePaidToleranceError(null);
+                                }}
+                                onBlur={() => {
+                                    const parsed = parsePaidToleranceInput(
+                                        invoicePaidTolerance
+                                    );
+                                    if (parsed == null) {
+                                        setInvoicePaidToleranceError(
+                                            "Enter a number from 0 to 10 (two decimals). 0 means leftover must be exactly 0."
+                                        );
+                                        return;
+                                    }
+                                    setInvoicePaidTolerance(
+                                        formatPaidTolerance(parsed)
+                                    );
+                                    setInvoicePaidToleranceError(null);
+                                    if (config) {
+                                        void persistPaidTolerance(parsed);
+                                    }
+                                }}
+                                disabled={!canManage}
+                                error={Boolean(invoicePaidToleranceError)}
+                                helperText={invoicePaidToleranceError ?? undefined}
+                                inputProps={{
+                                    min: PAID_TOLERANCE_MIN,
+                                    max: PAID_TOLERANCE_MAX,
+                                    step: 0.01,
+                                }}
+                                InputProps={{
+                                    endAdornment: (
+                                        <Tooltip
+                                            title="Leftover in each invoice's customer currency. Paid when leftover is within +/- this amount. 0 means leftover must be exactly 0. Saving does not restamp invoices until the next connector sync or nightly leftover job."
+                                            arrow
+                                            enterDelay={300}
+                                            leaveDelay={100}
+                                            placement="bottom"
+                                            PopperProps={{
+                                                sx: {
+                                                    "& .MuiTooltip-tooltip": {
+                                                        direction: isHebrew
+                                                            ? "rtl"
+                                                            : "ltr",
+                                                    },
+                                                },
+                                            }}
+                                        >
+                                            <InfoIcon
+                                                fontSize="small"
+                                                color="action"
+                                                sx={{
+                                                    cursor: "help",
+                                                }}
+                                            />
+                                        </Tooltip>
+                                    ),
+                                }}
+                            />
+                        </Grid>
+
                         {config?.has_credentials &&
                             allEnabledMappingsComplete && (
                                 <>
                                     <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                         <TextField
                                             fullWidth
-                                            label="Backfill start date"
+                                            label="Backfill Start Date"
                                             type="date"
                                             size="small"
                                             value={backfillStartDate}
                                             onChange={(e) => {
                                                 const next = e.target.value;
                                                 setBackfillStartDate(next);
-                                                const patch: UpsertBillingConnectorPayload =
-                                                    {
-                                                        backfill_start_date:
-                                                            next.trim() || null,
-                                                    };
-                                                if (
-                                                    !mepBreachStartDateTouchedRef.current
-                                                ) {
-                                                    setMepBreachStartDate(next);
-                                                    patch.mep_breach_start_date =
-                                                        next.trim() || null;
-                                                }
-                                                void persistCutoverOptions(
-                                                    patch
-                                                );
+                                                void persistCutoverOptions({
+                                                    backfill_start_date:
+                                                        next.trim() || null,
+                                                });
                                             }}
                                             disabled={
                                                 !canManage ||
@@ -1516,14 +1643,12 @@ const BillingIntegrationSettings = forwardRef<
                                     <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                         <TextField
                                             fullWidth
-                                            label="MEP breach start date"
+                                            label="MEP Breach Start Date"
                                             type="date"
                                             size="small"
                                             value={mepBreachStartDate}
                                             onChange={(e) => {
                                                 const next = e.target.value;
-                                                mepBreachStartDateTouchedRef.current =
-                                                    true;
                                                 setMepBreachStartDate(next);
                                                 void persistCutoverOptions({
                                                     mep_breach_start_date:
@@ -1543,7 +1668,7 @@ const BillingIntegrationSettings = forwardRef<
                                                         title={
                                                             config.backfill_options_locked
                                                                 ? "Locked after backfill started. Reset backfill to change the MEP breach start date."
-                                                                : "Optional. Invoices issued before this day are excluded from MEP breach evaluation. Leave blank to evaluate all history."
+                                                                : "Optional. Invoices issued before this day are excluded from MEP breach evaluation. Leave blank to evaluate all history. Commonly set to the backfill start date."
                                                         }
                                                         arrow
                                                         enterDelay={300}
@@ -1788,7 +1913,7 @@ const BillingIntegrationSettings = forwardRef<
                                     renderInput={(params) => (
                                         <TextField
                                             {...params}
-                                            label="Extension key"
+                                            label="Extension Key"
                                             variant="outlined"
                                             size="small"
                                             fullWidth
@@ -2014,11 +2139,11 @@ const BillingIntegrationSettings = forwardRef<
                                                     value="mapping"
                                                 />
                                                 <Tab
-                                                    label="Pull filter"
+                                                    label="Pull Filter"
                                                     value="pullFilter"
                                                 />
                                                 <Tab
-                                                    label="Preview sample records"
+                                                    label="Preview Sample Records"
                                                     value="preview"
                                                 />
                                             </Tabs>
@@ -2066,6 +2191,9 @@ const BillingIntegrationSettings = forwardRef<
                                                     onCompletenessChange={
                                                         handleMappingCompleteness
                                                     }
+                                                    onDirtyChange={
+                                                        handleEntityConfigDirtyChange
+                                                    }
                                                 />
                                             </Box>
                                             <Box
@@ -2088,6 +2216,9 @@ const BillingIntegrationSettings = forwardRef<
                                                     )}
                                                     config={config}
                                                     hideSaveButton
+                                                    onDirtyChange={
+                                                        handleEntityConfigDirtyChange
+                                                    }
                                                     onSaved={(saved) => {
                                                         queryClient.setQueryData(
                                                             [
@@ -2160,14 +2291,18 @@ const BillingIntegrationSettings = forwardRef<
                                             ? "A sync is already running. Cancel it or wait for it to finish."
                                             : !canManage
                                               ? "You do not have permission to run preview sync."
-                                              : ""
+                                              : previewUpToDate
+                                                ? "Preview already ran for the current mapping and pull filters. Change a mapping or pull filter to run it again."
+                                                : ""
                                     }
                                     arrow
                                     enterDelay={300}
                                     leaveDelay={100}
                                     placement="bottom"
                                     disableHoverListener={
-                                        !importBusy && canManage
+                                        !importBusy &&
+                                        canManage &&
+                                        !previewUpToDate
                                     }
                                 >
                                     <span>
@@ -2179,7 +2314,8 @@ const BillingIntegrationSettings = forwardRef<
                                             disabled={
                                                 !canManage ||
                                                 previewMutation.isPending ||
-                                                importBusy
+                                                importBusy ||
+                                                previewUpToDate
                                             }
                                         >
                                             {previewMutation.isPending
