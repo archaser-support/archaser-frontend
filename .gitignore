@@ -17,6 +17,7 @@ node_modules/
 
 # production
 /build
+**/dist/
 backend/api/dist/
 backend/packages/database/dist/
 # backend/api/dist is dead (legacy monorepo path); keep for consistency with backend repo
