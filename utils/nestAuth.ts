@@ -99,6 +99,37 @@ export function restoreNestAccessToken(token: string | null | undefined): void {
     }
 }
 
+/** Decode Nest JWT payload for post-login navigation without awaiting getSession(). */
+export function nestJwtClaimsFromToken(token: string): {
+    sub?: string;
+    role?: string;
+    account_id?: number | null;
+    language?: string;
+} | null {
+    try {
+        const segment = token.split(".")[1];
+        if (!segment) {
+            return null;
+        }
+        const normalized = segment.replace(/-/g, "+").replace(/_/g, "/");
+        const payload = JSON.parse(atob(normalized)) as Record<string, unknown>;
+        return {
+            sub: typeof payload.sub === "string" ? payload.sub : undefined,
+            role: typeof payload.role === "string" ? payload.role : undefined,
+            account_id:
+                typeof payload.account_id === "number"
+                    ? payload.account_id
+                    : null,
+            language:
+                typeof payload.language === "string"
+                    ? payload.language
+                    : undefined,
+        };
+    } catch {
+        return null;
+    }
+}
+
 export type NestLoginResponse = {
     access_token: string;
     token_type: string;

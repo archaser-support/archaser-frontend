@@ -158,6 +158,7 @@
         "operator_less_or_equal": "קטן או שווה",
         "operator_between": "בין",
         "operator_in": "ב",
+        "operator_not_in": "לא ב",
         "operator_is_empty": "ריק",
         "operator_is_not_empty": "לא ריק",
         "aggregation_sum": "סכום",

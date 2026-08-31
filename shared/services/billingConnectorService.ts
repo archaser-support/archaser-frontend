@@ -77,6 +77,10 @@ export interface BillingConnectorConfig {
      * Default false. Incremental sync and overnight job ignore this.
      */
     skip_reporting_breach_on_backfill?: boolean;
+    /**
+     * Leftover band for Paid (customer outstanding). Default 0.20. Range 0–10.
+     */
+    invoice_paid_tolerance?: number;
     /** Locked after backfill starts until reset. */
     backfill_options_locked?: boolean;
     /** Optional account-extension key; null/empty = standard path. */
@@ -190,6 +194,8 @@ export interface UpsertBillingConnectorPayload {
     mep_breach_start_date?: string | null;
     include_older_open_invoices?: boolean;
     skip_reporting_breach_on_backfill?: boolean;
+    /** Required. 0–10, two decimals. Default 0.20. */
+    invoice_paid_tolerance?: number;
     /** Null/"" clears the extension attachment. */
     extension_key?: string | null;
     extension_config?: Record<string, unknown> | null;

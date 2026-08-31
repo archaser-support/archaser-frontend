@@ -158,6 +158,7 @@
         "operator_less_or_equal": "Less or Equal",
         "operator_between": "Between",
         "operator_in": "In",
+        "operator_not_in": "Not In",
         "operator_is_empty": "Is Empty",
         "operator_is_not_empty": "Is Not Empty",
         "aggregation_sum": "SUM",

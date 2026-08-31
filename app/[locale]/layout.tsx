@@ -7,7 +7,6 @@ import initTranslations from "@/app/i18n";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import EnvironmentIndicator from "@/components/EnvironmentIndicator";
 import TranslationsProvider from "@/components/TranslationsProvider";
-import { getServerSessionSafe } from "@/utils/serverSession";
 
 import Provider, { SessionProviderWrapper } from "./Provider";
 
@@ -43,7 +42,10 @@ export default async function RootLayout({
 }) {
     const resolvedParams = await params;
 
-    // Check if we're in portal / auth context by examining the pathname
+    // Pathname is only used to lock portal/auth to the URL locale. Do NOT
+    // read the session here — after signIn, an RSC refresh that pulls session
+    // language remounts /login (empty form flash) before client navigation.
+    // Session language for /app is applied in app/layout.tsx instead.
     const headersList = await headers();
     const pathname =
         headersList.get("x-pathname") ||
@@ -55,21 +57,7 @@ export default async function RootLayout({
         pathname.includes("/forget-password") ||
         pathname.includes("/reset-password");
 
-    let effectiveLanguage = resolvedParams.locale;
-
-    // Auth pages must stay on the URL locale. Reading the session here after
-    // signIn triggers an RSC refresh that remounts login (looks like a reload)
-    // before the client navigates to the app.
-    if (!isPortalContext && !isAuthContext) {
-        const session = await getServerSessionSafe();
-        const userLanguage = session?.user?.language;
-        effectiveLanguage =
-            userLanguage === "Hebrew"
-                ? "he"
-                : userLanguage === "English"
-                    ? "en"
-                    : resolvedParams.locale;
-    }
+    const effectiveLanguage = resolvedParams.locale;
 
     const { resources } = await initTranslations(
         effectiveLanguage,
