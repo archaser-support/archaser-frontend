@@ -46,6 +46,9 @@ const ReportViewerPage: React.FC = () => {
     const hasEditReportPermission = userPermissions.includes("edit_report");
     const hasShareReportPermission = userPermissions.includes("share_report");
     const hasExportReportPermission = userPermissions.includes("export_report");
+    const hasCreateReportPermission = userPermissions.includes("create_report");
+    const hasDeleteReportPermission = userPermissions.includes("delete_report");
+    const hasCloneReportPermission = userPermissions.includes("create_report");
 
     // Fetch report
     const {
@@ -150,10 +153,14 @@ const ReportViewerPage: React.FC = () => {
                         reportId={reportId}
                         reportName={reportData.name}
                         reportConfig={reportData.report_config}
+                        storedReportContext={reportData.context}
                         allTables={allTables}
                         hasEditReportPermission={hasEditReportPermission}
                         hasShareReportPermission={hasShareReportPermission}
                         hasExportReportPermission={hasExportReportPermission}
+                        hasCreateReportPermission={hasCreateReportPermission}
+                        hasDeleteReportPermission={hasDeleteReportPermission}
+                        hasCloneReportPermission={hasCloneReportPermission}
                         isSystemReport={reportData.is_system === true}
                         onEditClick={() => {
                             router.push(
