@@ -241,6 +241,31 @@ function readMaturityStats(
     return entityStats?.[MATURITY_ENTITY_STATS_KEY];
 }
 
+const LINK_PAYMENTS_DETAIL_LABELS: Record<
+    string,
+    { label: string; unit: string }
+> = {
+    link: { label: "Linking payments to invoices", unit: "payments" },
+    align: { label: "Aligning payment currency", unit: "payments" },
+    close: { label: "Closing reconciled invoices", unit: "payments" },
+    recalc: { label: "Recalculating paid totals", unit: "invoices" },
+};
+
+function formatLinkPaymentsDetail(
+    detail: EntityStatSlice["detail"]
+): string | undefined {
+    if (!detail) {
+        return undefined;
+    }
+    const known = LINK_PAYMENTS_DETAIL_LABELS[detail.step];
+    const label = known?.label ?? detail.step;
+    if (detail.total == null || detail.total <= 0) {
+        return label;
+    }
+    const processed = detail.processed ?? 0;
+    return `${label} · ${processed.toLocaleString()} / ${detail.total.toLocaleString()} ${known?.unit ?? "items"}`;
+}
+
 function shouldShowLinkPaymentsRow(enabledEntities: ImportType[]): boolean {
     return enabledEntities.includes("Invoice");
 }
@@ -264,6 +289,8 @@ function buildLinkPaymentsRunningRow(params: {
     const error =
         maturity?.sample_errors?.[0]?.trim() ||
         (status === "failed" ? "Failed to link payments to invoices" : null);
+    const detail = formatLinkPaymentsDetail(maturity?.detail);
+    const detailProps = detail ? { detail } : {};
 
     if (status === "failed") {
         return {
@@ -306,6 +333,7 @@ function buildLinkPaymentsRunningRow(params: {
             success: linked,
             failed: 0,
             skipped: deferred,
+            ...detailProps,
         };
     }
 
@@ -327,6 +355,7 @@ function buildLinkPaymentsRunningRow(params: {
             success: linked,
             failed: 0,
             skipped: deferred,
+            ...detailProps,
         };
     }
 
