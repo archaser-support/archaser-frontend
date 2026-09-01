@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    BACKFILL_TAIL_STEPS,
     buildBackfillProgressHeader,
     buildFinishedEntityProgressRows,
     buildRunningEntityProgressRows,
@@ -45,6 +46,10 @@ function run(
         error_type: null,
         ...partial,
     };
+}
+
+function waitingTailProgressRows(): Array<[string, string]> {
+    return BACKFILL_TAIL_STEPS.map((step) => [step.label, "waiting"]);
 }
 
 describe("backfillImportProgress", () => {
@@ -119,6 +124,7 @@ describe("backfillImportProgress", () => {
             ["Payment", "done"],
             ["Invoice", "running"],
             ["Link payments", "waiting"],
+            ...waitingTailProgressRows(),
         ]);
         expect(rows[2].progress_percent).toBeNull();
         expect(rows[2].records_pulled).toBe(50);
@@ -165,6 +171,7 @@ describe("backfillImportProgress", () => {
             ["Invoice", "waiting"],
             ["Link payments", "waiting"],
             ["Contact", "waiting"],
+            ...waitingTailProgressRows(),
         ]);
     });
 
@@ -199,6 +206,7 @@ describe("backfillImportProgress", () => {
             ["Payment", "running"],
             ["Invoice", "waiting"],
             ["Link payments", "waiting"],
+            ...waitingTailProgressRows(),
         ]);
         expect(rows[1].records_pulled).toBe(1982);
     });
@@ -237,6 +245,7 @@ describe("backfillImportProgress", () => {
             ["Payment", "running"],
             ["Invoice", "waiting"],
             ["Link payments", "waiting"],
+            ...waitingTailProgressRows(),
         ]);
     });
 
@@ -271,6 +280,7 @@ describe("backfillImportProgress", () => {
             ["Payment", "done"],
             ["Invoice", "running"],
             ["Link payments", "waiting"],
+            ...waitingTailProgressRows(),
         ]);
     });
 
@@ -309,10 +319,105 @@ describe("backfillImportProgress", () => {
             ["Payment", "waiting"],
             ["Invoice", "waiting"],
             ["Link payments", "waiting"],
+            ...waitingTailProgressRows(),
         ]);
         expect(rows.every((row) => row.last_error == null)).toBe(true);
         expect(rows.every((row) => row.records_pulled === 0)).toBe(true);
         expect(rows.every((row) => row.total_records == null)).toBe(true);
+    });
+
+    it("lists all tail steps as Waiting while a backfill run is in progress", () => {
+        const rows = buildRunningEntityProgressRows({
+            enabledEntities: ["Customer", "Invoice"],
+            syncStates: [
+                syncState({
+                    entity_type: "Customer",
+                    backfill_completed: true,
+                    backfill_records_pulled: 1,
+                }),
+                syncState({
+                    entity_type: "Invoice",
+                    backfill_records_pulled: 1,
+                }),
+            ],
+            entityStats: {
+                Customer: { pulled: 1, success: 1, failed: 0, skipped: 0 },
+                Invoice: { pulled: 1, success: 0, failed: 0, skipped: 0 },
+            },
+        });
+
+        expect(
+            rows.slice(-BACKFILL_TAIL_STEPS.length).map((row) => [
+                row.entity_type,
+                row.phase,
+            ])
+        ).toEqual(waitingTailProgressRows());
+    });
+
+    it("hides AR tail steps when only Customer or Contact are enabled", () => {
+        const customerOnly = buildRunningEntityProgressRows({
+            enabledEntities: ["Customer"],
+            syncStates: [
+                syncState({
+                    entity_type: "Customer",
+                    backfill_records_pulled: 1,
+                }),
+            ],
+            entityStats: {
+                Customer: { pulled: 1, success: 0, failed: 0, skipped: 0 },
+            },
+        });
+        expect(
+            customerOnly.some((row) =>
+                BACKFILL_TAIL_STEPS.some((step) => step.label === row.entity_type)
+            )
+        ).toBe(false);
+
+        const contactOnly = buildRunningEntityProgressRows({
+            enabledEntities: ["Contact"],
+            syncStates: [
+                syncState({
+                    entity_type: "Contact",
+                    backfill_records_pulled: 1,
+                }),
+            ],
+            entityStats: {
+                Contact: { pulled: 1, success: 0, failed: 0, skipped: 0 },
+            },
+        });
+        expect(
+            contactOnly.some((row) =>
+                BACKFILL_TAIL_STEPS.some((step) => step.label === row.entity_type)
+            )
+        ).toBe(false);
+    });
+
+    it("shows AR tail steps for Payment-only backfill but not Link payments", () => {
+        const rows = buildRunningEntityProgressRows({
+            enabledEntities: ["Customer", "Payment"],
+            syncStates: [
+                syncState({
+                    entity_type: "Customer",
+                    backfill_completed: true,
+                    backfill_records_pulled: 1,
+                }),
+                syncState({
+                    entity_type: "Payment",
+                    backfill_records_pulled: 10,
+                }),
+            ],
+            entityStats: {
+                Customer: { pulled: 1, success: 1, failed: 0, skipped: 0 },
+                Payment: { pulled: 10, success: 0, failed: 0, skipped: 0 },
+            },
+        });
+
+        expect(rows.some((row) => row.entity_type === "Link payments")).toBe(
+            false
+        );
+        expect(
+            rows.slice(-BACKFILL_TAIL_STEPS.length).map((row) => row.entity_type)
+        ).toEqual(BACKFILL_TAIL_STEPS.map((step) => step.label));
     });
 
     it("uses live entity_stats pulled counts while the run is in progress", () => {

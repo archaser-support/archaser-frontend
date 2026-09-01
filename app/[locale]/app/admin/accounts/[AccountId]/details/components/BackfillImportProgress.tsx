@@ -7,17 +7,22 @@ import {
     Box,
     Card,
     CardContent,
-    Chip,
+    CircularProgress,
     LinearProgress,
+    Tooltip,
     Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import {
+    CheckCircle as CheckCircleIcon,
+    ErrorOutline as ErrorOutlineIcon,
     ExpandMore as ExpandMoreIcon,
+    HourglassEmpty as HourglassEmptyIcon,
+    InfoOutlined as InfoOutlinedIcon,
     Sync as SyncIcon,
 } from "@mui/icons-material";
 import type { ImportType } from "@/types/db";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import { useTranslation } from "react-i18next";
 
@@ -26,10 +31,12 @@ import {
     buildBackfillProgressHeader,
     buildFinishedEntityProgressRows,
     buildRunningEntityProgressRows,
+    enrichPostIngestDrainProgressRow,
     estimateRemainingSeconds,
     formatEstimatedRemaining,
     BACKFILL_LINK_PAYMENTS_LABEL,
     BACKFILL_TAIL_STEPS,
+    getBackfillProgressStepTooltip,
     type EntityProgressPhase,
     type EntityProgressRow,
     type ProgressRateSample,
@@ -45,27 +52,12 @@ import {
     accountSectionIconSx,
 } from "../accountCardStyles";
 
-function phaseChipColor(
-    phase: EntityProgressPhase
-): "default" | "info" | "success" | "error" | "warning" {
-    switch (phase) {
-        case "running":
-            return "info";
-        case "done":
-            return "success";
-        case "failed":
-            return "error";
-        case "waiting":
-        case "not_started":
-        default:
-            return "default";
-    }
-}
-
 function phaseLabel(phase: EntityProgressPhase): string {
     switch (phase) {
         case "running":
             return "Running";
+        case "queued":
+            return "Queued";
         case "done":
             return "Done";
         case "failed":
@@ -79,6 +71,65 @@ function phaseLabel(phase: EntityProgressPhase): string {
     }
 }
 
+function PhaseStatusIcon({ phase }: { phase: EntityProgressPhase }) {
+    const iconSx = { fontSize: "1.125rem", flexShrink: 0 };
+
+    let icon: ReactNode;
+    switch (phase) {
+        case "done":
+            icon = <CheckCircleIcon color="success" sx={iconSx} />;
+            break;
+        case "running":
+            icon = (
+                <CircularProgress
+                    size={16}
+                    color="primary"
+                    sx={{ flexShrink: 0 }}
+                />
+            );
+            break;
+        case "queued":
+            icon = (
+                <HourglassEmptyIcon color="primary" sx={iconSx} />
+            );
+            break;
+        case "failed":
+            icon = <ErrorOutlineIcon color="error" sx={iconSx} />;
+            break;
+        case "waiting":
+        case "not_started":
+        default:
+            icon = (
+                <HourglassEmptyIcon sx={{ ...iconSx, color: "text.disabled" }} />
+            );
+            break;
+    }
+
+    return (
+        <Tooltip
+            title={phaseLabel(phase)}
+            arrow
+            enterDelay={300}
+            leaveDelay={100}
+            placement="bottom"
+        >
+            <Box
+                component="span"
+                sx={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 20,
+                    height: 20,
+                    flexShrink: 0,
+                }}
+            >
+                {icon}
+            </Box>
+        </Tooltip>
+    );
+}
+
 function formatCounts(row: EntityProgressRow, finished: boolean): string {
     const isLinkPayments =
         row.entity_type === BACKFILL_LINK_PAYMENTS_LABEL;
@@ -90,6 +141,14 @@ function formatCounts(row: EntityProgressRow, finished: boolean): string {
         : isTailStep
           ? "processed"
           : "imported";
+
+    if (row.phase === "queued") {
+        return row.detail ?? "Queued";
+    }
+
+    if (!finished && isTailStep && row.detail) {
+        return row.detail;
+    }
 
     if (
         !finished &&
@@ -146,6 +205,8 @@ interface BackfillImportProgressProps {
     run: SyncRunSummary | null;
     enabledEntities: ImportType[];
     syncStates: ConnectorSyncStatePublic[] | undefined;
+    /** Customers still on the worker AR post-ingest queue (connector config). */
+    pendingArPostIngestCustomers?: number;
     expanded: boolean;
     onExpandedChange: (expanded: boolean) => void;
     actions?: ReactNode;
@@ -155,6 +216,7 @@ export default function BackfillImportProgress({
     run,
     enabledEntities,
     syncStates,
+    pendingArPostIngestCustomers,
     expanded,
     onExpandedChange,
     actions,
@@ -164,32 +226,37 @@ export default function BackfillImportProgress({
     const pillRadiusPx = `${theme.appButton.sizeMedium.borderRadius}px`;
 
     const isRunning = run?.status === "RUNNING";
+    const deferredDrainInProgress = (pendingArPostIngestCustomers ?? 0) > 0;
+    const showLiveProgress = isRunning || deferredDrainInProgress;
     const isStopping =
         run?.status === "TIMEOUT" &&
         run.error_type === "cancelled" &&
         !run.completed_at;
-    const collapseLocked = isRunning || isStopping;
+    const collapseLocked = showLiveProgress || isStopping;
     const effectiveExpanded = collapseLocked || expanded;
 
     const rows = useMemo(() => {
         if (!run) {
             return [];
         }
-        if (isRunning) {
-            return buildRunningEntityProgressRows({
-                enabledEntities,
-                syncStates,
-                entityStats: run.entity_stats,
-                mepBreachStartDate:
-                    run.cutover_options?.mep_breach_start_date,
-            });
-        }
-        return buildFinishedEntityProgressRows({
-            enabledEntities,
-            syncStates,
-            run,
-        });
-    }, [enabledEntities, isRunning, run, syncStates]);
+        const baseRows = isRunning
+            ? buildRunningEntityProgressRows({
+                  enabledEntities,
+                  syncStates,
+                  entityStats: run.entity_stats,
+                  mepBreachStartDate:
+                      run.cutover_options?.mep_breach_start_date,
+              })
+            : buildFinishedEntityProgressRows({
+                  enabledEntities,
+                  syncStates,
+                  run,
+              });
+        return enrichPostIngestDrainProgressRow(
+            baseRows,
+            pendingArPostIngestCustomers
+        );
+    }, [enabledEntities, isRunning, pendingArPostIngestCustomers, run, syncStates]);
 
     const rateSamplesRef = useRef<ProgressRateSample[]>([]);
     const trackedRunIdRef = useRef<string | null>(null);
@@ -360,94 +427,79 @@ export default function BackfillImportProgress({
                         {rows.length > 0 ? (
                             <Box
                                 sx={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    gap: 1.5,
+                                    display: "grid",
+                                    gridTemplateColumns:
+                                        "20px max-content minmax(0, 1fr) max-content",
+                                    columnGap: 1,
+                                    rowGap: 1.5,
+                                    alignItems: "center",
                                     mb: actions ? 2 : 0,
                                 }}
                             >
                                 {rows.map((row) => {
                                     const showBar =
-                                        row.phase === "running" ||
-                                        (row.phase === "done" &&
-                                            row.progress_percent != null) ||
-                                        (row.phase === "failed" &&
-                                            row.records_pulled > 0 &&
-                                            Boolean(isRunning));
+                                        row.progress_percent != null &&
+                                        (row.phase === "running" ||
+                                            row.phase === "done" ||
+                                            (row.phase === "failed" &&
+                                                row.records_pulled > 0 &&
+                                                Boolean(showLiveProgress)));
+                                    const showIndeterminateBar =
+                                        (row.phase === "running" ||
+                                            row.phase === "queued") &&
+                                        row.progress_percent == null &&
+                                        Boolean(showLiveProgress);
 
                                     return (
-                                        <Box key={row.entity_type}>
+                                        <Fragment key={row.entity_type}>
+                                            <PhaseStatusIcon
+                                                phase={row.phase}
+                                            />
                                             <Box
                                                 sx={{
-                                                    display: "flex",
+                                                    display: "inline-flex",
                                                     alignItems: "center",
-                                                    justifyContent:
-                                                        "space-between",
-                                                    gap: 1,
-                                                    flexWrap: "wrap",
-                                                    mb: 0.5,
+                                                    gap: 0.5,
                                                 }}
                                             >
-                                                <Box
-                                                    sx={{
-                                                        display: "flex",
-                                                        alignItems: "center",
-                                                        gap: 1,
-                                                        minWidth: 0,
-                                                    }}
-                                                >
-                                                    <Typography
-                                                        variant="body2"
-                                                        fontWeight={600}
-                                                    >
-                                                        {row.entity_type}
-                                                    </Typography>
-                                                    <Chip
-                                                        size="small"
-                                                        label={phaseLabel(
-                                                            row.phase
-                                                        )}
-                                                        color={phaseChipColor(
-                                                            row.phase
-                                                        )}
-                                                        variant={
-                                                            row.phase ===
-                                                                "waiting" ||
-                                                            row.phase ===
-                                                                "not_started"
-                                                                ? "outlined"
-                                                                : "filled"
-                                                        }
-                                                    />
-                                                </Box>
                                                 <Typography
                                                     variant="body2"
-                                                    color="text.secondary"
+                                                    fontWeight={600}
                                                 >
-                                                    {formatCountsWithEta(
-                                                        formatCounts(
-                                                            row,
-                                                            !isRunning ||
-                                                                row.phase ===
-                                                                    "done" ||
-                                                                row.phase ===
-                                                                    "failed"
-                                                        ),
-                                                        row.entity_type ===
-                                                            BACKFILL_LINK_PAYMENTS_LABEL
-                                                            ? linkPaymentsEta
-                                                            : null
-                                                    )}
+                                                    {row.entity_type}
                                                 </Typography>
+                                                <Tooltip
+                                                    title={getBackfillProgressStepTooltip(
+                                                        row.entity_type
+                                                    )}
+                                                    arrow
+                                                    enterDelay={300}
+                                                    leaveDelay={100}
+                                                    placement="bottom"
+                                                >
+                                                    <Box
+                                                        component="span"
+                                                        sx={{
+                                                            display:
+                                                                "inline-flex",
+                                                            alignItems:
+                                                                "center",
+                                                            color: "action.active",
+                                                            cursor: "help",
+                                                        }}
+                                                        aria-label={`About ${row.entity_type} step`}
+                                                    >
+                                                        <InfoOutlinedIcon
+                                                            sx={{
+                                                                fontSize: 16,
+                                                            }}
+                                                        />
+                                                    </Box>
+                                                </Tooltip>
                                             </Box>
                                             {showBar ? (
                                                 <LinearProgress
-                                                    variant={
-                                                        row.progress_percent !=
-                                                        null
-                                                            ? "determinate"
-                                                            : "indeterminate"
-                                                    }
+                                                    variant="determinate"
                                                     value={
                                                         row.progress_percent ??
                                                         0
@@ -460,28 +512,43 @@ export default function BackfillImportProgress({
                                                               ? "success"
                                                               : "primary"
                                                     }
+                                                    sx={{ width: "100%" }}
                                                 />
-                                            ) : null}
-                                            {row.detail &&
-                                            row.phase === "running" ? (
-                                                <Typography
-                                                    variant="caption"
-                                                    color="text.secondary"
-                                                    sx={{
-                                                        display: "block",
-                                                        mt: 0.5,
-                                                    }}
-                                                >
-                                                    {row.detail}
-                                                </Typography>
-                                            ) : null}
+                                            ) : showIndeterminateBar ? (
+                                                <LinearProgress
+                                                    variant="indeterminate"
+                                                    color="primary"
+                                                    sx={{ width: "100%" }}
+                                                />
+                                            ) : (
+                                                <Box />
+                                            )}
+                                            <Typography
+                                                variant="body2"
+                                                color="text.secondary"
+                                                sx={{ justifySelf: "end" }}
+                                            >
+                                                {formatCountsWithEta(
+                                                    formatCounts(
+                                                        row,
+                                                        !showLiveProgress ||
+                                                            row.phase ===
+                                                                "done" ||
+                                                            row.phase ===
+                                                                "failed"
+                                                    ),
+                                                    row.entity_type ===
+                                                        BACKFILL_LINK_PAYMENTS_LABEL
+                                                        ? linkPaymentsEta
+                                                        : null
+                                                )}
+                                            </Typography>
                                             {row.last_error ? (
                                                 <Typography
                                                     variant="caption"
                                                     color="error"
                                                     sx={{
-                                                        display: "block",
-                                                        mt: 0.5,
+                                                        gridColumn: "1 / -1",
                                                     }}
                                                 >
                                                     {translateImportMessage(
@@ -490,7 +557,7 @@ export default function BackfillImportProgress({
                                                     )}
                                                 </Typography>
                                             ) : null}
-                                        </Box>
+                                        </Fragment>
                                     );
                                 })}
                             </Box>
