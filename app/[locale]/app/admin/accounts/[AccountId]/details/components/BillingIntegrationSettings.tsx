@@ -780,9 +780,16 @@ const BillingIntegrationSettings = forwardRef<
         session: progressSession,
     });
     const progressRun = progressResolution.run;
-    const displayProgressRun = pendingBackfillReset
-        ? findRunningBackfillRun(syncRuns) ?? createPendingBackfillRun()
-        : progressRun;
+    const displayProgressRun = useMemo(
+        () =>
+            pendingBackfillReset
+                ? findRunningBackfillRun(syncRuns) ?? createPendingBackfillRun()
+                : progressRun,
+        [pendingBackfillReset, syncRuns, progressRun]
+    );
+    const displayProgressRunActive = Boolean(
+        displayProgressRun && isActiveConnectorSyncRun(displayProgressRun)
+    );
     const displaySyncStates = pendingBackfillReset
         ? zeroBackfillProgressSyncStates(config?.sync_states)
         : config?.sync_states;
@@ -833,10 +840,7 @@ const BillingIntegrationSettings = forwardRef<
             !backfillMutation.isPending &&
             !incrementalMutation.isPending &&
             !syncInProgress &&
-            !(
-                displayProgressRun &&
-                isActiveConnectorSyncRun(displayProgressRun)
-            )
+            !displayProgressRunActive
         ) {
             return;
         }
@@ -857,7 +861,7 @@ const BillingIntegrationSettings = forwardRef<
         backfillMutation.isPending,
         incrementalMutation.isPending,
         syncInProgress,
-        displayProgressRun,
+        displayProgressRunActive,
     ]);
 
     const entitiesForMapping = useMemo(
