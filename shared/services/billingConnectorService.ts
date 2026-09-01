@@ -83,6 +83,11 @@ export interface BillingConnectorConfig {
     invoice_paid_tolerance?: number;
     /** Locked after backfill starts until reset. */
     backfill_options_locked?: boolean;
+    /**
+     * Customers with deferred AR replay / insurance refresh still pending on
+     * the worker queue. Start/resume backfill stays disabled while > 0.
+     */
+    pending_ar_post_ingest_customers?: number;
     /** Optional account-extension key; null/empty = standard path. */
     extension_key?: string | null;
     /** Plugin-owned settings for the attached extension. */
@@ -150,7 +155,7 @@ export interface SyncRunSummary {
             skipped: number;
             sample_errors?: string[];
             /** Present for `_maturity` while linking / after it finishes. */
-            status?: "running" | "done" | "failed";
+            status?: "running" | "done" | "failed" | "queued";
             /** Present for tail steps while running: the sub-step in flight. */
             detail?: {
                 step: string;
