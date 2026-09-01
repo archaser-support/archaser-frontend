@@ -31,8 +31,127 @@ import {
     isEnumField,
     translateEnumValue,
 } from "./viewFieldHelpers";
+import { formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
 
 const EMPTY_CELL_PLACEHOLDER = "—";
+
+function coerceReportAmount(value: unknown): number | null {
+    if (value == null || value === "") {
+        return null;
+    }
+    if (typeof value === "number" && Number.isFinite(value)) {
+        return value;
+    }
+    if (typeof value === "string") {
+        const cleaned = value.replace(/,/g, "").trim();
+        if (!cleaned) {
+            return null;
+        }
+        const parsed = Number(cleaned);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+}
+
+function resolveReportAmountCurrency(
+    params: GridRenderCellParams,
+    fieldConfig: { table?: string; field?: string } | undefined,
+    key: string,
+    tableName: string,
+    viewConfig: { currencyColumns?: Record<string, { currencyField?: string }> },
+    accountCurrency?: string
+): string | undefined {
+    const currencyColumns = viewConfig?.currencyColumns;
+    if (currencyColumns?.[key]?.currencyField) {
+        const configured = getRowValue(
+            params,
+            currencyColumns[key].currencyField!,
+            tableName,
+            fieldConfig
+        );
+        if (configured != null && String(configured).trim() !== "") {
+            return String(configured).trim();
+        }
+    }
+
+    const field =
+        fieldConfig?.field ??
+        (key.includes(".") ? key.split(".").pop() : key) ??
+        "";
+    const table = fieldConfig?.table ?? tableName;
+
+    const pick = (...candidates: string[]) => {
+        for (const candidate of candidates) {
+            const value = getRowValue(params, candidate, tableName, fieldConfig);
+            if (value != null && String(value).trim() !== "") {
+                return String(value).trim();
+            }
+        }
+        return undefined;
+    };
+
+    if (
+        field === "promise_to_pay_amount" ||
+        table === "CustomerCollectionPeriod"
+    ) {
+        return (
+            pick("CustomerCollectionPeriod.currency", "currency") ??
+            accountCurrency
+        );
+    }
+
+    if (
+        field.startsWith("customer_") &&
+        (field.includes("amount") ||
+            field.includes("debt") ||
+            field.includes("paid"))
+    ) {
+        return (
+            pick(
+                "Invoice.customer_currency",
+                "InvoicePayment.customer_currency",
+                `${table}.customer_currency`,
+                "customer_currency"
+            ) ?? accountCurrency
+        );
+    }
+
+    return accountCurrency;
+}
+
+function formatReportAmountWithCurrency(
+    params: GridRenderCellParams,
+    key: string,
+    tableName: string,
+    fieldConfig: { table?: string; field?: string } | undefined,
+    viewConfig: { currencyColumns?: Record<string, { currencyField?: string }> },
+    accountCurrency: string | undefined,
+    i18nLanguage: string
+): string | null {
+    const rawAmount = getRowValue(params, key, tableName, fieldConfig);
+    const numericAmount = coerceReportAmount(rawAmount);
+    if (numericAmount == null) {
+        return null;
+    }
+    const currencyCode = resolveReportAmountCurrency(
+        params,
+        fieldConfig,
+        key,
+        tableName,
+        viewConfig,
+        accountCurrency
+    );
+    if (!currencyCode) {
+        return null;
+    }
+    const locale = i18nLanguage === "he" ? "he-IL" : "en-US";
+    return formatCurrencyWithRTLSupport(
+        numericAmount,
+        currencyCode,
+        locale,
+        i18nLanguage
+    );
+}
 
 /** Maps report metadata table `name` to `reports.tables.*` i18n slug. */
 const REPORT_TABLE_NAME_TO_I18N_SLUG: Record<string, string> = {
@@ -948,24 +1067,22 @@ export function generateViewColumns(
                     );
                 }
 
-                // Handle currency display if configured (backward compatibility)
                 if (
-                    !hasFormattedDisplay &&
                     shouldFormatAmount &&
-                    viewConfig.currencyColumns?.[key]
+                    displayValue !== "" &&
+                    displayValue !== "-"
                 ) {
-                    const currencyConfig = viewConfig.currencyColumns[key];
-                    if (currencyConfig.currencyField) {
-                        const currencyValue = getRowValue(
-                            params,
-                            currencyConfig.currencyField,
-                            tableName
-                        );
-
-                        if (currencyValue && displayValue !== "" && displayValue !== "-") {
-                            // Format: "AUD 100.00"
-                            displayValue = `${currencyValue} ${displayValue}`;
-                        }
+                    const withCurrency = formatReportAmountWithCurrency(
+                        params,
+                        key,
+                        tableName,
+                        fieldConfig,
+                        viewConfig,
+                        accountCurrency,
+                        i18n.language
+                    );
+                    if (withCurrency) {
+                        displayValue = withCurrency;
                     }
                 }
 
