@@ -8,7 +8,7 @@ export type SyncHistoryEntityColumnKey =
     | "Payment"
     | typeof MATURITY_ENTITY_STATS_KEY;
 
-/** Format entity_stats slice as `pulled / success / failed`, or `—` when missing. */
+/** Format entity_stats slice as `pulled / success / failed / skipped`, or `—` when missing. */
 export function formatEntityStatsCell(
     entityStats: SyncRunSummary["entity_stats"] | undefined,
     key: SyncHistoryEntityColumnKey
@@ -17,7 +17,18 @@ export function formatEntityStatsCell(
     if (!slice) {
         return "—";
     }
-    return `${slice.pulled} / ${slice.success} / ${slice.failed}`;
+    return `${slice.pulled} / ${slice.success} / ${slice.failed} / ${slice.skipped}`;
+}
+
+export function getEntitySampleErrors(
+    entityStats: SyncRunSummary["entity_stats"] | undefined,
+    key: SyncHistoryEntityColumnKey
+): string[] {
+    const slice = entityStats?.[key];
+    if (!slice?.sample_errors?.length) {
+        return [];
+    }
+    return slice.sample_errors;
 }
 
 export function formatSyncHistoryDuration(
@@ -42,6 +53,11 @@ export type SyncHistoryGridRow = {
     invoice: string;
     payment: string;
     linkPayments: string;
+    customerSampleErrors: string[];
+    contactSampleErrors: string[];
+    invoiceSampleErrors: string[];
+    paymentSampleErrors: string[];
+    linkPaymentsSampleErrors: string[];
 };
 
 export function toSyncHistoryGridRow(run: SyncRunSummary): SyncHistoryGridRow {
@@ -59,5 +75,13 @@ export function toSyncHistoryGridRow(run: SyncRunSummary): SyncHistoryGridRow {
         invoice: formatEntityStatsCell(stats, "Invoice"),
         payment: formatEntityStatsCell(stats, "Payment"),
         linkPayments: formatEntityStatsCell(stats, MATURITY_ENTITY_STATS_KEY),
+        customerSampleErrors: getEntitySampleErrors(stats, "Customer"),
+        contactSampleErrors: getEntitySampleErrors(stats, "Contact"),
+        invoiceSampleErrors: getEntitySampleErrors(stats, "Invoice"),
+        paymentSampleErrors: getEntitySampleErrors(stats, "Payment"),
+        linkPaymentsSampleErrors: getEntitySampleErrors(
+            stats,
+            MATURITY_ENTITY_STATS_KEY
+        ),
     };
 }
