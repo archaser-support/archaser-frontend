@@ -6,6 +6,7 @@
  * SMS (:3004), connectors (:3005), and reports (:3006).
  *
  * /api/auth stays on Next. /api/ws is Nest-owned (SSE).
+ * /api/debug/* stays on Next (local dev helpers, e.g. priority-erp-proxy).
  *
  * Flip flags: USE_SMS_NEST_REWRITE, USE_CONNECTORS_NEST_REWRITE,
  * USE_REPORTS_NEST_REWRITE (set "false" to send reports back to main API).
@@ -26,7 +27,6 @@ const NEST_API_REWRITE_TOP_LEVEL = [
     "country",
     "credit-insurance",
     "customers",
-    "debug",
     "email",
     "entities",
     "errors",
