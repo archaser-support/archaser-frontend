@@ -1,3 +1,4 @@
+import type { ImportType } from "@/types/db";
 import type { ConnectorSyncStatePublic } from "@/shared/services/billingConnectorService";
 
 export function isActiveConnectorSyncRun(run: {
@@ -161,19 +162,37 @@ export function hasPendingDeferredArPostIngest(
     return (pendingCustomers ?? 0) > 0;
 }
 
-/** True when backfill started but not all enabled entities finished. */
+/**
+ * True when an enabled entity started backfill but has not finished yet.
+ * Completed entities (even with large pulled counts) do not count as partial.
+ * Never-started enabled entities (e.g. skipped on customer-scoped Start) do not either.
+ */
 export function hasPartialBackfillProgress(
-    syncStates: ConnectorSyncStatePublic[] | undefined
+    syncStates: ConnectorSyncStatePublic[] | undefined,
+    enabledEntities?: readonly ImportType[]
 ): boolean {
     if (!syncStates?.length) {
         return false;
     }
-    return syncStates.some(
-        (state) =>
+    const enabled = enabledEntities?.length
+        ? new Set<string>(enabledEntities)
+        : null;
+    const scoped = enabled
+        ? syncStates.filter((state) => enabled.has(state.entity_type))
+        : syncStates;
+    if (!scoped.length) {
+        return false;
+    }
+    return scoped.some((state) => {
+        if (state.backfill_completed) {
+            return false;
+        }
+        return (
             state.backfill_cursor_present ||
             state.backfill_records_pulled > 0 ||
-            (state.last_attempt_at != null && !state.backfill_completed)
-    );
+            state.last_attempt_at != null
+        );
+    });
 }
 
 export function getPreviewSyncDisabledReason(params: {
@@ -237,6 +256,7 @@ export function resolveBackfillActionStage(params: {
     previewBlocked: boolean;
     backfillOptionsLocked: boolean;
     syncStates: ConnectorSyncStatePublic[] | undefined;
+    enabledEntities?: readonly ImportType[];
     importBusy: boolean;
     showStopImport: boolean;
 }): BackfillActionStageView {
@@ -278,7 +298,10 @@ export function resolveBackfillActionStage(params: {
 
     const resume =
         params.backfillOptionsLocked &&
-        hasPartialBackfillProgress(params.syncStates);
+        hasPartialBackfillProgress(
+            params.syncStates,
+            params.enabledEntities
+        );
 
     if (resume) {
         return {
