@@ -30,7 +30,7 @@ import {
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { useQuery } from "@tanstack/react-query";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import React, {
     useState,
@@ -48,6 +48,7 @@ import {
 } from "@/shared/services/globalSearchService";
 import AppUrls from "@/utils/appUrls";
 import { formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
+import { resolveTextDirection } from "@/utils/textDirection";
 
 interface GlobalSearchProps {
     isHebrewUser?: boolean;
@@ -176,9 +177,7 @@ const fetchLastCreatedCustomers = async (): Promise<GlobalSearchResult[]> => {
     }
 };
 
-const GlobalSearch: React.FC<GlobalSearchProps> = ({
-    isHebrewUser = false,
-}) => {
+const GlobalSearch: React.FC<GlobalSearchProps> = () => {
     const { t, i18n } = useTranslation([
         "common",
         "customers",
@@ -189,7 +188,6 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
     const { data: session } = useSession();
     const theme = useTheme();
     const router = useRouter();
-    const pathname = usePathname();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
     const [searchTerm, setSearchTerm] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -214,6 +212,32 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
     const resultRefs = useRef<{ [key: number]: HTMLElement | null }>({});
     const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    const appTextDirection = i18n.language === "he" ? "rtl" : "ltr";
+    const textDirection = useMemo(
+        () => resolveTextDirection(searchTerm, appTextDirection),
+        [searchTerm, appTextDirection]
+    );
+    const isRtl = textDirection === "rtl";
+
+    const hoveredResultRef = useRef(hoveredResult);
+    hoveredResultRef.current = hoveredResult;
+
+    const listboxRendererRef = useRef<(props: any) => React.ReactNode>(
+        () => null
+    );
+    const StableListboxComponent = useCallback(
+        (props: any) => listboxRendererRef.current(props) as React.ReactElement,
+        []
+    );
+
+    const popperRendererRef = useRef<(props: any) => React.ReactNode>(
+        () => null
+    );
+    const StablePopperComponent = useCallback(
+        (props: any) => popperRendererRef.current(props) as React.ReactElement,
+        []
+    );
+
     // Load recent searches and last search results on mount
     useEffect(() => {
         setRecentSearches(getRecentSearches());
@@ -223,23 +247,13 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
         }
     }, []);
 
-    // Auto-focus search input on mount
+    // Auto-focus search input on mount only (not on every route change)
     useEffect(() => {
-        // Use a small delay to ensure the input is rendered
         const timer = setTimeout(() => {
             searchInputRef.current?.focus();
         }, 100);
         return () => clearTimeout(timer);
     }, []);
-
-    // Auto-focus search input on route change
-    useEffect(() => {
-        // Use a small delay to ensure the input is rendered after route change
-        const timer = setTimeout(() => {
-            searchInputRef.current?.focus();
-        }, 150);
-        return () => clearTimeout(timer);
-    }, [pathname]);
 
     // Debounce search term (reduced to 200ms for faster feedback)
     useEffect(() => {
@@ -262,13 +276,15 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
     }, [debouncedSearch]);
 
     // Query for search results with request cancellation support
-    const { data, isLoading, isError } = useQuery({
+    const { data, isLoading, isFetching, isError } = useQuery({
         queryKey: ["globalSearch", { query: debouncedSearch }],
         queryFn: searchGlobal,
         enabled: debouncedSearch.trim().length >= 2,
         staleTime: 10000, // Increased cache time
         gcTime: 30000, // Keep in cache for 30 seconds
+        placeholderData: (previousData) => previousData,
     });
+    const showSearchSpinner = isLoading || isFetching;
 
     const results = useMemo(() => data?.results || [], [data?.results]);
     const countsByType = data?.countsByType;
@@ -467,282 +483,192 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
         };
     }, []);
 
-    // Fix alignment for Hebrew when dropdown opens
+    // Fix alignment for Hebrew when dropdown opens (throttled; hover width via ref)
     useEffect(() => {
         if (
-            isOpen &&
-            isWidthTransitionComplete &&
-            i18n.language === "he" &&
-            searchInputRef.current
+            !isOpen ||
+            !isWidthTransitionComplete ||
+            !isRtl ||
+            !searchInputRef.current
         ) {
-            const alignDropdown = () => {
-                // Find the Autocomplete root element (the input container)
-                const autocompleteRoot = searchInputRef.current?.closest(
-                    ".MuiAutocomplete-root"
-                ) as HTMLElement;
-
-                // Try multiple selectors to find the popper
-                const popperSelectors = [
-                    ".MuiPopper-root",
-                    '[role="presentation"]',
-                    ".MuiAutocomplete-popper",
-                    "[data-popper-placement]",
-                ];
-
-                let popperElement: HTMLElement | null = null;
-                for (const selector of popperSelectors) {
-                    popperElement = document.querySelector(
-                        selector
-                    ) as HTMLElement;
-                    if (popperElement) break;
-                }
-
-                // Also try finding it relative to autocomplete root
-                if (!popperElement && autocompleteRoot) {
-                    popperElement =
-                        autocompleteRoot.parentElement?.querySelector(
-                            '.MuiPopper-root, [role="presentation"]'
-                        ) as HTMLElement;
-                }
-
-                if (autocompleteRoot && popperElement) {
-                    const inputRect = autocompleteRoot.getBoundingClientRect();
-
-                    // Find the entire dropdown container (the ul element with both columns)
-                    // We align based on the entire container, not just the results column
-                    const dropdownContainer = popperElement.querySelector(
-                        'ul[role="listbox"], ul'
-                    ) as HTMLElement;
-                    if (!dropdownContainer) {
-                        return; // Wait if container not ready
-                    }
-
-                    const dropdownElement = dropdownContainer || popperElement;
-                    const dropdownRect =
-                        dropdownElement.getBoundingClientRect();
-
-                    // Check if the container width is still transitioning
-                    // The expected width when preview is shown is 650px, when not shown is 400px
-                    const expectedWidth =
-                        hoveredResult && !isMobile ? 650 : 400;
-                    const currentWidth = dropdownRect.width;
-                    const widthDifference = Math.abs(
-                        currentWidth - expectedWidth
-                    );
-
-                    // If width is still transitioning (more than 10px difference), skip alignment
-                    if (widthDifference > 10) {
-                        return;
-                    }
-
-                    // Calculate right edge positions
-                    // In Hebrew, we want the right edge of the entire dropdown container to align with the right edge of the input
-                    const inputRight = inputRect.right;
-                    const dropdownRight = dropdownRect.right;
-
-                    // Calculate how much we need to shift the popper to align right edges
-                    const offsetX = inputRight - dropdownRight;
-
-                    if (Math.abs(offsetX) > 0.5) {
-                        // Get current transform values - handle both translate() and translate3d() formats
-                        const currentTransform =
-                            popperElement.style.transform || "";
-
-                        // Try translate3d first, then translate
-                        let match = currentTransform.match(
-                            /translate3d\(([^,]+)px,\s*([^,]+)px/
-                        );
-                        if (!match) {
-                            match = currentTransform.match(
-                                /translate\(([^,]+)px,\s*([^,]+)px/
-                            );
-                        }
-                        const currentX = match ? parseFloat(match[1]) : 0;
-                        const currentY = match ? parseFloat(match[2]) : 0;
-
-                        // Apply the offset to align right edges
-                        const newX = currentX + offsetX;
-                        popperElement.style.transform = `translate3d(${newX}px, ${currentY}px, 0)`;
-                    }
-                }
-            };
-
-            // Find the dropdown container and listen for width transition
-            const popperElement = document.querySelector(
-                '.MuiPopper-root, [role="presentation"]'
-            ) as HTMLElement;
-            const dropdownContainer = popperElement?.querySelector(
-                'ul[role="listbox"], ul'
-            ) as HTMLElement;
-
-            if (dropdownContainer) {
-                // Listen for transitionend event on width changes
-                const handleTransitionEnd = (e: TransitionEvent) => {
-                    if (e.propertyName === "width") {
-                        alignDropdown();
-                    }
-                };
-
-                dropdownContainer.addEventListener(
-                    "transitionend",
-                    handleTransitionEnd
-                );
-
-                // Also run immediately and after a short delay as fallback
-                alignDropdown();
-                const timeout = setTimeout(alignDropdown, 250);
-
-                return () => {
-                    dropdownContainer.removeEventListener(
-                        "transitionend",
-                        handleTransitionEnd
-                    );
-                    clearTimeout(timeout);
-                };
-            } else {
-                // Fallback: run after delay if container not found
-                const timeout = setTimeout(alignDropdown, 250);
-                return () => clearTimeout(timeout);
-            }
+            return;
         }
-    }, [
-        isOpen,
-        i18n.language,
-        hoveredResult,
-        isMobile,
-        isWidthTransitionComplete,
-    ]);
 
-    // Fix noOptions container alignment for Hebrew
-    useEffect(() => {
-        if (i18n.language === "he" && isOpen) {
-            const applyStyles = () => {
-                const noOptionsContainer = document.querySelector(
-                    ".MuiAutocomplete-noOptions"
-                ) as HTMLElement;
-                if (noOptionsContainer) {
-                    // Find and style the Popper root element (if it exists)
-                    const popperRoot = noOptionsContainer.closest(
-                        '[role="presentation"]'
-                    ) as HTMLElement;
-                    if (popperRoot) {
-                        popperRoot.style.direction = "rtl";
-                        popperRoot.style.textAlign = "right";
-                    }
+        let rafId = 0;
+        let cancelled = false;
 
-                    // Find and style the paper parent container
-                    const paperContainer = noOptionsContainer.closest(
-                        ".MuiAutocomplete-paper"
-                    ) as HTMLElement;
-                    if (paperContainer) {
-                        paperContainer.style.direction = "rtl";
-                        paperContainer.style.width = "100%";
-                        paperContainer.style.minWidth = "100%";
-                        paperContainer.style.maxWidth = "100%";
-                        paperContainer.style.textAlign = "right";
-                        // Force override any inline styles or computed styles
-                        paperContainer.setAttribute("dir", "rtl");
-                    }
-
-                    // Apply styles to noOptions container
-                    noOptionsContainer.style.direction = "rtl";
-                    noOptionsContainer.style.textAlign = "right";
-                    noOptionsContainer.style.width = "100%";
-                    noOptionsContainer.style.minWidth = "100%";
-                    noOptionsContainer.style.maxWidth = "100%";
-                    noOptionsContainer.style.boxSizing = "border-box";
-                    noOptionsContainer.setAttribute("dir", "rtl");
-
-                    // Also apply styles to the inner Box element (direct child)
-                    const innerBox =
-                        noOptionsContainer.firstElementChild as HTMLElement;
-                    if (innerBox) {
-                        innerBox.style.direction = "rtl";
-                        innerBox.style.textAlign = "right";
-                        innerBox.style.width = "100%";
-                        innerBox.style.minWidth = "100%";
-                        innerBox.style.maxWidth = "100%";
-                        innerBox.style.boxSizing = "border-box";
-                        innerBox.setAttribute("dir", "rtl");
-
-                        // Find and style Typography or span element (the text wrapper)
-                        const textWrapper = innerBox.querySelector(
-                            "span, p, div, .MuiTypography-root"
-                        ) as HTMLElement;
-                        if (textWrapper) {
-                            textWrapper.style.direction = "rtl";
-                            textWrapper.style.textAlign = "right";
-                            textWrapper.style.width = "100%";
-                            textWrapper.style.display = "block";
-                            textWrapper.setAttribute("dir", "rtl");
-                        }
-
-                        // Also ensure all child elements (not just text nodes) are right-aligned
-                        const allChildren = innerBox.querySelectorAll("*");
-                        allChildren.forEach((child) => {
-                            const el = child as HTMLElement;
-                            el.style.textAlign = "right";
-                            el.style.direction = "rtl";
-                            el.setAttribute("dir", "rtl");
-                        });
-
-                        // Also ensure all child text nodes are right-aligned
-                        const walker = document.createTreeWalker(
-                            innerBox,
-                            NodeFilter.SHOW_TEXT,
-                            null
-                        );
-                        let textNode;
-                        while ((textNode = walker.nextNode())) {
-                            if (textNode.parentElement) {
-                                textNode.parentElement.style.textAlign =
-                                    "right";
-                                textNode.parentElement.style.direction = "rtl";
-                                textNode.parentElement.setAttribute(
-                                    "dir",
-                                    "rtl"
-                                );
-                            }
-                        }
-                    }
-                }
-            };
-
-            // Run immediately and after delays to catch when element appears
-            applyStyles();
-            const timeout1 = setTimeout(applyStyles, 0);
-            const timeout2 = setTimeout(applyStyles, 50);
-            const timeout3 = setTimeout(applyStyles, 100);
-            const timeout4 = setTimeout(applyStyles, 200);
-            const timeout5 = setTimeout(applyStyles, 300);
-
-            // Use MutationObserver to catch when the element is added to DOM
-            const observer = new MutationObserver(() => {
-                applyStyles();
-            });
+        const alignDropdown = () => {
+            if (cancelled) return;
 
             const autocompleteRoot = searchInputRef.current?.closest(
                 ".MuiAutocomplete-root"
-            );
-            if (autocompleteRoot) {
-                observer.observe(autocompleteRoot, {
-                    childList: true,
-                    subtree: true,
-                    attributes: true,
-                    attributeFilter: ["style", "dir"],
-                });
+            ) as HTMLElement | null;
+
+            const popperSelectors = [
+                ".MuiAutocomplete-popper",
+                ".MuiPopper-root",
+                '[role="presentation"]',
+                "[data-popper-placement]",
+            ];
+
+            let popperElement: HTMLElement | null = null;
+            for (const selector of popperSelectors) {
+                popperElement = document.querySelector(
+                    selector
+                ) as HTMLElement | null;
+                if (popperElement) break;
             }
 
-            return () => {
-                clearTimeout(timeout1);
-                clearTimeout(timeout2);
-                clearTimeout(timeout3);
-                clearTimeout(timeout4);
-                clearTimeout(timeout5);
-                observer.disconnect();
-            };
+            if (!popperElement && autocompleteRoot) {
+                popperElement =
+                    autocompleteRoot.parentElement?.querySelector(
+                        '.MuiAutocomplete-popper, .MuiPopper-root, [role="presentation"]'
+                    ) as HTMLElement | null;
+            }
+
+            if (!autocompleteRoot || !popperElement) return;
+
+            const dropdownContainer = popperElement.querySelector(
+                'ul[role="listbox"], ul'
+            ) as HTMLElement | null;
+            if (!dropdownContainer) return;
+
+            const expectedWidth =
+                hoveredResultRef.current && !isMobile ? 650 : 400;
+            const dropdownRect = dropdownContainer.getBoundingClientRect();
+            if (Math.abs(dropdownRect.width - expectedWidth) > 10) return;
+
+            const inputRect = autocompleteRoot.getBoundingClientRect();
+            const offsetX = inputRect.right - dropdownRect.right;
+            if (Math.abs(offsetX) <= 0.5) return;
+
+            const currentTransform = popperElement.style.transform || "";
+            let match = currentTransform.match(
+                /translate3d\(([^,]+)px,\s*([^,]+)px/
+            );
+            if (!match) {
+                match = currentTransform.match(
+                    /translate\(([^,]+)px,\s*([^,]+)px/
+                );
+            }
+            const currentX = match ? parseFloat(match[1]) : 0;
+            const currentY = match ? parseFloat(match[2]) : 0;
+            popperElement.style.transform = `translate3d(${currentX + offsetX}px, ${currentY}px, 0)`;
+        };
+
+        const scheduleAlign = () => {
+            if (rafId) cancelAnimationFrame(rafId);
+            rafId = requestAnimationFrame(alignDropdown);
+        };
+
+        const dropdownContainer = document.querySelector(
+            '.MuiAutocomplete-popper ul[role="listbox"], .MuiAutocomplete-popper ul'
+        ) as HTMLElement | null;
+
+        scheduleAlign();
+        const timeout = setTimeout(scheduleAlign, 200);
+
+        const handleTransitionEnd = (e: TransitionEvent) => {
+            if (e.propertyName === "width") scheduleAlign();
+        };
+        dropdownContainer?.addEventListener(
+            "transitionend",
+            handleTransitionEnd
+        );
+
+        return () => {
+            cancelled = true;
+            if (rafId) cancelAnimationFrame(rafId);
+            clearTimeout(timeout);
+            dropdownContainer?.removeEventListener(
+                "transitionend",
+                handleTransitionEnd
+            );
+        };
+    }, [isOpen, isRtl, isMobile, isWidthTransitionComplete]);
+
+    // Fix noOptions container alignment for Hebrew (rAF-throttled observer)
+    useEffect(() => {
+        if (!isRtl || !isOpen) return;
+
+        let rafId = 0;
+        let cancelled = false;
+        let applied = false;
+
+        const applyStyles = () => {
+            if (cancelled || applied) return;
+
+            const noOptionsContainer = document.querySelector(
+                ".MuiAutocomplete-noOptions"
+            ) as HTMLElement | null;
+            if (!noOptionsContainer) return;
+
+            applied = true;
+
+            const popperRoot = noOptionsContainer.closest(
+                '[role="presentation"]'
+            ) as HTMLElement | null;
+            if (popperRoot) {
+                popperRoot.style.direction = "rtl";
+                popperRoot.style.textAlign = "right";
+            }
+
+            const paperContainer = noOptionsContainer.closest(
+                ".MuiAutocomplete-paper"
+            ) as HTMLElement | null;
+            if (paperContainer) {
+                paperContainer.style.direction = "rtl";
+                paperContainer.style.width = "100%";
+                paperContainer.style.minWidth = "100%";
+                paperContainer.style.maxWidth = "100%";
+                paperContainer.style.textAlign = "right";
+                paperContainer.setAttribute("dir", "rtl");
+            }
+
+            noOptionsContainer.style.direction = "rtl";
+            noOptionsContainer.style.textAlign = "right";
+            noOptionsContainer.style.width = "100%";
+            noOptionsContainer.style.minWidth = "100%";
+            noOptionsContainer.style.maxWidth = "100%";
+            noOptionsContainer.setAttribute("dir", "rtl");
+
+            const innerBox = noOptionsContainer.firstElementChild as HTMLElement | null;
+            if (innerBox) {
+                innerBox.style.direction = "rtl";
+                innerBox.style.textAlign = "right";
+                innerBox.style.width = "100%";
+                innerBox.style.minWidth = "100%";
+                innerBox.style.maxWidth = "100%";
+                innerBox.setAttribute("dir", "rtl");
+            }
+        };
+
+        const scheduleApply = () => {
+            if (rafId) cancelAnimationFrame(rafId);
+            rafId = requestAnimationFrame(applyStyles);
+        };
+
+        scheduleApply();
+        const timeout = setTimeout(scheduleApply, 100);
+
+        const autocompleteRoot = searchInputRef.current?.closest(
+            ".MuiAutocomplete-root"
+        );
+        const observer = new MutationObserver(scheduleApply);
+        if (autocompleteRoot) {
+            observer.observe(autocompleteRoot, {
+                childList: true,
+                subtree: true,
+            });
         }
-    }, [isOpen, i18n.language, searchTerm]);
+
+        return () => {
+            cancelled = true;
+            if (rafId) cancelAnimationFrame(rafId);
+            clearTimeout(timeout);
+            observer.disconnect();
+        };
+    }, [isOpen, isRtl, searchTerm]);
 
     // Get entity type icon
     const getEntityIcon = useCallback((type: string, metadata?: any) => {
@@ -1158,11 +1084,24 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
         [t, capitalizeFirstLetter]
     );
 
+    const filterOptionsPassthrough = useCallback(
+        (options: GlobalSearchResult[]) => options,
+        []
+    );
+
+    const displayResultIndexByKey = useMemo(() => {
+        const map = new Map<string, number>();
+        displayResults.forEach((result, index) => {
+            map.set(`${result.type}-${result.id}`, index);
+        });
+        return map;
+    }, [displayResults]);
+
     // Custom Popper component for Autocomplete - allows dropdown to extend beyond textbox
-    const CustomPopper = useCallback(
+    const CustomPopperImpl = useCallback(
         (props: any) => {
             const placement =
-                i18n.language === "he" ? "bottom-end" : "bottom-start";
+                isRtl ? "bottom-end" : "bottom-start";
 
             return (
                 <Popper
@@ -1185,7 +1124,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         },
                         {
                             name: "preventOverflow",
-                            enabled: i18n.language !== "he", // Disable for Hebrew to allow proper right alignment
+                            enabled: !isRtl, // Disable for Hebrew to allow proper right alignment
                             options: {
                                 altAxis: true,
                                 altBoundary: true,
@@ -1206,7 +1145,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         },
                         {
                             name: "custom",
-                            enabled: i18n.language === "he",
+                            enabled: isRtl,
                             phase: "afterWrite",
                             requires: [
                                 "offset",
@@ -1216,7 +1155,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             fn: ({ state }: any) => {
                                 // Fine-tune alignment after offset modifier runs
                                 if (
-                                    i18n.language === "he" &&
+                                    isRtl &&
                                     state.elements.reference &&
                                     state.elements.popper
                                 ) {
@@ -1236,7 +1175,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                         const dropdownRect =
                                             dropdownContainer.getBoundingClientRect();
                                         const expectedWidth =
-                                            hoveredResult && !isMobile
+                                            hoveredResultRef.current && !isMobile
                                                 ? 650
                                                 : 400;
                                         const currentWidth = dropdownRect.width;
@@ -1287,17 +1226,23 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                     ]}
                     sx={{
                         zIndex: 1300,
-                        ...(i18n.language === "he" && {
+                        ...(isRtl && {
                             direction: "rtl",
                             textAlign: "right",
                         }),
                         "& .MuiAutocomplete-paper": {
-                            minWidth: "max-content",
-                            width: "max-content",
+                            minWidth:
+                                hoveredResultRef.current && !isMobile
+                                    ? 650
+                                    : 400,
+                            width:
+                                hoveredResultRef.current && !isMobile
+                                    ? 650
+                                    : 400,
                             margin: 0,
                             marginTop: "8px",
                             padding: 0,
-                            ...(i18n.language === "he" && {
+                            ...(isRtl && {
                                 "&:has(.MuiAutocomplete-noOptions)": {
                                     width: "100%",
                                     minWidth: "100%",
@@ -1310,7 +1255,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         "& .MuiAutocomplete-listbox": {
                             padding: 0,
                         },
-                        ...(i18n.language === "he" && {
+                        ...(isRtl && {
                             "& .MuiAutocomplete-paper .MuiAutocomplete-noOptions":
                             {
                                 width: "100% !important",
@@ -1324,8 +1269,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                 />
             );
         },
-        [i18n.language, hoveredResult, isMobile]
+        [isRtl, isMobile]
     );
+    popperRendererRef.current = CustomPopperImpl;
 
     // Render result count header
     const renderResultCountHeader = () => {
@@ -1337,9 +1283,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    direction: i18n.language === "he" ? "rtl" : "ltr",
+                    direction: isRtl ? "rtl" : "ltr",
                     flexDirection:
-                        i18n.language === "he" ? "row-reverse" : "row",
+                        isRtl ? "row-reverse" : "row",
                     py: 1,
                     px: 2,
                     backgroundColor: theme.palette.background.default,
@@ -1351,8 +1297,8 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                     fontWeight="medium"
                     sx={{
                         color: "text.secondary",
-                        textAlign: i18n.language === "he" ? "right" : "left",
-                        direction: i18n.language === "he" ? "rtl" : "ltr",
+                        textAlign: isRtl ? "right" : "left",
+                        direction: isRtl ? "rtl" : "ltr",
                         whiteSpace: "nowrap",
                     }}
                 >
@@ -1365,7 +1311,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             display: "flex",
                             gap: 0.5,
                             flexDirection:
-                                i18n.language === "he" ? "row-reverse" : "row",
+                                isRtl ? "row-reverse" : "row",
                         }}
                     >
                         {Object.entries(countsByType).map(([type, count]) => {
@@ -1454,7 +1400,6 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                     handleResultHover(e, option);
                     setSelectedIndex(index);
                 }}
-                onMouseLeave={handleResultMouseLeave}
                 onClick={() => handleResultClick(option)}
                 sx={{
                     display: "flex",
@@ -1466,7 +1411,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                     backgroundColor: isSelected
                         ? theme.palette.action.selected
                         : "transparent",
-                    direction: i18n.language === "he" ? "rtl" : "ltr",
+                    direction: isRtl ? "rtl" : "ltr",
                     "&:hover": {
                         backgroundColor: theme.palette.action.hover,
                     },
@@ -1493,7 +1438,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                     sx={{
                         flex: 1,
                         minWidth: 0,
-                        direction: i18n.language === "he" ? "rtl" : "ltr",
+                        direction: isRtl ? "rtl" : "ltr",
                     }}
                 >
                     <Box
@@ -1503,7 +1448,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             gap: 1,
                             mb: 0.5,
                             flexDirection:
-                                i18n.language === "he" ? "row-reverse" : "row",
+                                isRtl ? "row-reverse" : "row",
                         }}
                     >
                         <Typography
@@ -1514,9 +1459,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                 flex: 1,
                                 minWidth: 0,
                                 textAlign:
-                                    i18n.language === "he" ? "right" : "left",
+                                    isRtl ? "right" : "left",
                                 direction:
-                                    i18n.language === "he" ? "rtl" : "ltr",
+                                    isRtl ? "rtl" : "ltr",
                             }}
                         >
                             {highlightText(
@@ -1569,7 +1514,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                 "& .MuiChip-label": {
                                     padding: "0 6px",
                                 },
-                                order: isHebrewUser ? -1 : 1,
+                                order: isRtl ? -1 : 1,
                                 flexShrink: 0,
                                 "&:hover": {
                                     backgroundColor: (() => {
@@ -1608,9 +1553,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             noWrap
                             sx={{
                                 textAlign:
-                                    i18n.language === "he" ? "right" : "left",
+                                    isRtl ? "right" : "left",
                                 direction:
-                                    i18n.language === "he" ? "rtl" : "ltr",
+                                    isRtl ? "rtl" : "ltr",
                             }}
                         >
                             {highlightText(
@@ -1634,7 +1579,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                     p: 2,
                     backgroundColor: alpha(theme.palette.info.main, 0.1),
                     borderBottom: `1px solid ${theme.palette.divider}`,
-                    direction: i18n.language === "he" ? "rtl" : "ltr",
+                    direction: isRtl ? "rtl" : "ltr",
                 }}
             >
                 <Box
@@ -1643,7 +1588,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         alignItems: "center",
                         justifyContent: "space-between",
                         flexDirection:
-                            i18n.language === "he" ? "row-reverse" : "row",
+                            isRtl ? "row-reverse" : "row",
                     }}
                 >
                     <Box
@@ -1652,7 +1597,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             alignItems: "center",
                             gap: 1,
                             flexDirection:
-                                i18n.language === "he" ? "row-reverse" : "row",
+                                isRtl ? "row-reverse" : "row",
                         }}
                     >
                         <KeyboardIcon fontSize="small" color="primary" />
@@ -1694,9 +1639,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         display: "flex",
                         justifyContent: "space-between",
                         alignItems: "center",
-                        direction: i18n.language === "he" ? "rtl" : "ltr",
+                        direction: isRtl ? "rtl" : "ltr",
                         flexDirection:
-                            i18n.language === "he" ? "row-reverse" : "row",
+                            isRtl ? "row-reverse" : "row",
                     }}
                 >
                     <Box
@@ -1706,7 +1651,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             gap: 1,
                             color: "primary.main",
                             flexDirection:
-                                i18n.language === "he" ? "row-reverse" : "row",
+                                isRtl ? "row-reverse" : "row",
                         }}
                     >
                         <HistoryIcon fontSize="small" />
@@ -1715,9 +1660,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             fontWeight="bold"
                             sx={{
                                 textAlign:
-                                    i18n.language === "he" ? "right" : "left",
+                                    isRtl ? "right" : "left",
                                 direction:
-                                    i18n.language === "he" ? "rtl" : "ltr",
+                                    isRtl ? "rtl" : "ltr",
                             }}
                         >
                             {t(
@@ -1732,8 +1677,8 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             cursor: "pointer",
                             color: "primary.main",
                             textAlign:
-                                i18n.language === "he" ? "right" : "left",
-                            direction: i18n.language === "he" ? "rtl" : "ltr",
+                                isRtl ? "right" : "left",
+                            direction: isRtl ? "rtl" : "ltr",
                         }}
                         onClick={(e) => {
                             e.stopPropagation();
@@ -1760,9 +1705,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                 selectedIndex === index
                                     ? theme.palette.action.selected
                                     : "transparent",
-                            direction: i18n.language === "he" ? "rtl" : "ltr",
+                            direction: isRtl ? "rtl" : "ltr",
                             flexDirection:
-                                i18n.language === "he" ? "row-reverse" : "row",
+                                isRtl ? "row-reverse" : "row",
                             "&:hover": {
                                 backgroundColor: theme.palette.action.hover,
                             },
@@ -1777,9 +1722,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             sx={{
                                 flex: 1,
                                 textAlign:
-                                    i18n.language === "he" ? "right" : "left",
+                                    isRtl ? "right" : "left",
                                 direction:
-                                    i18n.language === "he" ? "rtl" : "ltr",
+                                    isRtl ? "rtl" : "ltr",
                             }}
                         >
                             {search}
@@ -1789,7 +1734,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             sx={{
                                 color: "primary.main",
                                 transform:
-                                    i18n.language === "he"
+                                    isRtl
                                         ? "scaleX(-1)"
                                         : "none",
                             }}
@@ -1800,196 +1745,28 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
         );
     };
 
-    return (
-        <Box
-            sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: "100%",
-                margin: 0,
-                padding: 0,
-                position: "relative",
-            }}
-        >
-            <Autocomplete
-                open={
-                    isOpen &&
-                    isWidthTransitionComplete &&
-                    searchTerm.length >= 1
-                }
-                onOpen={() => {
-                    // Only open if there's at least one character typed
-                    if (searchTerm.length < 1) {
-                        return;
-                    }
-                    setIsFocused(true);
-                    // If width transition is in progress, wait for it to complete
-                    if (!isWidthTransitionComplete) {
-                        if (transitionTimeoutRef.current) {
-                            clearTimeout(transitionTimeoutRef.current);
-                        }
-                        transitionTimeoutRef.current = setTimeout(() => {
-                            setIsWidthTransitionComplete(true);
-                            setIsOpen(true);
-                        }, 250); // Wait 250ms for 0.2s transition + buffer
-                    } else {
-                        setIsOpen(true);
-                    }
-                }}
-                onClose={() => {
-                    if (transitionTimeoutRef.current) {
-                        clearTimeout(transitionTimeoutRef.current);
-                    }
-                    setIsOpen(false);
-                    setHoveredResult(null);
-                    setSelectedIndex(-1);
-                    setIsWidthTransitionComplete(true);
-                    // Shrink if no text when closing
-                    if (!searchTerm) {
-                        setIsFocused(false);
-                    }
-                }}
-                options={displayResults}
-                getOptionLabel={(option) => option.name}
-                loading={isLoading}
-                inputValue={searchTerm}
-                onInputChange={(_, newValue) => {
-                    setSearchTerm(newValue);
-                    setSelectedIndex(-1);
-                    // Keep expanded if there's text
-                    if (newValue) {
-                        setIsFocused(true);
-                        // If input is expanding, wait for transition before showing results
-                        if (!isWidthTransitionComplete) {
-                            if (transitionTimeoutRef.current) {
-                                clearTimeout(transitionTimeoutRef.current);
-                            }
-                            transitionTimeoutRef.current = setTimeout(() => {
-                                setIsWidthTransitionComplete(true);
-                            }, 250);
-                        }
-                    }
-                }}
-                onChange={(_, newValue) => {
-                    if (newValue) {
-                        handleResultClick(newValue);
-                    }
-                }}
-                filterOptions={(x) => x} // Disable client-side filtering
-                disableListWrap
-                data-rtl={i18n.language === "he"}
-                size="small"
-                sx={{
-                    width: {
-                        xs: "100%",
-                        sm: isFocused || searchTerm ? "300px" : "200px",
-                        md: isFocused || searchTerm ? "400px" : "250px",
-                    },
-                    transition: "width 0.2s ease-in-out",
-                    direction: i18n.language === "he" ? "rtl" : "ltr",
-                    margin: 0,
-                    padding: 0,
-                    "& .MuiAutocomplete-root": {
-                        margin: 0,
-                        padding: 0,
-                    },
-                    "& .MuiFormControl-root": {
-                        margin: 0,
-                        padding: 0,
-                        height: theme.appButton.sizeSmall.height,
-                    },
-                    "& .MuiOutlinedInput-root.MuiInputBase-root.MuiInputBase-sizeSmall":
-                    {
-                        height: `${theme.appButton.sizeSmall.height}px !important`,
-                        minHeight: `${theme.appButton.sizeSmall.height}px !important`,
-                        maxHeight: `${theme.appButton.sizeSmall.height}px !important`,
-                        boxSizing: "border-box",
-                        borderRadius: theme.spacing(3),
-                        backgroundColor: "rgba(255, 255, 255, 0.1) !important",
-                        color: "white",
-                        // Add padding between border and magnifying glass
-                        // For LTR: icon is at positionStart (left), add marginLeft
-                        // For RTL: icon is at positionEnd (right), add marginRight
-                        "& .MuiInputAdornment-positionStart": {
-                            marginLeft:
-                                i18n.language === "he"
-                                    ? 0
-                                    : `${theme.spacing(1.5)} !important`,
-                            marginRight: i18n.language === "he" ? 0 : 0,
-                        },
-                        "& .MuiInputAdornment-positionEnd": {
-                            marginLeft: i18n.language === "he" ? 0 : 0,
-                            marginRight:
-                                i18n.language === "he"
-                                    ? `${theme.spacing(1.5)} !important`
-                                    : 0,
-                        },
-                        "& input": {
-                            color: "white",
-                            paddingTop: 0,
-                            paddingBottom: 0,
-                            height: "100%",
-                            boxSizing: "border-box",
-                        },
-                        "& fieldset": {
-                            borderRadius: `${theme.spacing(3)} !important`,
-                            borderColor: "rgba(255, 255, 255, 0.3)",
-                        },
-                        "&:hover fieldset": {
-                            borderColor: "rgba(255, 255, 255, 0.5)",
-                        },
-                        "&.Mui-focused fieldset": {
-                            borderColor: "rgba(255, 255, 255, 0.7)",
-                        },
-                        "& input::placeholder": {
-                            color: "rgba(255, 255, 255, 0.7)",
-                            opacity: 1,
-                        },
-                    },
-                    "& .MuiAutocomplete-paper": {
-                        minWidth: "max-content",
-                        width: "max-content",
-                        ...(i18n.language === "he" && {
-                            "&:has(.MuiAutocomplete-noOptions)": {
-                                width: "100%",
-                                minWidth: "100%",
-                                maxWidth: "100%",
-                                direction: "rtl",
-                            },
-                        }),
-                    },
-                    "& .MuiAutocomplete-noOptions": {
-                        direction:
-                            `${i18n.language === "he" ? "rtl" : "ltr"} !important` as any,
-                        textAlign:
-                            `${i18n.language === "he" ? "right" : "left"} !important` as any,
-                        width:
-                            i18n.language === "he"
-                                ? "100% !important"
-                                : undefined,
-                        minWidth:
-                            i18n.language === "he"
-                                ? "100% !important"
-                                : undefined,
-                        maxWidth:
-                            i18n.language === "he"
-                                ? "100% !important"
-                                : undefined,
-                    },
-                }}
-                ListboxComponent={(props) => (
+    listboxRendererRef.current = (props: any) => (
                     <Box
                         component="ul"
                         {...(props as any)}
+                        onMouseLeave={(e: React.MouseEvent<HTMLElement>) => {
+                            (props as any).onMouseLeave?.(e);
+                            // Keep preview while keyboard selection is active;
+                            // only clear when the pointer leaves the whole panel.
+                            if (selectedIndex < 0) {
+                                handleResultMouseLeave();
+                            }
+                        }}
                         sx={{
                             position: "relative",
                             display: "flex",
                             flexDirection: "row",
-                            direction: i18n.language === "he" ? "rtl" : "ltr",
+                            direction: isRtl ? "rtl" : "ltr",
                             maxHeight: "400px",
                             width:
                                 hoveredResult && !isMobile ? "650px" : "400px", // Expand when preview is shown
+                            minWidth:
+                                hoveredResult && !isMobile ? "650px" : "400px",
                             margin: 0,
                             padding: 0,
                             transition: "width 0.2s ease-in-out",
@@ -2005,7 +1782,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                 margin: 0,
                                 padding: 0,
                                 position: "relative",
-                                order: i18n.language === "he" ? 1 : 1, // Results: order 1 (appears on right in RTL)
+                                order: isRtl ? 1 : 1, // Results: order 1 (appears on right in RTL)
                             }}
                         >
                             {renderKeyboardHint()}
@@ -2024,13 +1801,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                                 <ListSubheader
                                                     sx={{
                                                         direction:
-                                                            i18n.language ===
-                                                                "he"
+                                                            isRtl
                                                                 ? "rtl"
                                                                 : "ltr",
                                                         flexDirection:
-                                                            i18n.language ===
-                                                                "he"
+                                                            isRtl
                                                                 ? "row-reverse"
                                                                 : "row",
                                                         backgroundColor:
@@ -2047,8 +1822,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                                             gap: 1,
                                                             color: "primary.main",
                                                             flexDirection:
-                                                                i18n.language ===
-                                                                    "he"
+                                                                isRtl
                                                                     ? "row-reverse"
                                                                     : "row",
                                                         }}
@@ -2094,13 +1868,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                                 <ListSubheader
                                                     sx={{
                                                         direction:
-                                                            i18n.language ===
-                                                                "he"
+                                                            isRtl
                                                                 ? "rtl"
                                                                 : "ltr",
                                                         flexDirection:
-                                                            i18n.language ===
-                                                                "he"
+                                                            isRtl
                                                                 ? "row-reverse"
                                                                 : "row",
                                                         backgroundColor:
@@ -2117,8 +1889,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                                             gap: 1,
                                                             color: "primary.main",
                                                             flexDirection:
-                                                                i18n.language ===
-                                                                    "he"
+                                                                isRtl
                                                                     ? "row-reverse"
                                                                     : "row",
                                                         }}
@@ -2164,13 +1935,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                                 <ListSubheader
                                                     sx={{
                                                         direction:
-                                                            i18n.language ===
-                                                                "he"
+                                                            isRtl
                                                                 ? "rtl"
                                                                 : "ltr",
                                                         flexDirection:
-                                                            i18n.language ===
-                                                                "he"
+                                                            isRtl
                                                                 ? "row-reverse"
                                                                 : "row",
                                                         backgroundColor:
@@ -2187,8 +1956,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                                             gap: 1,
                                                             color: "primary.main",
                                                             flexDirection:
-                                                                i18n.language ===
-                                                                    "he"
+                                                                isRtl
                                                                     ? "row-reverse"
                                                                     : "row",
                                                         }}
@@ -2234,13 +2002,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                                 <ListSubheader
                                                     sx={{
                                                         direction:
-                                                            i18n.language ===
-                                                                "he"
+                                                            isRtl
                                                                 ? "rtl"
                                                                 : "ltr",
                                                         flexDirection:
-                                                            i18n.language ===
-                                                                "he"
+                                                            isRtl
                                                                 ? "row-reverse"
                                                                 : "row",
                                                         backgroundColor:
@@ -2257,8 +2023,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                                             gap: 1,
                                                             color: "primary.main",
                                                             flexDirection:
-                                                                i18n.language ===
-                                                                    "he"
+                                                                isRtl
                                                                     ? "row-reverse"
                                                                     : "row",
                                                         }}
@@ -2309,7 +2074,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                             p: 3,
                                             textAlign: "center",
                                             direction:
-                                                i18n.language === "he"
+                                                isRtl
                                                     ? "rtl"
                                                     : "ltr",
                                         }}
@@ -2320,7 +2085,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                             sx={{
                                                 mb: 1,
                                                 textAlign:
-                                                    i18n.language === "he"
+                                                    isRtl
                                                         ? "right"
                                                         : "left",
                                             }}
@@ -2335,7 +2100,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                             color="text.secondary"
                                             sx={{
                                                 textAlign:
-                                                    i18n.language === "he"
+                                                    isRtl
                                                         ? "right"
                                                         : "left",
                                             }}
@@ -2355,13 +2120,13 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                 sx={{
                                     width: "250px",
                                     flexShrink: 0,
-                                    order: i18n.language === "he" ? 2 : 2, // Preview: order 2 (appears on left in RTL)
+                                    order: isRtl ? 2 : 2, // Preview: order 2 (appears on left in RTL)
                                     borderLeft:
-                                        i18n.language === "he"
+                                        isRtl
                                             ? "none"
                                             : `1px solid ${theme.palette.divider}`,
                                     borderRight:
-                                        i18n.language === "he"
+                                        isRtl
                                             ? `1px solid ${theme.palette.divider}`
                                             : "none",
                                     backgroundColor:
@@ -2370,7 +2135,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                     maxHeight: "400px",
                                     p: 2,
                                     direction:
-                                        i18n.language === "he" ? "rtl" : "ltr",
+                                        isRtl ? "rtl" : "ltr",
                                 }}
                             >
                                 <Box
@@ -2381,7 +2146,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                         mb: 1,
                                         color: "primary.main",
                                         flexDirection:
-                                            i18n.language === "he"
+                                            isRtl
                                                 ? "row-reverse"
                                                 : "row",
                                         width: "100%",
@@ -2393,11 +2158,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                         sx={{
                                             fontSize: "1.1rem",
                                             textAlign:
-                                                i18n.language === "he"
+                                                isRtl
                                                     ? "right"
                                                     : "left",
                                             direction:
-                                                i18n.language === "he"
+                                                isRtl
                                                     ? "rtl"
                                                     : "ltr",
                                             flex: 1,
@@ -2419,11 +2184,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                                 display: "block",
                                                 mb: 1,
                                                 textAlign:
-                                                    i18n.language === "he"
+                                                    isRtl
                                                         ? "right"
                                                         : "left",
                                                 direction:
-                                                    i18n.language === "he"
+                                                    isRtl
                                                         ? "rtl"
                                                         : "ltr",
                                             }}
@@ -2455,11 +2220,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                                 display: "block",
                                                 mb: 1,
                                                 textAlign:
-                                                    i18n.language === "he"
+                                                    isRtl
                                                         ? "right"
                                                         : "left",
                                                 direction:
-                                                    i18n.language === "he"
+                                                    isRtl
                                                         ? "rtl"
                                                         : "ltr",
                                             }}
@@ -2490,11 +2255,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                                 display: "block",
                                                 mb: 1,
                                                 textAlign:
-                                                    i18n.language === "he"
+                                                    isRtl
                                                         ? "right"
                                                         : "left",
                                                 direction:
-                                                    i18n.language === "he"
+                                                    isRtl
                                                         ? "rtl"
                                                         : "ltr",
                                             }}
@@ -2521,11 +2286,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                                 display: "block",
                                                 mb: 1,
                                                 textAlign:
-                                                    i18n.language === "he"
+                                                    isRtl
                                                         ? "right"
                                                         : "left",
                                                 direction:
-                                                    i18n.language === "he"
+                                                    isRtl
                                                         ? "rtl"
                                                         : "ltr",
                                             }}
@@ -2555,11 +2320,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                                 display: "block",
                                                 mb: 1,
                                                 textAlign:
-                                                    i18n.language === "he"
+                                                    isRtl
                                                         ? "right"
                                                         : "left",
                                                 direction:
-                                                    i18n.language === "he"
+                                                    isRtl
                                                         ? "rtl"
                                                         : "ltr",
                                             }}
@@ -2579,13 +2344,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                                             display: "block",
                                                             mb: 0.5,
                                                             textAlign:
-                                                                i18n.language ===
-                                                                    "he"
+                                                                isRtl
                                                                     ? "right"
                                                                     : "left",
                                                             direction:
-                                                                i18n.language ===
-                                                                    "he"
+                                                                isRtl
                                                                     ? "rtl"
                                                                     : "ltr",
                                                         }}
@@ -2619,13 +2382,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                                             display: "block",
                                                             mb: 0.5,
                                                             textAlign:
-                                                                i18n.language ===
-                                                                    "he"
+                                                                isRtl
                                                                     ? "right"
                                                                     : "left",
                                                             direction:
-                                                                i18n.language ===
-                                                                    "he"
+                                                                isRtl
                                                                     ? "rtl"
                                                                     : "ltr",
                                                         }}
@@ -2679,10 +2440,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                                                 ) {
                                                                     locale =
                                                                         "he-IL";
-                                                                } else if (
-                                                                    i18n.language ===
-                                                                    "he"
-                                                                ) {
+                                                                } else if (i18n.language === "he") {
                                                                     locale =
                                                                         "he-IL";
                                                                 }
@@ -2760,13 +2518,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                                             display: "block",
                                                             mb: 0.5,
                                                             textAlign:
-                                                                i18n.language ===
-                                                                    "he"
+                                                                isRtl
                                                                     ? "right"
                                                                     : "left",
                                                             direction:
-                                                                i18n.language ===
-                                                                    "he"
+                                                                isRtl
                                                                     ? "rtl"
                                                                     : "ltr",
                                                         }}
@@ -2792,7 +2548,187 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             </Box>
                         )}
                     </Box>
-                )}
+                );
+
+    return (
+        <Box
+            sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "100%",
+                margin: 0,
+                padding: 0,
+                position: "relative",
+            }}
+        >
+            <Autocomplete
+                open={
+                    isOpen &&
+                    isWidthTransitionComplete &&
+                    searchTerm.length >= 1
+                }
+                onOpen={() => {
+                    // Only open if there's at least one character typed
+                    if (searchTerm.length < 1) {
+                        return;
+                    }
+                    setIsFocused(true);
+                    // If width transition is in progress, wait for it to complete
+                    if (!isWidthTransitionComplete) {
+                        if (transitionTimeoutRef.current) {
+                            clearTimeout(transitionTimeoutRef.current);
+                        }
+                        transitionTimeoutRef.current = setTimeout(() => {
+                            setIsWidthTransitionComplete(true);
+                            setIsOpen(true);
+                        }, 250); // Wait 250ms for 0.2s transition + buffer
+                    } else {
+                        setIsOpen(true);
+                    }
+                }}
+                onClose={() => {
+                    if (transitionTimeoutRef.current) {
+                        clearTimeout(transitionTimeoutRef.current);
+                    }
+                    setIsOpen(false);
+                    setHoveredResult(null);
+                    setSelectedIndex(-1);
+                    setIsWidthTransitionComplete(true);
+                    // Shrink if no text when closing
+                    if (!searchTerm) {
+                        setIsFocused(false);
+                    }
+                }}
+                options={displayResults}
+                getOptionLabel={(option) => option.name}
+                loading={isLoading}
+                inputValue={searchTerm}
+                onInputChange={(_, newValue) => {
+                    setSearchTerm(newValue);
+                    setSelectedIndex(-1);
+                    // Keep expanded if there's text
+                    if (newValue) {
+                        setIsFocused(true);
+                        // If input is expanding, wait for transition before showing results
+                        if (!isWidthTransitionComplete) {
+                            if (transitionTimeoutRef.current) {
+                                clearTimeout(transitionTimeoutRef.current);
+                            }
+                            transitionTimeoutRef.current = setTimeout(() => {
+                                setIsWidthTransitionComplete(true);
+                            }, 250);
+                        }
+                    }
+                }}
+                onChange={(_, newValue) => {
+                    if (newValue) {
+                        handleResultClick(newValue);
+                    }
+                }}
+                filterOptions={filterOptionsPassthrough}
+                disableListWrap
+                data-rtl={isRtl}
+                size="small"
+                sx={{
+                    width: {
+                        xs: "100%",
+                        sm: isFocused || searchTerm ? "300px" : "200px",
+                        md: isFocused || searchTerm ? "400px" : "250px",
+                    },
+                    transition: "width 0.2s ease-in-out",
+                    direction: isRtl ? "rtl" : "ltr",
+                    margin: 0,
+                    padding: 0,
+                    "& .MuiAutocomplete-root": {
+                        margin: 0,
+                        padding: 0,
+                    },
+                    "& .MuiFormControl-root": {
+                        margin: 0,
+                        padding: 0,
+                        height: theme.appButton.sizeSmall.height,
+                    },
+                    "& .MuiOutlinedInput-root.MuiInputBase-root.MuiInputBase-sizeSmall":
+                    {
+                        height: `${theme.appButton.sizeSmall.height}px !important`,
+                        minHeight: `${theme.appButton.sizeSmall.height}px !important`,
+                        maxHeight: `${theme.appButton.sizeSmall.height}px !important`,
+                        boxSizing: "border-box",
+                        borderRadius: theme.spacing(3),
+                        backgroundColor: "rgba(255, 255, 255, 0.1) !important",
+                        color: "white",
+                        // Add padding between border and magnifying glass
+                        // For LTR: icon is at positionStart (left), add marginLeft
+                        // For RTL: icon is at positionEnd (right), add marginRight
+                        "& .MuiInputAdornment-positionStart": {
+                            marginLeft:
+                                isRtl
+                                    ? 0
+                                    : `${theme.spacing(1.5)} !important`,
+                            marginRight: isRtl ? 0 : 0,
+                        },
+                        "& .MuiInputAdornment-positionEnd": {
+                            marginLeft: isRtl ? 0 : 0,
+                            marginRight:
+                                isRtl
+                                    ? `${theme.spacing(1.5)} !important`
+                                    : 0,
+                        },
+                        "& input": {
+                            color: "white",
+                            paddingTop: 0,
+                            paddingBottom: 0,
+                            height: "100%",
+                            boxSizing: "border-box",
+                        },
+                        "& fieldset": {
+                            borderRadius: `${theme.spacing(3)} !important`,
+                            borderColor: "rgba(255, 255, 255, 0.3)",
+                        },
+                        "&:hover fieldset": {
+                            borderColor: "rgba(255, 255, 255, 0.5)",
+                        },
+                        "&.Mui-focused fieldset": {
+                            borderColor: "rgba(255, 255, 255, 0.7)",
+                        },
+                        "& input::placeholder": {
+                            color: "rgba(255, 255, 255, 0.7)",
+                            opacity: 1,
+                        },
+                    },
+                    "& .MuiAutocomplete-paper": {
+                        minWidth: hoveredResult && !isMobile ? 650 : 400,
+                        width: hoveredResult && !isMobile ? 650 : 400,
+                        ...(isRtl && {
+                            "&:has(.MuiAutocomplete-noOptions)": {
+                                width: "100%",
+                                minWidth: "100%",
+                                maxWidth: "100%",
+                                direction: "rtl",
+                            },
+                        }),
+                    },
+                    "& .MuiAutocomplete-noOptions": {
+                        direction:
+                            `${isRtl ? "rtl" : "ltr"} !important` as any,
+                        textAlign:
+                            `${isRtl ? "right" : "left"} !important` as any,
+                        width:
+                            isRtl
+                                ? "100% !important"
+                                : undefined,
+                        minWidth:
+                            isRtl
+                                ? "100% !important"
+                                : undefined,
+                        maxWidth:
+                            isRtl
+                                ? "100% !important"
+                                : undefined,
+                    },
+                }}
+                ListboxComponent={StableListboxComponent}
                 renderInput={(params) => (
                     <TextField
                         {...params}
@@ -2840,7 +2776,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         )}
                         aria-expanded={isOpen}
                         aria-autocomplete="list"
-                        dir={i18n.language === "he" ? "rtl" : "ltr"}
+                        dir={isRtl ? "rtl" : "ltr"}
                         InputProps={{
                             ...params.InputProps,
                             className: [
@@ -2851,9 +2787,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                 .join(" "),
                             endAdornment: null, // Remove dropdown icon
                             startAdornment:
-                                i18n.language === "he" ? (
+                                isRtl ? (
                                     <>
-                                        {isLoading ? (
+                                        {showSearchSpinner ? (
                                             <InputAdornment position="start">
                                                 <CircularProgress
                                                     color="inherit"
@@ -2880,7 +2816,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                                 }}
                                             />
                                         </InputAdornment>
-                                        {isLoading ? (
+                                        {showSearchSpinner ? (
                                             <InputAdornment position="end">
                                                 <CircularProgress
                                                     color="inherit"
@@ -2894,8 +2830,10 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                     />
                 )}
                 renderOption={(props, option) => {
-                    // Use the helper function for consistency
-                    const index = displayResults.indexOf(option);
+                    const index =
+                        displayResultIndexByKey.get(
+                            `${option.type}-${option.id}`
+                        ) ?? -1;
                     return renderResultOption(option, index, props);
                 }}
                 noOptionsText={
@@ -2905,7 +2843,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             sx={{
                                 m: 1,
                                 direction:
-                                    i18n.language === "he" ? "rtl" : "ltr",
+                                    isRtl ? "rtl" : "ltr",
                             }}
                         >
                             {t(
@@ -2930,9 +2868,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         <Box
                             sx={{
                                 direction:
-                                    `${i18n.language === "he" ? "rtl" : "ltr"} !important` as any,
+                                    `${isRtl ? "rtl" : "ltr"} !important` as any,
                                 textAlign:
-                                    `${i18n.language === "he" ? "right" : "left"} !important` as any,
+                                    `${isRtl ? "right" : "left"} !important` as any,
                                 width: "100% !important",
                                 minWidth: "100% !important",
                                 maxWidth: "100% !important",
@@ -2945,9 +2883,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                 component="span"
                                 sx={{
                                     direction:
-                                        `${i18n.language === "he" ? "rtl" : "ltr"} !important` as any,
+                                        `${isRtl ? "rtl" : "ltr"} !important` as any,
                                     textAlign:
-                                        `${i18n.language === "he" ? "right" : "left"} !important` as any,
+                                        `${isRtl ? "right" : "left"} !important` as any,
                                     display: "block",
                                     width: "100%",
                                 }}
@@ -2962,7 +2900,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         <Box
                             sx={{
                                 direction:
-                                    i18n.language === "he" ? "rtl" : "ltr",
+                                    isRtl ? "rtl" : "ltr",
                             }}
                         >
                             {/* Show header with filter chips when filters are active but no results match */}
@@ -2984,7 +2922,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                             sx={{
                                                 mb: 1,
                                                 direction:
-                                                    i18n.language === "he"
+                                                    isRtl
                                                         ? "rtl"
                                                         : "ltr",
                                             }}
@@ -2999,7 +2937,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                             color="text.secondary"
                                             sx={{
                                                 direction:
-                                                    i18n.language === "he"
+                                                    isRtl
                                                         ? "rtl"
                                                         : "ltr",
                                             }}
@@ -3023,7 +2961,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                         color="text.secondary"
                                         sx={{
                                             direction:
-                                                i18n.language === "he"
+                                                isRtl
                                                     ? "rtl"
                                                     : "ltr",
                                         }}
@@ -3040,7 +2978,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                             mt: 1,
                                             display: "block",
                                             direction:
-                                                i18n.language === "he"
+                                                isRtl
                                                     ? "rtl"
                                                     : "ltr",
                                         }}
@@ -3063,7 +3001,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                         ),
                                         borderRadius: 1,
                                         direction:
-                                            i18n.language === "he"
+                                            isRtl
                                                 ? "rtl"
                                                 : "ltr",
                                     }}
@@ -3075,11 +3013,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                             display: "block",
                                             mb: 0.5,
                                             direction:
-                                                i18n.language === "he"
+                                                isRtl
                                                     ? "rtl"
                                                     : "ltr",
                                             textAlign:
-                                                i18n.language === "he"
+                                                isRtl
                                                     ? "right"
                                                     : "left",
                                         }}
@@ -3094,22 +3032,22 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                         component="ul"
                                         sx={{
                                             textAlign:
-                                                i18n.language === "he"
+                                                isRtl
                                                     ? "right"
                                                     : "left",
                                             direction:
-                                                i18n.language === "he"
+                                                isRtl
                                                     ? "rtl"
                                                     : "ltr",
-                                            pl: i18n.language === "he" ? 0 : 2,
-                                            pr: i18n.language === "he" ? 2 : 0,
+                                            pl: isRtl ? 0 : 2,
+                                            pr: isRtl ? 2 : 0,
                                             "& li": {
                                                 textAlign:
-                                                    i18n.language === "he"
+                                                    isRtl
                                                         ? "right"
                                                         : "left",
                                                 direction:
-                                                    i18n.language === "he"
+                                                    isRtl
                                                         ? "rtl"
                                                         : "ltr",
                                             },
@@ -3151,7 +3089,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         ))}
                     </Box>
                 }
-                PopperComponent={CustomPopper}
+                PopperComponent={StablePopperComponent}
             />
         </Box>
     );
