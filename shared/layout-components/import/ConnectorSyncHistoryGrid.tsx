@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Typography } from "@mui/material";
+import { Box, Tooltip, Typography } from "@mui/material";
 import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,6 +18,47 @@ function renderPlainCell(params: GridRenderCellParams) {
         <Typography variant="body2" noWrap title={text === "—" ? "" : text}>
             {text}
         </Typography>
+    );
+}
+
+function renderEntityStatsCell(
+    params: GridRenderCellParams<SyncHistoryGridRow, string>
+) {
+    const text = String(params.value ?? "—");
+    const sampleErrorsField = `${String(params.field)}SampleErrors` as
+        | "customerSampleErrors"
+        | "contactSampleErrors"
+        | "invoiceSampleErrors"
+        | "paymentSampleErrors"
+        | "linkPaymentsSampleErrors";
+    const sampleErrors = params.row[sampleErrorsField] ?? [];
+
+    const cell = (
+        <Typography variant="body2" noWrap title={text === "—" ? "" : text}>
+            {text}
+        </Typography>
+    );
+
+    if (sampleErrors.length === 0) {
+        return cell;
+    }
+
+    return (
+        <Tooltip
+            placement="bottom"
+            arrow
+            title={
+                <Box component="ul" sx={{ m: 0, pl: 2 }}>
+                    {sampleErrors.map((message) => (
+                        <li key={message}>
+                            <Typography variant="body2">{message}</Typography>
+                        </li>
+                    ))}
+                </Box>
+            }
+        >
+            <Box component="span">{cell}</Box>
+        </Tooltip>
     );
 }
 
@@ -74,41 +115,41 @@ const SYNC_HISTORY_COLUMNS: GridColDef<SyncHistoryGridRow>[] = [
         field: "customer",
         headerName: "Customer",
         flex: 1,
-        minWidth: 120,
+        minWidth: 140,
         sortable: false,
-        renderCell: renderPlainCell,
+        renderCell: renderEntityStatsCell,
     },
     {
         field: "contact",
         headerName: "Contact",
         flex: 1,
-        minWidth: 120,
+        minWidth: 140,
         sortable: false,
-        renderCell: renderPlainCell,
+        renderCell: renderEntityStatsCell,
     },
     {
         field: "invoice",
         headerName: "Invoice",
         flex: 1,
-        minWidth: 120,
+        minWidth: 140,
         sortable: false,
-        renderCell: renderPlainCell,
+        renderCell: renderEntityStatsCell,
     },
     {
         field: "payment",
         headerName: "Payment",
         flex: 1,
-        minWidth: 120,
+        minWidth: 140,
         sortable: false,
-        renderCell: renderPlainCell,
+        renderCell: renderEntityStatsCell,
     },
     {
         field: "linkPayments",
         headerName: "Link payments",
         flex: 1,
-        minWidth: 130,
+        minWidth: 150,
         sortable: false,
-        renderCell: renderPlainCell,
+        renderCell: renderEntityStatsCell,
     },
 ];
 
@@ -148,8 +189,6 @@ export default function ConnectorSyncHistoryGrid({
                 resizableColumns
                 visibleRows={Math.min(Math.max(rows.length, 1), 8)}
                 language={i18n.language}
-                noRowsMessage="No sync history"
-                noRowsDescription="Finished syncs will appear here after they complete."
             />
         </Box>
     );
