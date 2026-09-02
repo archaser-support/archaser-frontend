@@ -5,6 +5,7 @@
     "description": "Archaser Next.js frontend",
     "scripts": {
         "dev": "NODE_OPTIONS=--disable-warning=DEP0169 next dev --webpack",
+        "dev:all": "bash ./scripts/dev-all.sh",
         "dev:turbo": "NODE_OPTIONS=--disable-warning=DEP0169 next dev --turbopack",
         "build": "NODE_OPTIONS=--max-old-space-size=4096 next build --webpack",
         "build:amplify": "node scripts/check-amplify-ui-imports.js && node scripts/check-no-relative-product-api.js && node scripts/run-amplify-build.js",

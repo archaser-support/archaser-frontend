@@ -17,12 +17,9 @@ node_modules/
 
 # production
 /build
+# TypeScript / workspace build output (never commit)
+dist/
 **/dist/
-backend/api/dist/
-backend/packages/database/dist/
-# backend/api/dist is dead (legacy monorepo path); keep for consistency with backend repo
-api/dist/
-packages/database/dist/
 frontend/build/
 frontend/.next/
 frontend/node_modules/
