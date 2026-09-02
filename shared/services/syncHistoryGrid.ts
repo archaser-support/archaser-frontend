@@ -17,7 +17,11 @@ export function formatEntityStatsCell(
     if (!slice) {
         return "—";
     }
-    return `${slice.pulled} / ${slice.success} / ${slice.failed}`;
+    const base = `${slice.pulled} / ${slice.success} / ${slice.failed}`;
+    if (slice.deleted != null) {
+        return `${base} · ${slice.deleted} deleted`;
+    }
+    return base;
 }
 
 export function formatSyncHistoryDuration(

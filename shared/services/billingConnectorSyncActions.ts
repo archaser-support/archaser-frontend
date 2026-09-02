@@ -1,3 +1,6 @@
+import type { ImportType } from "@/types/db";
+import type { ConnectorSyncStatePublic } from "@/shared/services/billingConnectorService";
+
 export function isActiveConnectorSyncRun(run: {
     status: string;
     error_type?: string | null;
@@ -38,12 +41,16 @@ export function getStartBackfillDisabledReason(params: {
     syncMode: string;
     previewBlocked?: boolean;
     previewBlockedEntities?: string[];
+    pendingArPostIngestCustomers?: number;
 }): string | null {
     if (!params.canManage) {
         return "You do not have permission to run backfill.";
     }
     if (params.syncInProgress) {
         return "A sync is already running. Cancel it or wait for it to finish.";
+    }
+    if ((params.pendingArPostIngestCustomers ?? 0) > 0) {
+        return "Refresh AR & insurance is still running in the background. Wait for it to finish before starting or resuming backfill.";
     }
     if (params.backfillPending) {
         return "Backfill request is still in progress.";
@@ -110,4 +117,211 @@ export function toDateInputValue(value: string | null | undefined): string {
     }
     const day = String(value).slice(0, 10);
     return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : "";
+}
+
+export type BackfillActionStage =
+    | "import_running"
+    | "preview_required"
+    | "start_backfill"
+    | "resume_backfill"
+    | "incremental";
+
+export type BackfillPrimaryAction =
+    | "preview"
+    | "start_backfill"
+    | "resume_backfill"
+    | "incremental"
+    | "stop";
+
+export interface BackfillActionStageView {
+    stage: BackfillActionStage;
+    caption: string;
+    primaryAction: BackfillPrimaryAction;
+    primaryLabel: string;
+    showReset: boolean;
+    showStop: boolean;
+}
+
+const PREVIEW_PURPOSE =
+    "Fetches a small sample from the ERP (Enterprise Resource Planning) and checks mapping and pull filters. Run once for each enabled entity before the first import.";
+const START_BACKFILL_PURPOSE =
+    "Pulls historical invoices and payments from the ERP into Archaser. Run after preview passes for every enabled entity.";
+const RESUME_BACKFILL_PURPOSE =
+    "Continues the historical import from where it stopped. Use this after a stopped or interrupted backfill.";
+const INCREMENTAL_PURPOSE =
+    "Pulls the latest invoice and payment changes from the ERP into Archaser.";
+const STOP_IMPORT_PURPOSE =
+    "Stops the current import run. You can resume backfill later from where it left off.";
+const RESET_BACKFILL_PURPOSE =
+    "Unlocks the start date and backfill options so you can change settings and run backfill again. Does not delete imported data.";
+
+/** True when deferred replay / live-refresh work is still on the worker queue. */
+export function hasPendingDeferredArPostIngest(
+    pendingCustomers: number | undefined
+): boolean {
+    return (pendingCustomers ?? 0) > 0;
+}
+
+/**
+ * True when an enabled entity started backfill but has not finished yet.
+ * Completed entities (even with large pulled counts) do not count as partial.
+ * Never-started enabled entities (e.g. skipped on customer-scoped Start) do not either.
+ */
+export function hasPartialBackfillProgress(
+    syncStates: ConnectorSyncStatePublic[] | undefined,
+    enabledEntities?: readonly ImportType[]
+): boolean {
+    if (!syncStates?.length) {
+        return false;
+    }
+    const enabled = enabledEntities?.length
+        ? new Set<string>(enabledEntities)
+        : null;
+    const scoped = enabled
+        ? syncStates.filter((state) => enabled.has(state.entity_type))
+        : syncStates;
+    if (!scoped.length) {
+        return false;
+    }
+    return scoped.some((state) => {
+        if (state.backfill_completed) {
+            return false;
+        }
+        return (
+            state.backfill_cursor_present ||
+            state.backfill_records_pulled > 0 ||
+            state.last_attempt_at != null
+        );
+    });
+}
+
+export function getPreviewSyncDisabledReason(params: {
+    canManage: boolean;
+    previewPending: boolean;
+    importBusy: boolean;
+    previewUpToDate: boolean;
+}): string | null {
+    if (!params.canManage) {
+        return "You do not have permission to run preview sync.";
+    }
+    if (params.importBusy) {
+        return "A sync is already running. Stop it or wait for it to finish.";
+    }
+    if (params.previewPending) {
+        return "Preview sync request is still in progress.";
+    }
+    if (params.previewUpToDate) {
+        return "Preview already ran for the current mapping and pull filters. Change a mapping or pull filter to run it again.";
+    }
+    return null;
+}
+
+export function getStopImportDisabledReason(params: {
+    canManage: boolean;
+    stopPending: boolean;
+    stopInProgress: boolean;
+}): string | null {
+    if (!params.canManage) {
+        return "You do not have permission to stop the import.";
+    }
+    if (params.stopInProgress || params.stopPending) {
+        return "Stop request is already in progress.";
+    }
+    return null;
+}
+
+export function getBackfillActionPurpose(action: BackfillPrimaryAction): string {
+    switch (action) {
+        case "preview":
+            return PREVIEW_PURPOSE;
+        case "start_backfill":
+            return START_BACKFILL_PURPOSE;
+        case "resume_backfill":
+            return RESUME_BACKFILL_PURPOSE;
+        case "incremental":
+            return INCREMENTAL_PURPOSE;
+        case "stop":
+            return STOP_IMPORT_PURPOSE;
+        default:
+            return "";
+    }
+}
+
+export function getResetBackfillPurpose(): string {
+    return RESET_BACKFILL_PURPOSE;
+}
+
+export function resolveBackfillActionStage(params: {
+    syncMode: string;
+    previewBlocked: boolean;
+    backfillOptionsLocked: boolean;
+    syncStates: ConnectorSyncStatePublic[] | undefined;
+    enabledEntities?: readonly ImportType[];
+    importBusy: boolean;
+    showStopImport: boolean;
+}): BackfillActionStageView {
+    if (params.importBusy) {
+        return {
+            stage: "import_running",
+            caption: params.showStopImport
+                ? "Import running…"
+                : "Starting import…",
+            primaryAction: "stop",
+            primaryLabel: "Stop import",
+            showReset: false,
+            showStop: params.showStopImport,
+        };
+    }
+
+    if (params.syncMode !== "INCREMENTAL" && params.previewBlocked) {
+        return {
+            stage: "preview_required",
+            caption:
+                "Next: run a preview sync to validate mapping and pull filters before the first import.",
+            primaryAction: "preview",
+            primaryLabel: "Run preview sync",
+            showReset: params.backfillOptionsLocked,
+            showStop: false,
+        };
+    }
+
+    if (params.syncMode === "INCREMENTAL") {
+        return {
+            stage: "incremental",
+            caption: "Pull the latest ERP changes now.",
+            primaryAction: "incremental",
+            primaryLabel: "Run incremental sync now",
+            showReset: params.backfillOptionsLocked,
+            showStop: false,
+        };
+    }
+
+    const resume =
+        params.backfillOptionsLocked &&
+        hasPartialBackfillProgress(
+            params.syncStates,
+            params.enabledEntities
+        );
+
+    if (resume) {
+        return {
+            stage: "resume_backfill",
+            caption:
+                "Next: continue the historical import from where it stopped.",
+            primaryAction: "resume_backfill",
+            primaryLabel: "Resume backfill",
+            showReset: params.backfillOptionsLocked,
+            showStop: false,
+        };
+    }
+
+    return {
+        stage: "start_backfill",
+        caption:
+            "Next: import historical invoices and payments from the ERP.",
+        primaryAction: "start_backfill",
+        primaryLabel: "Start backfill",
+        showReset: params.backfillOptionsLocked,
+        showStop: false,
+    };
 }
