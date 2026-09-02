@@ -35,6 +35,7 @@ import { useTranslation } from "react-i18next";
 
 import PageHeader from "@/components/PageHeader";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
+import { filterFileImportFromPermissionMatrix } from "@/shared/utils/accountProducts";
 import {
     autoFixPermissions,
     canEnablePermission,
@@ -471,7 +472,7 @@ export default function RolePermissions({
             const response = await api.get("/permissions", {
                 params: accountId ? { accountId } : undefined,
             });
-            return response.data;
+            return filterFileImportFromPermissionMatrix(response.data);
         },
         enabled: !!accountId,
         staleTime: 0, // Always fetch fresh data to pick up new permissions

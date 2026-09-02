@@ -27,6 +27,56 @@ export function isFileImportVisible(
     );
 }
 
+/** Strip file-import permissions from the role matrix catalog (UI-only hide). */
+export function filterFileImportFromPermissionMatrix<
+    T extends {
+        permissions: string[];
+        permissionsByCategory: Record<string, Record<string, string[]>>;
+    },
+>(data: T): T {
+    if (FILE_IMPORT_UI_VISIBLE) {
+        return data;
+    }
+
+    const importExportKeys = new Set<string>();
+    for (const subcategories of Object.values(data.permissionsByCategory)) {
+        const importExport = subcategories.import_export;
+        if (importExport) {
+            for (const permission of importExport) {
+                importExportKeys.add(permission);
+            }
+        }
+    }
+
+    const permissions = data.permissions.filter(
+        (permission) => !importExportKeys.has(permission)
+    );
+
+    const permissionsByCategory: Record<string, Record<string, string[]>> = {};
+    for (const [categoryKey, subcategories] of Object.entries(
+        data.permissionsByCategory
+    )) {
+        const nextSubcategories: Record<string, string[]> = {};
+        for (const [subKey, perms] of Object.entries(subcategories)) {
+            if (subKey === "import_export") {
+                continue;
+            }
+            if (perms.length > 0) {
+                nextSubcategories[subKey] = perms;
+            }
+        }
+        if (Object.keys(nextSubcategories).length > 0) {
+            permissionsByCategory[categoryKey] = nextSubcategories;
+        }
+    }
+
+    return {
+        ...data,
+        permissions,
+        permissionsByCategory,
+    };
+}
+
 export function accountProductsFromRecord(
     record?: {
         has_collection?: boolean;
