@@ -176,6 +176,10 @@ export interface SyncRunSummary {
         skip_reporting_breach_on_backfill: boolean;
     } | null;
     cutover_summary?: string | null;
+    /** Registry key for the step currently executing (Customer, _maturity, …). */
+    active_step?: string | null;
+    /** Sub-phase within the active step (pulling, linking, …). */
+    active_step_detail?: string | null;
 }
 
 export interface UpsertBillingConnectorPayload {
@@ -394,13 +398,37 @@ export async function runBillingConnectorBackfill(
 export async function lookupBillingConnectorCustomerById(
     accountId: number,
     customerId: number
-): Promise<{ id: number; customer_number: string }> {
+): Promise<{ id: number; customer_number: string; name: string }> {
     const response = await api.get<{
-        customer: { id: number; customer_number: string };
+        customer: { id: number; customer_number: string; name: string };
     }>(`${basePath(accountId)}/customers/by-id`, {
         params: { customer_id: customerId },
     });
     return response.data.customer;
+}
+
+export async function searchBillingConnectorCustomers(
+    accountId: number,
+    searchTerm: string
+): Promise<
+    Array<{
+        id: number;
+        customer_number: string;
+        name: string;
+        type: string;
+    }>
+> {
+    const response = await api.get<{
+        items: Array<{
+            id: number;
+            customer_number: string;
+            name: string;
+            type: string;
+        }>;
+    }>(`${basePath(accountId)}/customers/search`, {
+        params: { q: searchTerm },
+    });
+    return response.data.items ?? [];
 }
 
 export async function runBillingConnectorIncrementalSync(accountId: number) {
