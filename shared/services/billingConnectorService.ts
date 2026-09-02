@@ -83,6 +83,11 @@ export interface BillingConnectorConfig {
     invoice_paid_tolerance?: number;
     /** Locked after backfill starts until reset. */
     backfill_options_locked?: boolean;
+    /**
+     * Customers with deferred AR replay / insurance refresh still pending on
+     * the worker queue. Start/resume backfill stays disabled while > 0.
+     */
+    pending_ar_post_ingest_customers?: number;
     /** Optional account-extension key; null/empty = standard path. */
     extension_key?: string | null;
     /** Plugin-owned settings for the attached extension. */
@@ -148,9 +153,11 @@ export interface SyncRunSummary {
             success: number;
             failed: number;
             skipped: number;
+            /** Rows removed during Start backfill clear-before-import. */
+            deleted?: number;
             sample_errors?: string[];
             /** Present for `_maturity` while linking / after it finishes. */
-            status?: "running" | "done" | "failed";
+            status?: "running" | "done" | "failed" | "queued";
             /** Present for tail steps while running: the sub-step in flight. */
             detail?: {
                 step: string;
@@ -265,6 +272,8 @@ export interface DiscoverFieldsResponse {
 export interface PreviewSyncEntityResult {
     import_type: ImportType;
     pulled: number;
+    importable_count?: number;
+    match_count?: number;
     match_count_capped?: boolean;
     sample_rows: Record<string, unknown>[];
     validation_errors: string[];
@@ -356,11 +365,42 @@ export async function runBillingConnectorPreviewSync(
     return response.data.result;
 }
 
-export async function runBillingConnectorBackfill(accountId: number) {
-    const response = await api.post(`${basePath(accountId)}/sync`, {}, {
+export async function runBillingConnectorBackfill(
+    accountId: number,
+    options?: {
+        clear_before_import?: Array<
+            "Customer" | "Contact" | "Invoice" | "Payment"
+        >;
+        customer_id?: number | null;
+    }
+) {
+    const body: Record<string, unknown> = {};
+    if (options?.clear_before_import && options.clear_before_import.length > 0) {
+        body.clear_before_import = options.clear_before_import;
+    }
+    if (
+        typeof options?.customer_id === "number" &&
+        Number.isFinite(options.customer_id) &&
+        options.customer_id > 0
+    ) {
+        body.customer_id = Math.trunc(options.customer_id);
+    }
+    const response = await api.post(`${basePath(accountId)}/sync`, body, {
         params: { mode: "backfill" },
     });
     return response.data.result;
+}
+
+export async function lookupBillingConnectorCustomerById(
+    accountId: number,
+    customerId: number
+): Promise<{ id: number; customer_number: string }> {
+    const response = await api.get<{
+        customer: { id: number; customer_number: string };
+    }>(`${basePath(accountId)}/customers/by-id`, {
+        params: { customer_id: customerId },
+    });
+    return response.data.customer;
 }
 
 export async function runBillingConnectorIncrementalSync(accountId: number) {
