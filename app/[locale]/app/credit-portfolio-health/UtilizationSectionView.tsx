@@ -17,13 +17,18 @@ import {
     Bar,
     BarChart,
     CartesianGrid,
+    Cell,
+    Legend,
     ResponsiveContainer,
     Tooltip,
     XAxis,
     YAxis,
 } from "recharts";
+import { useParams, useRouter } from "next/navigation";
 
 import type { PortfolioUtilizationSection, UtilizationDistributionBinKey } from "@/types/creditInsurance";
+import { appendDashboardBusinessUnitId } from "@/shared/dashboard/dashboardBusinessUnitParams";
+import { formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
 
 import { BigNumber } from "./BigNumber";
 import { ChartTooltip } from "./ChartTooltip";
@@ -40,31 +45,84 @@ export type UtilizationSectionViewProps = {
     section: PortfolioUtilizationSection;
     fromYmd: string;
     toYmd: string;
+    policyId?: number | null;
+    businessUnitId?: number | null;
+    includeNoPolicyExposure?: boolean;
 };
+
+type UtilizationRiskZone = "calm" | "warning" | "danger";
+
+function riskZoneForBin(bin: UtilizationDistributionBinKey): UtilizationRiskZone {
+    if (
+        bin === "0_20" ||
+        bin === "20_40" ||
+        bin === "40_60" ||
+        bin === "60_80"
+    ) {
+        return "calm";
+    }
+    if (bin === "80_100") {
+        return "warning";
+    }
+    return "danger";
+}
+
+function seriesFillForRisk(
+    series: "customers" | "usage",
+    zone: UtilizationRiskZone
+): string {
+    if (zone === "calm") {
+        return series === "customers" ? CPH.jade : CPH.copper;
+    }
+    if (zone === "warning") {
+        return series === "customers" ? CPH.copper : CPH.jadeDim;
+    }
+    return CPH.critical;
+}
 
 const BIN_LABEL_KEYS: Record<
     UtilizationDistributionBinKey,
     { key: string; defaultValue: string }
 > = {
-    "0_10": {
-        key: "credit_portfolio_health.bin_0_10",
-        defaultValue: "0–10%",
+    "0_20": {
+        key: "credit_portfolio_health.bin_0_20",
+        defaultValue: "0–20%",
     },
-    "10_20": {
-        key: "credit_portfolio_health.bin_10_20",
-        defaultValue: "10–20%",
+    "20_40": {
+        key: "credit_portfolio_health.bin_20_40",
+        defaultValue: "20–40%",
     },
-    "20_50": {
-        key: "credit_portfolio_health.bin_20_50",
-        defaultValue: "20–50%",
+    "40_60": {
+        key: "credit_portfolio_health.bin_40_60",
+        defaultValue: "40–60%",
     },
-    "50_75": {
-        key: "credit_portfolio_health.bin_50_75",
-        defaultValue: "50–75%",
+    "60_80": {
+        key: "credit_portfolio_health.bin_60_80",
+        defaultValue: "60–80%",
     },
-    "75_plus": {
-        key: "credit_portfolio_health.bin_75_plus",
-        defaultValue: "≥75%",
+    "80_100": {
+        key: "credit_portfolio_health.bin_80_100",
+        defaultValue: "80–100%",
+    },
+    "100_110": {
+        key: "credit_portfolio_health.bin_100_110",
+        defaultValue: "100–110%",
+    },
+    "110_120": {
+        key: "credit_portfolio_health.bin_110_120",
+        defaultValue: "110–120%",
+    },
+    "120_130": {
+        key: "credit_portfolio_health.bin_120_130",
+        defaultValue: "120–130%",
+    },
+    "130_150": {
+        key: "credit_portfolio_health.bin_130_150",
+        defaultValue: "130–150%",
+    },
+    "150_plus": {
+        key: "credit_portfolio_health.bin_150_plus",
+        defaultValue: "≥150%",
     },
 };
 
@@ -89,10 +147,143 @@ function formatAsOfYmd(ymd: string, language: string): string {
     });
 }
 
+type DistributionChartRow = {
+    bin: UtilizationDistributionBinKey;
+    label: string;
+    customerPct: number;
+    usagePct: number;
+    customerCount: number;
+    usageAmount: number;
+};
+
+type DistributionTooltipProps = {
+    active?: boolean;
+    label?: string;
+    payload?: Array<{
+        dataKey?: string | number;
+        name?: string;
+        value?: number | string;
+        color?: string;
+        payload?: DistributionChartRow;
+    }>;
+    language: string;
+    currency: string;
+    customerSeriesName: string;
+    usageSeriesName: string;
+};
+
+function DistributionTooltip({
+    active,
+    label,
+    payload,
+    language,
+    currency,
+    customerSeriesName,
+    usageSeriesName,
+}: DistributionTooltipProps) {
+    const row = payload?.[0]?.payload;
+    if (!active || row == null) {
+        return null;
+    }
+    const locale = language.startsWith("he") ? "he-IL" : "en-US";
+    const customerLine = `${row.customerCount.toLocaleString(locale)} (${formatPct(row.customerPct, language)})`;
+    const usageLine = `${formatCurrencyWithRTLSupport(
+        row.usageAmount,
+        currency,
+        locale,
+        language
+    )} (${formatPct(row.usagePct, language)})`;
+
+    const items = [
+        {
+            name: customerSeriesName,
+            display: customerLine,
+            color: CPH.jade,
+        },
+        {
+            name: usageSeriesName,
+            display: usageLine,
+            color: CPH.copper,
+        },
+    ];
+
+    return (
+        <div
+            style={{
+                borderRadius: 8,
+                border: `1px solid ${CPH.border}`,
+                padding: "8px 12px",
+                fontSize: 12,
+                backgroundColor: CPH.card,
+                color: CPH.ink,
+                boxShadow: CPH.shadow,
+            }}
+        >
+            {label ? (
+                <div
+                    style={{
+                        marginBottom: 4,
+                        fontWeight: 500,
+                        color: CPH.slate,
+                    }}
+                >
+                    {label}
+                </div>
+            ) : null}
+            <ul
+                style={{
+                    margin: 0,
+                    padding: 0,
+                    listStyle: "none",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 4,
+                }}
+            >
+                {items.map((entry) => (
+                    <li
+                        key={entry.name}
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                        }}
+                    >
+                        <span
+                            style={{
+                                display: "inline-block",
+                                width: 8,
+                                height: 8,
+                                borderRadius: "50%",
+                                flexShrink: 0,
+                                backgroundColor: entry.color,
+                            }}
+                        />
+                        <span style={{ color: CPH.slate }}>{entry.name}</span>
+                        <span
+                            style={{
+                                marginInlineStart: "auto",
+                                fontWeight: 500,
+                                fontVariantNumeric: "tabular-nums",
+                                color: CPH.ink,
+                            }}
+                        >
+                            {entry.display}
+                        </span>
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+}
+
 export function UtilizationSectionView({
     section,
     fromYmd,
     toYmd,
+    policyId = null,
+    businessUnitId = null,
+    includeNoPolicyExposure = true,
 }: UtilizationSectionViewProps) {
     const { t, i18n } = useTranslation(["dashboard"]);
     const language = i18n.language;
@@ -100,6 +291,10 @@ export function UtilizationSectionView({
     const ns = { ns: "dashboard" as const };
     const prefersReducedMotion = usePrefersReducedMotion();
     const animDuration = prefersReducedMotion ? 0 : 1100;
+    const router = useRouter();
+    const params = useParams();
+    const locale =
+        typeof params?.locale === "string" ? params.locale : "en";
 
     const peakSub =
         section.peakUtilizationStreakStart != null &&
@@ -146,14 +341,46 @@ export function UtilizationSectionView({
                         ...ns,
                         defaultValue: meta.defaultValue,
                     }),
-                    pct: item.customerPct,
-                };
+                    customerPct: item.customerPct,
+                    usagePct: item.usagePct ?? 0,
+                    customerCount: item.customerCount,
+                    usageAmount: item.usageAmount ?? 0,
+                } satisfies DistributionChartRow;
             }),
         [section.distribution, t]
     );
 
+    const customerSeriesName = t("credit_portfolio_health.chart_customer_share", {
+        ...ns,
+        defaultValue: "Of customers",
+    });
+    const usageSeriesName = t("credit_portfolio_health.chart_usage_share", {
+        ...ns,
+        defaultValue: "Of usage",
+    });
+    const currency = section.accountCurrency || "USD";
+
+    const openUtilizationBinReport = (bin: UtilizationDistributionBinKey) => {
+        if (section.asOfDate == null) {
+            return;
+        }
+        const sp = new URLSearchParams({
+            type: "utilization_bin",
+            bin,
+            asOf: section.asOfDate,
+        });
+        if (policyId != null) {
+            sp.set("policyId", String(policyId));
+        }
+        if (!includeNoPolicyExposure) {
+            sp.set("includeNoPolicyExposure", "0");
+        }
+        appendDashboardBusinessUnitId(sp, businessUnitId);
+        router.push(`/${locale}/app/credit-dashboard/report?${sp.toString()}`);
+    };
+
     const topChartHeight = Math.max(220, topCustomersChartData.length * 28);
-    const distChartHeight = 220;
+    const distChartHeight = 280;
 
     return (
         <div className={layout.grid12}>
@@ -511,7 +738,7 @@ export function UtilizationSectionView({
             {section.distributionCustomerCount > 0 ? (
                 <IslandCard
                     accent="jade"
-                    className={`${layout.span12} ${layout.mdSpan6} ${layout.cardPad}`}
+                    className={`${layout.span12} ${layout.cardPad}`}
                 >
                     <Eyebrow
                         icon={Users}
@@ -519,7 +746,7 @@ export function UtilizationSectionView({
                             ...ns,
                             count: section.distributionCustomerCount,
                             defaultValue:
-                                "As of range end among {{count}} approved customers with a positive effective limit. Exclusive bins; shares sum to ~100%.",
+                                "As of range end among {{count}} approved customers with a positive effective limit. Grouped bars: share of customers and share of usage. Exclusive bins; each series sums to ~100%.",
                         })}
                     >
                         {t("credit_portfolio_health.distribution_title", {
@@ -548,9 +775,10 @@ export function UtilizationSectionView({
                                 />
                                 <XAxis
                                     dataKey="label"
-                                    tick={{ fill: CPH.slate, fontSize: 12 }}
+                                    tick={{ fill: CPH.slate, fontSize: 11 }}
                                     axisLine={false}
                                     tickLine={false}
+                                    interval={0}
                                 />
                                 <YAxis
                                     tick={{ fill: CPH.slate, fontSize: 12 }}
@@ -564,26 +792,100 @@ export function UtilizationSectionView({
                                 <Tooltip
                                     cursor={{ fill: CPH.surfaceMuted }}
                                     content={
-                                        <ChartTooltip
-                                            formatValue={(v) =>
-                                                formatPct(v, language)
+                                        <DistributionTooltip
+                                            language={language}
+                                            currency={currency}
+                                            customerSeriesName={
+                                                customerSeriesName
                                             }
+                                            usageSeriesName={usageSeriesName}
                                         />
                                     }
                                 />
+                                <Legend
+                                    wrapperStyle={{
+                                        fontSize: 12,
+                                        color: CPH.slate,
+                                    }}
+                                />
                                 <Bar
-                                    dataKey="pct"
-                                    name={t(
-                                        "credit_portfolio_health.chart_customer_share",
-                                        {
-                                            ...ns,
-                                            defaultValue: "Of customers",
-                                        }
-                                    )}
+                                    dataKey="customerPct"
+                                    name={customerSeriesName}
                                     fill={CPH.jade}
                                     radius={[8, 8, 0, 0]}
                                     animationDuration={animDuration}
-                                />
+                                    cursor="pointer"
+                                    onClick={(entry) => {
+                                        const row = (
+                                            entry as {
+                                                payload?: DistributionChartRow;
+                                            }
+                                        )?.payload;
+                                        if (
+                                            row?.bin != null &&
+                                            row.customerCount > 0
+                                        ) {
+                                            openUtilizationBinReport(row.bin);
+                                        }
+                                    }}
+                                >
+                                    {distributionChartData.map((row) => (
+                                        <Cell
+                                            key={`cust-${row.bin}`}
+                                            fill={seriesFillForRisk(
+                                                "customers",
+                                                riskZoneForBin(row.bin)
+                                            )}
+                                            cursor={
+                                                row.customerCount > 0
+                                                    ? "pointer"
+                                                    : "default"
+                                            }
+                                        />
+                                    ))}
+                                </Bar>
+                                <Bar
+                                    dataKey="usagePct"
+                                    name={usageSeriesName}
+                                    fill={CPH.copper}
+                                    radius={[8, 8, 0, 0]}
+                                    animationDuration={animDuration}
+                                    cursor="pointer"
+                                    onClick={(entry) => {
+                                        const row = (
+                                            entry as {
+                                                payload?: DistributionChartRow;
+                                            }
+                                        )?.payload;
+                                        if (
+                                            row?.bin != null &&
+                                            row.customerCount > 0
+                                        ) {
+                                            openUtilizationBinReport(row.bin);
+                                        }
+                                    }}
+                                >
+                                    {distributionChartData.map((row) => {
+                                        const zone = riskZoneForBin(row.bin);
+                                        return (
+                                            <Cell
+                                                key={`usage-${row.bin}`}
+                                                fill={seriesFillForRisk(
+                                                    "usage",
+                                                    zone
+                                                )}
+                                                fillOpacity={
+                                                    zone === "danger" ? 0.85 : 1
+                                                }
+                                                cursor={
+                                                    row.customerCount > 0
+                                                        ? "pointer"
+                                                        : "default"
+                                                }
+                                            />
+                                        );
+                                    })}
+                                </Bar>
                             </BarChart>
                         </ResponsiveContainer>
                     </div>

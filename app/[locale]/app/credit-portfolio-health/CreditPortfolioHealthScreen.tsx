@@ -512,6 +512,13 @@ export function CreditPortfolioHealthScreen({
                                                 section={data.utilization}
                                                 fromYmd={data.from}
                                                 toYmd={data.to}
+                                                policyId={policyId}
+                                                businessUnitId={
+                                                    selectedBusinessUnitId
+                                                }
+                                                includeNoPolicyExposure={
+                                                    includeNoPolicyExposure
+                                                }
                                             />
                                         ) : (
                                             <p
