@@ -41,7 +41,7 @@ frontend:
   phases:
     preBuild:
       commands:
-        - npm ci --cache .npm --prefer-offline
+        - npm ci --cache .npm --prefer-offline --ignore-scripts
         - npm run type-check
     build:
       commands:
