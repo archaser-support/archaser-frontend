@@ -177,9 +177,22 @@ const ReportsPage: React.FC = () => {
                 sortField,
                 sortDirection,
                 version: queryKeyVersion,
+                // Master admin list is system-report catalog for sync; others see all saved reports.
+                systemOnly: isAdmin,
             },
         ],
-        [debouncedSearch, sortField, sortDirection, queryKeyVersion]
+        [debouncedSearch, sortField, sortDirection, queryKeyVersion, isAdmin]
+    );
+
+    const reportsListParams = useMemo(
+        () => ({
+            search: debouncedSearch,
+            sortField: sortField || "",
+            sortDirection: sortDirection || "asc",
+            context: "reports",
+            ...(isAdmin ? { isSystem: "true" } : {}),
+        }),
+        [debouncedSearch, sortField, sortDirection, isAdmin]
     );
 
     // Use virtual infinite scroll hook
@@ -193,17 +206,7 @@ const ReportsPage: React.FC = () => {
         reset,
     } = useVirtualInfiniteScroll({
         queryKey,
-        queryFn: createQueryFn(
-            "/api/reports",
-            {
-                search: debouncedSearch,
-                sortField: sortField || "",
-                sortDirection: sortDirection || "asc",
-                context: "reports",
-                isSystem: "true",
-            },
-            "reports"
-        ),
+        queryFn: createQueryFn("/api/reports", reportsListParams, "reports"),
     });
 
     // Transform reports to grid rows - ensure stable IDs
@@ -350,7 +353,7 @@ const ReportsPage: React.FC = () => {
             sortField: sortField || "",
             sortDirection: sortDirection || "asc",
             context: "reports",
-            isSystem: "true",
+            ...(isAdmin ? { isSystem: "true" } : {}),
             export: "true",
             limit: "10000",
         });
@@ -362,7 +365,7 @@ const ReportsPage: React.FC = () => {
 
         const data = await response.json();
         return data.reports || [];
-    }, [debouncedSearch, sortField, sortDirection]);
+    }, [debouncedSearch, sortField, sortDirection, isAdmin]);
 
     const columns: GridColDef[] = useMemo(() => {
         const cols = [
