@@ -1,6 +1,6 @@
 ---
 name: implement-next
-description: Orchestrate AFK implementation of `.scratch/<feature-slug>/issues/` slices in blocker order — claim, spawn a fresh agent per slice, run automated seam tests, flip Status, chain until blocked or done.
+description: Orchestrate AFK implementation of `.scratch/<feature-slug>/issues/` slices in blocker order — claim, spawn a fresh agent per slice, verify acceptance (existing tests only; never add tests unless asked), flip Status, chain until blocked or done.
 disable-model-invocation: true
 argument-hint: "<feature-slug>"
 ---
@@ -27,8 +27,8 @@ If the user passes a **PRD/plan path** instead (e.g. `.cursor/plans/billing-acco
 |------|----------|
 | Chain | Keep going until no unblocked `ready-for-agent` issues remain (or stop on failure) |
 | Isolation | **Fresh agent per slice** — this chat is the orchestrator; implementers are separate Task/subagents |
-| Done gate | Automated seam tests green **and** `Status: done` |
-| Tests | Automated only (Hub/unit, Apex if runnable locally). Skip live-org / Lightning UI steps; list them in the final report |
+| Done gate | Acceptance criteria met **and** `Status: done`. Run **existing** automated tests that already cover touched seams when present; if none exist, do **not** invent tests to satisfy the gate |
+| Tests | **Do not add, expand, or update tests** unless the user **explicitly asks** in this chat (same as critical project rules). Prefer TDD / `tdd` skill **only** when the user asked for tests. Existing automated checks only if already in the tree; skip live-org / Lightning UI steps and list them in the final report |
 | Blockers | Trust each issue’s `## Blocked by` (not the PRD summary table) |
 | Frontier order | One at a time; lowest `NN` first |
 | Git | Do **not** commit or push unless the user explicitly asks in this chat |
@@ -81,11 +81,11 @@ Give the implementer:
 
 - Absolute or repo-relative path to the issue file
 - Parent PRD/plan path from `## Parent` (read it if present)
-- Instruction to satisfy **Acceptance criteria** and automated parts of **How to test**
+- Instruction to satisfy **Acceptance criteria** and automated parts of **How to test** using **existing** coverage only
 - Permission to edit backend **and** portal when the slice needs both
 - **Do not commit, push, or open a PR**
-- Prefer TDD when adding behavior (`archaser-backend/.agents/skills/tdd/SKILL.md` if useful)
-- Return a short result: what changed, suggested automated test commands, any blockers, leftover manual checks
+- **Do not add, expand, or update tests** (unit/integration/e2e or otherwise) unless the user explicitly asked for tests in this chat — project critical rule; do **not** use TDD / create seam tests “for the done gate”
+- Return a short result: what changed, which **existing** automated commands (if any) to re-run, any blockers, leftover manual checks
 
 Wait until the Task finishes before continuing.
 
@@ -93,14 +93,16 @@ Completion criterion: implementer returned; working tree may be dirty.
 
 ### 5. Done gate (orchestrator verifies)
 
-1. Derive automated test commands from the issue’s How to test / PRD seams (unit/integration only).
-2. **Run them yourself** in the shell — do not trust the implementer’s word alone.
-3. If **red**:
+1. Confirm acceptance criteria look implemented from the implementer’s report + spot-check of key files when needed.
+2. If **existing** automated tests already cover the touched seams, **run those yourself** — do not trust the implementer’s word alone. Do **not** add tests to create a gate.
+3. If no relevant existing tests: skip the automated run; still mark done when acceptance criteria are satisfied (manual How-to-test steps go in the end report).
+4. If an existing test run is **red**:
    - Leave `Status: in-progress`
    - **Stop the chain**
    - Report: issue path, failing commands/output summary, that the user can re-run `/implement-next <slug>` to resume
+   - Fix production code on resume if appropriate — still **do not** add/expand tests unless the user asked
    - End turn
-4. If **green**:
+5. If **green** (or no existing tests to run):
    - Set `Status: done`
    - Optionally check off completed Acceptance criteria boxes in the issue file
    - Loop to **step 2** (next slice)
@@ -127,7 +129,7 @@ See `docs/agents/triage-labels.md`:
 |--------|-------------------------|
 | `ready-for-agent` | Eligible for frontier when unblocked |
 | `in-progress` | Claimed; resume target |
-| `done` | Passed automated done gate; unblocks dependents |
+| `done` | Passed done gate; unblocks dependents |
 
 Ignore `needs-triage` / `needs-info` / `ready-for-human` / `wontfix` for frontier selection unless the user explicitly overrides.
 

@@ -126,7 +126,8 @@ describe("backfillImportProgress", () => {
             ["Link payments", "waiting"],
             ...waitingTailProgressRows(),
         ]);
-        expect(rows[2].progress_percent).toBeNull();
+        // No known ERP total → estimate from page size so the bar stays determinate.
+        expect(rows[2].progress_percent).toBe(9);
         expect(rows[2].records_pulled).toBe(50);
         expect(rows[0].records_pulled).toBe(100);
         expect(rows[1].records_pulled).toBe(1867);
@@ -324,6 +325,77 @@ describe("backfillImportProgress", () => {
         expect(rows.every((row) => row.last_error == null)).toBe(true);
         expect(rows.every((row) => row.records_pulled === 0)).toBe(true);
         expect(rows.every((row) => row.total_records == null)).toBe(true);
+    });
+
+    it("advances to the next entity when prior entity finished this run but entity_stats are still placeholders", () => {
+        const runStartedAt = "2026-08-04T00:00:00.000Z";
+        const rows = buildRunningEntityProgressRows({
+            enabledEntities: ["Payment", "Invoice"],
+            runStartedAt,
+            syncStates: [
+                syncState({
+                    entity_type: "Payment",
+                    backfill_completed: true,
+                    backfill_records_pulled: 1867,
+                    last_attempt_at: "2026-08-04T00:05:00.000Z",
+                }),
+                syncState({
+                    entity_type: "Invoice",
+                    backfill_records_pulled: 0,
+                }),
+            ],
+            entityStats: {
+                Payment: { pulled: 0, success: 0, failed: 0, skipped: 0 },
+                Invoice: { pulled: 0, success: 0, failed: 0, skipped: 0 },
+            },
+        });
+
+        expect(rows.map((row) => [row.entity_type, row.phase])).toEqual([
+            ["Payment", "done"],
+            ["Invoice", "running"],
+            ["Link payments", "waiting"],
+            ...waitingTailProgressRows(),
+        ]);
+        expect(rows[0].records_pulled).toBe(1867);
+        expect(rows[1].records_pulled).toBe(0);
+    });
+
+    it("marks Payment Done when sync_state frontier moved to Invoice but only Payment has live stats", () => {
+        const rows = buildRunningEntityProgressRows({
+            enabledEntities: ["Payment", "Invoice"],
+            runStartedAt: "2026-09-01T18:28:00.000Z",
+            syncStates: [
+                syncState({
+                    entity_type: "Payment",
+                    backfill_completed: true,
+                    backfill_records_pulled: 100000,
+                    last_attempt_at: "2026-09-01T18:28:43.000Z",
+                }),
+                syncState({
+                    entity_type: "Invoice",
+                    backfill_completed: false,
+                    backfill_records_pulled: 1000,
+                    backfill_cursor_present: true,
+                    last_attempt_at: "2026-09-01T18:23:24.525Z",
+                }),
+            ],
+            entityStats: {
+                Payment: {
+                    pulled: 100000,
+                    success: 100000,
+                    failed: 0,
+                    skipped: 0,
+                },
+                Invoice: { pulled: 0, success: 0, failed: 0, skipped: 0 },
+            },
+        });
+
+        expect(rows.map((row) => [row.entity_type, row.phase])).toEqual([
+            ["Payment", "done"],
+            ["Invoice", "running"],
+            ["Link payments", "waiting"],
+            ...waitingTailProgressRows(),
+        ]);
     });
 
     it("lists all tail steps as Waiting while a backfill run is in progress", () => {

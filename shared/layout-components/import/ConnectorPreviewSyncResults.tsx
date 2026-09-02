@@ -172,6 +172,10 @@ export default function ConnectorPreviewSyncResults({
         );
     }
 
+    const importableCount =
+        entity.importable_count ?? entity.sample_rows.length;
+    const pulledCount = entity.pulled;
+
     return (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             <Typography variant="body2" color="text.secondary">
@@ -179,9 +183,13 @@ export default function ConnectorPreviewSyncResults({
                     entity.sample_rows.length,
                     Boolean(entity.match_count_capped)
                 )}{" "}
-                sample row
-                {entity.sample_rows.length === 1 ? "" : "s"} pulled (full
-                match count skipped)
+                importable sample row
+                {entity.sample_rows.length === 1 ? "" : "s"}
+                {pulledCount > importableCount
+                    ? ` (${pulledCount} pulled from ERP; incomplete rows skipped like live import)`
+                    : pulledCount > entity.sample_rows.length
+                      ? ` (${pulledCount} pulled from ERP)`
+                      : ""}
             </Typography>
             {entity.effective_filter ? (
                 <Typography

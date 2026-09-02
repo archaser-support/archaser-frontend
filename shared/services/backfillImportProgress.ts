@@ -16,8 +16,11 @@ export const BACKFILL_ENTITY_ORDER: ImportType[] = [
 /** Orchestration step after Invoice — links deferred payments to invoices. */
 export const MATURITY_ENTITY_STATS_KEY = "_maturity";
 
-/** Progress-panel label for deferred payment → invoice linking. */
-export const BACKFILL_LINK_PAYMENTS_LABEL = "Link payments";
+/** Start backfill clear-before-import purge phase (before entity pull/import). */
+export const PURGE_ENTITY_STATS_KEY = "_purge";
+
+/** Progress-panel label for clear-before-import deletes. */
+export const BACKFILL_DELETING_LABEL = "Deleting…";
 
 /**
  * Tail steps after entity ingest. They run while the sync is still RUNNING, so
@@ -31,6 +34,8 @@ export const LIVE_REFRESH_ENTITY_STATS_KEY = "_live_refresh";
 export const PROCESS_OVERDUE_ENTITY_STATS_KEY = "_process_overdue";
 export const PENDING_CLOSES_ENTITY_STATS_KEY = "_pending_closes";
 export const BALANCES_ENTITY_STATS_KEY = "_balances";
+
+export const BACKFILL_LINK_PAYMENTS_LABEL = "Link payments";
 
 /** @deprecated Legacy single row — prefer replay + live refresh tail steps. */
 export const BACKFILL_POST_INGEST_LABEL = "Refresh AR & insurance";
@@ -74,6 +79,7 @@ export type BackfillTailStepLabel =
 export type BackfillProgressRowKey =
     | ImportType
     | typeof BACKFILL_LINK_PAYMENTS_LABEL
+    | typeof BACKFILL_DELETING_LABEL
     | BackfillTailStepLabel;
 
 const BACKFILL_PROGRESS_STEP_TOOLTIPS: Record<BackfillProgressRowKey, string> =
@@ -88,6 +94,8 @@ const BACKFILL_PROGRESS_STEP_TOOLTIPS: Record<BackfillProgressRowKey, string> =
             "Pulls customer contact people from the ERP and links them to customers.",
         Policy:
             "Imports credit insurance policy records when enabled for this connector.",
+        [BACKFILL_DELETING_LABEL]:
+            "Deletes existing Archaser rows for the selected entities before ERP pull and import.",
         [BACKFILL_LINK_PAYMENTS_LABEL]:
             "Matches deferred payments to invoices, applies close rules, and recalculates invoice paid totals and outstanding balances.",
         [BACKFILL_PENDING_CLOSES_LABEL]:
@@ -133,6 +141,8 @@ export interface EntityProgressRow {
     success?: number;
     failed?: number;
     skipped?: number;
+    /** Rows removed during clear-before-import (entity or Deleting… row). */
+    deleted?: number;
     /** Sub-line for tail steps, e.g. "Replaying AR history · 1,240 / 2,027 events". */
     detail?: string;
 }
@@ -350,6 +360,103 @@ function readMaturityStats(
     entityStats: SyncRunSummary["entity_stats"] | undefined
 ): EntityStatSlice | undefined {
     return entityStats?.[MATURITY_ENTITY_STATS_KEY];
+}
+
+function readPurgeStats(
+    entityStats: SyncRunSummary["entity_stats"] | undefined
+): EntityStatSlice | undefined {
+    return entityStats?.[PURGE_ENTITY_STATS_KEY];
+}
+
+const PURGE_ENTITY_LABELS: ImportType[] = [
+    "Customer",
+    "Payment",
+    "Invoice",
+    "Contact",
+];
+
+function sumDeletedCounts(
+    entityStats: SyncRunSummary["entity_stats"] | undefined
+): number {
+    if (!entityStats) {
+        return 0;
+    }
+    let total = 0;
+    for (const entity of PURGE_ENTITY_LABELS) {
+        total += entityStats[entity]?.deleted ?? 0;
+    }
+    return total;
+}
+
+function formatDeletedCountsDetail(
+    entityStats: SyncRunSummary["entity_stats"] | undefined
+): string | undefined {
+    if (!entityStats) {
+        return undefined;
+    }
+    const parts: string[] = [];
+    for (const entity of PURGE_ENTITY_LABELS) {
+        const deleted = entityStats[entity]?.deleted;
+        if (deleted == null) {
+            continue;
+        }
+        parts.push(`${entity} ${deleted.toLocaleString()}`);
+    }
+    return parts.length > 0 ? parts.join(" · ") : undefined;
+}
+
+function shouldShowPurgeProgressRow(
+    entityStats: SyncRunSummary["entity_stats"] | undefined
+): boolean {
+    const purge = readPurgeStats(entityStats);
+    if (purge?.status === "running" || purge?.status === "done") {
+        return true;
+    }
+    return sumDeletedCounts(entityStats) > 0;
+}
+
+function buildDeletingProgressRow(params: {
+    entityStats: SyncRunSummary["entity_stats"] | undefined;
+    runFinished: boolean;
+}): EntityProgressRow {
+    const purge = readPurgeStats(params.entityStats);
+    const deletedTotal = Math.max(
+        sumDeletedCounts(params.entityStats),
+        purge?.success ?? 0,
+        purge?.detail?.processed ?? 0
+    );
+    const total =
+        purge?.detail?.total != null && purge.detail.total > 0
+            ? purge.detail.total
+            : purge?.pulled != null && purge.pulled > 0
+              ? purge.pulled
+              : null;
+    const detail = formatDeletedCountsDetail(params.entityStats);
+    const running = !params.runFinished && purge?.status === "running";
+    const percent =
+        total != null && total > 0
+            ? clampPercent(deletedTotal, total)
+            : running
+              ? null
+              : 100;
+    return {
+        entity_type: BACKFILL_DELETING_LABEL,
+        phase: running ? "running" : "done",
+        records_pulled: deletedTotal,
+        total_records: total,
+        progress_percent: percent,
+        last_error: null,
+        deleted: deletedTotal,
+        success: deletedTotal,
+        ...(detail ? { detail } : {}),
+    };
+}
+
+function prependDeletingRow(
+    rows: EntityProgressRow[],
+    deletingRow: EntityProgressRow
+): EntityProgressRow[] {
+    return [deletingRow, ...rows];
 }
 
 const LINK_PAYMENTS_DETAIL_LABELS: Record<
@@ -758,11 +865,8 @@ function resolveTailStepsForStats(
             BACKFILL_LEGACY_POST_INGEST_TAIL_STEP,
         ];
     }
-    if (runFinished) {
-        return BACKFILL_TAIL_STEPS.filter(
-            (step) => slices[step.key]?.status != null
-        );
-    }
+    // Keep the same tail step list during and after the run so the UI does not
+    // shrink when purge finishes or the run completes.
     return BACKFILL_TAIL_STEPS;
 }
 
@@ -810,15 +914,16 @@ function insertLinkPaymentsRow(
  *   entity N-1's count.
  * - Incomplete entities while a run is RUNNING: prefer live stats (including 0)
  *   so Start backfill resets counters immediately instead of Math.max-ing stale
- *   sync_state. When live stats are absent (reload mid-run / run just created),
- *   fall back to checkpointed state — entity start zeros pulled on the backend
- *   so sampling does not flash a prior run's total.
+ *   sync_state. When live stats are absent, fall back to checkpointed state
+ *   only if sync_state was updated after this run started (mid-run reload).
+ *   During column sampling at the start of a resumed entity, last_attempt_at
+ *   is still from the prior session — show 0 until the first page lands.
  * - Finished runs: fall back to checkpointed state when live stats are missing.
  */
 export function resolveEntityPulledCount(
     entityStats: EntityStatSlice | undefined,
     state: ConnectorSyncStatePublic | undefined,
-    options?: { running?: boolean }
+    options?: { running?: boolean; runStartedAt?: string | null }
 ): number {
     const fromStats = entityStats?.pulled;
     const fromState = state?.backfill_records_pulled ?? 0;
@@ -835,6 +940,12 @@ export function resolveEntityPulledCount(
             return fromStats;
         }
         return Math.max(fromStats, fromState);
+    }
+
+    if (options?.running && options.runStartedAt) {
+        return syncStateTouchedInRun(state, options.runStartedAt)
+            ? fromState
+            : 0;
     }
 
     // Live stats missing (e.g. page reload before the next onProgress patch) —
@@ -877,6 +988,47 @@ function resolveCompletedSuccessCount(
     return entityStats?.success;
 }
 
+/** True when sync_state was updated at or after this run started (5s skew). */
+function syncStateTouchedInRun(
+    state: ConnectorSyncStatePublic | undefined,
+    runStartedAt: string | null | undefined
+): boolean {
+    if (!state?.last_attempt_at || !runStartedAt) {
+        return false;
+    }
+    return (
+        new Date(state.last_attempt_at).getTime() >=
+        new Date(runStartedAt).getTime() - 5000
+    );
+}
+
+/** Entity finished fetching in the current run (not a stale prior-run flag). */
+function entityCompletedInCurrentRun(
+    state: ConnectorSyncStatePublic | undefined,
+    runStartedAt: string | null | undefined
+): boolean {
+    return (
+        Boolean(state?.backfill_completed) &&
+        !state?.backfill_cursor_present &&
+        syncStateTouchedInRun(state, runStartedAt)
+    );
+}
+
+let lastBackfillProgressDebugFingerprint = "";
+
+/** Dev-only: log why the progress panel picked the active entity (deduped). */
+function logBackfillProgressDebug(payload: Record<string, unknown>): void {
+    if (process.env.NODE_ENV !== "development") {
+        return;
+    }
+    const fingerprint = JSON.stringify(payload);
+    if (fingerprint === lastBackfillProgressDebugFingerprint) {
+        return;
+    }
+    lastBackfillProgressDebugFingerprint = fingerprint;
+    console.log("[BackfillImportProgress] progress-debug:", payload);
+}
+
 /**
  * Build per-entity rows while a backfill execution is RUNNING.
  * Always lists every enabled entity. Active entity = first that is not
@@ -895,6 +1047,10 @@ export function buildRunningEntityProgressRows(params: {
     enabledEntities: ImportType[];
     syncStates: ConnectorSyncStatePublic[] | undefined;
     entityStats?: SyncRunSummary["entity_stats"];
+    /** When set, distinguishes stale sync_state from checkpoints written this run. */
+    runStartedAt?: string | null;
+    /** Correlates browser console logs with backend execution id. */
+    runId?: string | null;
     /** Names the replay window in the AR replay sub-line. */
     mepBreachStartDate?: string | null;
 }): EntityProgressRow[] {
@@ -904,9 +1060,12 @@ export function buildRunningEntityProgressRows(params: {
     );
     const stats = params.entityStats ?? {};
     const maturity = readMaturityStats(stats);
+    const purge = readPurgeStats(stats);
+    const purgeRunning = purge?.status === "running";
     const runHasProgress = Object.entries(stats).some(
         ([key, entityStats]) =>
             key !== MATURITY_ENTITY_STATS_KEY &&
+            key !== PURGE_ENTITY_STATS_KEY &&
             hasMeaningfulEntityStats(entityStats)
     );
     // Placeholder zeros (Start backfill / pending run) are not a reload — do
@@ -919,22 +1078,34 @@ export function buildRunningEntityProgressRows(params: {
                 entityStats != null && !hasMeaningfulEntityStats(entityStats)
             );
         });
+    const firstIncompleteIndex = ordered.findIndex(
+        (entity) => !byType.get(entity)?.backfill_completed
+    );
+    const runStartedAt = params.runStartedAt;
+    const hasCompletedEntityBeforeFrontierInCurrentRun =
+        firstIncompleteIndex > 0 &&
+        ordered.slice(0, firstIncompleteIndex).some((entity) =>
+            entityCompletedInCurrentRun(byType.get(entity), runStartedAt)
+        );
     // Page reload mid-import: live entity_stats may be empty until the next
     // poll, but sync_state checkpoints still have pulled/cursor — resume from
-    // those instead of zeroing the bar.
+    // those instead of zeroing the bar. Also when an earlier entity finished
+    // in *this* run while entity_stats are still placeholder zeros (common
+    // during column sampling / before the first onProgress patch).
     const resumeFromCheckpoint =
         !runHasProgress &&
-        !hasFreshPlaceholderStats &&
-        ordered.some((entity) => {
-            const state = byType.get(entity);
-            if (!state || state.backfill_completed) {
-                return false;
-            }
-            return (
-                (state.backfill_records_pulled ?? 0) > 0 ||
-                Boolean(state.backfill_cursor_present)
-            );
-        });
+        (hasCompletedEntityBeforeFrontierInCurrentRun ||
+            (!hasFreshPlaceholderStats &&
+                ordered.some((entity) => {
+                    const state = byType.get(entity);
+                    if (!state || state.backfill_completed) {
+                        return false;
+                    }
+                    return (
+                        (state.backfill_records_pulled ?? 0) > 0 ||
+                        Boolean(state.backfill_cursor_present)
+                    );
+                })));
     const useLiveOrCheckpoint = runHasProgress || resumeFromCheckpoint;
     const showLinkRow = shouldShowLinkPaymentsRow(params.enabledEntities);
 
@@ -952,15 +1123,22 @@ export function buildRunningEntityProgressRows(params: {
      * touched yet — that made Invoice look Done (and Link payments start) while
      * Payment was still importing / sampling.
      */
-    const firstIncompleteIndex = ordered.findIndex(
-        (entity) => !byType.get(entity)?.backfill_completed
-    );
-
     const completedInThisRun = (
         entity: ImportType,
         index: number,
         state: ConnectorSyncStatePublic | undefined
     ): boolean => {
+        // Live stats on entity N + sync_state frontier at N+1 ⇒ N is done,
+        // even before Invoice emits entity_stats (column sampling gap).
+        if (
+            runHasProgress &&
+            firstIncompleteIndex >= 0 &&
+            index < firstIncompleteIndex &&
+            hasMeaningfulEntityStats(stats[entity])
+        ) {
+            return true;
+        }
+
         if (!state?.backfill_completed || state.backfill_cursor_present) {
             return false;
         }
@@ -1011,9 +1189,14 @@ export function buildRunningEntityProgressRows(params: {
         maturity?.status === "done" ||
         maturity?.status === "failed";
 
-    const activeIndex = ordered.findIndex((entity, index) => {
+    const activeIndex = purgeRunning
+        ? -1
+        : ordered.findIndex((entity, index) => {
         if (!useLiveOrCheckpoint) {
-            return true;
+            if (!hasFreshPlaceholderStats && firstIncompleteIndex >= 0) {
+                return index === firstIncompleteIndex;
+            }
+            return index === 0;
         }
         if (
             showLinkRow &&
@@ -1031,6 +1214,18 @@ export function buildRunningEntityProgressRows(params: {
         const entityStats = stats[entity];
         const isActive = activeIndex >= 0 && index === activeIndex;
 
+        // Purge phase: keep import rows Waiting until deletes finish.
+        if (purgeRunning) {
+            return {
+                entity_type: entity,
+                phase: "waiting" as const,
+                records_pulled: 0,
+                total_records: null,
+                progress_percent: null,
+                last_error: null,
+            };
+        }
+
         // Fresh Start: no live progress yet — zero counters like Link payments
         // so stale sync_state Done counts/totals do not flash back.
         if (!useLiveOrCheckpoint) {
@@ -1046,11 +1241,16 @@ export function buildRunningEntityProgressRows(params: {
 
         const pulled = resolveEntityPulledCount(entityStats, state, {
             running: true,
+            runStartedAt,
         });
         const pageComplete = Boolean(
             state?.backfill_completed && !state?.backfill_cursor_present
         );
         const completed = completedInThisRun(entity, index, state);
+        const staleCheckpointTotal =
+            isActive &&
+            pulled <= 0 &&
+            !syncStateTouchedInRun(state, runStartedAt);
         const total = completed
             ? estimateEntityTotalRecords({
                   knownTotal: state?.backfill_total_records ?? null,
@@ -1059,7 +1259,9 @@ export function buildRunningEntityProgressRows(params: {
               })
             : isActive
               ? estimateEntityTotalRecords({
-                    knownTotal: state?.backfill_total_records ?? null,
+                    knownTotal: staleCheckpointTotal
+                        ? null
+                        : (state?.backfill_total_records ?? null),
                     pulled,
                     pageComplete,
                 })
@@ -1136,8 +1338,55 @@ export function buildRunningEntityProgressRows(params: {
           )
         : entityRows;
 
+    logBackfillProgressDebug({
+        runId: params.runId ?? null,
+        runStartedAt: runStartedAt ?? null,
+        enabledEntities: ordered,
+        runHasProgress,
+        hasFreshPlaceholderStats,
+        firstIncompleteIndex,
+        firstIncompleteEntity:
+            firstIncompleteIndex >= 0 ? ordered[firstIncompleteIndex] : null,
+        hasCompletedEntityBeforeFrontierInCurrentRun,
+        resumeFromCheckpoint,
+        useLiveOrCheckpoint,
+        lastTouchedIndex,
+        lastTouchedEntity:
+            lastTouchedIndex >= 0 ? ordered[lastTouchedIndex] : null,
+        activeIndex,
+        activeEntity: activeIndex >= 0 ? ordered[activeIndex] : null,
+        entityStatsKeys: Object.keys(stats),
+        entityStatsPulled: Object.fromEntries(
+            ordered.map((entity) => [entity, stats[entity]?.pulled ?? null])
+        ),
+        syncStateSummary: ordered.map((entity) => {
+            const state = byType.get(entity);
+            return {
+                entity,
+                backfill_completed: state?.backfill_completed ?? false,
+                backfill_cursor_present: state?.backfill_cursor_present ?? false,
+                backfill_records_pulled: state?.backfill_records_pulled ?? 0,
+                last_attempt_at: state?.last_attempt_at ?? null,
+                touchedInRun: syncStateTouchedInRun(state, runStartedAt),
+                completedInCurrentRun: entityCompletedInCurrentRun(
+                    state,
+                    runStartedAt
+                ),
+            };
+        }),
+        rowPhases: entityRows.map((row) => [row.entity_type, row.phase]),
+    });
+
     return appendTailStepRows({
-        rows: withLinkRow,
+        rows: shouldShowPurgeProgressRow(stats)
+            ? prependDeletingRow(
+                  withLinkRow,
+                  buildDeletingProgressRow({
+                      entityStats: stats,
+                      runFinished: false,
+                  })
+              )
+            : withLinkRow,
         stats,
         runFinished: false,
         enabledEntities: ordered,
@@ -1271,6 +1520,9 @@ export function buildFinishedEntityProgressRows(params: {
             success,
             failed: failedCount,
             skipped,
+            ...(entityStats?.deleted != null
+                ? { deleted: entityStats.deleted }
+                : {}),
         };
     });
 
@@ -1290,7 +1542,15 @@ export function buildFinishedEntityProgressRows(params: {
         : entityRows;
 
     return appendTailStepRows({
-        rows: withLinkRow,
+        rows: shouldShowPurgeProgressRow(stats)
+            ? prependDeletingRow(
+                  withLinkRow,
+                  buildDeletingProgressRow({
+                      entityStats: stats,
+                      runFinished: true,
+                  })
+              )
+            : withLinkRow,
         stats,
         runFinished: true,
         enabledEntities: ordered,
@@ -1312,6 +1572,14 @@ export function buildBackfillProgressHeader(params: {
     ).length;
 
     if (isRunning) {
+        if (activeRow?.entity_type === BACKFILL_DELETING_LABEL) {
+            return {
+                title: "Backfill progress",
+                subtitle:
+                    "Deleting… · Actions are disabled until this finishes",
+                severity: "info",
+            };
+        }
         if (activeRow?.entity_type === BACKFILL_LINK_PAYMENTS_LABEL) {
             return {
                 title: "Backfill progress",

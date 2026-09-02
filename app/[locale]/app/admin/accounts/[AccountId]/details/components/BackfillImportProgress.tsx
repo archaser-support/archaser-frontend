@@ -34,6 +34,7 @@ import {
     enrichPostIngestDrainProgressRow,
     estimateRemainingSeconds,
     formatEstimatedRemaining,
+    BACKFILL_DELETING_LABEL,
     BACKFILL_LINK_PAYMENTS_LABEL,
     BACKFILL_TAIL_STEPS,
     getBackfillProgressStepTooltip,
@@ -133,17 +134,33 @@ function PhaseStatusIcon({ phase }: { phase: EntityProgressPhase }) {
 function formatCounts(row: EntityProgressRow, finished: boolean): string {
     const isLinkPayments =
         row.entity_type === BACKFILL_LINK_PAYMENTS_LABEL;
+    const isDeleting = row.entity_type === BACKFILL_DELETING_LABEL;
     const isTailStep = BACKFILL_TAIL_STEPS.some(
         (step) => step.label === row.entity_type
     );
     const unit = isLinkPayments
         ? "linked"
-        : isTailStep
-          ? "processed"
-          : "imported";
+        : isDeleting
+          ? "deleted"
+          : isTailStep
+            ? "processed"
+            : "imported";
 
     if (row.phase === "queued") {
         return row.detail ?? "Queued";
+    }
+
+    if (isDeleting) {
+        if (row.total_records != null) {
+            return `${row.records_pulled.toLocaleString()} / ${row.total_records.toLocaleString()} deleted`;
+        }
+        if (row.detail) {
+            return row.detail;
+        }
+        if ((row.deleted ?? row.records_pulled) > 0) {
+            return `${(row.deleted ?? row.records_pulled).toLocaleString()} deleted`;
+        }
+        return row.phase === "running" ? "Deleting…" : "0 deleted";
     }
 
     if (!finished && isTailStep && row.detail) {
@@ -161,6 +178,9 @@ function formatCounts(row: EntityProgressRow, finished: boolean): string {
 
     if (finished && (row.success != null || row.failed != null)) {
         const parts: string[] = [];
+        if (row.deleted != null && row.deleted > 0 && !isDeleting) {
+            parts.push(`${row.deleted.toLocaleString()} deleted`);
+        }
         if (row.success != null) {
             parts.push(`${row.success.toLocaleString()} ${unit}`);
         }
@@ -244,6 +264,8 @@ export default function BackfillImportProgress({
                   enabledEntities,
                   syncStates,
                   entityStats: run.entity_stats,
+                  runStartedAt: run.started_at,
+                  runId: run.id,
                   mepBreachStartDate:
                       run.cutover_options?.mep_breach_start_date,
               })

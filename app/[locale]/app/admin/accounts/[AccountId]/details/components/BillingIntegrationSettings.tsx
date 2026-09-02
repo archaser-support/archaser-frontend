@@ -42,6 +42,7 @@ import {
     fetchBillingConnectorSyncHistory,
     fetchBillingConnectorSyncRuns,
     cancelBillingConnectorSync,
+    lookupBillingConnectorCustomerById,
     resetBillingConnectorBackfill,
     refreshBillingConnectorEntitySets,
     runBillingConnectorBackfill,
@@ -67,7 +68,14 @@ import { normalizeConnectorEnabledEntities } from "@/shared/constants/importEnti
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import DeleteDialog from "@/shared/layout-components/modal/DeleteDialog";
 import {
-    getPreviewBlockedReason,
+    buildClearBeforeImportConfirmCopy,
+    normalizeClearBeforeImportCustomerId,
+    resolveClearBeforeImportPayload,
+    shouldConfirmStartBackfillClear,
+    type ClearBeforeImportEntity,
+    type ClearBeforeImportSessionState,
+} from "@/shared/services/billingConnectorClearBeforeImport";
+import {
     getPreviewSyncDisabledReason,
     getResetBackfillDisabledReason,
     getResetBackfillPurpose,
@@ -109,6 +117,19 @@ const ENTITY_OPTIONS: { value: ImportType; label: string }[] = [
     { value: "Invoice", label: "Invoices" },
     { value: "Payment", label: "Payments" },
 ];
+
+const CLEAR_BEFORE_IMPORT_ENTITIES: readonly ClearBeforeImportEntity[] = [
+    "Customer",
+    "Contact",
+    "Invoice",
+    "Payment",
+];
+
+function isClearBeforeImportEntity(
+    value: ImportType
+): value is ClearBeforeImportEntity {
+    return (CLEAR_BEFORE_IMPORT_ENTITIES as readonly string[]).includes(value);
+}
 
 function firstEnabledEntityTabIndex(enabledEntities: ImportType[]): number {
     const index = ENTITY_OPTIONS.findIndex((opt) =>
@@ -293,6 +314,18 @@ const BillingIntegrationSettings = forwardRef<
         Record<string, unknown>
     >({});
     const [resetDialogOpen, setResetDialogOpen] = useState(false);
+    const [clearBeforeStartDialogOpen, setClearBeforeStartDialogOpen] =
+        useState(false);
+    const [clearBeforeImportSession, setClearBeforeImportSession] =
+        useState<ClearBeforeImportSessionState>({});
+    const [clearBeforeImportCustomerId, setClearBeforeImportCustomerId] =
+        useState("");
+    const [
+        clearBeforeImportCustomerError,
+        setClearBeforeImportCustomerError,
+    ] = useState<string | null>(null);
+    const [clearBeforeCustomerValidating, setClearBeforeCustomerValidating] =
+        useState(false);
     const [progressSession, setProgressSession] =
         useState<BackfillProgressSession | null>(() =>
             readBackfillProgressSession(accountId)
@@ -318,6 +351,10 @@ const BillingIntegrationSettings = forwardRef<
         setHistoryExpanded(false);
         setMappingEntityTab(null);
         setPreviewUpToDate(false);
+        setClearBeforeImportSession({});
+        setClearBeforeImportCustomerId("");
+        setClearBeforeImportCustomerError(null);
+        setClearBeforeStartDialogOpen(false);
         entityTabFocusPendingRef.current = true;
     }, [accountId]);
 
@@ -659,7 +696,12 @@ const BillingIntegrationSettings = forwardRef<
     );
 
     const backfillMutation = useMutation({
-        mutationFn: () => runBillingConnectorBackfill(accountId),
+        mutationFn: (options?: {
+            clear_before_import?: Array<
+                "Customer" | "Contact" | "Invoice" | "Payment"
+            >;
+            customer_id?: number | null;
+        }) => runBillingConnectorBackfill(accountId, options),
         onMutate: () => {
             // Reset counters immediately — do not wait for the new RUNNING run.
             setPendingBackfillReset(true);
@@ -740,6 +782,47 @@ const BillingIntegrationSettings = forwardRef<
                     ? "Sync cancel requested"
                     : "No running sync to cancel"
             );
+            if (result.cancelled) {
+                setPendingBackfillReset(false);
+                const cancelledAt = new Date().toISOString();
+                queryClient.setQueryData<SyncRunSummary[]>(
+                    ["billing-connector-sync-runs", accountId],
+                    (runs) => {
+                        if (!runs?.length) {
+                            return runs;
+                        }
+                        if (result.execution_id) {
+                            return runs.map((run) =>
+                                run.id === result.execution_id
+                                    ? {
+                                          ...run,
+                                          status: "TIMEOUT",
+                                          error_type: "cancelled",
+                                          completed_at: cancelledAt,
+                                          error_message:
+                                              "Sync stopped by operator",
+                                      }
+                                    : run
+                            );
+                        }
+                        return runs.map((run) =>
+                            run.status === "RUNNING"
+                                ? {
+                                      ...run,
+                                      status: "TIMEOUT",
+                                      error_type: "cancelled",
+                                      completed_at: cancelledAt,
+                                      error_message:
+                                          "Sync stopped by operator",
+                                  }
+                                : run
+                        );
+                    }
+                );
+            }
+            queryClient.invalidateQueries({
+                queryKey: ["billing-connector", accountId],
+            });
             queryClient.invalidateQueries({
                 queryKey: ["billing-connector-sync-runs", accountId],
             });
@@ -835,8 +918,17 @@ const BillingIntegrationSettings = forwardRef<
         const running = findRunningBackfillRun(syncRuns);
         if (running && running.id !== "pending-backfill") {
             setPendingBackfillReset(false);
+            return;
         }
-    }, [pendingBackfillReset, syncRuns, backfillMutation.isPending]);
+        if (!syncInProgress) {
+            setPendingBackfillReset(false);
+        }
+    }, [
+        pendingBackfillReset,
+        syncRuns,
+        backfillMutation.isPending,
+        syncInProgress,
+    ]);
 
     useEffect(() => {
         const next = progressResolution.session;
@@ -899,9 +991,6 @@ const BillingIntegrationSettings = forwardRef<
     };
     const missingPreviewEntities = entitiesMissingPreview(previewGateParams);
     const previewBlocked = !canStartFirstBackfill(previewGateParams);
-    const previewBlockedReason = getPreviewBlockedReason(
-        missingPreviewEntities
-    );
     const startBackfillDisabledReason = config
         ? getStartBackfillDisabledReason({
               canManage,
@@ -939,6 +1028,7 @@ const BillingIntegrationSettings = forwardRef<
               previewBlocked,
               backfillOptionsLocked: Boolean(config.backfill_options_locked),
               syncStates: config.sync_states,
+              enabledEntities,
               importBusy,
               showStopImport,
           })
@@ -988,9 +1078,56 @@ const BillingIntegrationSettings = forwardRef<
             case "preview":
                 previewMutation.mutate();
                 break;
-            case "start_backfill":
+            case "start_backfill": {
+                void (async () => {
+                    const clearBeforeImport = resolveClearBeforeImportPayload({
+                        session: clearBeforeImportSession,
+                        enabledEntities,
+                    });
+                    const customerId = normalizeClearBeforeImportCustomerId(
+                        clearBeforeImportCustomerId
+                    );
+                    setClearBeforeImportCustomerError(null);
+                    const customerIdRaw = clearBeforeImportCustomerId.trim();
+                    if (customerIdRaw && customerId == null) {
+                        setClearBeforeImportCustomerError(
+                            "Enter a valid Archaser customer id"
+                        );
+                        return;
+                    }
+                    if (customerId != null) {
+                        setClearBeforeCustomerValidating(true);
+                        try {
+                            await lookupBillingConnectorCustomerById(
+                                accountId,
+                                customerId
+                            );
+                        } catch (err) {
+                            setClearBeforeImportCustomerError(
+                                axiosErrorMessage(err) ??
+                                    `Customer not found on this account: id ${customerId}`
+                            );
+                            return;
+                        } finally {
+                            setClearBeforeCustomerValidating(false);
+                        }
+                    }
+                    if (
+                        shouldConfirmStartBackfillClear({
+                            clearBeforeImport,
+                            customerId,
+                        })
+                    ) {
+                        setClearBeforeStartDialogOpen(true);
+                        return;
+                    }
+                    backfillMutation.mutate({});
+                })();
+                break;
+            }
             case "resume_backfill":
-                backfillMutation.mutate();
+                // Resume never sends clear_before_import or customer_id.
+                backfillMutation.mutate({});
                 break;
             case "incremental":
                 incrementalMutation.mutate();
@@ -1003,7 +1140,27 @@ const BillingIntegrationSettings = forwardRef<
         }
     };
 
+    const clearBeforeStartConfirmCopy = useMemo(() => {
+        const clearBeforeImport = resolveClearBeforeImportPayload({
+            session: clearBeforeImportSession,
+            enabledEntities,
+        });
+        const customerId = normalizeClearBeforeImportCustomerId(
+            clearBeforeImportCustomerId
+        );
+        return buildClearBeforeImportConfirmCopy({
+            clearBeforeImport,
+            scope: customerId != null ? "customer" : "account",
+            customerId,
+        });
+    }, [
+        clearBeforeImportSession,
+        clearBeforeImportCustomerId,
+        enabledEntities,
+    ]);
+
     const primaryPending =
+        clearBeforeCustomerValidating ||
         (actionStage?.primaryAction === "preview" &&
             previewMutation.isPending) ||
         (actionStage?.primaryAction === "incremental" &&
@@ -1059,6 +1216,12 @@ const BillingIntegrationSettings = forwardRef<
     const primaryPendingLabel = (() => {
         if (!actionStage) {
             return "";
+        }
+        if (
+            clearBeforeCustomerValidating &&
+            actionStage.primaryAction === "start_backfill"
+        ) {
+            return "Validating customer…";
         }
         switch (actionStage.primaryAction) {
             case "preview":
@@ -2281,25 +2444,70 @@ const BillingIntegrationSettings = forwardRef<
                                     hidden={selectedMappingEntityTab !== index}
                                     sx={{ pt: 2 }}
                                 >
-                                    <FormControlLabel
-                                        control={
-                                            <Switch
-                                                checked={entityEnabled}
-                                                onChange={() =>
-                                                    toggleEntity(entity)
-                                                }
-                                                disabled={
-                                                    !canManage ||
-                                                    persistEnabledEntitiesMutation.isPending
-                                                }
-                                            />
-                                        }
-                                        label={`Enable ${opt.label.toLowerCase()}`}
+                                    <Box
                                         sx={{
-                                            mb: entityEnabled ? 2 : 0,
-                                            display: "block",
+                                            display: "flex",
+                                            flexWrap: "wrap",
+                                            alignItems: "center",
+                                            gap: 2,
+                                            mb: entityEnabled ? 2 : 1,
                                         }}
-                                    />
+                                    >
+                                        <FormControlLabel
+                                            control={
+                                                <Switch
+                                                    checked={entityEnabled}
+                                                    onChange={() =>
+                                                        toggleEntity(entity)
+                                                    }
+                                                    disabled={
+                                                        !canManage ||
+                                                        persistEnabledEntitiesMutation.isPending
+                                                    }
+                                                />
+                                            }
+                                            label={`Enable ${opt.label.toLowerCase()}`}
+                                        />
+                                        {isClearBeforeImportEntity(entity) ? (
+                                            <FormControlLabel
+                                                control={
+                                                    <Switch
+                                                        checked={Boolean(
+                                                            clearBeforeImportSession[
+                                                                entity
+                                                            ]
+                                                        )}
+                                                        onChange={(e) => {
+                                                            const next =
+                                                                e.target
+                                                                    .checked;
+                                                            setClearBeforeImportSession(
+                                                                (prev) => ({
+                                                                    ...prev,
+                                                                    [entity]:
+                                                                        next,
+                                                                })
+                                                            );
+                                                        }}
+                                                        disabled={
+                                                            !canManage ||
+                                                            !entityEnabled
+                                                        }
+                                                    />
+                                                }
+                                                label="Delete existing data before import"
+                                                sx={{
+                                                    "& .MuiFormControlLabel-label":
+                                                        {
+                                                            fontSize:
+                                                                "0.875rem",
+                                                            fontWeight: 500,
+                                                            lineHeight: 1.4,
+                                                        },
+                                                }}
+                                            />
+                                        ) : null}
+                                    </Box>
                                     {entityEnabled ? (
                                         <>
                                     <Tabs
@@ -2449,17 +2657,12 @@ const BillingIntegrationSettings = forwardRef<
                     actions={
                         allEnabledMappingsComplete ? (
                         <>
-                            {previewBlocked && (
-                                <Alert severity="info" sx={{ mb: 2 }}>
-                                    {previewBlockedReason}
-                                </Alert>
-                            )}
                             <Box
                                 sx={{
                                     display: "flex",
                                     gap: 2,
                                     flexWrap: "wrap",
-                                    alignItems: "center",
+                                    alignItems: "flex-end",
                                     width: "100%",
                                 }}
                             >
@@ -2555,6 +2758,68 @@ const BillingIntegrationSettings = forwardRef<
                                         </span>
                                     </Tooltip>
                                 ) : null}
+                                <TextField
+                                    label="Customer id"
+                                    value={clearBeforeImportCustomerId}
+                                    onChange={(e) => {
+                                        setClearBeforeImportCustomerId(
+                                            e.target.value
+                                        );
+                                        if (clearBeforeImportCustomerError) {
+                                            setClearBeforeImportCustomerError(
+                                                null
+                                            );
+                                        }
+                                    }}
+                                    disabled={!canManage}
+                                    size="small"
+                                    error={Boolean(
+                                        clearBeforeImportCustomerError
+                                    )}
+                                    helperText={
+                                        clearBeforeImportCustomerError ??
+                                        undefined
+                                    }
+                                    sx={{
+                                        width: 200,
+                                        // Keep the outlined input on the same baseline as adjacent buttons
+                                        // (floating label must not shift vertical alignment).
+                                        mb: 0,
+                                        "& .MuiFormHelperText-root": {
+                                            position: "absolute",
+                                            top: "100%",
+                                            mx: 0,
+                                        },
+                                    }}
+                                    InputProps={{
+                                        endAdornment: (
+                                            <Tooltip
+                                                title="Archaser customer id. Limits this Start backfill to that customer for all enabled entities. Delete switches still control wipe. Leave empty for the whole account. Resume ignores this field."
+                                                arrow
+                                                enterDelay={300}
+                                                leaveDelay={100}
+                                                placement="bottom"
+                                                PopperProps={{
+                                                    sx: {
+                                                        "& .MuiTooltip-tooltip":
+                                                            {
+                                                                direction:
+                                                                    isHebrew
+                                                                        ? "rtl"
+                                                                        : "ltr",
+                                                            },
+                                                    },
+                                                }}
+                                            >
+                                                <InfoIcon
+                                                    fontSize="small"
+                                                    color="action"
+                                                    sx={{ cursor: "help" }}
+                                                />
+                                            </Tooltip>
+                                        ),
+                                    }}
+                                />
                             </Box>
                         </>
                         ) : undefined
@@ -2625,6 +2890,34 @@ const BillingIntegrationSettings = forwardRef<
                 confirmLabel="Reset backfill"
                 cancelLabel="Cancel"
                 isLoading={resetBackfillMutation.isPending}
+                type="warning"
+                maxWidth="sm"
+                locale={i18n.language}
+            />
+            <DeleteDialog
+                isOpen={clearBeforeStartDialogOpen}
+                onClose={() => setClearBeforeStartDialogOpen(false)}
+                onConfirm={() => {
+                    const clearBeforeImport = resolveClearBeforeImportPayload({
+                        session: clearBeforeImportSession,
+                        enabledEntities,
+                    });
+                    const customerId = normalizeClearBeforeImportCustomerId(
+                        clearBeforeImportCustomerId
+                    );
+                    setClearBeforeStartDialogOpen(false);
+                    backfillMutation.mutate({
+                        clear_before_import: clearBeforeImport,
+                        ...(customerId != null
+                            ? { customer_id: customerId }
+                            : {}),
+                    });
+                }}
+                title={clearBeforeStartConfirmCopy.title}
+                description={clearBeforeStartConfirmCopy.description}
+                confirmLabel="Start backfill"
+                cancelLabel="Cancel"
+                isLoading={backfillMutation.isPending}
                 type="warning"
                 maxWidth="sm"
                 locale={i18n.language}
