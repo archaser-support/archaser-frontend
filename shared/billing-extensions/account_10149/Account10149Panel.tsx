@@ -21,9 +21,8 @@ export default function Account10149Panel(_props: BillingExtensionPanelProps) {
             remaining amount. Invoice-side positive debit lines are not imported
             as payments; their invoice numbers are queued for virtual close
             unless they belong to a Helam offset pair. Single-invoice Helam
-            cancels (IVNUM equals FNCIREF1) still import as absolute payments.
-            Negative payments on credit invoices are applied as absolute amounts
-            so those credits can close. Already-saved rows are left unchanged.
+            cancels (IVNUM equals FNCIREF1) still import as payments with
+            absolute amounts. Already-saved rows are left unchanged.
         </Alert>
     );
 }

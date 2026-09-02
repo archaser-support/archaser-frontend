@@ -1,5 +1,6 @@
 import React from "react";
 import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+import { isFormulaOutputKey } from "@/shared/reportFormula/types";
 import { HighlightText } from "../components/HighlightText";
 
 /**
@@ -87,8 +88,8 @@ export const enhanceColumnsWithHighlighting = (
     if (!searchTerm) return columns;
 
     return columns.map((column) => {
-        // Skip highlighting only for actions column
-        if (column.field === "actions") {
+        // Skip highlighting for actions and formula columns (not searchable)
+        if (column.field === "actions" || isFormulaOutputKey(column.field)) {
             return column;
         }
 
