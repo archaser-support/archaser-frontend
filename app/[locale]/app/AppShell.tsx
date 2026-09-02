@@ -51,6 +51,7 @@ import { CreditInsuranceNavIcon } from "@/shared/components/CreditInsuranceNavIc
 import SpinnerOverlay from "@/shared/layout-components/spinner/SpinnerOverlay";
 import { SpinnerProvider } from "@/shared/layout-components/spinner/SpinnerProvider";
 import { ToastProvider, useToast } from "@/shared/layout-components/toast/ToastProvider";
+import { isFileImportVisible } from "@/shared/utils/accountProducts";
 import {
     getDefaultLandingPage,
     getFirstAccessiblePage,
@@ -652,8 +653,7 @@ const AppLayout = ({ children }: any) => {
             : true;
     const hasCreditInsuranceProduct =
         effectiveAccountProducts?.has_credit_insurance === true;
-    const hasFileImportProduct =
-        effectiveAccountProducts?.has_file_import !== false;
+    const hasFileImportProduct = isFileImportVisible(effectiveAccountProducts);
     const isCreditOnlyAccount =
         !hasCollectionProduct && hasCreditInsuranceProduct;
 

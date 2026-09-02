@@ -1,3 +1,6 @@
+/** UI kill-switch: hide File Import from sidenav and role matrix (feature code remains). */
+export const FILE_IMPORT_UI_VISIBLE = false;
+
 export type AccountProducts = {
     has_collection?: boolean;
     has_credit_insurance?: boolean;
@@ -14,11 +17,14 @@ export function isCreditOnlyAccount(
     );
 }
 
-/** File Import nav/page/matrix surfaces are shown unless explicitly disabled. */
+/** File Import nav/page/matrix surfaces are shown unless UI or account flag is off. */
 export function isFileImportVisible(
     accountProducts?: AccountProducts | null
 ): boolean {
-    return accountProducts?.has_file_import !== false;
+    return (
+        FILE_IMPORT_UI_VISIBLE &&
+        accountProducts?.has_file_import !== false
+    );
 }
 
 export function accountProductsFromRecord(
