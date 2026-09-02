@@ -46,7 +46,19 @@ export type SyncHistoryGridRow = {
     invoice: string;
     payment: string;
     linkPayments: string;
+    customerSampleErrors: string[];
+    contactSampleErrors: string[];
+    invoiceSampleErrors: string[];
+    paymentSampleErrors: string[];
+    linkPaymentsSampleErrors: string[];
 };
+
+function sampleErrorsForEntity(
+    entityStats: SyncRunSummary["entity_stats"] | undefined,
+    key: SyncHistoryEntityColumnKey
+): string[] {
+    return entityStats?.[key]?.sample_errors ?? [];
+}
 
 export function toSyncHistoryGridRow(run: SyncRunSummary): SyncHistoryGridRow {
     const stats = run.entity_stats;
@@ -63,5 +75,13 @@ export function toSyncHistoryGridRow(run: SyncRunSummary): SyncHistoryGridRow {
         invoice: formatEntityStatsCell(stats, "Invoice"),
         payment: formatEntityStatsCell(stats, "Payment"),
         linkPayments: formatEntityStatsCell(stats, MATURITY_ENTITY_STATS_KEY),
+        customerSampleErrors: sampleErrorsForEntity(stats, "Customer"),
+        contactSampleErrors: sampleErrorsForEntity(stats, "Contact"),
+        invoiceSampleErrors: sampleErrorsForEntity(stats, "Invoice"),
+        paymentSampleErrors: sampleErrorsForEntity(stats, "Payment"),
+        linkPaymentsSampleErrors: sampleErrorsForEntity(
+            stats,
+            MATURITY_ENTITY_STATS_KEY
+        ),
     };
 }

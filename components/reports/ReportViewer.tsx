@@ -34,6 +34,7 @@ import EndlessScrollDataGrid, {
 } from "@/shared/layout-components/grid/EndlessScrollDataGrid";
 import DeleteDialog from "@/shared/layout-components/modal/DeleteDialog";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
+import { MAIN_REPORTS_MENU_CONTEXT } from "@/shared/utils/viewConfigs";
 import { generateViewColumns } from "@/shared/utils/viewColumnGenerator";
 import { isFormulaOutputKey } from "@/shared/reportFormula/types";
 import AppUrls from "@/utils/appUrls";
@@ -64,10 +65,15 @@ interface ReportViewerProps {
     reportId: number;
     reportName?: string;
     reportConfig: any;
+    /** Saved report.context — drives the toolbar report selector list. */
+    storedReportContext?: string | null;
     allTables?: ReportMetadataTable[];
     hasEditReportPermission?: boolean;
     hasShareReportPermission?: boolean;
     hasExportReportPermission?: boolean;
+    hasCreateReportPermission?: boolean;
+    hasDeleteReportPermission?: boolean;
+    hasCloneReportPermission?: boolean;
     isSystemReport?: boolean;
     onEditClick?: () => void;
     onShareClick?: () => void;
@@ -77,10 +83,14 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
     reportId,
     reportName,
     reportConfig,
+    storedReportContext,
     allTables = [],
     hasEditReportPermission = false,
     hasShareReportPermission = false,
     hasExportReportPermission = false,
+    hasCreateReportPermission = false,
+    hasDeleteReportPermission = false,
+    hasCloneReportPermission = false,
     isSystemReport = false,
     onEditClick,
     onShareClick,
@@ -554,21 +564,92 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
         [reportId, getViewerExecutionParams]
     );
 
-    // Determine the context based on the primary table name
-    // Use "disputes" context for dispute reports, otherwise "reports"
+    // Determine the context for columns and the toolbar report selector.
     const reportContext = useMemo(() => {
+        if (storedReportContext?.trim()) {
+            return storedReportContext.trim();
+        }
         if (primaryTableName === "Dispute") {
             return "disputes";
         }
-        // Check if any field is from Dispute table
         const hasDisputeFields = reportConfig?.fields?.some(
             (field: any) => field.table === "Dispute"
         );
         if (hasDisputeFields) {
             return "disputes";
         }
-        return "reports";
-    }, [primaryTableName, reportConfig?.fields]);
+        return MAIN_REPORTS_MENU_CONTEXT;
+    }, [storedReportContext, primaryTableName, reportConfig?.fields]);
+
+    const handleReportSelectorChange = useCallback(
+        (nextReportId: number | string | null) => {
+            if (nextReportId == null) {
+                return;
+            }
+            const numericId =
+                typeof nextReportId === "string"
+                    ? parseInt(nextReportId, 10)
+                    : nextReportId;
+            if (!Number.isFinite(numericId) || numericId === reportId) {
+                return;
+            }
+            router.push(`/${locale}${AppUrls.REPORT_DETAILS(numericId)}`);
+        },
+        [locale, reportId, router]
+    );
+
+    const handleCreateReport = useCallback(() => {
+        router.push(
+            `/${locale}${AppUrls.REPORT_BUILDER}?context=${encodeURIComponent(reportContext)}`
+        );
+    }, [locale, reportContext, router]);
+
+    const handleEditSelectedReport = useCallback(
+        (selectedId: number) => {
+            router.push(
+                `/${locale}${AppUrls.REPORT_BUILDER}?id=${selectedId}&context=${encodeURIComponent(reportContext)}`
+            );
+        },
+        [locale, reportContext, router]
+    );
+
+    const handleCloneSelectedReport = useCallback(
+        (selectedId: number) => {
+            router.push(
+                `/${locale}${AppUrls.REPORT_BUILDER}?id=${selectedId}&clone=true&context=${encodeURIComponent(reportContext)}`
+            );
+        },
+        [locale, reportContext, router]
+    );
+
+    const handleDeleteSelectedReport = useCallback(
+        async (selectedId: number) => {
+            const response = await apiFetch(`/api/reports/${selectedId}`, {
+                method: "DELETE",
+            });
+            if (!response.ok) {
+                showError(
+                    t("messages.delete_report_error", {
+                        ns: "reports",
+                        defaultValue: "Failed to delete report",
+                    })
+                );
+                return;
+            }
+            queryClient.invalidateQueries({ queryKey: ["reports-list"] });
+            queryClient.invalidateQueries({ queryKey: ["reports"] });
+            success(
+                t("messages.delete_report_success", {
+                    ns: "reports",
+                    defaultValue: "Report deleted successfully",
+                })
+            );
+            if (selectedId === reportId) {
+                router.push(`/${locale}${AppUrls.REPORTS}`);
+            }
+        },
+        [locale, queryClient, reportId, router, showError, success, t]
+    );
 
     const linkHandlers = useMemo(
         () => ({
@@ -1111,6 +1192,18 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
                     noRowsDescription={t("messages.no_results_description", {
                         ns: "common",
                     })}
+                    reportSelector={true}
+                    selectedReportId={reportId}
+                    onReportChange={handleReportSelectorChange}
+                    reportContext={reportContext}
+                    hasCreateReportPermission={hasCreateReportPermission}
+                    onCreateReport={handleCreateReport}
+                    hasEditReportPermission={hasEditReportPermission}
+                    onEditReport={handleEditSelectedReport}
+                    hasDeleteReportPermission={hasDeleteReportPermission}
+                    onDeleteReport={handleDeleteSelectedReport}
+                    hasCloneReportPermission={hasCloneReportPermission}
+                    onCloneReport={handleCloneSelectedReport}
                 />
             </Box>
 
