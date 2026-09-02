@@ -535,12 +535,23 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
             const data = await response.json();
             const rawData = data.data || [];
 
-            // Apply same transformation as grid rows
-            return rawData.map((row: any, index: number) => ({
-                id: row.id || `report-${reportId}-row-${index}`,
-                ...row,
-                raw: row,
-            }));
+            // Apply same transformation as grid rows (use ___formatted_* for export)
+            return rawData.map((row: any, index: number) => {
+                const transformedRow: Record<string, unknown> = {
+                    id: row.id || `report-${reportId}-row-${index}`,
+                    ...row,
+                    raw: row,
+                };
+                Object.keys(row).forEach((key) => {
+                    if (key.startsWith("___formatted_")) {
+                        const mainKey = key.replace("___formatted_", "");
+                        if (row[key] !== undefined && row[key] !== null) {
+                            transformedRow[mainKey] = row[key];
+                        }
+                    }
+                });
+                return transformedRow;
+            });
         },
         [reportId, getViewerExecutionParams]
     );
