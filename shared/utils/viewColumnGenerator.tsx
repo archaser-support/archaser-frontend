@@ -517,12 +517,20 @@ export function generateViewColumns(
     const generatedColumns = filteredKeys.map((key) => {
         if (isFormulaOutputKey(key)) {
             const formula = getFormulaByOutputKey(formulas, key);
+            const lockedTooltip = t("formulas.sort_search_locked", {
+                ns: "reports",
+                defaultValue:
+                    "Formula columns cannot be sorted or searched",
+            });
             return {
                 field: key,
                 headerName: formula?.label || key,
+                description: lockedTooltip,
                 flex: 1,
                 minWidth: 150,
                 sortable: false,
+                filterable: false,
+                disableColumnMenu: true,
                 renderCell: (params: any) => {
                     const formattedKey = `___formatted_${key}`;
                     const display =
