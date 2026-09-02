@@ -35,6 +35,7 @@ import EndlessScrollDataGrid, {
 import DeleteDialog from "@/shared/layout-components/modal/DeleteDialog";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import { generateViewColumns } from "@/shared/utils/viewColumnGenerator";
+import { isFormulaOutputKey } from "@/shared/reportFormula/types";
 import AppUrls from "@/utils/appUrls";
 import {
     cloneReportFilters,
@@ -112,11 +113,18 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
 
     const hasReportFilters = (reportConfig?.filters?.length ?? 0) > 0;
 
+    const primaryTableName = useMemo(() => {
+        return reportConfig?.fields?.[0]?.table || "Customer";
+    }, [reportConfig?.fields]);
+
     // Initialize sortModel from reportConfig.sorting if available
     // The sort field format should match: alias || table.field || field
     const initialSortModel = useMemo<GridSortModel>(() => {
         if (reportConfig?.sorting && reportConfig.sorting.length > 0) {
             const sortConfig = reportConfig.sorting[0];
+            if (isFormulaOutputKey(sortConfig.field)) {
+                return [];
+            }
             // Map report config sorting format to GridSortModel format
             // reportConfig.sorting: { field: string, direction: "ASC" | "DESC" }
             // GridSortModel: { field: string, sort: "asc" | "desc" }
@@ -535,10 +543,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
         [reportId, getViewerExecutionParams]
     );
 
-    const primaryTableName = useMemo(() => {
-        return reportConfig?.fields?.[0]?.table || "Customer";
-    }, [reportConfig?.fields]);
-
     // Determine the context based on the primary table name
     // Use "disputes" context for dispute reports, otherwise "reports"
     const reportContext = useMemo(() => {
@@ -643,6 +647,10 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
 
     // Handle sort model change - track user-initiated changes
     const handleSortModelChange = useCallback((newSortModel: GridSortModel) => {
+        const field = newSortModel[0]?.field;
+        if (field && isFormulaOutputKey(field)) {
+            return;
+        }
         hasUserChangedSort.current = true;
         setSortModel(newSortModel);
     }, []);

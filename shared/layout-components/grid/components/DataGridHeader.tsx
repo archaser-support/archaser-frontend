@@ -1,4 +1,5 @@
-import { Box } from "@mui/material";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import { Box, Tooltip } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
 import React from "react";
 import { DataGridHeaderProps } from "../types";
@@ -107,6 +108,11 @@ const DataGridHeader: React.FC<DataGridHeaderProps> = React.memo(
                 {columns.map((column, index) => {
                     const sortDirection = getSortDirection(column.field);
                     const isSortable = column.sortable !== false;
+                    const lockReason =
+                        !isSortable && column.description
+                            ? String(column.description)
+                            : "";
+                    const isHeaderLocked = Boolean(lockReason);
                     const isLastColumn = index === columns.length - 1;
 
                     // Check if this is the first data column (after row number and possibly checkbox)
@@ -202,13 +208,61 @@ const DataGridHeader: React.FC<DataGridHeaderProps> = React.memo(
                                             : "inherit",
                                     flex: 1,
                                     minWidth: 0,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 0.5,
                                 }}
                             >
-                                <TruncatedCell
-                                    content={column.headerName}
-                                    tooltipText={column.headerName || ""}
-                                    language={language}
-                                />
+                                {isHeaderLocked ? (
+                                    <Tooltip
+                                        title={lockReason}
+                                        placement="bottom"
+                                        arrow
+                                        enterDelay={300}
+                                        leaveDelay={100}
+                                        PopperProps={{
+                                            sx: {
+                                                zIndex: 9999,
+                                                "& .MuiTooltip-tooltip": {
+                                                    direction:
+                                                        language === "he"
+                                                            ? "rtl"
+                                                            : "ltr",
+                                                },
+                                            },
+                                        }}
+                                    >
+                                        <Box
+                                            sx={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: 0.5,
+                                                minWidth: 0,
+                                                flex: 1,
+                                            }}
+                                        >
+                                            <TruncatedCell
+                                                content={column.headerName}
+                                                tooltipText=""
+                                                language={language}
+                                            />
+                                            <LockOutlinedIcon
+                                                sx={{
+                                                    fontSize: 14,
+                                                    color: "text.disabled",
+                                                    flexShrink: 0,
+                                                }}
+                                                aria-label={lockReason}
+                                            />
+                                        </Box>
+                                    </Tooltip>
+                                ) : (
+                                    <TruncatedCell
+                                        content={column.headerName}
+                                        tooltipText={column.headerName || ""}
+                                        language={language}
+                                    />
+                                )}
                             </Box>
                             {isSortable && sortDirection ? (
                                 <Box
