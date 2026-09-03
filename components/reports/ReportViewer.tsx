@@ -39,6 +39,10 @@ import { generateViewColumns } from "@/shared/utils/viewColumnGenerator";
 import { isFormulaOutputKey } from "@/shared/reportFormula/types";
 import AppUrls from "@/utils/appUrls";
 import {
+    getUserDateLocale,
+    getUserTimezone,
+} from "@/utils/datetimeOperations";
+import {
     cloneReportFilters,
     type Field,
     getFieldOutputKey,
@@ -174,7 +178,15 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
             search?: string;
             sortField?: string;
             sortDirection?: "asc" | "desc";
-        } = {};
+            locale?: string;
+            language?: string;
+            timezone?: string;
+        } = {
+            // Drive ___formatted_* dates/datetimes for grid + CSV/Excel export
+            locale: getUserDateLocale(session ?? null),
+            language: session?.user?.language,
+            timezone: getUserTimezone(session ?? null),
+        };
 
         if (sessionFilterOverrides && sessionFilterOverrides.length > 0) {
             params.filters = sessionFilterOverrides;
@@ -191,6 +203,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
         }
         return params;
     }, [
+        session,
         sessionFilterOverrides,
         debouncedSearch,
         sortField,
@@ -211,6 +224,8 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
                 sortDirection: sortDirection || undefined,
                 sessionFilters: sessionFilterOverrides,
                 version: queryKeyVersion,
+                locale: getUserDateLocale(session ?? null),
+                timezone: getUserTimezone(session ?? null),
             },
         ];
     }, [
@@ -220,6 +235,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
         sortDirection,
         sessionFilterOverrides,
         queryKeyVersion,
+        session,
     ]);
 
     const executeQueryFn = useCallback(

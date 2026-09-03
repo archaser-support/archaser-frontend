@@ -33,6 +33,10 @@ import { generateViewColumns } from "@/shared/utils/viewColumnGenerator";
 import { getViewConfig, ViewContextConfig } from "@/shared/utils/viewConfigs";
 import { isFormulaOutputKey } from "@/shared/reportFormula/types";
 import {
+    getUserDateLocale,
+    getUserTimezone,
+} from "@/utils/datetimeOperations";
+import {
     appendDashboardChartDetailsReturnParams,
     isDashboardChartDetailsReportContext,
 } from "@/shared/dashboard/dashboardInvoiceBuilderReturn";
@@ -964,10 +968,11 @@ export const ViewBasedDataGrid: React.FC<ViewBasedDataGridProps> = ({
                         sortField: sortField || "",
                         sortDirection: sortDirection || "asc",
                         filters,
-                        locale: i18n.language === "he" ? "he-IL" : "en-US",
+                        locale: getUserDateLocale(session ?? null),
                         language:
                             session?.user?.language ??
                             (i18n.language === "he" ? "Hebrew" : "English"),
+                        timezone: getUserTimezone(session ?? null),
                         ...(businessUnitId != null
                             ? { businessUnitId }
                             : {}),
@@ -1029,6 +1034,7 @@ export const ViewBasedDataGrid: React.FC<ViewBasedDataGridProps> = ({
             businessUnitId,
             selectedUserId,
             i18n.language,
+            session,
         ]
     );
 
