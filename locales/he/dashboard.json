@@ -128,6 +128,7 @@
         "open_invoices": "חשבוניות פתוחות",
         "terms_breach_outstanding": "הפרת תנאים (יתרה)",
         "policy_risk_allocated": "סיכון פוליסה (מוקצה)",
+        "at_risk_exposure": "חשיפה בסיכון",
         "warning_reason": "סיבת אזהרה",
         "as_of_utilization_pct": "ניצול נכון לתאריך %",
         "as_of_usage_amount": "שימוש נכון לתאריך",
