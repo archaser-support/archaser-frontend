@@ -97,7 +97,7 @@ const BillingProgressHost = memo(function BillingProgressHost({
                             display: "flex",
                             gap: 2,
                             flexWrap: "wrap",
-                            alignItems: "flex-end",
+                            alignItems: "center",
                             width: "100%",
                         }}
                     >
@@ -193,7 +193,7 @@ const BillingProgressHost = memo(function BillingProgressHost({
                                         )}
                                     >
                                         {resetBackfillPending
-                                            ? "Resetting…"
+                                            ? "Resetting..."
                                             : "Reset backfill"}
                                     </Button>
                                 </span>
@@ -204,7 +204,7 @@ const BillingProgressHost = memo(function BillingProgressHost({
                             value={clearBeforeImportCustomerId}
                             onChange={onClearBeforeImportCustomerChange}
                             error={clearBeforeImportCustomerError}
-                            disabled={!canManage}
+                            disabled={!canManage || importBusy}
                             label="Customer"
                             isHebrew={isHebrew}
                             helperTooltip="Limits this Start backfill to that customer for all enabled entities. Delete switches still control wipe. Leave empty for the whole account. Resume ignores this field."
