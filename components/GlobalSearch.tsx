@@ -20,6 +20,7 @@ import {
     Typography,
     Chip,
     Popper,
+    Paper,
     useTheme,
     useMediaQuery,
     Skeleton,
@@ -30,14 +31,16 @@ import {
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { useQuery } from "@tanstack/react-query";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import React, {
     useState,
     useEffect,
+    useLayoutEffect,
     useCallback,
     useRef,
     useMemo,
+    forwardRef,
 } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -48,6 +51,7 @@ import {
 } from "@/shared/services/globalSearchService";
 import AppUrls from "@/utils/appUrls";
 import { formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
+import { resolveTextDirection } from "@/utils/textDirection";
 
 interface GlobalSearchProps {
     isHebrewUser?: boolean;
@@ -56,6 +60,11 @@ interface GlobalSearchProps {
 const RECENT_SEARCHES_KEY = "globalSearch_recentSearches";
 const LAST_SEARCH_RESULTS_KEY = "globalSearch_lastResults";
 const MAX_RECENT_SEARCHES = 5;
+const SEARCH_RESULTS_PANEL_WIDTH_PX = 400;
+const SEARCH_PREVIEW_PANEL_WIDTH_PX = 250;
+const SEARCH_DROPDOWN_MAX_HEIGHT_PX = 400;
+const SEARCH_DROPDOWN_EXPANDED_WIDTH_PX =
+    SEARCH_RESULTS_PANEL_WIDTH_PX + SEARCH_PREVIEW_PANEL_WIDTH_PX;
 
 // Helper function to highlight search terms
 const highlightText = (text: string, searchTerm: string): React.ReactNode => {
@@ -176,9 +185,7 @@ const fetchLastCreatedCustomers = async (): Promise<GlobalSearchResult[]> => {
     }
 };
 
-const GlobalSearch: React.FC<GlobalSearchProps> = ({
-    isHebrewUser = false,
-}) => {
+const GlobalSearch: React.FC<GlobalSearchProps> = () => {
     const { t, i18n } = useTranslation([
         "common",
         "customers",
@@ -189,7 +196,6 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
     const { data: session } = useSession();
     const theme = useTheme();
     const router = useRouter();
-    const pathname = usePathname();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
     const [searchTerm, setSearchTerm] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -214,6 +220,68 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
     const resultRefs = useRef<{ [key: number]: HTMLElement | null }>({});
     const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    const appTextDirection =
+        i18n.language === "he" || i18n.language.startsWith("he-")
+            ? ("rtl" as const)
+            : ("ltr" as const);
+    const textDirection = useMemo(
+        () => resolveTextDirection(searchTerm, appTextDirection),
+        [searchTerm, appTextDirection]
+    );
+    // Dropdown chrome (placement, expand side, preview side) follows the *query*
+    // script direction — English UI + Hebrew search must right-align to the input
+    // and open the preview to the left of the results (same as Hebrew UI).
+    // App language only affects chrome translations / theme, not panel geometry.
+    const isRtl = textDirection === "rtl";
+    const layoutIsRtl = appTextDirection === "rtl";
+    const panelIsRtl = isRtl;
+
+    const previewOpen = Boolean(hoveredResult) && !isMobile;
+    const dropdownPanelWidth = previewOpen
+        ? SEARCH_DROPDOWN_EXPANDED_WIDTH_PX
+        : SEARCH_RESULTS_PANEL_WIDTH_PX;
+
+    const listboxRendererRef = useRef<(props: any) => React.ReactNode>(
+        () => null
+    );
+    const paperRendererRef = useRef<(props: any) => React.ReactNode>(
+        () => null
+    );
+    // Stable slot components — MUI v7 ignores deprecated ListboxComponent prop;
+    // must use slots.listbox / slots.paper. Content comes from refs updated each render.
+    const ListboxComponent = useMemo(
+        () =>
+            forwardRef<HTMLUListElement, React.HTMLAttributes<HTMLElement>>(
+                function GlobalSearchListbox(props, ref) {
+                    return listboxRendererRef.current({
+                        ...props,
+                        ref,
+                    }) as React.ReactElement;
+                }
+            ),
+        []
+    );
+    const PaperComponent = useMemo(
+        () =>
+            forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLElement>>(
+                function GlobalSearchPaper(props, ref) {
+                    return paperRendererRef.current({
+                        ...props,
+                        ref,
+                    }) as React.ReactElement;
+                }
+            ),
+        []
+    );
+
+    const popperRendererRef = useRef<(props: any) => React.ReactNode>(
+        () => null
+    );
+    const StablePopperComponent = useCallback(
+        (props: any) => popperRendererRef.current(props) as React.ReactElement,
+        []
+    );
+
     // Load recent searches and last search results on mount
     useEffect(() => {
         setRecentSearches(getRecentSearches());
@@ -223,23 +291,13 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
         }
     }, []);
 
-    // Auto-focus search input on mount
+    // Auto-focus search input on mount only (not on every route change)
     useEffect(() => {
-        // Use a small delay to ensure the input is rendered
         const timer = setTimeout(() => {
             searchInputRef.current?.focus();
         }, 100);
         return () => clearTimeout(timer);
     }, []);
-
-    // Auto-focus search input on route change
-    useEffect(() => {
-        // Use a small delay to ensure the input is rendered after route change
-        const timer = setTimeout(() => {
-            searchInputRef.current?.focus();
-        }, 150);
-        return () => clearTimeout(timer);
-    }, [pathname]);
 
     // Debounce search term (reduced to 200ms for faster feedback)
     useEffect(() => {
@@ -262,13 +320,15 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
     }, [debouncedSearch]);
 
     // Query for search results with request cancellation support
-    const { data, isLoading, isError } = useQuery({
+    const { data, isLoading, isFetching, isError } = useQuery({
         queryKey: ["globalSearch", { query: debouncedSearch }],
         queryFn: searchGlobal,
         enabled: debouncedSearch.trim().length >= 2,
         staleTime: 10000, // Increased cache time
         gcTime: 30000, // Keep in cache for 30 seconds
+        placeholderData: (previousData) => previousData,
     });
+    const showSearchSpinner = isLoading || isFetching;
 
     const results = useMemo(() => data?.results || [], [data?.results]);
     const countsByType = data?.countsByType;
@@ -467,332 +527,305 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
         };
     }, []);
 
-    // Fix alignment for Hebrew when dropdown opens
-    useEffect(() => {
+    // Keep RTL dropdown right-edge glued to the input when preview opens/closes.
+    // useLayoutEffect: align before paint so preview never flashes on the wrong side.
+    // Measure the Paper (not the listbox) — listbox stays 400px while Paper expands to 650.
+    // Follow query/panel direction so English UI + Hebrew search right-aligns.
+    useLayoutEffect(() => {
         if (
-            isOpen &&
-            isWidthTransitionComplete &&
-            i18n.language === "he" &&
-            searchInputRef.current
+            !isOpen ||
+            !isWidthTransitionComplete ||
+            !panelIsRtl ||
+            !searchInputRef.current
         ) {
-            const alignDropdown = () => {
-                // Find the Autocomplete root element (the input container)
-                const autocompleteRoot = searchInputRef.current?.closest(
-                    ".MuiAutocomplete-root"
-                ) as HTMLElement;
-
-                // Try multiple selectors to find the popper
-                const popperSelectors = [
-                    ".MuiPopper-root",
-                    '[role="presentation"]',
-                    ".MuiAutocomplete-popper",
-                    "[data-popper-placement]",
-                ];
-
-                let popperElement: HTMLElement | null = null;
-                for (const selector of popperSelectors) {
-                    popperElement = document.querySelector(
-                        selector
-                    ) as HTMLElement;
-                    if (popperElement) break;
-                }
-
-                // Also try finding it relative to autocomplete root
-                if (!popperElement && autocompleteRoot) {
-                    popperElement =
-                        autocompleteRoot.parentElement?.querySelector(
-                            '.MuiPopper-root, [role="presentation"]'
-                        ) as HTMLElement;
-                }
-
-                if (autocompleteRoot && popperElement) {
-                    const inputRect = autocompleteRoot.getBoundingClientRect();
-
-                    // Find the entire dropdown container (the ul element with both columns)
-                    // We align based on the entire container, not just the results column
-                    const dropdownContainer = popperElement.querySelector(
-                        'ul[role="listbox"], ul'
-                    ) as HTMLElement;
-                    if (!dropdownContainer) {
-                        return; // Wait if container not ready
-                    }
-
-                    const dropdownElement = dropdownContainer || popperElement;
-                    const dropdownRect =
-                        dropdownElement.getBoundingClientRect();
-
-                    // Check if the container width is still transitioning
-                    // The expected width when preview is shown is 650px, when not shown is 400px
-                    const expectedWidth =
-                        hoveredResult && !isMobile ? 650 : 400;
-                    const currentWidth = dropdownRect.width;
-                    const widthDifference = Math.abs(
-                        currentWidth - expectedWidth
-                    );
-
-                    // If width is still transitioning (more than 10px difference), skip alignment
-                    if (widthDifference > 10) {
-                        return;
-                    }
-
-                    // Calculate right edge positions
-                    // In Hebrew, we want the right edge of the entire dropdown container to align with the right edge of the input
-                    const inputRight = inputRect.right;
-                    const dropdownRight = dropdownRect.right;
-
-                    // Calculate how much we need to shift the popper to align right edges
-                    const offsetX = inputRight - dropdownRight;
-
-                    if (Math.abs(offsetX) > 0.5) {
-                        // Get current transform values - handle both translate() and translate3d() formats
-                        const currentTransform =
-                            popperElement.style.transform || "";
-
-                        // Try translate3d first, then translate
-                        let match = currentTransform.match(
-                            /translate3d\(([^,]+)px,\s*([^,]+)px/
-                        );
-                        if (!match) {
-                            match = currentTransform.match(
-                                /translate\(([^,]+)px,\s*([^,]+)px/
-                            );
-                        }
-                        const currentX = match ? parseFloat(match[1]) : 0;
-                        const currentY = match ? parseFloat(match[2]) : 0;
-
-                        // Apply the offset to align right edges
-                        const newX = currentX + offsetX;
-                        popperElement.style.transform = `translate3d(${newX}px, ${currentY}px, 0)`;
-                    }
-                }
-            };
-
-            // Find the dropdown container and listen for width transition
-            const popperElement = document.querySelector(
-                '.MuiPopper-root, [role="presentation"]'
-            ) as HTMLElement;
-            const dropdownContainer = popperElement?.querySelector(
-                'ul[role="listbox"], ul'
-            ) as HTMLElement;
-
-            if (dropdownContainer) {
-                // Listen for transitionend event on width changes
-                const handleTransitionEnd = (e: TransitionEvent) => {
-                    if (e.propertyName === "width") {
-                        alignDropdown();
-                    }
-                };
-
-                dropdownContainer.addEventListener(
-                    "transitionend",
-                    handleTransitionEnd
-                );
-
-                // Also run immediately and after a short delay as fallback
-                alignDropdown();
-                const timeout = setTimeout(alignDropdown, 250);
-
-                return () => {
-                    dropdownContainer.removeEventListener(
-                        "transitionend",
-                        handleTransitionEnd
-                    );
-                    clearTimeout(timeout);
-                };
-            } else {
-                // Fallback: run after delay if container not found
-                const timeout = setTimeout(alignDropdown, 250);
-                return () => clearTimeout(timeout);
-            }
+            return;
         }
-    }, [
-        isOpen,
-        i18n.language,
-        hoveredResult,
-        isMobile,
-        isWidthTransitionComplete,
-    ]);
 
-    // Fix noOptions container alignment for Hebrew
-    useEffect(() => {
-        if (i18n.language === "he" && isOpen) {
-            const applyStyles = () => {
-                const noOptionsContainer = document.querySelector(
-                    ".MuiAutocomplete-noOptions"
-                ) as HTMLElement;
-                if (noOptionsContainer) {
-                    // Find and style the Popper root element (if it exists)
-                    const popperRoot = noOptionsContainer.closest(
-                        '[role="presentation"]'
-                    ) as HTMLElement;
-                    if (popperRoot) {
-                        popperRoot.style.direction = "rtl";
-                        popperRoot.style.textAlign = "right";
-                    }
+        let rafId = 0;
+        let cancelled = false;
 
-                    // Find and style the paper parent container
-                    const paperContainer = noOptionsContainer.closest(
-                        ".MuiAutocomplete-paper"
-                    ) as HTMLElement;
-                    if (paperContainer) {
-                        paperContainer.style.direction = "rtl";
-                        paperContainer.style.width = "100%";
-                        paperContainer.style.minWidth = "100%";
-                        paperContainer.style.maxWidth = "100%";
-                        paperContainer.style.textAlign = "right";
-                        // Force override any inline styles or computed styles
-                        paperContainer.setAttribute("dir", "rtl");
-                    }
-
-                    // Apply styles to noOptions container
-                    noOptionsContainer.style.direction = "rtl";
-                    noOptionsContainer.style.textAlign = "right";
-                    noOptionsContainer.style.width = "100%";
-                    noOptionsContainer.style.minWidth = "100%";
-                    noOptionsContainer.style.maxWidth = "100%";
-                    noOptionsContainer.style.boxSizing = "border-box";
-                    noOptionsContainer.setAttribute("dir", "rtl");
-
-                    // Also apply styles to the inner Box element (direct child)
-                    const innerBox =
-                        noOptionsContainer.firstElementChild as HTMLElement;
-                    if (innerBox) {
-                        innerBox.style.direction = "rtl";
-                        innerBox.style.textAlign = "right";
-                        innerBox.style.width = "100%";
-                        innerBox.style.minWidth = "100%";
-                        innerBox.style.maxWidth = "100%";
-                        innerBox.style.boxSizing = "border-box";
-                        innerBox.setAttribute("dir", "rtl");
-
-                        // Find and style Typography or span element (the text wrapper)
-                        const textWrapper = innerBox.querySelector(
-                            "span, p, div, .MuiTypography-root"
-                        ) as HTMLElement;
-                        if (textWrapper) {
-                            textWrapper.style.direction = "rtl";
-                            textWrapper.style.textAlign = "right";
-                            textWrapper.style.width = "100%";
-                            textWrapper.style.display = "block";
-                            textWrapper.setAttribute("dir", "rtl");
-                        }
-
-                        // Also ensure all child elements (not just text nodes) are right-aligned
-                        const allChildren = innerBox.querySelectorAll("*");
-                        allChildren.forEach((child) => {
-                            const el = child as HTMLElement;
-                            el.style.textAlign = "right";
-                            el.style.direction = "rtl";
-                            el.setAttribute("dir", "rtl");
-                        });
-
-                        // Also ensure all child text nodes are right-aligned
-                        const walker = document.createTreeWalker(
-                            innerBox,
-                            NodeFilter.SHOW_TEXT,
-                            null
-                        );
-                        let textNode;
-                        while ((textNode = walker.nextNode())) {
-                            if (textNode.parentElement) {
-                                textNode.parentElement.style.textAlign =
-                                    "right";
-                                textNode.parentElement.style.direction = "rtl";
-                                textNode.parentElement.setAttribute(
-                                    "dir",
-                                    "rtl"
-                                );
-                            }
-                        }
-                    }
-                }
-            };
-
-            // Run immediately and after delays to catch when element appears
-            applyStyles();
-            const timeout1 = setTimeout(applyStyles, 0);
-            const timeout2 = setTimeout(applyStyles, 50);
-            const timeout3 = setTimeout(applyStyles, 100);
-            const timeout4 = setTimeout(applyStyles, 200);
-            const timeout5 = setTimeout(applyStyles, 300);
-
-            // Use MutationObserver to catch when the element is added to DOM
-            const observer = new MutationObserver(() => {
-                applyStyles();
-            });
+        const alignDropdown = () => {
+            if (cancelled) return;
 
             const autocompleteRoot = searchInputRef.current?.closest(
                 ".MuiAutocomplete-root"
-            );
-            if (autocompleteRoot) {
-                observer.observe(autocompleteRoot, {
-                    childList: true,
-                    subtree: true,
-                    attributes: true,
-                    attributeFilter: ["style", "dir"],
-                });
+            ) as HTMLElement | null;
+
+            // Prefer the popper we own — querySelector can hit another Autocomplete.
+            let popperElement: HTMLElement | null =
+                (popperRef.current as HTMLElement | null) || null;
+
+            if (!popperElement) {
+                const popperSelectors = [
+                    ".MuiAutocomplete-popper",
+                    ".MuiPopper-root",
+                    '[role="presentation"]',
+                    "[data-popper-placement]",
+                ];
+
+                for (const selector of popperSelectors) {
+                    popperElement = document.querySelector(
+                        selector
+                    ) as HTMLElement | null;
+                    if (popperElement) break;
+                }
             }
 
-            return () => {
-                clearTimeout(timeout1);
-                clearTimeout(timeout2);
-                clearTimeout(timeout3);
-                clearTimeout(timeout4);
-                clearTimeout(timeout5);
-                observer.disconnect();
-            };
-        }
-    }, [isOpen, i18n.language, searchTerm]);
+            if (!popperElement && autocompleteRoot) {
+                popperElement =
+                    autocompleteRoot.parentElement?.querySelector(
+                        '.MuiAutocomplete-popper, .MuiPopper-root, [role="presentation"]'
+                    ) as HTMLElement | null;
+            }
 
-    // Get entity type icon
-    const getEntityIcon = useCallback((type: string, metadata?: any) => {
-        switch (type) {
-            case "customer":
-                // Use BusinessIcon for Company type customers, PersonIcon for Person type
-                if (metadata?.type === "Company") {
-                    return (
-                        <BusinessIcon
-                            fontSize="small"
-                            sx={{ color: "primary.main" }}
-                        />
-                    );
-                }
-                return (
-                    <PersonIcon
-                        fontSize="small"
-                        sx={{ color: "primary.main" }}
-                    />
+            if (!autocompleteRoot || !popperElement) {
+                return;
+            }
+
+            const panel =
+                (popperElement.querySelector(
+                    "[data-global-search-paper='true']"
+                ) as HTMLElement | null) ||
+                (popperElement.querySelector(
+                    ".MuiAutocomplete-paper"
+                ) as HTMLElement | null);
+            if (!panel) {
+                return;
+            }
+
+            const panelRect = panel.getBoundingClientRect();
+            if (Math.abs(panelRect.width - dropdownPanelWidth) > 10) {
+                return;
+            }
+
+            // Physical right edges — independent of theme start/end mirroring.
+            const inputRect = autocompleteRoot.getBoundingClientRect();
+            const offsetX = inputRect.right - panelRect.right;
+            if (Math.abs(offsetX) <= 0.5) {
+                return;
+            }
+
+            const currentTransform = popperElement.style.transform || "";
+            let match = currentTransform.match(
+                /translate3d\(([^,]+)px,\s*([^,]+)px/
+            );
+            if (!match) {
+                match = currentTransform.match(
+                    /translate\(([^,]+)px,\s*([^,]+)px/
                 );
-            case "invoice":
-                return (
-                    <DescriptionIcon
-                        fontSize="small"
-                        sx={{ color: "primary.main" }}
-                    />
-                );
-            case "contact":
-                return (
-                    <ContactMailIcon
-                        fontSize="small"
-                        sx={{ color: "primary.main" }}
-                    />
-                );
-            case "dispute":
-                return (
-                    <GavelIcon
-                        fontSize="small"
-                        sx={{ color: "primary.main" }}
-                    />
-                );
-            default:
-                return (
-                    <SearchIcon
-                        fontSize="small"
-                        sx={{ color: "primary.main" }}
-                    />
-                );
+            }
+            const currentX = match ? parseFloat(match[1]) : 0;
+            const currentY = match ? parseFloat(match[2]) : 0;
+            const nextTransform = `translate3d(${currentX + offsetX}px, ${currentY}px, 0)`;
+            popperElement.style.transform = nextTransform;
+        };
+
+        const scheduleAlign = () => {
+            alignDropdown();
+            if (rafId) cancelAnimationFrame(rafId);
+            rafId = requestAnimationFrame(alignDropdown);
+        };
+
+        scheduleAlign();
+
+        return () => {
+            cancelled = true;
+            if (rafId) cancelAnimationFrame(rafId);
+        };
+    }, [
+        isOpen,
+        panelIsRtl,
+        isWidthTransitionComplete,
+        previewOpen,
+        dropdownPanelWidth,
+    ]);
+
+    // Fix noOptions container alignment for Hebrew (rAF-throttled observer)
+    useEffect(() => {
+        if (!isRtl || !isOpen) return;
+
+        let rafId = 0;
+        let cancelled = false;
+        let applied = false;
+
+        const applyStyles = () => {
+            if (cancelled || applied) return;
+
+            const noOptionsContainer = document.querySelector(
+                ".MuiAutocomplete-noOptions"
+            ) as HTMLElement | null;
+            if (!noOptionsContainer) return;
+
+            applied = true;
+
+            const popperRoot = noOptionsContainer.closest(
+                '[role="presentation"]'
+            ) as HTMLElement | null;
+            if (popperRoot) {
+                popperRoot.style.direction = "rtl";
+                popperRoot.style.textAlign = "right";
+            }
+
+            const paperContainer = noOptionsContainer.closest(
+                ".MuiAutocomplete-paper"
+            ) as HTMLElement | null;
+            if (paperContainer) {
+                paperContainer.style.direction = "rtl";
+                paperContainer.style.width = "100%";
+                paperContainer.style.minWidth = "100%";
+                paperContainer.style.maxWidth = "100%";
+                paperContainer.style.textAlign = "right";
+                paperContainer.setAttribute("dir", "rtl");
+            }
+
+            noOptionsContainer.style.direction = "rtl";
+            noOptionsContainer.style.textAlign = "right";
+            noOptionsContainer.style.width = "100%";
+            noOptionsContainer.style.minWidth = "100%";
+            noOptionsContainer.style.maxWidth = "100%";
+            noOptionsContainer.setAttribute("dir", "rtl");
+
+            const innerBox = noOptionsContainer.firstElementChild as HTMLElement | null;
+            if (innerBox) {
+                innerBox.style.direction = "rtl";
+                innerBox.style.textAlign = "right";
+                innerBox.style.width = "100%";
+                innerBox.style.minWidth = "100%";
+                innerBox.style.maxWidth = "100%";
+                innerBox.setAttribute("dir", "rtl");
+            }
+        };
+
+        const scheduleApply = () => {
+            if (rafId) cancelAnimationFrame(rafId);
+            rafId = requestAnimationFrame(applyStyles);
+        };
+
+        scheduleApply();
+        const timeout = setTimeout(scheduleApply, 100);
+
+        const autocompleteRoot = searchInputRef.current?.closest(
+            ".MuiAutocomplete-root"
+        );
+        const observer = new MutationObserver(scheduleApply);
+        if (autocompleteRoot) {
+            observer.observe(autocompleteRoot, {
+                childList: true,
+                subtree: true,
+            });
         }
-    }, []);
+
+        return () => {
+            cancelled = true;
+            if (rafId) cancelAnimationFrame(rafId);
+            clearTimeout(timeout);
+            observer.disconnect();
+        };
+    }, [isOpen, isRtl, searchTerm]);
+
+    // Theme color per search entity type (customer / invoice / contact / dispute)
+    const getEntityTypeColor = useCallback(
+        (type: string): string => {
+            switch (type) {
+                case "customer":
+                    return theme.palette.primary.main;
+                case "invoice":
+                    return theme.palette.success.main;
+                case "contact":
+                    return theme.palette.info.main;
+                case "dispute":
+                    return theme.palette.warning.main;
+                default:
+                    return theme.palette.primary.main;
+            }
+        },
+        [theme]
+    );
+
+    // Soft-tint chip styles shared by filters, rows, and preview
+    const getEntityTypeChipSx = useCallback(
+        (
+            type: string,
+            options?: { selected?: boolean; interactive?: boolean }
+        ) => {
+            const color = getEntityTypeColor(type);
+            const isSelected = options?.selected ?? true;
+            const interactive = options?.interactive ?? false;
+            return {
+                height: 20,
+                fontSize: "0.65rem",
+                fontWeight: 500,
+                backgroundColor: alpha(color, isSelected ? 0.12 : 0.06),
+                color,
+                border: `1px solid ${alpha(color, isSelected ? 0.4 : 0.2)}`,
+                opacity: isSelected ? 1 : 0.55,
+                cursor: interactive ? "pointer" : "default",
+                "& .MuiChip-label": {
+                    padding: "0 6px",
+                },
+                ...(interactive
+                    ? {
+                          "&:hover": {
+                              backgroundColor: alpha(
+                                  color,
+                                  isSelected ? 0.2 : 0.1
+                              ),
+                              opacity: 1,
+                          },
+                      }
+                    : {}),
+            };
+        },
+        [getEntityTypeColor]
+    );
+
+    // Get entity type icon inside a soft tinted circle
+    const getEntityIcon = useCallback(
+        (type: string, metadata?: any) => {
+            const color = getEntityTypeColor(type);
+            const iconSx = { color, fontSize: 18 };
+            let icon: React.ReactNode;
+            switch (type) {
+                case "customer":
+                    // Use BusinessIcon for Company type customers, PersonIcon for Person type
+                    icon =
+                        metadata?.type === "Company" ? (
+                            <BusinessIcon fontSize="small" sx={iconSx} />
+                        ) : (
+                            <PersonIcon fontSize="small" sx={iconSx} />
+                        );
+                    break;
+                case "invoice":
+                    icon = <DescriptionIcon fontSize="small" sx={iconSx} />;
+                    break;
+                case "contact":
+                    icon = <ContactMailIcon fontSize="small" sx={iconSx} />;
+                    break;
+                case "dispute":
+                    icon = <GavelIcon fontSize="small" sx={iconSx} />;
+                    break;
+                default:
+                    icon = <SearchIcon fontSize="small" sx={iconSx} />;
+            }
+            return (
+                <Box
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 28,
+                        height: 28,
+                        borderRadius: "50%",
+                        backgroundColor: alpha(color, 0.12),
+                        flexShrink: 0,
+                    }}
+                >
+                    {icon}
+                </Box>
+            );
+        },
+        [getEntityTypeColor]
+    );
 
     // Get entity type label
     const getEntityLabel = useCallback(
@@ -891,20 +924,22 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                 case "Enter":
                     event.preventDefault();
                     event.stopPropagation();
-                    setSelectedIndex((currentIndex) => {
-                        if (currentIndex >= 0 && hasResults) {
-                            handleResultClick(results[currentIndex]);
-                        } else if (currentIndex >= 0 && showRecentSearches) {
-                            setSearchTerm(recentSearches[currentIndex]);
-                        } else if (
-                            currentIndex >= 0 &&
-                            showLastResults &&
-                            displayResults[currentIndex]
-                        ) {
-                            handleResultClick(displayResults[currentIndex]);
-                        }
-                        return -1;
-                    });
+                    // Navigate / update outside setState updaters — calling
+                    // router.push inside an updater updates Router during render.
+                    if (selectedIndex >= 0 && hasResults) {
+                        handleResultClick(results[selectedIndex]);
+                    } else if (selectedIndex >= 0 && showRecentSearches) {
+                        setSearchTerm(recentSearches[selectedIndex]);
+                        setSelectedIndex(-1);
+                    } else if (
+                        selectedIndex >= 0 &&
+                        showLastResults &&
+                        displayResults[selectedIndex]
+                    ) {
+                        handleResultClick(displayResults[selectedIndex]);
+                    } else {
+                        setSelectedIndex(-1);
+                    }
                     break;
                 case "Escape":
                     event.preventDefault();
@@ -923,6 +958,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
             results,
             recentSearches,
             displayResults,
+            selectedIndex,
             handleResultClick,
         ]
     );
@@ -936,7 +972,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
 
     // Handle result hover
     const handleResultHover = (
-        event: React.MouseEvent<HTMLElement>,
+        _event: React.MouseEvent<HTMLElement>,
         result: GlobalSearchResult
     ) => {
         setHoveredResult(result);
@@ -1158,15 +1194,40 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
         [t, capitalizeFirstLetter]
     );
 
+    const filterOptionsPassthrough = useCallback(
+        (options: GlobalSearchResult[]) => options,
+        []
+    );
+
+    const displayResultIndexByKey = useMemo(() => {
+        const map = new Map<string, number>();
+        displayResults.forEach((result, index) => {
+            map.set(`${result.type}-${result.id}`, index);
+        });
+        return map;
+    }, [displayResults]);
+
     // Custom Popper component for Autocomplete - allows dropdown to extend beyond textbox
-    const CustomPopper = useCallback(
+    const CustomPopperImpl = useCallback(
         (props: any) => {
-            const placement =
-                i18n.language === "he" ? "bottom-end" : "bottom-start";
+            // Physical edges only: pass direction="ltr" so MUI does NOT flip start/end
+            // under RtlProvider (that flip was landing the Hebrew panel on the left).
+            const placement = panelIsRtl ? "bottom-end" : "bottom-start";
+            // MUI Autocomplete sets popper style.width = anchorEl.clientWidth (input width).
+            // That caps the Paper at ~400px — override so preview can expand the panel.
+            const { style: incomingStyle, ...popperProps } = props;
 
             return (
                 <Popper
-                    {...props}
+                    {...popperProps}
+                    // Beat RtlProvider: keep start/end physical (end = right edge).
+                    direction="ltr"
+                    style={{
+                        ...incomingStyle,
+                        width: dropdownPanelWidth,
+                        minWidth: dropdownPanelWidth,
+                        maxWidth: dropdownPanelWidth,
+                    }}
                     ref={(node) => {
                         popperRef.current = node;
                         if (typeof props.ref === "function") {
@@ -1185,7 +1246,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         },
                         {
                             name: "preventOverflow",
-                            enabled: i18n.language !== "he", // Disable for Hebrew to allow proper right alignment
+                            enabled: !panelIsRtl, // Off for RTL panel so right-edge glue can extend past viewport padding
                             options: {
                                 altAxis: true,
                                 altBoundary: true,
@@ -1201,108 +1262,51 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         {
                             name: "computeStyles",
                             options: {
-                                adaptive: false, // Disable adaptive positioning for consistent alignment
+                                adaptive: false,
                             },
                         },
+                        // Glue physical right edges. Must patch popperOffsets (not DOM
+                        // transform after rAF) — BasePopper forceUpdate() every render
+                        // would otherwise overwrite a post-hoc transform.
                         {
-                            name: "custom",
-                            enabled: i18n.language === "he",
-                            phase: "afterWrite",
-                            requires: [
-                                "offset",
-                                "preventOverflow",
-                                "computeStyles",
-                            ],
+                            name: "alignToAnchorRightEdge",
+                            enabled: panelIsRtl,
+                            phase: "main",
+                            requires: ["popperOffsets"],
                             fn: ({ state }: any) => {
-                                // Fine-tune alignment after offset modifier runs
-                                if (
-                                    i18n.language === "he" &&
-                                    state.elements.reference &&
-                                    state.elements.popper
-                                ) {
-                                    // Use requestAnimationFrame to ensure DOM is fully updated
-                                    requestAnimationFrame(() => {
-                                        const referenceRect =
-                                            state.elements.reference.getBoundingClientRect();
-                                        const popperElement = state.elements
-                                            .popper as HTMLElement;
-                                        const dropdownContainer =
-                                            popperElement?.querySelector(
-                                                'ul[role="listbox"], ul'
-                                            ) as HTMLElement;
-
-                                        if (!dropdownContainer) return;
-
-                                        const dropdownRect =
-                                            dropdownContainer.getBoundingClientRect();
-                                        const expectedWidth =
-                                            hoveredResult && !isMobile
-                                                ? 650
-                                                : 400;
-                                        const currentWidth = dropdownRect.width;
-                                        const widthDifference = Math.abs(
-                                            currentWidth - expectedWidth
-                                        );
-
-                                        // If width is still transitioning, skip alignment to prevent flicker
-                                        if (widthDifference > 10) {
-                                            return;
-                                        }
-
-                                        const inputRight = referenceRect.right;
-                                        const dropdownRight =
-                                            dropdownRect.right;
-                                        const offsetX =
-                                            inputRight - dropdownRight;
-
-                                        if (Math.abs(offsetX) > 0.5) {
-                                            // Get current position from Popper's transform
-                                            const currentTransform =
-                                                popperElement.style.transform ||
-                                                "";
-                                            let match = currentTransform.match(
-                                                /translate3d\(([^,]+)px,\s*([^,]+)px/
-                                            );
-                                            if (!match) {
-                                                match = currentTransform.match(
-                                                    /translate\(([^,]+)px,\s*([^,]+)px/
-                                                );
-                                            }
-                                            const currentX = match
-                                                ? parseFloat(match[1])
-                                                : 0;
-                                            const currentY = match
-                                                ? parseFloat(match[2])
-                                                : 8;
-
-                                            const newX = currentX + offsetX;
-
-                                            // Apply the transform directly to the element
-                                            popperElement.style.transform = `translate3d(${newX}px, ${currentY}px, 0)`;
-                                        }
-                                    });
-                                }
+                                if (!state.modifiersData.popperOffsets) return;
+                                const { reference, popper } = state.rects;
+                                state.modifiersData.popperOffsets.x =
+                                    reference.x +
+                                    reference.width -
+                                    popper.width;
                             },
                         },
                     ]}
                     sx={{
                         zIndex: 1300,
-                        ...(i18n.language === "he" && {
-                            direction: "rtl",
+                        // Do NOT set direction:rtl on the Popper — it inherits onto Paper
+                        // and mirrors flex layout (preview ends up on the wrong side).
+                        // Text RTL lives on the results/preview panes themselves.
+                        ...(panelIsRtl && {
                             textAlign: "right",
                         }),
                         "& .MuiAutocomplete-paper": {
-                            minWidth: "max-content",
-                            width: "max-content",
+                            minWidth: dropdownPanelWidth,
+                            width: dropdownPanelWidth,
+                            maxWidth: dropdownPanelWidth,
+                            overflow: "hidden",
                             margin: 0,
                             marginTop: "8px",
                             padding: 0,
-                            ...(i18n.language === "he" && {
+                            transition: panelIsRtl
+                                ? "none"
+                                : "width 0.2s ease-in-out",
+                            ...(panelIsRtl && {
                                 "&:has(.MuiAutocomplete-noOptions)": {
                                     width: "100%",
                                     minWidth: "100%",
                                     maxWidth: "100%",
-                                    direction: "rtl",
                                     textAlign: "right",
                                 },
                             }),
@@ -1310,7 +1314,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         "& .MuiAutocomplete-listbox": {
                             padding: 0,
                         },
-                        ...(i18n.language === "he" && {
+                        ...(isRtl && {
                             "& .MuiAutocomplete-paper .MuiAutocomplete-noOptions":
                             {
                                 width: "100% !important",
@@ -1324,8 +1328,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                 />
             );
         },
-        [i18n.language, hoveredResult, isMobile]
+        [isRtl, panelIsRtl, dropdownPanelWidth]
     );
+    popperRendererRef.current = CustomPopperImpl;
 
     // Render result count header
     const renderResultCountHeader = () => {
@@ -1337,9 +1342,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    direction: i18n.language === "he" ? "rtl" : "ltr",
+                    direction: isRtl ? "rtl" : "ltr",
                     flexDirection:
-                        i18n.language === "he" ? "row-reverse" : "row",
+                        isRtl ? "row-reverse" : "row",
                     py: 1,
                     px: 2,
                     backgroundColor: theme.palette.background.default,
@@ -1351,8 +1356,8 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                     fontWeight="medium"
                     sx={{
                         color: "text.secondary",
-                        textAlign: i18n.language === "he" ? "right" : "left",
-                        direction: i18n.language === "he" ? "rtl" : "ltr",
+                        textAlign: isRtl ? "right" : "left",
+                        direction: isRtl ? "rtl" : "ltr",
                         whiteSpace: "nowrap",
                     }}
                 >
@@ -1365,13 +1370,12 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             display: "flex",
                             gap: 0.5,
                             flexDirection:
-                                i18n.language === "he" ? "row-reverse" : "row",
+                                isRtl ? "row-reverse" : "row",
                         }}
                     >
                         {Object.entries(countsByType).map(([type, count]) => {
                             if (count === 0) return null;
                             const isSelected = selectedEntityTypes.has(type);
-                            const allSelected = selectedEntityTypes.size === 4;
                             return (
                                 <Chip
                                     key={type}
@@ -1381,54 +1385,10 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                         e.stopPropagation();
                                         toggleEntityType(type);
                                     }}
-                                    sx={{
-                                        height: 20,
-                                        fontSize: "0.65rem",
-                                        backgroundColor: isSelected
-                                            ? allSelected
-                                                ? alpha(
-                                                    theme.palette.primary
-                                                        .main,
-                                                    0.25
-                                                )
-                                                : alpha(
-                                                    theme.palette.primary
-                                                        .main,
-                                                    0.2
-                                                )
-                                            : alpha(
-                                                theme.palette.primary.main,
-                                                0.08
-                                            ),
-                                        color: isSelected
-                                            ? theme.palette.primary.main
-                                            : theme.palette.text.secondary,
-                                        border: isSelected
-                                            ? `1px solid ${theme.palette.primary.main}`
-                                            : `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
-                                        cursor: "pointer",
-                                        opacity: isSelected ? 1 : 0.7,
-                                        "&:hover": {
-                                            backgroundColor: isSelected
-                                                ? allSelected
-                                                    ? alpha(
-                                                        theme.palette.primary
-                                                            .main,
-                                                        0.35
-                                                    )
-                                                    : alpha(
-                                                        theme.palette.primary
-                                                            .main,
-                                                        0.3
-                                                    )
-                                                : alpha(
-                                                    theme.palette.primary
-                                                        .main,
-                                                    0.15
-                                                ),
-                                            opacity: 1,
-                                        },
-                                    }}
+                                    sx={getEntityTypeChipSx(type, {
+                                        selected: isSelected,
+                                        interactive: true,
+                                    })}
                                 />
                             );
                         })}
@@ -1454,7 +1414,6 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                     handleResultHover(e, option);
                     setSelectedIndex(index);
                 }}
-                onMouseLeave={handleResultMouseLeave}
                 onClick={() => handleResultClick(option)}
                 sx={{
                     display: "flex",
@@ -1466,7 +1425,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                     backgroundColor: isSelected
                         ? theme.palette.action.selected
                         : "transparent",
-                    direction: i18n.language === "he" ? "rtl" : "ltr",
+                    direction: isRtl ? "rtl" : "ltr",
                     "&:hover": {
                         backgroundColor: theme.palette.action.hover,
                     },
@@ -1484,7 +1443,6 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        color: "primary.main",
                     }}
                 >
                     {getEntityIcon(option.type, option.metadata)}
@@ -1493,7 +1451,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                     sx={{
                         flex: 1,
                         minWidth: 0,
-                        direction: i18n.language === "he" ? "rtl" : "ltr",
+                        direction: isRtl ? "rtl" : "ltr",
                     }}
                 >
                     <Box
@@ -1503,7 +1461,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             gap: 1,
                             mb: 0.5,
                             flexDirection:
-                                i18n.language === "he" ? "row-reverse" : "row",
+                                isRtl ? "row-reverse" : "row",
                         }}
                     >
                         <Typography
@@ -1514,9 +1472,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                 flex: 1,
                                 minWidth: 0,
                                 textAlign:
-                                    i18n.language === "he" ? "right" : "left",
+                                    isRtl ? "right" : "left",
                                 direction:
-                                    i18n.language === "he" ? "rtl" : "ltr",
+                                    isRtl ? "rtl" : "ltr",
                             }}
                         >
                             {highlightText(
@@ -1527,77 +1485,13 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         <Chip
                             label={getEntityLabel(option.type)}
                             size="small"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                toggleEntityType(option.type);
-                            }}
                             sx={{
-                                height: 20,
-                                fontSize: "0.65rem",
-                                backgroundColor: (() => {
-                                    const isSelected = selectedEntityTypes.has(
-                                        option.type
-                                    );
-                                    const allSelected =
-                                        selectedEntityTypes.size === 4;
-                                    return isSelected
-                                        ? allSelected
-                                            ? alpha(
-                                                theme.palette.primary.main,
-                                                0.25
-                                            )
-                                            : alpha(
-                                                theme.palette.primary.main,
-                                                0.2
-                                            )
-                                        : alpha(
-                                            theme.palette.primary.main,
-                                            0.08
-                                        );
-                                })(),
-                                color: selectedEntityTypes.has(option.type)
-                                    ? theme.palette.primary.main
-                                    : theme.palette.text.secondary,
-                                fontWeight: 500,
-                                border: selectedEntityTypes.has(option.type)
-                                    ? `1px solid ${theme.palette.primary.main}`
-                                    : `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
-                                cursor: "pointer",
-                                opacity: selectedEntityTypes.has(option.type)
-                                    ? 1
-                                    : 0.7,
-                                "& .MuiChip-label": {
-                                    padding: "0 6px",
-                                },
-                                order: isHebrewUser ? -1 : 1,
+                                ...getEntityTypeChipSx(option.type, {
+                                    selected: true,
+                                    interactive: false,
+                                }),
+                                order: isRtl ? -1 : 1,
                                 flexShrink: 0,
-                                "&:hover": {
-                                    backgroundColor: (() => {
-                                        const isSelected =
-                                            selectedEntityTypes.has(
-                                                option.type
-                                            );
-                                        const allSelected =
-                                            selectedEntityTypes.size === 4;
-                                        return isSelected
-                                            ? allSelected
-                                                ? alpha(
-                                                    theme.palette.primary
-                                                        .main,
-                                                    0.35
-                                                )
-                                                : alpha(
-                                                    theme.palette.primary
-                                                        .main,
-                                                    0.3
-                                                )
-                                            : alpha(
-                                                theme.palette.primary.main,
-                                                0.15
-                                            );
-                                    })(),
-                                    opacity: 1,
-                                },
                             }}
                         />
                     </Box>
@@ -1608,9 +1502,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             noWrap
                             sx={{
                                 textAlign:
-                                    i18n.language === "he" ? "right" : "left",
+                                    isRtl ? "right" : "left",
                                 direction:
-                                    i18n.language === "he" ? "rtl" : "ltr",
+                                    isRtl ? "rtl" : "ltr",
                             }}
                         >
                             {highlightText(
@@ -1634,7 +1528,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                     p: 2,
                     backgroundColor: alpha(theme.palette.info.main, 0.1),
                     borderBottom: `1px solid ${theme.palette.divider}`,
-                    direction: i18n.language === "he" ? "rtl" : "ltr",
+                    direction: isRtl ? "rtl" : "ltr",
                 }}
             >
                 <Box
@@ -1643,7 +1537,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         alignItems: "center",
                         justifyContent: "space-between",
                         flexDirection:
-                            i18n.language === "he" ? "row-reverse" : "row",
+                            isRtl ? "row-reverse" : "row",
                     }}
                 >
                     <Box
@@ -1652,7 +1546,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             alignItems: "center",
                             gap: 1,
                             flexDirection:
-                                i18n.language === "he" ? "row-reverse" : "row",
+                                isRtl ? "row-reverse" : "row",
                         }}
                     >
                         <KeyboardIcon fontSize="small" color="primary" />
@@ -1694,9 +1588,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         display: "flex",
                         justifyContent: "space-between",
                         alignItems: "center",
-                        direction: i18n.language === "he" ? "rtl" : "ltr",
+                        direction: isRtl ? "rtl" : "ltr",
                         flexDirection:
-                            i18n.language === "he" ? "row-reverse" : "row",
+                            isRtl ? "row-reverse" : "row",
                     }}
                 >
                     <Box
@@ -1706,7 +1600,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             gap: 1,
                             color: "primary.main",
                             flexDirection:
-                                i18n.language === "he" ? "row-reverse" : "row",
+                                isRtl ? "row-reverse" : "row",
                         }}
                     >
                         <HistoryIcon fontSize="small" />
@@ -1715,9 +1609,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             fontWeight="bold"
                             sx={{
                                 textAlign:
-                                    i18n.language === "he" ? "right" : "left",
+                                    isRtl ? "right" : "left",
                                 direction:
-                                    i18n.language === "he" ? "rtl" : "ltr",
+                                    isRtl ? "rtl" : "ltr",
                             }}
                         >
                             {t(
@@ -1732,8 +1626,8 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             cursor: "pointer",
                             color: "primary.main",
                             textAlign:
-                                i18n.language === "he" ? "right" : "left",
-                            direction: i18n.language === "he" ? "rtl" : "ltr",
+                                isRtl ? "right" : "left",
+                            direction: isRtl ? "rtl" : "ltr",
                         }}
                         onClick={(e) => {
                             e.stopPropagation();
@@ -1760,9 +1654,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                 selectedIndex === index
                                     ? theme.palette.action.selected
                                     : "transparent",
-                            direction: i18n.language === "he" ? "rtl" : "ltr",
+                            direction: isRtl ? "rtl" : "ltr",
                             flexDirection:
-                                i18n.language === "he" ? "row-reverse" : "row",
+                                isRtl ? "row-reverse" : "row",
                             "&:hover": {
                                 backgroundColor: theme.palette.action.hover,
                             },
@@ -1777,9 +1671,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             sx={{
                                 flex: 1,
                                 textAlign:
-                                    i18n.language === "he" ? "right" : "left",
+                                    isRtl ? "right" : "left",
                                 direction:
-                                    i18n.language === "he" ? "rtl" : "ltr",
+                                    isRtl ? "rtl" : "ltr",
                             }}
                         >
                             {search}
@@ -1789,7 +1683,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             sx={{
                                 color: "primary.main",
                                 transform:
-                                    i18n.language === "he"
+                                    isRtl
                                         ? "scaleX(-1)"
                                         : "none",
                             }}
@@ -1797,6 +1691,896 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                     </Box>
                 ))}
             </>
+        );
+    };
+
+    listboxRendererRef.current = (props: any) => {
+                    // Drop Autocomplete option children — we render grouped rows ourselves.
+                    // Don't forward MUI slot internals (ownerState) to the DOM <ul>.
+                    const {
+                        children: _children,
+                        ownerState: _ownerState,
+                        ...listboxProps
+                    } = props;
+                    return (
+                    <Box
+                        component="ul"
+                        {...(listboxProps as any)}
+                        data-global-search-listbox="true"
+                        data-preview-open={previewOpen ? "true" : "false"}
+                        onMouseLeave={(e: React.MouseEvent<HTMLElement>) => {
+                            (props as any).onMouseLeave?.(e);
+                            // Keep preview while keyboard selection is active;
+                            // only clear when the pointer leaves the whole panel.
+                            if (selectedIndex < 0) {
+                                handleResultMouseLeave();
+                            }
+                        }}
+                        sx={{
+                            position: "relative",
+                            maxHeight: `${SEARCH_DROPDOWN_MAX_HEIGHT_PX}px`,
+                            width: "100%",
+                            margin: 0,
+                            padding: 0,
+                            listStyle: "none",
+                            boxSizing: "border-box",
+                            overflowY: "auto",
+                        }}
+                    >
+                            {renderKeyboardHint()}
+                            {showRecentSearches && renderRecentSearches()}
+                            {showRecentSearches && hasResults && <Divider />}
+                            {searchTerm &&
+                                hasResults &&
+                                renderResultCountHeader()}
+                            {searchTerm &&
+                                hasResults &&
+                                filteredResults.length > 0 && (
+                                    // Render grouped results
+                                    <>
+                                        {groupedResults.customer.length > 0 && (
+                                            <>
+                                                <ListSubheader
+                                                    sx={{
+                                                        direction:
+                                                            isRtl
+                                                                ? "rtl"
+                                                                : "ltr",
+                                                        flexDirection:
+                                                            isRtl
+                                                                ? "row-reverse"
+                                                                : "row",
+                                                        backgroundColor:
+                                                            theme.palette
+                                                                .background
+                                                                .default,
+                                                    }}
+                                                >
+                                                    <Box
+                                                        sx={{
+                                                            display: "flex",
+                                                            alignItems:
+                                                                "center",
+                                                            gap: 1,
+                                                            color: getEntityTypeColor(
+                                                                "customer"
+                                                            ),
+                                                            flexDirection:
+                                                                isRtl
+                                                                    ? "row-reverse"
+                                                                    : "row",
+                                                        }}
+                                                    >
+                                                        {getEntityIcon(
+                                                            "customer",
+                                                            {}
+                                                        )}
+                                                        <Typography
+                                                            variant="caption"
+                                                            fontWeight="bold"
+                                                        >
+                                                            {getEntityLabel(
+                                                                "customer"
+                                                            )}{" "}
+                                                            (
+                                                            {
+                                                                groupedResults
+                                                                    .customer
+                                                                    .length
+                                                            }
+                                                            )
+                                                        </Typography>
+                                                    </Box>
+                                                </ListSubheader>
+                                                {groupedResults.customer.map(
+                                                    (result) => {
+                                                        const globalIndex =
+                                                            filteredResults.indexOf(
+                                                                result
+                                                            );
+                                                        return renderResultOption(
+                                                            result,
+                                                            globalIndex,
+                                                            {}
+                                                        );
+                                                    }
+                                                )}
+                                            </>
+                                        )}
+                                        {groupedResults.invoice.length > 0 && (
+                                            <>
+                                                <ListSubheader
+                                                    sx={{
+                                                        direction:
+                                                            isRtl
+                                                                ? "rtl"
+                                                                : "ltr",
+                                                        flexDirection:
+                                                            isRtl
+                                                                ? "row-reverse"
+                                                                : "row",
+                                                        backgroundColor:
+                                                            theme.palette
+                                                                .background
+                                                                .default,
+                                                    }}
+                                                >
+                                                    <Box
+                                                        sx={{
+                                                            display: "flex",
+                                                            alignItems:
+                                                                "center",
+                                                            gap: 1,
+                                                            color: getEntityTypeColor(
+                                                                "invoice"
+                                                            ),
+                                                            flexDirection:
+                                                                isRtl
+                                                                    ? "row-reverse"
+                                                                    : "row",
+                                                        }}
+                                                    >
+                                                        {getEntityIcon(
+                                                            "invoice",
+                                                            {}
+                                                        )}
+                                                        <Typography
+                                                            variant="caption"
+                                                            fontWeight="bold"
+                                                        >
+                                                            {getEntityLabel(
+                                                                "invoice"
+                                                            )}{" "}
+                                                            (
+                                                            {
+                                                                groupedResults
+                                                                    .invoice
+                                                                    .length
+                                                            }
+                                                            )
+                                                        </Typography>
+                                                    </Box>
+                                                </ListSubheader>
+                                                {groupedResults.invoice.map(
+                                                    (result) => {
+                                                        const globalIndex =
+                                                            filteredResults.indexOf(
+                                                                result
+                                                            );
+                                                        return renderResultOption(
+                                                            result,
+                                                            globalIndex,
+                                                            {}
+                                                        );
+                                                    }
+                                                )}
+                                            </>
+                                        )}
+                                        {groupedResults.contact.length > 0 && (
+                                            <>
+                                                <ListSubheader
+                                                    sx={{
+                                                        direction:
+                                                            isRtl
+                                                                ? "rtl"
+                                                                : "ltr",
+                                                        flexDirection:
+                                                            isRtl
+                                                                ? "row-reverse"
+                                                                : "row",
+                                                        backgroundColor:
+                                                            theme.palette
+                                                                .background
+                                                                .default,
+                                                    }}
+                                                >
+                                                    <Box
+                                                        sx={{
+                                                            display: "flex",
+                                                            alignItems:
+                                                                "center",
+                                                            gap: 1,
+                                                            color: getEntityTypeColor(
+                                                                "contact"
+                                                            ),
+                                                            flexDirection:
+                                                                isRtl
+                                                                    ? "row-reverse"
+                                                                    : "row",
+                                                        }}
+                                                    >
+                                                        {getEntityIcon(
+                                                            "contact",
+                                                            {}
+                                                        )}
+                                                        <Typography
+                                                            variant="caption"
+                                                            fontWeight="bold"
+                                                        >
+                                                            {getEntityLabel(
+                                                                "contact"
+                                                            )}{" "}
+                                                            (
+                                                            {
+                                                                groupedResults
+                                                                    .contact
+                                                                    .length
+                                                            }
+                                                            )
+                                                        </Typography>
+                                                    </Box>
+                                                </ListSubheader>
+                                                {groupedResults.contact.map(
+                                                    (result) => {
+                                                        const globalIndex =
+                                                            filteredResults.indexOf(
+                                                                result
+                                                            );
+                                                        return renderResultOption(
+                                                            result,
+                                                            globalIndex,
+                                                            {}
+                                                        );
+                                                    }
+                                                )}
+                                            </>
+                                        )}
+                                        {groupedResults.dispute.length > 0 && (
+                                            <>
+                                                <ListSubheader
+                                                    sx={{
+                                                        direction:
+                                                            isRtl
+                                                                ? "rtl"
+                                                                : "ltr",
+                                                        flexDirection:
+                                                            isRtl
+                                                                ? "row-reverse"
+                                                                : "row",
+                                                        backgroundColor:
+                                                            theme.palette
+                                                                .background
+                                                                .default,
+                                                    }}
+                                                >
+                                                    <Box
+                                                        sx={{
+                                                            display: "flex",
+                                                            alignItems:
+                                                                "center",
+                                                            gap: 1,
+                                                            color: getEntityTypeColor(
+                                                                "dispute"
+                                                            ),
+                                                            flexDirection:
+                                                                isRtl
+                                                                    ? "row-reverse"
+                                                                    : "row",
+                                                        }}
+                                                    >
+                                                        {getEntityIcon(
+                                                            "dispute",
+                                                            {}
+                                                        )}
+                                                        <Typography
+                                                            variant="caption"
+                                                            fontWeight="bold"
+                                                        >
+                                                            {getEntityLabel(
+                                                                "dispute"
+                                                            )}{" "}
+                                                            (
+                                                            {
+                                                                groupedResults
+                                                                    .dispute
+                                                                    .length
+                                                            }
+                                                            )
+                                                        </Typography>
+                                                    </Box>
+                                                </ListSubheader>
+                                                {groupedResults.dispute.map(
+                                                    (result) => {
+                                                        const globalIndex =
+                                                            filteredResults.indexOf(
+                                                                result
+                                                            );
+                                                        return renderResultOption(
+                                                            result,
+                                                            globalIndex,
+                                                            {}
+                                                        );
+                                                    }
+                                                )}
+                                            </>
+                                        )}
+                                    </>
+                                )}
+                            {searchTerm &&
+                                hasResults &&
+                                filteredResults.length === 0 && (
+                                    <Box
+                                        sx={{
+                                            p: 3,
+                                            textAlign: "center",
+                                            direction:
+                                                isRtl
+                                                    ? "rtl"
+                                                    : "ltr",
+                                        }}
+                                    >
+                                        <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                            sx={{
+                                                mb: 1,
+                                                textAlign:
+                                                    isRtl
+                                                        ? "right"
+                                                        : "left",
+                                            }}
+                                        >
+                                            {t(
+                                                "messages.no_results_match_filters",
+                                                "No results match your selected filters"
+                                            )}
+                                        </Typography>
+                                        <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                            sx={{
+                                                textAlign:
+                                                    isRtl
+                                                        ? "right"
+                                                        : "left",
+                                            }}
+                                        >
+                                            {t(
+                                                "messages.click_filters_to_enable",
+                                                "Click the filter chips above to enable more result types"
+                                            )}
+                                        </Typography>
+                                    </Box>
+                                )}
+                    </Box>
+                    );
+    };
+
+    paperRendererRef.current = (props: any) => {
+        // Don't forward MUI slot internals (ownerState) to the DOM.
+        // Keep incoming sx but put our panel width LAST so Autocomplete's
+        // anchor-sized paper width (400) cannot override the expanded preview width.
+        const {
+            children,
+            ownerState: _ownerState,
+            sx: incomingSx,
+            style: incomingStyle,
+            ...paperProps
+        } = props;
+        // DOM order is always [results, preview]. Flip with row-reverse for RTL query.
+        // Panel geometry follows query script (English UI + Hebrew search right-aligns
+        // with preview to the left of results).
+        // Inline direction:ltr is required — Popper sets direction:rtl and sx/dir
+        // lose to that inheritance (see diagnosis paper_still_direction_rtl_despite_sx_ltr_lock).
+        const panelFlexDirection = panelIsRtl ? "row-reverse" : "row";
+        return (
+            <Paper
+                {...(paperProps as any)}
+                data-global-search-paper="true"
+                style={{
+                    ...incomingStyle,
+                    // Beat inherited Popper direction:rtl (attr/sx were not enough)
+                    direction: "ltr",
+                }}
+                sx={[
+                    ...(Array.isArray(incomingSx)
+                        ? incomingSx
+                        : incomingSx
+                          ? [incomingSx]
+                          : []),
+                    {
+                        display: "flex",
+                        flexDirection: panelFlexDirection,
+                        direction: "ltr",
+                        width: dropdownPanelWidth,
+                        minWidth: dropdownPanelWidth,
+                        maxWidth: dropdownPanelWidth,
+                        overflow: "hidden",
+                        margin: 0,
+                        // Instant width in RTL UI avoids preview flashing on the wrong side
+                        // while the popper re-anchors to the input's right edge.
+                        transition: panelIsRtl
+                            ? "none"
+                            : "width 0.2s ease-in-out",
+                    },
+                ]}
+            >
+                <Box
+                    data-global-search-results="true"
+                    sx={{
+                        width: SEARCH_RESULTS_PANEL_WIDTH_PX,
+                        flexShrink: 0,
+                        maxHeight: SEARCH_DROPDOWN_MAX_HEIGHT_PX,
+                        overflowY: "auto",
+                        direction: isRtl ? "rtl" : "ltr",
+                    }}
+                >
+                    {children}
+                </Box>
+                {previewOpen && hoveredResult ? (
+                        <>
+                            <Box
+                                component="div"
+                                data-global-search-preview="true"
+                                sx={{
+                                    width: SEARCH_PREVIEW_PANEL_WIDTH_PX,
+                                    flexShrink: 0,
+                                    borderLeft:
+                                        panelIsRtl
+                                            ? "none"
+                                            : `1px solid ${theme.palette.divider}`,
+                                    borderRight:
+                                        panelIsRtl
+                                            ? `1px solid ${theme.palette.divider}`
+                                            : "none",
+                                    backgroundColor:
+                                        theme.palette.background.paper,
+                                    overflowY: "auto",
+                                    maxHeight: SEARCH_DROPDOWN_MAX_HEIGHT_PX,
+                                    p: 2,
+                                    direction: isRtl ? "rtl" : "ltr",
+                                }}
+                            >
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 1,
+                                        mb: 1,
+                                        flexDirection:
+                                            isRtl
+                                                ? "row-reverse"
+                                                : "row",
+                                        width: "100%",
+                                    }}
+                                >
+                                    {getEntityIcon(
+                                        hoveredResult.type,
+                                        hoveredResult.metadata
+                                    )}
+                                    <Typography
+                                        variant="body1"
+                                        fontWeight="bold"
+                                        sx={{
+                                            fontSize: "1.1rem",
+                                            textAlign:
+                                                isRtl
+                                                    ? "right"
+                                                    : "left",
+                                            direction:
+                                                isRtl
+                                                    ? "rtl"
+                                                    : "ltr",
+                                            flex: 1,
+                                            minWidth: 0,
+                                        }}
+                                    >
+                                        {highlightText(
+                                            hoveredResult.name,
+                                            searchTerm || debouncedSearch
+                                        )}
+                                    </Typography>
+                                    <Chip
+                                        label={getEntityLabel(
+                                            hoveredResult.type
+                                        )}
+                                        size="small"
+                                        sx={{
+                                            ...getEntityTypeChipSx(
+                                                hoveredResult.type,
+                                                {
+                                                    selected: true,
+                                                    interactive: false,
+                                                }
+                                            ),
+                                            flexShrink: 0,
+                                        }}
+                                    />
+                                </Box>
+                                {/* Show customer code at the top for customers */}
+                                {hoveredResult.type === "customer" &&
+                                    hoveredResult.metadata?.customer_number && (
+                                        <Typography
+                                            variant="caption"
+                                            sx={{
+                                                display: "block",
+                                                mb: 1,
+                                                textAlign:
+                                                    isRtl
+                                                        ? "right"
+                                                        : "left",
+                                                direction:
+                                                    isRtl
+                                                        ? "rtl"
+                                                        : "ltr",
+                                            }}
+                                        >
+                                            <strong>
+                                                {t("fields.customer_code", {
+                                                    ns: "customers",
+                                                    defaultValue:
+                                                        "Customer Code",
+                                                })}
+                                                :
+                                            </strong>{" "}
+                                            {highlightText(
+                                                String(
+                                                    hoveredResult.metadata
+                                                        .customer_number
+                                                ),
+                                                searchTerm || debouncedSearch
+                                            )}
+                                        </Typography>
+                                    )}
+                                {/* Show parent customer for customers */}
+                                {hoveredResult.type === "customer" &&
+                                    hoveredResult.metadata
+                                        ?.parent_customer_name && (
+                                        <Typography
+                                            variant="caption"
+                                            sx={{
+                                                display: "block",
+                                                mb: 1,
+                                                textAlign:
+                                                    isRtl
+                                                        ? "right"
+                                                        : "left",
+                                                direction:
+                                                    isRtl
+                                                        ? "rtl"
+                                                        : "ltr",
+                                            }}
+                                        >
+                                            <strong>
+                                                {t("fields.parent_customer", {
+                                                    ns: "customers",
+                                                    defaultValue:
+                                                        "Parent Customer",
+                                                })}
+                                                :
+                                            </strong>{" "}
+                                            {highlightText(
+                                                hoveredResult.metadata
+                                                    .parent_customer_name,
+                                                searchTerm || debouncedSearch
+                                            )}
+                                        </Typography>
+                                    )}
+                                {/* Show category for customers */}
+                                {hoveredResult.type === "customer" &&
+                                    formatCategory(
+                                        hoveredResult.metadata?.current_category
+                                    ) && (
+                                        <Typography
+                                            variant="caption"
+                                            sx={{
+                                                display: "block",
+                                                mb: 1,
+                                                textAlign:
+                                                    isRtl
+                                                        ? "right"
+                                                        : "left",
+                                                direction:
+                                                    isRtl
+                                                        ? "rtl"
+                                                        : "ltr",
+                                            }}
+                                        >
+                                            <strong>
+                                                {t("fields.category", {
+                                                    ns: "customers",
+                                                    defaultValue: "Category",
+                                                })}
+                                                :
+                                            </strong>{" "}
+                                            {formatCategory(
+                                                hoveredResult.metadata
+                                                    ?.current_category
+                                            )}
+                                        </Typography>
+                                    )}
+                                {/* Show company name at the top for contacts */}
+                                {hoveredResult.type === "contact" &&
+                                    hoveredResult.metadata?.company_name && (
+                                        <Typography
+                                            variant="caption"
+                                            sx={{
+                                                display: "block",
+                                                mb: 1,
+                                                textAlign:
+                                                    isRtl
+                                                        ? "right"
+                                                        : "left",
+                                                direction:
+                                                    isRtl
+                                                        ? "rtl"
+                                                        : "ltr",
+                                            }}
+                                        >
+                                            <strong>
+                                                {t("fields.company_name", {
+                                                    ns: "contacts",
+                                                    defaultValue:
+                                                        "Company Name",
+                                                })}
+                                                :
+                                            </strong>{" "}
+                                            {highlightText(
+                                                hoveredResult.metadata
+                                                    .company_name,
+                                                searchTerm || debouncedSearch
+                                            )}
+                                        </Typography>
+                                    )}
+                                {hoveredResult.subtitle &&
+                                    hoveredResult.type !== "contact" &&
+                                    hoveredResult.type !== "customer" && (
+                                        <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                            sx={{
+                                                display: "block",
+                                                mb: 1,
+                                                textAlign:
+                                                    isRtl
+                                                        ? "right"
+                                                        : "left",
+                                                direction:
+                                                    isRtl
+                                                        ? "rtl"
+                                                        : "ltr",
+                                            }}
+                                        >
+                                            {hoveredResult.subtitle}
+                                        </Typography>
+                                    )}
+                                {/* Show status and total overdue amount for customers */}
+                                {hoveredResult.type === "customer" &&
+                                    hoveredResult.metadata && (
+                                        <Box sx={{ mt: 1, mb: 1 }}>
+                                            {hoveredResult.metadata
+                                                .collection_status && (
+                                                    <Typography
+                                                        variant="caption"
+                                                        sx={{
+                                                            display: "block",
+                                                            mb: 0.5,
+                                                            textAlign:
+                                                                isRtl
+                                                                    ? "right"
+                                                                    : "left",
+                                                            direction:
+                                                                isRtl
+                                                                    ? "rtl"
+                                                                    : "ltr",
+                                                        }}
+                                                    >
+                                                        <strong>
+                                                            {t("fields.status", {
+                                                                ns: "common",
+                                                                defaultValue:
+                                                                    "Status",
+                                                            })}
+                                                            :
+                                                        </strong>{" "}
+                                                        {highlightText(
+                                                            capitalizeFirstLetter(
+                                                                String(
+                                                                    hoveredResult
+                                                                        .metadata
+                                                                        .collection_status
+                                                                )
+                                                            ),
+                                                            searchTerm ||
+                                                            debouncedSearch
+                                                        )}
+                                                    </Typography>
+                                                )}
+                                            {hoveredResult.metadata
+                                                .total_invoices_overdue_formatted && (
+                                                    <Typography
+                                                        variant="caption"
+                                                        sx={{
+                                                            display: "block",
+                                                            mb: 0.5,
+                                                            textAlign:
+                                                                isRtl
+                                                                    ? "right"
+                                                                    : "left",
+                                                            direction:
+                                                                isRtl
+                                                                    ? "rtl"
+                                                                    : "ltr",
+                                                        }}
+                                                    >
+                                                        <strong>
+                                                            {t(
+                                                                "fields.total_outstanding_amount",
+                                                                {
+                                                                    ns: "customers",
+                                                                    defaultValue:
+                                                                        "Total Overdue Amount",
+                                                                }
+                                                            )}
+                                                            :
+                                                        </strong>{" "}
+                                                        {(() => {
+                                                            // If it's already a formatted string, use it; otherwise format it
+                                                            const value =
+                                                                hoveredResult
+                                                                    .metadata
+                                                                    .total_invoices_overdue;
+                                                            if (
+                                                                typeof value ===
+                                                                "number"
+                                                            ) {
+                                                                const currencyCode =
+                                                                    hoveredResult
+                                                                        .metadata
+                                                                        ?.currency ||
+                                                                    hoveredResult
+                                                                        .metadata
+                                                                        ?.currency_code ||
+                                                                    session?.user
+                                                                        ?.currency ||
+                                                                    "USD";
+                                                                // Use user's locale from session, or fallback to i18n language
+                                                                const userLocale =
+                                                                    session?.user
+                                                                        ?.locale;
+                                                                const userLanguage =
+                                                                    session?.user
+                                                                        ?.language;
+                                                                let locale =
+                                                                    "en-US";
+                                                                if (userLocale) {
+                                                                    locale =
+                                                                        userLocale;
+                                                                } else if (
+                                                                    userLanguage ===
+                                                                    "Hebrew"
+                                                                ) {
+                                                                    locale =
+                                                                        "he-IL";
+                                                                } else if (i18n.language === "he") {
+                                                                    locale =
+                                                                        "he-IL";
+                                                                }
+                                                                return formatCurrencyWithRTLSupport(
+                                                                    value,
+                                                                    currencyCode,
+                                                                    locale,
+                                                                    i18n.language
+                                                                );
+                                                            }
+                                                            return hoveredResult
+                                                                .metadata
+                                                                .total_invoices_overdue_formatted;
+                                                        })()}
+                                                    </Typography>
+                                                )}
+                                        </Box>
+                                    )}
+                                {hoveredResult.metadata && (
+                                    <Box sx={{ mt: 1 }}>
+                                        {Object.entries(hoveredResult.metadata)
+                                            .filter(([key, value]) => {
+                                                const formatted =
+                                                    formatMetadataValue(
+                                                        key,
+                                                        value,
+                                                        hoveredResult.metadata,
+                                                        hoveredResult.type
+                                                    );
+                                                const excludedKeys = [
+                                                    "type",
+                                                    "customer_number",
+                                                    "invoice_number",
+                                                    "dispute_id",
+                                                    "collection_status",
+                                                    "total_invoices_overdue",
+                                                    "total_invoices_overdue_formatted",
+                                                    "company_name",
+                                                    "parent_customer_name",
+                                                    "current_category",
+                                                ];
+                                                // Exclude amount_formatted for invoices
+                                                if (
+                                                    hoveredResult.type ===
+                                                    "invoice" &&
+                                                    key === "amount_formatted"
+                                                ) {
+                                                    return false;
+                                                }
+                                                return (
+                                                    formatted &&
+                                                    !excludedKeys.includes(key)
+                                                );
+                                            })
+                                            .slice(0, 5)
+                                            .map(([key, value]) => {
+                                                const formatted =
+                                                    formatMetadataValue(
+                                                        key,
+                                                        value,
+                                                        hoveredResult.metadata,
+                                                        hoveredResult.type
+                                                    );
+                                                if (!formatted) return null;
+                                                const label =
+                                                    translateMetadataField(
+                                                        key,
+                                                        hoveredResult.type
+                                                    );
+                                                return (
+                                                    <Typography
+                                                        key={key}
+                                                        variant="caption"
+                                                        sx={{
+                                                            display: "block",
+                                                            mb: 0.5,
+                                                            textAlign:
+                                                                isRtl
+                                                                    ? "right"
+                                                                    : "left",
+                                                            direction:
+                                                                isRtl
+                                                                    ? "rtl"
+                                                                    : "ltr",
+                                                        }}
+                                                    >
+                                                        <strong>
+                                                            {label}:
+                                                        </strong>{" "}
+                                                        {typeof formatted ===
+                                                            "string" &&
+                                                            (searchTerm ||
+                                                                debouncedSearch)
+                                                            ? highlightText(
+                                                                formatted,
+                                                                searchTerm ||
+                                                                debouncedSearch
+                                                            )
+                                                            : formatted}
+                                                    </Typography>
+                                                );
+                                            })}
+                                    </Box>
+                                )}
+                            </Box>
+                        </>
+                ) : null}
+            </Paper>
         );
     };
 
@@ -1876,9 +2660,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         handleResultClick(newValue);
                     }
                 }}
-                filterOptions={(x) => x} // Disable client-side filtering
+                filterOptions={filterOptionsPassthrough}
                 disableListWrap
-                data-rtl={i18n.language === "he"}
+                data-rtl={isRtl}
                 size="small"
                 sx={{
                     width: {
@@ -1887,7 +2671,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         md: isFocused || searchTerm ? "400px" : "250px",
                     },
                     transition: "width 0.2s ease-in-out",
-                    direction: i18n.language === "he" ? "rtl" : "ltr",
+                    direction: isRtl ? "rtl" : "ltr",
                     margin: 0,
                     padding: 0,
                     "& .MuiAutocomplete-root": {
@@ -1913,15 +2697,15 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         // For RTL: icon is at positionEnd (right), add marginRight
                         "& .MuiInputAdornment-positionStart": {
                             marginLeft:
-                                i18n.language === "he"
+                                isRtl
                                     ? 0
                                     : `${theme.spacing(1.5)} !important`,
-                            marginRight: i18n.language === "he" ? 0 : 0,
+                            marginRight: isRtl ? 0 : 0,
                         },
                         "& .MuiInputAdornment-positionEnd": {
-                            marginLeft: i18n.language === "he" ? 0 : 0,
+                            marginLeft: isRtl ? 0 : 0,
                             marginRight:
-                                i18n.language === "he"
+                                isRtl
                                     ? `${theme.spacing(1.5)} !important`
                                     : 0,
                         },
@@ -1947,852 +2731,44 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             opacity: 1,
                         },
                     },
-                    "& .MuiAutocomplete-paper": {
-                        minWidth: "max-content",
-                        width: "max-content",
-                        ...(i18n.language === "he" && {
-                            "&:has(.MuiAutocomplete-noOptions)": {
-                                width: "100%",
-                                minWidth: "100%",
-                                maxWidth: "100%",
-                                direction: "rtl",
-                            },
-                        }),
-                    },
                     "& .MuiAutocomplete-noOptions": {
                         direction:
-                            `${i18n.language === "he" ? "rtl" : "ltr"} !important` as any,
+                            `${isRtl ? "rtl" : "ltr"} !important` as any,
                         textAlign:
-                            `${i18n.language === "he" ? "right" : "left"} !important` as any,
+                            `${isRtl ? "right" : "left"} !important` as any,
                         width:
-                            i18n.language === "he"
+                            isRtl
                                 ? "100% !important"
                                 : undefined,
                         minWidth:
-                            i18n.language === "he"
+                            isRtl
                                 ? "100% !important"
                                 : undefined,
                         maxWidth:
-                            i18n.language === "he"
+                            isRtl
                                 ? "100% !important"
                                 : undefined,
                     },
                 }}
-                ListboxComponent={(props) => (
-                    <Box
-                        component="ul"
-                        {...(props as any)}
-                        sx={{
-                            position: "relative",
-                            display: "flex",
-                            flexDirection: "row",
-                            direction: i18n.language === "he" ? "rtl" : "ltr",
-                            maxHeight: "400px",
-                            width:
-                                hoveredResult && !isMobile ? "650px" : "400px", // Expand when preview is shown
-                            margin: 0,
-                            padding: 0,
-                            transition: "width 0.2s ease-in-out",
-                        }}
-                    >
-                        {/* Results Column */}
-                        <Box
-                            component="div"
-                            sx={{
-                                width: "400px",
-                                flexShrink: 0,
-                                overflowY: "auto",
-                                margin: 0,
-                                padding: 0,
-                                position: "relative",
-                                order: i18n.language === "he" ? 1 : 1, // Results: order 1 (appears on right in RTL)
-                            }}
-                        >
-                            {renderKeyboardHint()}
-                            {showRecentSearches && renderRecentSearches()}
-                            {showRecentSearches && hasResults && <Divider />}
-                            {searchTerm &&
-                                hasResults &&
-                                renderResultCountHeader()}
-                            {searchTerm &&
-                                hasResults &&
-                                filteredResults.length > 0 && (
-                                    // Render grouped results
-                                    <>
-                                        {groupedResults.customer.length > 0 && (
-                                            <>
-                                                <ListSubheader
-                                                    sx={{
-                                                        direction:
-                                                            i18n.language ===
-                                                                "he"
-                                                                ? "rtl"
-                                                                : "ltr",
-                                                        flexDirection:
-                                                            i18n.language ===
-                                                                "he"
-                                                                ? "row-reverse"
-                                                                : "row",
-                                                        backgroundColor:
-                                                            theme.palette
-                                                                .background
-                                                                .default,
-                                                    }}
-                                                >
-                                                    <Box
-                                                        sx={{
-                                                            display: "flex",
-                                                            alignItems:
-                                                                "center",
-                                                            gap: 1,
-                                                            color: "primary.main",
-                                                            flexDirection:
-                                                                i18n.language ===
-                                                                    "he"
-                                                                    ? "row-reverse"
-                                                                    : "row",
-                                                        }}
-                                                    >
-                                                        {getEntityIcon(
-                                                            "customer",
-                                                            {}
-                                                        )}
-                                                        <Typography
-                                                            variant="caption"
-                                                            fontWeight="bold"
-                                                        >
-                                                            {getEntityLabel(
-                                                                "customer"
-                                                            )}{" "}
-                                                            (
-                                                            {
-                                                                groupedResults
-                                                                    .customer
-                                                                    .length
-                                                            }
-                                                            )
-                                                        </Typography>
-                                                    </Box>
-                                                </ListSubheader>
-                                                {groupedResults.customer.map(
-                                                    (result) => {
-                                                        const globalIndex =
-                                                            filteredResults.indexOf(
-                                                                result
-                                                            );
-                                                        return renderResultOption(
-                                                            result,
-                                                            globalIndex,
-                                                            {}
-                                                        );
-                                                    }
-                                                )}
-                                            </>
-                                        )}
-                                        {groupedResults.invoice.length > 0 && (
-                                            <>
-                                                <ListSubheader
-                                                    sx={{
-                                                        direction:
-                                                            i18n.language ===
-                                                                "he"
-                                                                ? "rtl"
-                                                                : "ltr",
-                                                        flexDirection:
-                                                            i18n.language ===
-                                                                "he"
-                                                                ? "row-reverse"
-                                                                : "row",
-                                                        backgroundColor:
-                                                            theme.palette
-                                                                .background
-                                                                .default,
-                                                    }}
-                                                >
-                                                    <Box
-                                                        sx={{
-                                                            display: "flex",
-                                                            alignItems:
-                                                                "center",
-                                                            gap: 1,
-                                                            color: "primary.main",
-                                                            flexDirection:
-                                                                i18n.language ===
-                                                                    "he"
-                                                                    ? "row-reverse"
-                                                                    : "row",
-                                                        }}
-                                                    >
-                                                        {getEntityIcon(
-                                                            "invoice",
-                                                            {}
-                                                        )}
-                                                        <Typography
-                                                            variant="caption"
-                                                            fontWeight="bold"
-                                                        >
-                                                            {getEntityLabel(
-                                                                "invoice"
-                                                            )}{" "}
-                                                            (
-                                                            {
-                                                                groupedResults
-                                                                    .invoice
-                                                                    .length
-                                                            }
-                                                            )
-                                                        </Typography>
-                                                    </Box>
-                                                </ListSubheader>
-                                                {groupedResults.invoice.map(
-                                                    (result) => {
-                                                        const globalIndex =
-                                                            filteredResults.indexOf(
-                                                                result
-                                                            );
-                                                        return renderResultOption(
-                                                            result,
-                                                            globalIndex,
-                                                            {}
-                                                        );
-                                                    }
-                                                )}
-                                            </>
-                                        )}
-                                        {groupedResults.contact.length > 0 && (
-                                            <>
-                                                <ListSubheader
-                                                    sx={{
-                                                        direction:
-                                                            i18n.language ===
-                                                                "he"
-                                                                ? "rtl"
-                                                                : "ltr",
-                                                        flexDirection:
-                                                            i18n.language ===
-                                                                "he"
-                                                                ? "row-reverse"
-                                                                : "row",
-                                                        backgroundColor:
-                                                            theme.palette
-                                                                .background
-                                                                .default,
-                                                    }}
-                                                >
-                                                    <Box
-                                                        sx={{
-                                                            display: "flex",
-                                                            alignItems:
-                                                                "center",
-                                                            gap: 1,
-                                                            color: "primary.main",
-                                                            flexDirection:
-                                                                i18n.language ===
-                                                                    "he"
-                                                                    ? "row-reverse"
-                                                                    : "row",
-                                                        }}
-                                                    >
-                                                        {getEntityIcon(
-                                                            "contact",
-                                                            {}
-                                                        )}
-                                                        <Typography
-                                                            variant="caption"
-                                                            fontWeight="bold"
-                                                        >
-                                                            {getEntityLabel(
-                                                                "contact"
-                                                            )}{" "}
-                                                            (
-                                                            {
-                                                                groupedResults
-                                                                    .contact
-                                                                    .length
-                                                            }
-                                                            )
-                                                        </Typography>
-                                                    </Box>
-                                                </ListSubheader>
-                                                {groupedResults.contact.map(
-                                                    (result) => {
-                                                        const globalIndex =
-                                                            filteredResults.indexOf(
-                                                                result
-                                                            );
-                                                        return renderResultOption(
-                                                            result,
-                                                            globalIndex,
-                                                            {}
-                                                        );
-                                                    }
-                                                )}
-                                            </>
-                                        )}
-                                        {groupedResults.dispute.length > 0 && (
-                                            <>
-                                                <ListSubheader
-                                                    sx={{
-                                                        direction:
-                                                            i18n.language ===
-                                                                "he"
-                                                                ? "rtl"
-                                                                : "ltr",
-                                                        flexDirection:
-                                                            i18n.language ===
-                                                                "he"
-                                                                ? "row-reverse"
-                                                                : "row",
-                                                        backgroundColor:
-                                                            theme.palette
-                                                                .background
-                                                                .default,
-                                                    }}
-                                                >
-                                                    <Box
-                                                        sx={{
-                                                            display: "flex",
-                                                            alignItems:
-                                                                "center",
-                                                            gap: 1,
-                                                            color: "primary.main",
-                                                            flexDirection:
-                                                                i18n.language ===
-                                                                    "he"
-                                                                    ? "row-reverse"
-                                                                    : "row",
-                                                        }}
-                                                    >
-                                                        {getEntityIcon(
-                                                            "dispute",
-                                                            {}
-                                                        )}
-                                                        <Typography
-                                                            variant="caption"
-                                                            fontWeight="bold"
-                                                        >
-                                                            {getEntityLabel(
-                                                                "dispute"
-                                                            )}{" "}
-                                                            (
-                                                            {
-                                                                groupedResults
-                                                                    .dispute
-                                                                    .length
-                                                            }
-                                                            )
-                                                        </Typography>
-                                                    </Box>
-                                                </ListSubheader>
-                                                {groupedResults.dispute.map(
-                                                    (result) => {
-                                                        const globalIndex =
-                                                            filteredResults.indexOf(
-                                                                result
-                                                            );
-                                                        return renderResultOption(
-                                                            result,
-                                                            globalIndex,
-                                                            {}
-                                                        );
-                                                    }
-                                                )}
-                                            </>
-                                        )}
-                                    </>
-                                )}
-                            {searchTerm &&
-                                hasResults &&
-                                filteredResults.length === 0 && (
-                                    <Box
-                                        sx={{
-                                            p: 3,
-                                            textAlign: "center",
-                                            direction:
-                                                i18n.language === "he"
-                                                    ? "rtl"
-                                                    : "ltr",
-                                        }}
-                                    >
-                                        <Typography
-                                            variant="body2"
-                                            color="text.secondary"
-                                            sx={{
-                                                mb: 1,
-                                                textAlign:
-                                                    i18n.language === "he"
-                                                        ? "right"
-                                                        : "left",
-                                            }}
-                                        >
-                                            {t(
-                                                "messages.no_results_match_filters",
-                                                "No results match your selected filters"
-                                            )}
-                                        </Typography>
-                                        <Typography
-                                            variant="caption"
-                                            color="text.secondary"
-                                            sx={{
-                                                textAlign:
-                                                    i18n.language === "he"
-                                                        ? "right"
-                                                        : "left",
-                                            }}
-                                        >
-                                            {t(
-                                                "messages.click_filters_to_enable",
-                                                "Click the filter chips above to enable more result types"
-                                            )}
-                                        </Typography>
-                                    </Box>
-                                )}
-                        </Box>
-                        {/* Preview Column */}
-                        {hoveredResult && !isMobile && (
-                            <Box
-                                component="div"
-                                sx={{
-                                    width: "250px",
-                                    flexShrink: 0,
-                                    order: i18n.language === "he" ? 2 : 2, // Preview: order 2 (appears on left in RTL)
-                                    borderLeft:
-                                        i18n.language === "he"
-                                            ? "none"
-                                            : `1px solid ${theme.palette.divider}`,
-                                    borderRight:
-                                        i18n.language === "he"
-                                            ? `1px solid ${theme.palette.divider}`
-                                            : "none",
-                                    backgroundColor:
-                                        theme.palette.background.paper,
-                                    overflowY: "auto",
-                                    maxHeight: "400px",
-                                    p: 2,
-                                    direction:
-                                        i18n.language === "he" ? "rtl" : "ltr",
-                                }}
-                            >
-                                <Box
-                                    sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 1,
-                                        mb: 1,
-                                        color: "primary.main",
-                                        flexDirection:
-                                            i18n.language === "he"
-                                                ? "row-reverse"
-                                                : "row",
-                                        width: "100%",
-                                    }}
-                                >
-                                    <Typography
-                                        variant="body1"
-                                        fontWeight="bold"
-                                        sx={{
-                                            fontSize: "1.1rem",
-                                            textAlign:
-                                                i18n.language === "he"
-                                                    ? "right"
-                                                    : "left",
-                                            direction:
-                                                i18n.language === "he"
-                                                    ? "rtl"
-                                                    : "ltr",
-                                            flex: 1,
-                                            width: "100%",
-                                        }}
-                                    >
-                                        {highlightText(
-                                            hoveredResult.name,
-                                            searchTerm || debouncedSearch
-                                        )}
-                                    </Typography>
-                                </Box>
-                                {/* Show customer code at the top for customers */}
-                                {hoveredResult.type === "customer" &&
-                                    hoveredResult.metadata?.customer_number && (
-                                        <Typography
-                                            variant="caption"
-                                            sx={{
-                                                display: "block",
-                                                mb: 1,
-                                                textAlign:
-                                                    i18n.language === "he"
-                                                        ? "right"
-                                                        : "left",
-                                                direction:
-                                                    i18n.language === "he"
-                                                        ? "rtl"
-                                                        : "ltr",
-                                            }}
-                                        >
-                                            <strong>
-                                                {t("fields.customer_code", {
-                                                    ns: "customers",
-                                                    defaultValue:
-                                                        "Customer Code",
-                                                })}
-                                                :
-                                            </strong>{" "}
-                                            {highlightText(
-                                                String(
-                                                    hoveredResult.metadata
-                                                        .customer_number
-                                                ),
-                                                searchTerm || debouncedSearch
-                                            )}
-                                        </Typography>
-                                    )}
-                                {/* Show parent customer for customers */}
-                                {hoveredResult.type === "customer" &&
-                                    hoveredResult.metadata
-                                        ?.parent_customer_name && (
-                                        <Typography
-                                            variant="caption"
-                                            sx={{
-                                                display: "block",
-                                                mb: 1,
-                                                textAlign:
-                                                    i18n.language === "he"
-                                                        ? "right"
-                                                        : "left",
-                                                direction:
-                                                    i18n.language === "he"
-                                                        ? "rtl"
-                                                        : "ltr",
-                                            }}
-                                        >
-                                            <strong>
-                                                {t("fields.parent_customer", {
-                                                    ns: "customers",
-                                                    defaultValue:
-                                                        "Parent Customer",
-                                                })}
-                                                :
-                                            </strong>{" "}
-                                            {highlightText(
-                                                hoveredResult.metadata
-                                                    .parent_customer_name,
-                                                searchTerm || debouncedSearch
-                                            )}
-                                        </Typography>
-                                    )}
-                                {/* Show category for customers */}
-                                {hoveredResult.type === "customer" &&
-                                    formatCategory(
-                                        hoveredResult.metadata?.current_category
-                                    ) && (
-                                        <Typography
-                                            variant="caption"
-                                            sx={{
-                                                display: "block",
-                                                mb: 1,
-                                                textAlign:
-                                                    i18n.language === "he"
-                                                        ? "right"
-                                                        : "left",
-                                                direction:
-                                                    i18n.language === "he"
-                                                        ? "rtl"
-                                                        : "ltr",
-                                            }}
-                                        >
-                                            <strong>
-                                                {t("fields.category", {
-                                                    ns: "customers",
-                                                    defaultValue: "Category",
-                                                })}
-                                                :
-                                            </strong>{" "}
-                                            {formatCategory(
-                                                hoveredResult.metadata
-                                                    ?.current_category
-                                            )}
-                                        </Typography>
-                                    )}
-                                {/* Show company name at the top for contacts */}
-                                {hoveredResult.type === "contact" &&
-                                    hoveredResult.metadata?.company_name && (
-                                        <Typography
-                                            variant="caption"
-                                            sx={{
-                                                display: "block",
-                                                mb: 1,
-                                                textAlign:
-                                                    i18n.language === "he"
-                                                        ? "right"
-                                                        : "left",
-                                                direction:
-                                                    i18n.language === "he"
-                                                        ? "rtl"
-                                                        : "ltr",
-                                            }}
-                                        >
-                                            <strong>
-                                                {t("fields.company_name", {
-                                                    ns: "contacts",
-                                                    defaultValue:
-                                                        "Company Name",
-                                                })}
-                                                :
-                                            </strong>{" "}
-                                            {highlightText(
-                                                hoveredResult.metadata
-                                                    .company_name,
-                                                searchTerm || debouncedSearch
-                                            )}
-                                        </Typography>
-                                    )}
-                                {hoveredResult.subtitle &&
-                                    hoveredResult.type !== "contact" &&
-                                    hoveredResult.type !== "customer" && (
-                                        <Typography
-                                            variant="caption"
-                                            color="text.secondary"
-                                            sx={{
-                                                display: "block",
-                                                mb: 1,
-                                                textAlign:
-                                                    i18n.language === "he"
-                                                        ? "right"
-                                                        : "left",
-                                                direction:
-                                                    i18n.language === "he"
-                                                        ? "rtl"
-                                                        : "ltr",
-                                            }}
-                                        >
-                                            {hoveredResult.subtitle}
-                                        </Typography>
-                                    )}
-                                {/* Show status and total overdue amount for customers */}
-                                {hoveredResult.type === "customer" &&
-                                    hoveredResult.metadata && (
-                                        <Box sx={{ mt: 1, mb: 1 }}>
-                                            {hoveredResult.metadata
-                                                .collection_status && (
-                                                    <Typography
-                                                        variant="caption"
-                                                        sx={{
-                                                            display: "block",
-                                                            mb: 0.5,
-                                                            textAlign:
-                                                                i18n.language ===
-                                                                    "he"
-                                                                    ? "right"
-                                                                    : "left",
-                                                            direction:
-                                                                i18n.language ===
-                                                                    "he"
-                                                                    ? "rtl"
-                                                                    : "ltr",
-                                                        }}
-                                                    >
-                                                        <strong>
-                                                            {t("fields.status", {
-                                                                ns: "common",
-                                                                defaultValue:
-                                                                    "Status",
-                                                            })}
-                                                            :
-                                                        </strong>{" "}
-                                                        {highlightText(
-                                                            capitalizeFirstLetter(
-                                                                String(
-                                                                    hoveredResult
-                                                                        .metadata
-                                                                        .collection_status
-                                                                )
-                                                            ),
-                                                            searchTerm ||
-                                                            debouncedSearch
-                                                        )}
-                                                    </Typography>
-                                                )}
-                                            {hoveredResult.metadata
-                                                .total_invoices_overdue_formatted && (
-                                                    <Typography
-                                                        variant="caption"
-                                                        sx={{
-                                                            display: "block",
-                                                            mb: 0.5,
-                                                            textAlign:
-                                                                i18n.language ===
-                                                                    "he"
-                                                                    ? "right"
-                                                                    : "left",
-                                                            direction:
-                                                                i18n.language ===
-                                                                    "he"
-                                                                    ? "rtl"
-                                                                    : "ltr",
-                                                        }}
-                                                    >
-                                                        <strong>
-                                                            {t(
-                                                                "fields.total_outstanding_amount",
-                                                                {
-                                                                    ns: "customers",
-                                                                    defaultValue:
-                                                                        "Total Overdue Amount",
-                                                                }
-                                                            )}
-                                                            :
-                                                        </strong>{" "}
-                                                        {(() => {
-                                                            // If it's already a formatted string, use it; otherwise format it
-                                                            const value =
-                                                                hoveredResult
-                                                                    .metadata
-                                                                    .total_invoices_overdue;
-                                                            if (
-                                                                typeof value ===
-                                                                "number"
-                                                            ) {
-                                                                const currencyCode =
-                                                                    hoveredResult
-                                                                        .metadata
-                                                                        ?.currency ||
-                                                                    hoveredResult
-                                                                        .metadata
-                                                                        ?.currency_code ||
-                                                                    session?.user
-                                                                        ?.currency ||
-                                                                    "USD";
-                                                                // Use user's locale from session, or fallback to i18n language
-                                                                const userLocale =
-                                                                    session?.user
-                                                                        ?.locale;
-                                                                const userLanguage =
-                                                                    session?.user
-                                                                        ?.language;
-                                                                let locale =
-                                                                    "en-US";
-                                                                if (userLocale) {
-                                                                    locale =
-                                                                        userLocale;
-                                                                } else if (
-                                                                    userLanguage ===
-                                                                    "Hebrew"
-                                                                ) {
-                                                                    locale =
-                                                                        "he-IL";
-                                                                } else if (
-                                                                    i18n.language ===
-                                                                    "he"
-                                                                ) {
-                                                                    locale =
-                                                                        "he-IL";
-                                                                }
-                                                                return formatCurrencyWithRTLSupport(
-                                                                    value,
-                                                                    currencyCode,
-                                                                    locale,
-                                                                    i18n.language
-                                                                );
-                                                            }
-                                                            return hoveredResult
-                                                                .metadata
-                                                                .total_invoices_overdue_formatted;
-                                                        })()}
-                                                    </Typography>
-                                                )}
-                                        </Box>
-                                    )}
-                                {hoveredResult.metadata && (
-                                    <Box sx={{ mt: 1 }}>
-                                        {Object.entries(hoveredResult.metadata)
-                                            .filter(([key, value]) => {
-                                                const formatted =
-                                                    formatMetadataValue(
-                                                        key,
-                                                        value,
-                                                        hoveredResult.metadata,
-                                                        hoveredResult.type
-                                                    );
-                                                const excludedKeys = [
-                                                    "type",
-                                                    "customer_number",
-                                                    "invoice_number",
-                                                    "dispute_id",
-                                                    "collection_status",
-                                                    "total_invoices_overdue",
-                                                    "total_invoices_overdue_formatted",
-                                                    "company_name",
-                                                    "parent_customer_name",
-                                                    "current_category",
-                                                ];
-                                                // Exclude amount_formatted for invoices
-                                                if (
-                                                    hoveredResult.type ===
-                                                    "invoice" &&
-                                                    key === "amount_formatted"
-                                                ) {
-                                                    return false;
-                                                }
-                                                return (
-                                                    formatted &&
-                                                    !excludedKeys.includes(key)
-                                                );
-                                            })
-                                            .slice(0, 5)
-                                            .map(([key, value]) => {
-                                                const formatted =
-                                                    formatMetadataValue(
-                                                        key,
-                                                        value,
-                                                        hoveredResult.metadata,
-                                                        hoveredResult.type
-                                                    );
-                                                if (!formatted) return null;
-                                                const label =
-                                                    translateMetadataField(
-                                                        key,
-                                                        hoveredResult.type
-                                                    );
-                                                return (
-                                                    <Typography
-                                                        key={key}
-                                                        variant="caption"
-                                                        sx={{
-                                                            display: "block",
-                                                            mb: 0.5,
-                                                            textAlign:
-                                                                i18n.language ===
-                                                                    "he"
-                                                                    ? "right"
-                                                                    : "left",
-                                                            direction:
-                                                                i18n.language ===
-                                                                    "he"
-                                                                    ? "rtl"
-                                                                    : "ltr",
-                                                        }}
-                                                    >
-                                                        <strong>
-                                                            {label}:
-                                                        </strong>{" "}
-                                                        {typeof formatted ===
-                                                            "string" &&
-                                                            (searchTerm ||
-                                                                debouncedSearch)
-                                                            ? highlightText(
-                                                                formatted,
-                                                                searchTerm ||
-                                                                debouncedSearch
-                                                            )
-                                                            : formatted}
-                                                    </Typography>
-                                                );
-                                            })}
-                                    </Box>
-                                )}
-                            </Box>
-                        )}
-                    </Box>
-                )}
+                slots={{
+                    listbox: ListboxComponent,
+                    paper: PaperComponent,
+                    popper: StablePopperComponent,
+                }}
+                slotProps={{
+                    listbox: {
+                        // Force paper/list updates when preview opens
+                        "data-preview-open": previewOpen ? "true" : "false",
+                    } as React.HTMLAttributes<HTMLUListElement>,
+                    paper: {
+                        sx: {
+                            width: dropdownPanelWidth,
+                            minWidth: dropdownPanelWidth,
+                            maxWidth: dropdownPanelWidth,
+                            overflow: "hidden",
+                        },
+                    },
+                }}
                 renderInput={(params) => (
                     <TextField
                         {...params}
@@ -2840,7 +2816,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         )}
                         aria-expanded={isOpen}
                         aria-autocomplete="list"
-                        dir={i18n.language === "he" ? "rtl" : "ltr"}
+                        dir={isRtl ? "rtl" : "ltr"}
                         InputProps={{
                             ...params.InputProps,
                             className: [
@@ -2851,9 +2827,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                 .join(" "),
                             endAdornment: null, // Remove dropdown icon
                             startAdornment:
-                                i18n.language === "he" ? (
+                                isRtl ? (
                                     <>
-                                        {isLoading ? (
+                                        {showSearchSpinner ? (
                                             <InputAdornment position="start">
                                                 <CircularProgress
                                                     color="inherit"
@@ -2880,7 +2856,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                                 }}
                                             />
                                         </InputAdornment>
-                                        {isLoading ? (
+                                        {showSearchSpinner ? (
                                             <InputAdornment position="end">
                                                 <CircularProgress
                                                     color="inherit"
@@ -2894,8 +2870,10 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                     />
                 )}
                 renderOption={(props, option) => {
-                    // Use the helper function for consistency
-                    const index = displayResults.indexOf(option);
+                    const index =
+                        displayResultIndexByKey.get(
+                            `${option.type}-${option.id}`
+                        ) ?? -1;
                     return renderResultOption(option, index, props);
                 }}
                 noOptionsText={
@@ -2905,7 +2883,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                             sx={{
                                 m: 1,
                                 direction:
-                                    i18n.language === "he" ? "rtl" : "ltr",
+                                    isRtl ? "rtl" : "ltr",
                             }}
                         >
                             {t(
@@ -2930,9 +2908,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         <Box
                             sx={{
                                 direction:
-                                    `${i18n.language === "he" ? "rtl" : "ltr"} !important` as any,
+                                    `${isRtl ? "rtl" : "ltr"} !important` as any,
                                 textAlign:
-                                    `${i18n.language === "he" ? "right" : "left"} !important` as any,
+                                    `${isRtl ? "right" : "left"} !important` as any,
                                 width: "100% !important",
                                 minWidth: "100% !important",
                                 maxWidth: "100% !important",
@@ -2945,9 +2923,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                 component="span"
                                 sx={{
                                     direction:
-                                        `${i18n.language === "he" ? "rtl" : "ltr"} !important` as any,
+                                        `${isRtl ? "rtl" : "ltr"} !important` as any,
                                     textAlign:
-                                        `${i18n.language === "he" ? "right" : "left"} !important` as any,
+                                        `${isRtl ? "right" : "left"} !important` as any,
                                     display: "block",
                                     width: "100%",
                                 }}
@@ -2962,7 +2940,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         <Box
                             sx={{
                                 direction:
-                                    i18n.language === "he" ? "rtl" : "ltr",
+                                    isRtl ? "rtl" : "ltr",
                             }}
                         >
                             {/* Show header with filter chips when filters are active but no results match */}
@@ -2984,7 +2962,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                             sx={{
                                                 mb: 1,
                                                 direction:
-                                                    i18n.language === "he"
+                                                    isRtl
                                                         ? "rtl"
                                                         : "ltr",
                                             }}
@@ -2999,7 +2977,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                             color="text.secondary"
                                             sx={{
                                                 direction:
-                                                    i18n.language === "he"
+                                                    isRtl
                                                         ? "rtl"
                                                         : "ltr",
                                             }}
@@ -3023,7 +3001,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                         color="text.secondary"
                                         sx={{
                                             direction:
-                                                i18n.language === "he"
+                                                isRtl
                                                     ? "rtl"
                                                     : "ltr",
                                         }}
@@ -3040,7 +3018,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                             mt: 1,
                                             display: "block",
                                             direction:
-                                                i18n.language === "he"
+                                                isRtl
                                                     ? "rtl"
                                                     : "ltr",
                                         }}
@@ -3063,7 +3041,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                         ),
                                         borderRadius: 1,
                                         direction:
-                                            i18n.language === "he"
+                                            isRtl
                                                 ? "rtl"
                                                 : "ltr",
                                     }}
@@ -3075,11 +3053,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                             display: "block",
                                             mb: 0.5,
                                             direction:
-                                                i18n.language === "he"
+                                                isRtl
                                                     ? "rtl"
                                                     : "ltr",
                                             textAlign:
-                                                i18n.language === "he"
+                                                isRtl
                                                     ? "right"
                                                     : "left",
                                         }}
@@ -3094,22 +3072,22 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                                         component="ul"
                                         sx={{
                                             textAlign:
-                                                i18n.language === "he"
+                                                isRtl
                                                     ? "right"
                                                     : "left",
                                             direction:
-                                                i18n.language === "he"
+                                                isRtl
                                                     ? "rtl"
                                                     : "ltr",
-                                            pl: i18n.language === "he" ? 0 : 2,
-                                            pr: i18n.language === "he" ? 2 : 0,
+                                            pl: isRtl ? 0 : 2,
+                                            pr: isRtl ? 2 : 0,
                                             "& li": {
                                                 textAlign:
-                                                    i18n.language === "he"
+                                                    isRtl
                                                         ? "right"
                                                         : "left",
                                                 direction:
-                                                    i18n.language === "he"
+                                                    isRtl
                                                         ? "rtl"
                                                         : "ltr",
                                             },
@@ -3151,7 +3129,6 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                         ))}
                     </Box>
                 }
-                PopperComponent={CustomPopper}
             />
         </Box>
     );

@@ -1,7 +1,9 @@
 import type { ImportType } from "@/types/db";
 
 import type {
+    BillingConnectorConfig,
     ConnectorSyncStatePublic,
+    PreviewSyncResponse,
     SyncRunSummary,
 } from "@/shared/services/billingConnectorService";
 
@@ -82,9 +84,9 @@ const BACKFILL_PROGRESS_STEP_TOOLTIPS: Record<BackfillProgressRowKey, string> =
         Customer:
             "Pulls customer master records from the ERP and creates or updates them in Archaser.",
         Payment:
-            "Pulls payment and receipt lines from the ERP. Payments may stay deferred until their invoice exists.",
+            "Pulls payment and receipt lines from the ERP. Counter is imported / pulled (DB writes vs ERP rows).",
         Invoice:
-            "Pulls invoice lines from the ERP using the backfill start date and pull filters.",
+            "Pulls invoice lines from the ERP. Counter is imported / pulled (DB writes vs ERP rows).",
         Contact:
             "Pulls customer contact people from the ERP and links them to customers.",
         Policy:
@@ -140,7 +142,7 @@ export interface EntityProgressRow {
     skipped?: number;
     /** Rows removed during clear-before-import (entity or Deleting… row). */
     deleted?: number;
-    /** Sub-line for tail steps, e.g. "Replaying AR history · 1,240 / 2,027 events". */
+    /** Sub-line for tail steps, e.g. "Applying matured payments · 1,240 / 2,027 payments". */
     detail?: string;
 }
 
@@ -247,21 +249,18 @@ export function applyExplicitActiveStepToRows(
 
 /** Build a running-run subtitle from backend active_step when present. */
 export function resolveBackfillSubtitleFromActiveStep(
-    activeStep: string
+    activeStep: string,
+    _mepBreachStartDate?: string | null
 ): string | null {
     const label = resolveRowLabelForActiveStep(activeStep);
-    if (label === BACKFILL_DELETING_LABEL) {
-        return "Deleting… · Actions are disabled until this finishes";
-    }
-    if (label === BACKFILL_LINK_PAYMENTS_LABEL) {
-        return "Linking payments to invoices… · Actions are disabled until this finishes";
-    }
-    const tailStep = BACKFILL_TAIL_STEPS.find((step) => step.label === label);
-    if (tailStep) {
-        return `${tailStep.label}… · Actions are disabled until this finishes`;
-    }
-    if (BACKFILL_ENTITY_ORDER.includes(label as ImportType)) {
-        return `Importing ${label}… · Actions are disabled until this finishes`;
+    if (
+        label === BACKFILL_DELETING_LABEL ||
+        label === BACKFILL_LINK_PAYMENTS_LABEL ||
+        label === BACKFILL_AR_REPLAY_LABEL ||
+        BACKFILL_TAIL_STEPS.some((step) => step.label === label) ||
+        BACKFILL_ENTITY_ORDER.includes(label as ImportType)
+    ) {
+        return "Actions are disabled until this finishes";
     }
     return null;
 }
@@ -861,9 +860,22 @@ function formatMepBreachStartDate(value: string | null | undefined): string | nu
     });
 }
 
-function formatTailStepDetail(
-    detail: EntityStatSlice["detail"],
+/**
+ * Section subtitle while AR replay runs — names the MEP breach window so the
+ * event counter on the row is not mistaken for full customer history.
+ */
+export function formatArReplayProgressSubtitle(
     mepBreachStartDate?: string | null
+): string {
+    const from = formatMepBreachStartDate(mepBreachStartDate);
+    if (from) {
+        return `Replaying AR history from ${from}`;
+    }
+    return "Replaying AR history";
+}
+
+function formatTailStepDetail(
+    detail: EntityStatSlice["detail"]
 ): string | undefined {
     if (!detail) {
         return undefined;
@@ -873,13 +885,15 @@ function formatTailStepDetail(
     if (!known) {
         return undefined;
     }
-    let label = known.label;
+    // Replay window text lives on the section subtitle; row only keeps counts.
     if (detail.step === "replay") {
-        const from = formatMepBreachStartDate(mepBreachStartDate);
-        if (from) {
-            label = `${label} from ${from}`;
+        if (detail.total == null || detail.total <= 0) {
+            return undefined;
         }
+        const processed = detail.processed ?? 0;
+        return `${processed.toLocaleString()} / ${detail.total.toLocaleString()} ${known.unit}`;
     }
+    const label = known.label;
     if (detail.total == null || detail.total <= 0) {
         return label;
     }
@@ -895,7 +909,6 @@ function buildTailStepRow(params: {
     label: BackfillProgressRowKey;
     slice: EntityStatSlice | undefined;
     runFinished: boolean;
-    mepBreachStartDate?: string | null;
 }): EntityProgressRow {
     const slice = params.slice;
     if (!slice?.status) {
@@ -942,9 +955,7 @@ function buildTailStepRow(params: {
     }
 
     if (slice.status === "queued") {
-        const detail =
-            formatTailStepDetail(slice.detail, params.mepBreachStartDate) ??
-            "Queued";
+        const detail = formatTailStepDetail(slice.detail) ?? "Queued";
         return {
             entity_type: params.label,
             phase: "queued",
@@ -959,10 +970,7 @@ function buildTailStepRow(params: {
         };
     }
 
-    const detailText = formatTailStepDetail(
-        slice.detail,
-        params.mepBreachStartDate
-    );
+    const detailText = formatTailStepDetail(slice.detail);
     // Determinate whenever total is known — including 0% at the start.
     const runningPercent =
         total != null ? clampPercent(processed, total) : null;
@@ -994,7 +1002,6 @@ function appendTailStepRows(params: {
     stats: SyncRunSummary["entity_stats"] | undefined;
     runFinished: boolean;
     enabledEntities: ImportType[];
-    mepBreachStartDate?: string | null;
 }): EntityProgressRow[] {
     if (!shouldShowArTailSteps(params.enabledEntities)) {
         return params.rows;
@@ -1006,7 +1013,6 @@ function appendTailStepRows(params: {
             label: step.label,
             slice: stats[step.key],
             runFinished: params.runFinished,
-            mepBreachStartDate: params.mepBreachStartDate,
         })
     );
     return tailRows.length > 0 ? [...params.rows, ...tailRows] : params.rows;
@@ -1133,21 +1139,6 @@ function entityCompletedInCurrentRun(
     );
 }
 
-let lastBackfillProgressDebugFingerprint = "";
-
-/** Dev-only: log why the progress panel picked the active entity (deduped). */
-function logBackfillProgressDebug(payload: Record<string, unknown>): void {
-    if (process.env.NODE_ENV !== "development") {
-        return;
-    }
-    const fingerprint = JSON.stringify(payload);
-    if (fingerprint === lastBackfillProgressDebugFingerprint) {
-        return;
-    }
-    lastBackfillProgressDebugFingerprint = fingerprint;
-    console.log("[BackfillImportProgress] progress-debug:", payload);
-}
-
 /**
  * Build per-entity rows while a backfill execution is RUNNING.
  * Always lists every enabled entity. Active entity = first that is not
@@ -1172,8 +1163,6 @@ export function buildRunningEntityProgressRows(params: {
     runStartedAt?: string | null;
     /** Correlates browser console logs with backend execution id. */
     runId?: string | null;
-    /** Names the replay window in the AR replay sub-line. */
-    mepBreachStartDate?: string | null;
     /**
      * Start was requested with clear-before-import — show Deleting… immediately
      * even before the first purge progress patch arrives.
@@ -1407,18 +1396,24 @@ export function buildRunningEntityProgressRows(params: {
               : null;
 
         if (completed) {
+            const success = resolveCompletedSuccessCount(
+                entityStats,
+                pulled,
+                true
+            );
             return {
                 entity_type: entity,
                 phase: "done" as const,
                 records_pulled: pulled,
                 total_records: total,
-                progress_percent: 100,
+                progress_percent:
+                    entity === "Invoice" || entity === "Payment"
+                        ? pulled > 0
+                            ? clampPercent(success ?? 0, pulled)
+                            : 100
+                        : 100,
                 last_error: null,
-                success: resolveCompletedSuccessCount(
-                    entityStats,
-                    pulled,
-                    true
-                ),
+                success,
                 failed: hasMeaningfulEntityStats(entityStats)
                     ? entityStats?.failed
                     : 0,
@@ -1446,7 +1441,13 @@ export function buildRunningEntityProgressRows(params: {
                 records_pulled: pulled,
                 total_records: total,
                 progress_percent:
-                    total != null ? clampPercent(pulled, total) : null,
+                    entity === "Invoice" || entity === "Payment"
+                        ? pulled > 0
+                            ? clampPercent(entityStats?.success ?? 0, pulled)
+                            : null
+                        : total != null
+                          ? clampPercent(pulled, total)
+                          : null,
                 last_error: error,
                 success: entityStats?.success,
                 failed: entityStats?.failed,
@@ -1477,45 +1478,6 @@ export function buildRunningEntityProgressRows(params: {
           )
         : entityRows;
 
-    logBackfillProgressDebug({
-        runId: params.runId ?? null,
-        runStartedAt: runStartedAt ?? null,
-        enabledEntities: ordered,
-        runHasProgress,
-        hasFreshPlaceholderStats,
-        firstIncompleteIndex,
-        firstIncompleteEntity:
-            firstIncompleteIndex >= 0 ? ordered[firstIncompleteIndex] : null,
-        hasCompletedEntityBeforeFrontierInCurrentRun,
-        resumeFromCheckpoint,
-        useLiveOrCheckpoint,
-        lastTouchedIndex,
-        lastTouchedEntity:
-            lastTouchedIndex >= 0 ? ordered[lastTouchedIndex] : null,
-        activeIndex,
-        activeEntity: activeIndex >= 0 ? ordered[activeIndex] : null,
-        entityStatsKeys: Object.keys(stats),
-        entityStatsPulled: Object.fromEntries(
-            ordered.map((entity) => [entity, stats[entity]?.pulled ?? null])
-        ),
-        syncStateSummary: ordered.map((entity) => {
-            const state = byType.get(entity);
-            return {
-                entity,
-                backfill_completed: state?.backfill_completed ?? false,
-                backfill_cursor_present: state?.backfill_cursor_present ?? false,
-                backfill_records_pulled: state?.backfill_records_pulled ?? 0,
-                last_attempt_at: state?.last_attempt_at ?? null,
-                touchedInRun: syncStateTouchedInRun(state, runStartedAt),
-                completedInCurrentRun: entityCompletedInCurrentRun(
-                    state,
-                    runStartedAt
-                ),
-            };
-        }),
-        rowPhases: entityRows.map((row) => [row.entity_type, row.phase]),
-    });
-
     const rows = appendTailStepRows({
         rows: shouldShowPurgeProgressRow(stats, expectPurge)
             ? prependDeletingRow(
@@ -1530,7 +1492,6 @@ export function buildRunningEntityProgressRows(params: {
         stats,
         runFinished: false,
         enabledEntities: ordered,
-        mepBreachStartDate: params.mepBreachStartDate,
     });
 
     const activeStep =
@@ -1667,11 +1628,15 @@ export function buildFinishedEntityProgressRows(params: {
             records_pulled: pulled,
             total_records: total,
             progress_percent:
-                resolvedPhase === "done"
-                    ? 100
-                    : total != null
-                      ? clampPercent(pulled, total)
-                      : null,
+                entity === "Invoice" || entity === "Payment"
+                    ? pulled > 0
+                        ? clampPercent(success ?? 0, pulled)
+                        : null
+                    : resolvedPhase === "done"
+                      ? 100
+                      : total != null
+                        ? clampPercent(pulled, total)
+                        : null,
             last_error: sampleError ?? stateError,
             success,
             failed: failedCount,
@@ -1710,7 +1675,6 @@ export function buildFinishedEntityProgressRows(params: {
         stats,
         runFinished: true,
         enabledEntities: ordered,
-        mepBreachStartDate: params.run.cutover_options?.mep_breach_start_date,
     });
 }
 
@@ -1750,7 +1714,8 @@ export function buildBackfillProgressHeader(params: {
                 (stepRow.phase !== "done" && stepRow.phase !== "failed");
             if (stepStillActive) {
                 const fromStep = resolveBackfillSubtitleFromActiveStep(
-                    params.run.active_step
+                    params.run.active_step,
+                    params.run.cutover_options?.mep_breach_start_date
                 );
                 if (fromStep) {
                     return {
@@ -1761,40 +1726,9 @@ export function buildBackfillProgressHeader(params: {
                 }
             }
         }
-        if (activeRow?.entity_type === BACKFILL_DELETING_LABEL) {
-            return {
-                title: "Backfill progress",
-                subtitle:
-                    "Deleting… · Actions are disabled until this finishes",
-                severity: "info",
-            };
-        }
-        if (activeRow?.entity_type === BACKFILL_LINK_PAYMENTS_LABEL) {
-            return {
-                title: "Backfill progress",
-                subtitle:
-                    "Linking payments to invoices… · Actions are disabled until this finishes",
-                severity: "info",
-            };
-        }
-        const tailStep = BACKFILL_TAIL_STEPS.find(
-            (step) => step.label === activeRow?.entity_type
-        );
-        if (tailStep) {
-            const queuedSuffix =
-                activeRow?.phase === "queued"
-                    ? " (queued for worker)"
-                    : "";
-            return {
-                title: "Backfill progress",
-                subtitle: `${tailStep.label}${queuedSuffix}… · Actions are disabled until this finishes`,
-                severity: "info",
-            };
-        }
-        const current = activeRow?.entity_type ?? "entities";
         return {
             title: "Backfill progress",
-            subtitle: `Importing ${current}… · Actions are disabled until this finishes`,
+            subtitle: "Actions are disabled until this finishes",
             severity: "info",
         };
     }
@@ -1813,18 +1747,11 @@ export function buildBackfillProgressHeader(params: {
     }
 
     if (activeRow) {
-        const tailStep = BACKFILL_TAIL_STEPS.find(
-            (step) => step.label === activeRow.entity_type
-        );
-        if (tailStep) {
-            const queuedSuffix =
-                activeRow.phase === "queued" ? " (queued for worker)" : "";
-            return {
-                title: "Backfill progress",
-                subtitle: `${tailStep.label}${queuedSuffix}… · Actions are disabled until this finishes`,
-                severity: "info",
-            };
-        }
+        return {
+            title: "Backfill progress",
+            subtitle: "Actions are disabled until this finishes",
+            severity: "info",
+        };
     }
 
     if (
@@ -2034,4 +1961,26 @@ export function canStartFirstBackfill(
         return false;
     }
     return entitiesMissingPreview(params).length === 0;
+}
+
+/**
+ * Build per-entity preview_passes from a preview sync response (same rules as
+ * the billing-connector computeEntityPreviewPassed helper).
+ */
+export function previewPassesFromSyncResult(
+    result: Pick<PreviewSyncResponse, "entities" | "completed_at">,
+    existing?: BillingConnectorConfig["preview_passes"]
+): NonNullable<BillingConnectorConfig["preview_passes"]> {
+    const next: NonNullable<BillingConnectorConfig["preview_passes"]> = {
+        ...(existing ?? {}),
+    };
+    const completed_at = result.completed_at;
+    for (const entity of result.entities) {
+        const passed =
+            entity.validation_errors.length === 0 &&
+            entity.sample_rows.length > 0 &&
+            (entity.import_type !== "Invoice" || entity.sorted_preview);
+        next[entity.import_type] = { passed, completed_at };
+    }
+    return next;
 }

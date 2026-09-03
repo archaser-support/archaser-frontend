@@ -132,6 +132,28 @@ function PhaseStatusIcon({ phase }: { phase: EntityProgressPhase }) {
     );
 }
 
+function isInvoiceOrPaymentRow(row: EntityProgressRow): boolean {
+    return row.entity_type === "Invoice" || row.entity_type === "Payment";
+}
+
+function formatFailedSkippedSuffix(
+    row: EntityProgressRow,
+    isLinkPayments: boolean
+): string[] {
+    const parts: string[] = [];
+    if ((row.failed ?? 0) > 0) {
+        parts.push(`${(row.failed ?? 0).toLocaleString()} failed`);
+    }
+    if ((row.skipped ?? 0) > 0) {
+        parts.push(
+            isLinkPayments
+                ? `${(row.skipped ?? 0).toLocaleString()} still deferred`
+                : `${(row.skipped ?? 0).toLocaleString()} skipped`
+        );
+    }
+    return parts;
+}
+
 function formatCounts(row: EntityProgressRow, finished: boolean): string {
     const isLinkPayments =
         row.entity_type === BACKFILL_LINK_PAYMENTS_LABEL;
@@ -168,6 +190,20 @@ function formatCounts(row: EntityProgressRow, finished: boolean): string {
         return row.phase === "running" ? "Deleting…" : "0 deleted";
     }
 
+    // Invoice/Payment: imported (DB writes) / pulled (ERP rows). First number matters.
+    if (isInvoiceOrPaymentRow(row)) {
+        const imported = row.success ?? 0;
+        const pulled = row.records_pulled;
+        const parts = [
+            `${imported.toLocaleString()} / ${pulled.toLocaleString()} imported`,
+        ];
+        if (row.deleted != null && row.deleted > 0) {
+            parts.unshift(`${row.deleted.toLocaleString()} deleted`);
+        }
+        parts.push(...formatFailedSkippedSuffix(row, false));
+        return parts.join(" · ");
+    }
+
     // Prefer N/M whenever a total is known (Link payments, purge, AR tail, etc.).
     if (row.total_records != null) {
         const countLabel = `${row.records_pulled.toLocaleString()} / ${row.total_records.toLocaleString()} ${unit}`;
@@ -177,18 +213,9 @@ function formatCounts(row: EntityProgressRow, finished: boolean): string {
             return detailHasCounts ? row.detail : `${row.detail} · ${countLabel}`;
         }
         if (finished && ((row.failed ?? 0) > 0 || (row.skipped ?? 0) > 0)) {
-            const parts = [countLabel];
-            if ((row.failed ?? 0) > 0) {
-                parts.push(`${(row.failed ?? 0).toLocaleString()} failed`);
-            }
-            if ((row.skipped ?? 0) > 0) {
-                parts.push(
-                    isLinkPayments
-                        ? `${(row.skipped ?? 0).toLocaleString()} still deferred`
-                        : `${(row.skipped ?? 0).toLocaleString()} skipped`
-                );
-            }
-            return parts.join(" · ");
+            return [countLabel, ...formatFailedSkippedSuffix(row, isLinkPayments)].join(
+                " · "
+            );
         }
         return countLabel;
     }
@@ -200,16 +227,7 @@ function formatCounts(row: EntityProgressRow, finished: boolean): string {
         }
         const successCount = row.success ?? row.records_pulled;
         parts.push(`${successCount.toLocaleString()} ${unit}`);
-        if ((row.failed ?? 0) > 0) {
-            parts.push(`${(row.failed ?? 0).toLocaleString()} failed`);
-        }
-        if ((row.skipped ?? 0) > 0) {
-            parts.push(
-                isLinkPayments
-                    ? `${(row.skipped ?? 0).toLocaleString()} still deferred`
-                    : `${(row.skipped ?? 0).toLocaleString()} skipped`
-            );
-        }
+        parts.push(...formatFailedSkippedSuffix(row, isLinkPayments));
         return parts.join(" · ");
     }
 
@@ -276,8 +294,6 @@ export default function BackfillImportProgress({
                   activeStep: run.active_step,
                   runStartedAt: run.started_at,
                   runId: run.id,
-                  mepBreachStartDate:
-                      run.cutover_options?.mep_breach_start_date,
                   expectPurge: expectDeletingStep,
               })
             : buildFinishedEntityProgressRows({
