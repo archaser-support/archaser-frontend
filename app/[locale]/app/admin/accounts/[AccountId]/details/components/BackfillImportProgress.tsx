@@ -52,6 +52,7 @@ import {
     accountCardTitleSx,
     accountSectionIconSx,
 } from "../accountCardStyles";
+import { getBillingAccordionStyles } from "./billingAccordionStyles";
 
 function phaseLabel(phase: EntityProgressPhase): string {
     switch (phase) {
@@ -150,6 +151,10 @@ function formatCounts(row: EntityProgressRow, finished: boolean): string {
         return row.detail ?? "Queued";
     }
 
+    if (row.phase === "waiting" || row.phase === "not_started") {
+        return "—";
+    }
+
     if (isDeleting) {
         if (row.total_records != null) {
             return `${row.records_pulled.toLocaleString()} / ${row.total_records.toLocaleString()} deleted`;
@@ -163,27 +168,38 @@ function formatCounts(row: EntityProgressRow, finished: boolean): string {
         return row.phase === "running" ? "Deleting…" : "0 deleted";
     }
 
-    if (!finished && isTailStep && row.detail) {
-        return row.detail;
-    }
-
-    if (
-        !finished &&
-        isLinkPayments &&
-        row.total_records != null &&
-        row.phase === "running"
-    ) {
-        return `${row.records_pulled.toLocaleString()} / ${row.total_records.toLocaleString()} linked`;
+    // Prefer N/M whenever a total is known (Link payments, purge, AR tail, etc.).
+    if (row.total_records != null) {
+        const countLabel = `${row.records_pulled.toLocaleString()} / ${row.total_records.toLocaleString()} ${unit}`;
+        if (!finished && isTailStep && row.detail) {
+            // Keep the richer sub-step label, but always include the counter.
+            const detailHasCounts = /\d/.test(row.detail);
+            return detailHasCounts ? row.detail : `${row.detail} · ${countLabel}`;
+        }
+        if (finished && ((row.failed ?? 0) > 0 || (row.skipped ?? 0) > 0)) {
+            const parts = [countLabel];
+            if ((row.failed ?? 0) > 0) {
+                parts.push(`${(row.failed ?? 0).toLocaleString()} failed`);
+            }
+            if ((row.skipped ?? 0) > 0) {
+                parts.push(
+                    isLinkPayments
+                        ? `${(row.skipped ?? 0).toLocaleString()} still deferred`
+                        : `${(row.skipped ?? 0).toLocaleString()} skipped`
+                );
+            }
+            return parts.join(" · ");
+        }
+        return countLabel;
     }
 
     if (finished && (row.success != null || row.failed != null)) {
         const parts: string[] = [];
-        if (row.deleted != null && row.deleted > 0 && !isDeleting) {
+        if (row.deleted != null && row.deleted > 0) {
             parts.push(`${row.deleted.toLocaleString()} deleted`);
         }
-        if (row.success != null) {
-            parts.push(`${row.success.toLocaleString()} ${unit}`);
-        }
+        const successCount = row.success ?? row.records_pulled;
+        parts.push(`${successCount.toLocaleString()} ${unit}`);
         if ((row.failed ?? 0) > 0) {
             parts.push(`${(row.failed ?? 0).toLocaleString()} failed`);
         }
@@ -194,24 +210,11 @@ function formatCounts(row: EntityProgressRow, finished: boolean): string {
                     : `${(row.skipped ?? 0).toLocaleString()} skipped`
             );
         }
-        if (parts.length > 0) {
-            return parts.join(" · ");
-        }
+        return parts.join(" · ");
     }
 
-    if (row.total_records != null) {
-        return `${row.records_pulled.toLocaleString()} / ${row.total_records.toLocaleString()}`;
-    }
-
-    if (row.records_pulled > 0) {
-        return `${row.records_pulled.toLocaleString()} ${unit}`;
-    }
-
-    if (row.phase === "waiting" || row.phase === "not_started") {
-        return "—";
-    }
-
-    return isLinkPayments ? "Linking…" : "0 imported";
+    // Priority entity pulls have no ERP total — show the live pulled count.
+    return `${row.records_pulled.toLocaleString()} ${unit}`;
 }
 
 function formatCountsWithEta(
@@ -225,6 +228,11 @@ interface BackfillImportProgressProps {
     run: SyncRunSummary | null;
     enabledEntities: ImportType[];
     syncStates: ConnectorSyncStatePublic[] | undefined;
+    /**
+     * Start requested clear-before-import — show Deleting… before the first
+     * purge progress patch arrives (avoids the list jumping a second later).
+     */
+    expectDeletingStep?: boolean;
     /** Customers still on the worker AR post-ingest queue (connector config). */
     pendingArPostIngestCustomers?: number;
     expanded: boolean;
@@ -236,6 +244,7 @@ export default function BackfillImportProgress({
     run,
     enabledEntities,
     syncStates,
+    expectDeletingStep = false,
     pendingArPostIngestCustomers,
     expanded,
     onExpandedChange,
@@ -264,10 +273,12 @@ export default function BackfillImportProgress({
                   enabledEntities,
                   syncStates,
                   entityStats: run.entity_stats,
+                  activeStep: run.active_step,
                   runStartedAt: run.started_at,
                   runId: run.id,
                   mepBreachStartDate:
                       run.cutover_options?.mep_breach_start_date,
+                  expectPurge: expectDeletingStep,
               })
             : buildFinishedEntityProgressRows({
                   enabledEntities,
@@ -278,7 +289,14 @@ export default function BackfillImportProgress({
             baseRows,
             pendingArPostIngestCustomers
         );
-    }, [enabledEntities, isRunning, pendingArPostIngestCustomers, run, syncStates]);
+    }, [
+        enabledEntities,
+        expectDeletingStep,
+        isRunning,
+        pendingArPostIngestCustomers,
+        run,
+        syncStates,
+    ]);
 
     const rateSamplesRef = useRef<ProgressRateSample[]>([]);
     const trackedRunIdRef = useRef<string | null>(null);
@@ -352,60 +370,12 @@ export default function BackfillImportProgress({
         return buildBackfillProgressHeader({ run, rows });
     }, [run, rows]);
 
-    const billingAccordionSx = {
-        border: "1px solid",
-        borderColor: "divider",
-        borderRadius: pillRadiusPx,
-        overflow: "hidden",
-        bgcolor: "background.paper",
-        "&:before": { display: "none" },
-        "&:first-of-type, &:last-of-type, &:not(:first-of-type)": {
-            borderRadius: pillRadiusPx,
-        },
-        "&.Mui-expanded": {
-            margin: 0,
-        },
-    };
-    const billingAccordionSummarySx = {
-        bgcolor: "background.paper",
-        px: 2,
-        py: 0.75,
-        minHeight: 48,
-        borderTopLeftRadius: pillRadiusPx,
-        borderTopRightRadius: pillRadiusPx,
-        borderBottomLeftRadius: effectiveExpanded ? 0 : pillRadiusPx,
-        borderBottomRightRadius: effectiveExpanded ? 0 : pillRadiusPx,
-        cursor: collapseLocked ? "default" : undefined,
-        ...(collapseLocked
-            ? {
-                  "& .MuiAccordionSummary-expandIconWrapper": {
-                      display: "none",
-                  },
-              }
-            : {}),
-        "& .MuiAccordionSummary-content": {
-            my: 0,
-            alignItems: "center",
-            gap: 1,
-            "&.Mui-expanded": { my: 0 },
-        },
-        "&.Mui-expanded": {
-            minHeight: 48,
-            borderBottomLeftRadius: 0,
-            borderBottomRightRadius: 0,
-        },
-    };
-    const billingAccordionDetailsSx = {
-        p: 0,
-        bgcolor: "background.paper",
-        borderBottomLeftRadius: pillRadiusPx,
-        borderBottomRightRadius: pillRadiusPx,
-    };
-    const billingAccordionContentSx = {
-        px: 2,
-        py: 1.5,
-        "&:last-child": { pb: 1.5 },
-    };
+    const {
+        accordionSx: billingAccordionSx,
+        summarySx: billingAccordionSummarySx,
+        detailsSx: billingAccordionDetailsSx,
+        contentSx: billingAccordionContentSx,
+    } = getBillingAccordionStyles(pillRadiusPx);
 
     return (
         <Card elevation={0} sx={accountCardSx}>
@@ -425,7 +395,9 @@ export default function BackfillImportProgress({
                     expandIcon={
                         collapseLocked ? null : <ExpandMoreIcon />
                     }
-                    sx={billingAccordionSummarySx}
+                    sx={billingAccordionSummarySx(effectiveExpanded, {
+                        collapseLocked,
+                    })}
                 >
                     <SyncIcon sx={accountSectionIconSx} />
                     <Box sx={{ minWidth: 0, flex: 1 }}>
@@ -466,10 +438,15 @@ export default function BackfillImportProgress({
                                             (row.phase === "failed" &&
                                                 row.records_pulled > 0 &&
                                                 Boolean(showLiveProgress)));
+                                    // Indeterminate only while a step is active and we
+                                    // still have no total and no pulled count yet
+                                    // (e.g. first ERP page). Once counts exist, show
+                                    // the number — Priority pulls have no ERP total %.
                                     const showIndeterminateBar =
                                         (row.phase === "running" ||
                                             row.phase === "queued") &&
                                         row.progress_percent == null &&
+                                        row.records_pulled <= 0 &&
                                         Boolean(showLiveProgress);
 
                                     return (

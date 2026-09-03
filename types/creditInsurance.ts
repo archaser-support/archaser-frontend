@@ -18,11 +18,16 @@ export const NO_COVERAGE_REASON_KEYS = [
 export type NoCoverageReasonKey = (typeof NO_COVERAGE_REASON_KEYS)[number];
 
 export const UTILIZATION_DISTRIBUTION_BIN_KEYS = [
-    "0_10",
-    "10_20",
-    "20_50",
-    "50_75",
-    "75_plus",
+    "0_20",
+    "20_40",
+    "40_60",
+    "60_80",
+    "80_100",
+    "100_110",
+    "110_120",
+    "120_130",
+    "130_150",
+    "150_plus",
 ] as const;
 
 export type UtilizationDistributionBinKey =
@@ -326,6 +331,8 @@ export type PortfolioUtilizationDistributionBin = {
     bin: UtilizationDistributionBinKey;
     customerCount: number;
     customerPct: number;
+    usageAmount: number;
+    usagePct: number;
 };
 
 export type PortfolioUtilizationSection = {
@@ -359,6 +366,8 @@ export type PortfolioUtilizationSection = {
     efficiencyB: number | null;
     distribution: PortfolioUtilizationDistributionBin[];
     distributionCustomerCount: number;
+    distributionUsageTotal: number;
+    accountCurrency: string;
     /** Daily portfolio / DCL / Named utilization for the Utilization chart. */
     daily: PortfolioUtilizationDailyPoint[];
     /** Snapshot day used for top customers and distribution; null when none. */
