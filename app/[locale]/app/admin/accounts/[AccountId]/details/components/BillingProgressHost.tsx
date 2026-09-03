@@ -207,7 +207,7 @@ const BillingProgressHost = memo(function BillingProgressHost({
                             disabled={!canManage || importBusy}
                             label="Customer"
                             isHebrew={isHebrew}
-                            helperTooltip="Limits this Start backfill to that customer for all enabled entities. Delete switches still control wipe. Leave empty for the whole account. Resume ignores this field."
+                            helperTooltip="Limits Run preview and Start backfill to that customer for all enabled entities. Delete switches still control wipe. Leave empty for the whole account. Resume ignores this field."
                         />
                     </Box>
                 ) : undefined
