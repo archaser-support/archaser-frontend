@@ -665,13 +665,25 @@ const BillingIntegrationSettings = forwardRef<
         ]
     );
 
-    const backfillMutation = useMutation({
-        mutationFn: (options?: {
+    const backfillMutation = useMutation<
+        | {
+              status?: string;
+              execution_id?: string;
+              sync_mode?: string;
+              trigger?: string;
+          }
+        | undefined,
+        unknown,
+        {
             clear_before_import?: Array<
                 "Customer" | "Contact" | "Invoice" | "Payment"
             >;
             customer_id?: number | null;
-        }) => runBillingConnectorBackfill(accountId, options),
+        },
+        { expectPurge: boolean }
+    >({
+        mutationFn: (options) =>
+            runBillingConnectorBackfill(accountId, options),
         onMutate: (options) => {
             // Reset counters immediately — do not wait for the new RUNNING run.
             const expectPurge =
@@ -684,16 +696,7 @@ const BillingIntegrationSettings = forwardRef<
             setMappingExpanded(false);
             return { expectPurge };
         },
-        onSuccess: (
-            result?: {
-                status?: string;
-                execution_id?: string;
-                sync_mode?: string;
-                trigger?: string;
-            },
-            _variables?: unknown,
-            context?: { expectPurge?: boolean }
-        ) => {
+        onSuccess: (result, _variables, context) => {
             success(
                 result?.status === "RUNNING"
                     ? "Backfill started"
