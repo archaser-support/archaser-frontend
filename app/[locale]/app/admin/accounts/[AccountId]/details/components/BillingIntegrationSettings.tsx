@@ -62,6 +62,7 @@ import {
     entitiesMissingPreview,
     findRunningBackfillRun,
     isPlaceholderBackfillProgressRun,
+    previewPassesFromSyncResult,
     readBackfillProgressSession,
     resolveBackfillProgressRun,
     writeBackfillProgressSession,
@@ -532,7 +533,10 @@ const BillingIntegrationSettings = forwardRef<
     });
 
     const previewMutation = useMutation({
-        mutationFn: () => runBillingConnectorPreviewSync(accountId),
+        mutationFn: (options?: { customer_id?: number | null }) =>
+            runBillingConnectorPreviewSync(accountId, {
+                customer_id: options?.customer_id,
+            }),
         onMutate: () => {
             // Clear previous import progress immediately when Preview starts.
             setProgressUiReset(true);
@@ -545,8 +549,25 @@ const BillingIntegrationSettings = forwardRef<
             setPreviewResult(result);
             previewStaleRef.current = false;
             setPreviewUpToDate(true);
+            // Optimistically apply preview_passes so the primary action flips to
+            // Start backfill immediately (invalidate alone leaves a stale gap).
+            queryClient.setQueryData<BillingConnectorConfig | null>(
+                billingConnectorQueryKey(accountId),
+                (current) => {
+                    if (!current) {
+                        return current;
+                    }
+                    return {
+                        ...current,
+                        preview_passes: previewPassesFromSyncResult(
+                            result,
+                            current.preview_passes
+                        ),
+                    };
+                }
+            );
             void invalidateBillingConnectorQueries(queryClient, accountId, {
-                syncRuns: false,
+                syncRuns: true,
             });
             setEntityWorkspaceTab("preview");
             if (result.go_no_go.passed) {
@@ -558,6 +579,9 @@ const BillingIntegrationSettings = forwardRef<
             }
         },
         onError: (err: unknown) => {
+            void invalidateBillingConnectorQueries(queryClient, accountId, {
+                syncRuns: true,
+            });
             const message =
                 axiosErrorMessage(err) ?? "Preview sync failed";
             showError(message);
@@ -980,6 +1004,7 @@ const BillingIntegrationSettings = forwardRef<
             backfillMutation.isPending ||
             pendingBackfillReset ||
             incrementalMutation.isPending ||
+            previewMutation.isPending ||
             syncInProgress ||
             displayProgressRunActive ||
             deferredArPostIngestPending;
@@ -1001,6 +1026,7 @@ const BillingIntegrationSettings = forwardRef<
         backfillMutation.isPending,
         pendingBackfillReset,
         incrementalMutation.isPending,
+        previewMutation.isPending,
         syncInProgress,
         displayProgressRunActive,
         deferredArPostIngestPending,
@@ -1111,7 +1137,9 @@ const BillingIntegrationSettings = forwardRef<
         }
         switch (actionStage.primaryAction) {
             case "preview":
-                previewMutation.mutate();
+                previewMutation.mutate({
+                    customer_id: clearBeforeImportCustomerId,
+                });
                 break;
             case "start_backfill": {
                 void (async () => {
