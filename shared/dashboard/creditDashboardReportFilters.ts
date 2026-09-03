@@ -39,6 +39,7 @@ export const CREDIT_DASHBOARD_CUSTOMER_REPORT_TYPES = [
     "top_up",
     "top_up_expiring",
     "no_policy_exposure",
+    "utilization_bin",
 ] as const;
 
 export const CREDIT_DASHBOARD_INVOICE_REPORT_TYPES = [
@@ -66,6 +67,7 @@ export const CREDIT_DASHBOARD_CUSTOMER_SYSTEM_REPORT_UNIQUE_NAMES = {
     top_up: "dashboard_credit_customers_top_up",
     top_up_expiring: "dashboard_credit_customers_top_up_expiring",
     no_policy_exposure: "dashboard_credit_customers_no_policy_exposure",
+    utilization_bin: "dashboard_credit_customers_utilization_bin",
 } as const;
 
 export const CREDIT_DASHBOARD_INVOICE_SYSTEM_REPORT_UNIQUE_NAMES = {
@@ -83,6 +85,10 @@ export interface CreditDashboardReportFilterInput {
     termsOverdueOnly?: boolean;
     withinDays?: number | null;
     topUpReason?: string | null;
+    /** utilization_bin key, e.g. 100_110 */
+    utilizationBin?: string | null;
+    /** YYYY-MM-DD as-of snapshot for utilization_bin */
+    asOfDate?: string | null;
 }
 
 export interface CreditDashboardReportFilterResult {
@@ -235,6 +241,15 @@ export function encodeNoPolicyExposureMembershipValue(
         : "no_policy_exposure";
 }
 
+export function encodeUtilizationBinMembershipValue(options: {
+    bin: string;
+    asOfDate: string;
+    includeNoPolicyExposure?: boolean;
+}): string {
+    const base = `utilization_bin:${options.bin}:${options.asOfDate}`;
+    return options.includeNoPolicyExposure === false ? `${base}:0` : base;
+}
+
 export function parseCreditDashboardCustomerMembershipValue(
     value: unknown
 ): {
@@ -246,9 +261,12 @@ export function parseCreditDashboardCustomerMembershipValue(
         | "no_policy_exposure"
         | "top_up"
         | "top_up_expiring"
+        | "utilization_bin"
         | null;
     includeNoPolicyExposure: boolean;
     withinDays: number | null;
+    utilizationBin: string | null;
+    asOfDate: string | null;
 } {
     const raw = value == null ? "" : String(value);
     if (
@@ -262,6 +280,8 @@ export function parseCreditDashboardCustomerMembershipValue(
             type: raw,
             includeNoPolicyExposure: true,
             withinDays: null,
+            utilizationBin: null,
+            asOfDate: null,
         };
     }
     if (raw === "no_policy_exposure") {
@@ -269,6 +289,8 @@ export function parseCreditDashboardCustomerMembershipValue(
             type: "no_policy_exposure",
             includeNoPolicyExposure: true,
             withinDays: null,
+            utilizationBin: null,
+            asOfDate: null,
         };
     }
     if (raw === "no_policy_exposure:0") {
@@ -276,6 +298,8 @@ export function parseCreditDashboardCustomerMembershipValue(
             type: "no_policy_exposure",
             includeNoPolicyExposure: false,
             withinDays: null,
+            utilizationBin: null,
+            asOfDate: null,
         };
     }
     if (raw === "top_up_expiring") {
@@ -283,6 +307,8 @@ export function parseCreditDashboardCustomerMembershipValue(
             type: "top_up_expiring",
             includeNoPolicyExposure: true,
             withinDays: 30,
+            utilizationBin: null,
+            asOfDate: null,
         };
     }
     if (raw.startsWith("top_up_expiring:")) {
@@ -291,12 +317,29 @@ export function parseCreditDashboardCustomerMembershipValue(
             type: "top_up_expiring",
             includeNoPolicyExposure: true,
             withinDays: Number.isFinite(days) ? Math.max(1, days) : 30,
+            utilizationBin: null,
+            asOfDate: null,
+        };
+    }
+    if (raw.startsWith("utilization_bin:")) {
+        const parts = raw.split(":");
+        const bin = parts[1] ?? "";
+        const asOfDate = parts[2] ?? "";
+        const excludeFlag = parts[3];
+        return {
+            type: "utilization_bin",
+            includeNoPolicyExposure: excludeFlag !== "0",
+            withinDays: null,
+            utilizationBin: bin || null,
+            asOfDate: /^\d{4}-\d{2}-\d{2}$/.test(asOfDate) ? asOfDate : null,
         };
     }
     return {
         type: null,
         includeNoPolicyExposure: true,
         withinDays: null,
+        utilizationBin: null,
+        asOfDate: null,
     };
 }
 
@@ -486,6 +529,36 @@ export function buildCreditDashboardReportFilters(
             additionalFilters: customerMembershipFilters(
                 input,
                 encodeTopUpExpiringMembershipValue(input.withinDays)
+            ),
+            useViewBased: true,
+        };
+    }
+
+    if (input.type === "utilization_bin") {
+        const bin = input.utilizationBin?.trim() ?? "";
+        const asOfDate = input.asOfDate?.trim() ?? "";
+        if (!bin || !/^\d{4}-\d{2}-\d{2}$/.test(asOfDate)) {
+            return {
+                isCreditDashboard: false,
+                grain: null,
+                context: null,
+                systemReportUniqueName: null,
+                additionalFilters: [],
+                useViewBased: false,
+            };
+        }
+        return {
+            isCreditDashboard: true,
+            grain,
+            context,
+            systemReportUniqueName,
+            additionalFilters: customerMembershipFilters(
+                input,
+                encodeUtilizationBinMembershipValue({
+                    bin,
+                    asOfDate,
+                    includeNoPolicyExposure: input.includeNoPolicyExposure,
+                })
             ),
             useViewBased: true,
         };

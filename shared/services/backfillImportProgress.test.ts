@@ -8,6 +8,7 @@ import {
     isBackfillSyncRun,
     orderEnabledBackfillEntities,
     resolveBackfillProgressRun,
+    resolveRowLabelForActiveStep,
     canStartFirstBackfill,
 } from "@/shared/services/backfillImportProgress";
 import type {
@@ -358,6 +359,167 @@ describe("backfillImportProgress", () => {
         ]);
         expect(rows[0].records_pulled).toBe(1867);
         expect(rows[1].records_pulled).toBe(0);
+    });
+
+    it("marks Payment Done when Invoice has live stats but Payment sync_state lags", () => {
+        const rows = buildRunningEntityProgressRows({
+            enabledEntities: ["Payment", "Invoice"],
+            syncStates: [
+                syncState({
+                    entity_type: "Payment",
+                    backfill_completed: false,
+                    backfill_records_pulled: 985,
+                    backfill_total_records: 1485,
+                    backfill_cursor_present: true,
+                }),
+                syncState({
+                    entity_type: "Invoice",
+                    backfill_completed: false,
+                    backfill_records_pulled: 500,
+                    backfill_cursor_present: true,
+                }),
+            ],
+            entityStats: {
+                Payment: {
+                    pulled: 985,
+                    success: 985,
+                    failed: 0,
+                    skipped: 0,
+                },
+                Invoice: {
+                    pulled: 2051,
+                    success: 2000,
+                    failed: 0,
+                    skipped: 0,
+                },
+            },
+        });
+
+        expect(rows.map((row) => [row.entity_type, row.phase])).toEqual([
+            ["Payment", "done"],
+            ["Invoice", "running"],
+            ["Link payments", "waiting"],
+            ...waitingTailProgressRows(),
+        ]);
+        expect(rows[0].records_pulled).toBe(985);
+        expect(rows[1].records_pulled).toBe(2051);
+
+        const header = buildBackfillProgressHeader({
+            run: run({ id: "lag-checkpoint", status: "RUNNING" }),
+            rows,
+        });
+        expect(header.subtitle).toContain("Importing Invoice");
+    });
+
+    it("prefers backend active_step over stale Payment checkpoint inference", () => {
+        const rows = buildRunningEntityProgressRows({
+            enabledEntities: ["Payment", "Invoice"],
+            activeStep: "Invoice",
+            syncStates: [
+                syncState({
+                    entity_type: "Payment",
+                    backfill_completed: false,
+                    backfill_records_pulled: 985,
+                    backfill_total_records: 1485,
+                    backfill_cursor_present: true,
+                }),
+                syncState({
+                    entity_type: "Invoice",
+                    backfill_completed: false,
+                    backfill_records_pulled: 500,
+                    backfill_cursor_present: true,
+                }),
+            ],
+            entityStats: {
+                Payment: {
+                    pulled: 985,
+                    success: 985,
+                    failed: 0,
+                    skipped: 0,
+                },
+                Invoice: {
+                    pulled: 500,
+                    success: 480,
+                    failed: 0,
+                    skipped: 0,
+                },
+            },
+        });
+
+        expect(rows.find((row) => row.entity_type === "Payment")?.phase).toBe(
+            "done"
+        );
+        expect(rows.find((row) => row.entity_type === "Invoice")?.phase).toBe(
+            "running"
+        );
+    });
+
+    it("buildBackfillProgressHeader uses active_step when set", () => {
+        const header = buildBackfillProgressHeader({
+            run: run({
+                id: "explicit-step",
+                status: "RUNNING",
+                active_step: "Invoice",
+            }),
+            rows: [],
+        });
+        expect(header.subtitle).toContain("Importing Invoice");
+    });
+
+    it("ignores stale active_step after that step is already Done", () => {
+        const rows = buildRunningEntityProgressRows({
+            enabledEntities: ["Payment", "Invoice"],
+            activeStep: "_maturity",
+            entityStats: {
+                Payment: {
+                    pulled: 100,
+                    success: 100,
+                    failed: 0,
+                    skipped: 0,
+                },
+                Invoice: {
+                    pulled: 50,
+                    success: 50,
+                    failed: 0,
+                    skipped: 0,
+                },
+                _maturity: {
+                    pulled: 10,
+                    success: 10,
+                    failed: 0,
+                    skipped: 0,
+                    status: "done",
+                },
+                _pending_closes: {
+                    pulled: 3,
+                    success: 1,
+                    failed: 0,
+                    skipped: 0,
+                    status: "running",
+                    detail: { step: "closing", processed: 1, total: 3 },
+                },
+            },
+        });
+
+        expect(
+            rows.find((row) => row.entity_type === "Link payments")?.phase
+        ).toBe("done");
+        // Stale active_step must not resurrect Linking… in the header.
+        const header = buildBackfillProgressHeader({
+            run: run({
+                id: "stale-maturity-step",
+                status: "RUNNING",
+                active_step: "_maturity",
+            }),
+            rows,
+        });
+        expect(header.subtitle).not.toContain("Linking payments");
+    });
+
+    it("maps active_step registry keys to row labels", () => {
+        expect(resolveRowLabelForActiveStep("Payment")).toBe("Payment");
+        expect(resolveRowLabelForActiveStep("_maturity")).toBe("Link payments");
+        expect(resolveRowLabelForActiveStep("_purge")).toBe("Deleting…");
     });
 
     it("marks Payment Done when sync_state frontier moved to Invoice but only Payment has live stats", () => {

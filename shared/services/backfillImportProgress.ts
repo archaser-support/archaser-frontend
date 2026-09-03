@@ -27,21 +27,19 @@ export const BACKFILL_DELETING_LABEL = "Deleting…";
  * without their own rows the panel froze on the last entity and gave no reason
  * for the disabled action buttons.
  */
-export const POST_INGEST_ENTITY_STATS_KEY = "_post_ingest";
-/** Legacy combined row; new runs use replay + live refresh separately. */
 export const AR_REPLAY_ENTITY_STATS_KEY = "_ar_replay";
 export const LIVE_REFRESH_ENTITY_STATS_KEY = "_live_refresh";
 export const PROCESS_OVERDUE_ENTITY_STATS_KEY = "_process_overdue";
+export const INSURANCE_TARGETS_ENTITY_STATS_KEY = "_insurance_targets";
 export const PENDING_CLOSES_ENTITY_STATS_KEY = "_pending_closes";
 export const BALANCES_ENTITY_STATS_KEY = "_balances";
 
 export const BACKFILL_LINK_PAYMENTS_LABEL = "Link payments";
 
-/** @deprecated Legacy single row — prefer replay + live refresh tail steps. */
-export const BACKFILL_POST_INGEST_LABEL = "Refresh AR & insurance";
 export const BACKFILL_AR_REPLAY_LABEL = "Replay AR history";
 export const BACKFILL_LIVE_REFRESH_LABEL = "Refresh insurance fields";
 export const BACKFILL_PROCESS_OVERDUE_LABEL = "Recompute overdue";
+export const BACKFILL_INSURANCE_TARGETS_LABEL = "Refresh insurance dates";
 export const BACKFILL_PENDING_CLOSES_LABEL = "Settle closed invoices";
 export const BACKFILL_BALANCES_LABEL = "Recalculate balances";
 
@@ -56,6 +54,10 @@ export const BACKFILL_TAIL_STEPS = [
         label: BACKFILL_PROCESS_OVERDUE_LABEL,
     },
     {
+        key: INSURANCE_TARGETS_ENTITY_STATS_KEY,
+        label: BACKFILL_INSURANCE_TARGETS_LABEL,
+    },
+    {
         key: AR_REPLAY_ENTITY_STATS_KEY,
         label: BACKFILL_AR_REPLAY_LABEL,
     },
@@ -66,15 +68,8 @@ export const BACKFILL_TAIL_STEPS = [
     { key: BALANCES_ENTITY_STATS_KEY, label: BACKFILL_BALANCES_LABEL },
 ] as const;
 
-/** Legacy runs that still report `_post_ingest` only. */
-export const BACKFILL_LEGACY_POST_INGEST_TAIL_STEP = {
-    key: POST_INGEST_ENTITY_STATS_KEY,
-    label: BACKFILL_POST_INGEST_LABEL,
-} as const;
-
 export type BackfillTailStepLabel =
-    | (typeof BACKFILL_TAIL_STEPS)[number]["label"]
-    | typeof BACKFILL_POST_INGEST_LABEL;
+    (typeof BACKFILL_TAIL_STEPS)[number]["label"];
 
 export type BackfillProgressRowKey =
     | ImportType
@@ -94,21 +89,23 @@ const BACKFILL_PROGRESS_STEP_TOOLTIPS: Record<BackfillProgressRowKey, string> =
             "Pulls customer contact people from the ERP and links them to customers.",
         Policy:
             "Imports credit insurance policy records when enabled for this connector.",
-        [BACKFILL_DELETING_LABEL]:
+        // String keys (not computed consts) so Fast Refresh cannot leave a
+        // dangling BACKFILL_* identifier after an export is removed.
+        "Deleting…":
             "Deletes existing Archaser rows for the selected entities before ERP pull and import.",
-        [BACKFILL_LINK_PAYMENTS_LABEL]:
+        "Link payments":
             "Matches deferred payments to invoices, applies close rules, and recalculates invoice paid totals and outstanding balances.",
-        [BACKFILL_PENDING_CLOSES_LABEL]:
+        "Settle closed invoices":
             "Runs account extension rules to close invoices that ERP reconciliation marks as fully paid.",
-        [BACKFILL_PROCESS_OVERDUE_LABEL]:
+        "Recompute overdue":
             "Re-evaluates overdue invoices and updates collection status for every customer touched in this import.",
-        [BACKFILL_AR_REPLAY_LABEL]:
+        "Refresh insurance dates":
+            "Recomputes each invoice's insurance target reporting and MEP dates from due dates and customer credit terms before AR replay.",
+        "Replay AR history":
             "Replays AR history from the MEP breach start date and stamps limit-assessed amounts on open invoices.",
-        [BACKFILL_LIVE_REFRESH_LABEL]:
+        "Refresh insurance fields":
             "Refreshes credit-insurance fields (MEP block, capacity gap, and related columns) for imported invoices.",
-        [BACKFILL_POST_INGEST_LABEL]:
-            "Replays AR history from the MEP breach start date, refreshes credit-insurance fields, and queues as-of rewrites for imported invoices and payments.",
-        [BACKFILL_BALANCES_LABEL]:
+        "Recalculate balances":
             "Recomputes each customer's denormalized due and overdue totals from their open invoices.",
     };
 
@@ -145,6 +142,128 @@ export interface EntityProgressRow {
     deleted?: number;
     /** Sub-line for tail steps, e.g. "Replaying AR history · 1,240 / 2,027 events". */
     detail?: string;
+}
+
+/** Maps backend active_step registry keys to progress-row labels. */
+export const ACTIVE_STEP_TO_ROW_LABEL: Record<string, BackfillProgressRowKey> =
+    {
+        [PURGE_ENTITY_STATS_KEY]: BACKFILL_DELETING_LABEL,
+        Customer: "Customer",
+        Payment: "Payment",
+        Invoice: "Invoice",
+        Contact: "Contact",
+        [MATURITY_ENTITY_STATS_KEY]: BACKFILL_LINK_PAYMENTS_LABEL,
+        [PENDING_CLOSES_ENTITY_STATS_KEY]: BACKFILL_PENDING_CLOSES_LABEL,
+        [PROCESS_OVERDUE_ENTITY_STATS_KEY]: BACKFILL_PROCESS_OVERDUE_LABEL,
+        [INSURANCE_TARGETS_ENTITY_STATS_KEY]: BACKFILL_INSURANCE_TARGETS_LABEL,
+        [AR_REPLAY_ENTITY_STATS_KEY]: BACKFILL_AR_REPLAY_LABEL,
+        [LIVE_REFRESH_ENTITY_STATS_KEY]: BACKFILL_LIVE_REFRESH_LABEL,
+        [BALANCES_ENTITY_STATS_KEY]: BACKFILL_BALANCES_LABEL,
+    };
+
+/** Resolve a progress-row label from a backend active_step key. */
+export function resolveRowLabelForActiveStep(
+    activeStep: string
+): BackfillProgressRowKey {
+    return (
+        ACTIVE_STEP_TO_ROW_LABEL[activeStep] ??
+        (activeStep as BackfillProgressRowKey)
+    );
+}
+
+/**
+ * When the backend declares active_step, override inferred row phases so the
+ * panel matches orchestrator state (Phase 2 — explicit step pointer).
+ */
+export function applyExplicitActiveStepToRows(
+    rows: EntityProgressRow[],
+    activeStep: string
+): EntityProgressRow[] {
+    const targetLabel = resolveRowLabelForActiveStep(activeStep);
+    const activeIndex = rows.findIndex(
+        (row) => row.entity_type === targetLabel
+    );
+    if (activeIndex < 0) {
+        return rows;
+    }
+
+    // Backend can leave active_step on a finished step until the next one
+    // starts. Do not force that row back to Running or demote later steps.
+    const activePhase = rows[activeIndex]?.phase;
+    if (activePhase === "done" || activePhase === "failed") {
+        return rows;
+    }
+
+    return rows.map((row, index) => {
+        if (row.phase === "failed") {
+            return row;
+        }
+        if (index < activeIndex) {
+            if (row.phase === "done") {
+                return {
+                    ...row,
+                    progress_percent: 100,
+                };
+            }
+            return {
+                ...row,
+                phase: "done" as const,
+                // Completed steps always show a full bar even when ERP gave no total.
+                progress_percent: 100,
+                success: row.success ?? row.records_pulled,
+            };
+        }
+        if (index === activeIndex) {
+            if (row.phase === "queued") {
+                return row;
+            }
+            // Keep waiting until entity_stats for this step arrive. Promoting an
+            // empty waiting row to running shows "0 processed" + indeterminate bar.
+            if (
+                (row.phase === "waiting" || row.phase === "not_started") &&
+                row.total_records == null &&
+                row.records_pulled <= 0
+            ) {
+                return row;
+            }
+            return {
+                ...row,
+                phase: "running",
+            };
+        }
+        if (row.phase === "waiting" || row.phase === "running") {
+            return {
+                ...row,
+                phase: "waiting" as const,
+                records_pulled: 0,
+                total_records: null,
+                progress_percent: null,
+                last_error: null,
+            };
+        }
+        return row;
+    });
+}
+
+/** Build a running-run subtitle from backend active_step when present. */
+export function resolveBackfillSubtitleFromActiveStep(
+    activeStep: string
+): string | null {
+    const label = resolveRowLabelForActiveStep(activeStep);
+    if (label === BACKFILL_DELETING_LABEL) {
+        return "Deleting… · Actions are disabled until this finishes";
+    }
+    if (label === BACKFILL_LINK_PAYMENTS_LABEL) {
+        return "Linking payments to invoices… · Actions are disabled until this finishes";
+    }
+    const tailStep = BACKFILL_TAIL_STEPS.find((step) => step.label === label);
+    if (tailStep) {
+        return `${tailStep.label}… · Actions are disabled until this finishes`;
+    }
+    if (BACKFILL_ENTITY_ORDER.includes(label as ImportType)) {
+        return `Importing ${label}… · Actions are disabled until this finishes`;
+    }
+    return null;
 }
 
 export interface BackfillProgressSession {
@@ -406,8 +525,12 @@ function formatDeletedCountsDetail(
 }
 
 function shouldShowPurgeProgressRow(
-    entityStats: SyncRunSummary["entity_stats"] | undefined
+    entityStats: SyncRunSummary["entity_stats"] | undefined,
+    expectPurge = false
 ): boolean {
+    if (expectPurge) {
+        return true;
+    }
     const purge = readPurgeStats(entityStats);
     if (purge?.status === "running" || purge?.status === "done") {
         return true;
@@ -418,6 +541,8 @@ function shouldShowPurgeProgressRow(
 function buildDeletingProgressRow(params: {
     entityStats: SyncRunSummary["entity_stats"] | undefined;
     runFinished: boolean;
+    /** Clear-before-import was requested; treat as running until purge reports done. */
+    expectPurge?: boolean;
 }): EntityProgressRow {
     const purge = readPurgeStats(params.entityStats);
     const deletedTotal = Math.max(
@@ -432,7 +557,10 @@ function buildDeletingProgressRow(params: {
               ? purge.pulled
               : null;
     const detail = formatDeletedCountsDetail(params.entityStats);
-    const running = !params.runFinished && purge?.status === "running";
+    const running =
+        !params.runFinished &&
+        (purge?.status === "running" ||
+            (params.expectPurge === true && purge?.status !== "done"));
     const percent =
         total != null && total > 0
             ? clampPercent(deletedTotal, total)
@@ -693,7 +821,11 @@ const TAIL_STEP_DETAIL_LABELS: Record<string, { label: string; unit: string }> =
         replay: { label: "Replaying AR history", unit: "events" },
         maturity: { label: "Applying matured payments", unit: "payments" },
         process_overdue: { label: "Recomputing overdue", unit: "customers" },
-        live_refresh: { label: "Refreshing insurance fields", unit: "customers" },
+        insurance_targets: {
+            label: "Refreshing insurance dates",
+            unit: "invoices",
+        },
+        // live_refresh: omit — row label is enough; avoid "Refreshing insurance fields · N / M"
         worker_drain: {
             label: "Finishing AR & insurance on worker",
             unit: "customers",
@@ -737,7 +869,11 @@ function formatTailStepDetail(
         return undefined;
     }
     const known = TAIL_STEP_DETAIL_LABELS[detail.step];
-    let label = known?.label ?? detail.step;
+    // Skip steps with no detail label (e.g. live_refresh) — the row title is enough.
+    if (!known) {
+        return undefined;
+    }
+    let label = known.label;
     if (detail.step === "replay") {
         const from = formatMepBreachStartDate(mepBreachStartDate);
         if (from) {
@@ -748,7 +884,7 @@ function formatTailStepDetail(
         return label;
     }
     const processed = detail.processed ?? 0;
-    return `${label} · ${processed.toLocaleString()} / ${detail.total.toLocaleString()} ${known?.unit ?? "items"}`;
+    return `${label} · ${processed.toLocaleString()} / ${detail.total.toLocaleString()} ${known.unit}`;
 }
 
 /**
@@ -827,10 +963,9 @@ function buildTailStepRow(params: {
         slice.detail,
         params.mepBreachStartDate
     );
+    // Determinate whenever total is known — including 0% at the start.
     const runningPercent =
-        total != null && processed > 0
-            ? clampPercent(processed, total)
-            : null;
+        total != null ? clampPercent(processed, total) : null;
 
     return {
         entity_type: params.label,
@@ -847,24 +982,8 @@ function buildTailStepRow(params: {
 }
 
 function resolveTailStepsForStats(
-    stats: SyncRunSummary["entity_stats"] | undefined,
-    runFinished: boolean
+    _stats: SyncRunSummary["entity_stats"] | undefined
 ): ReadonlyArray<{ key: string; label: BackfillProgressRowKey }> {
-    const slices = stats ?? {};
-    const hasLegacyPostIngest =
-        slices[POST_INGEST_ENTITY_STATS_KEY]?.status != null &&
-        slices[AR_REPLAY_ENTITY_STATS_KEY]?.status == null &&
-        slices[LIVE_REFRESH_ENTITY_STATS_KEY]?.status == null;
-    if (hasLegacyPostIngest) {
-        return [
-            ...BACKFILL_TAIL_STEPS.filter(
-                (step) =>
-                    step.key !== AR_REPLAY_ENTITY_STATS_KEY &&
-                    step.key !== LIVE_REFRESH_ENTITY_STATS_KEY
-            ),
-            BACKFILL_LEGACY_POST_INGEST_TAIL_STEP,
-        ];
-    }
     // Keep the same tail step list during and after the run so the UI does not
     // shrink when purge finishes or the run completes.
     return BACKFILL_TAIL_STEPS;
@@ -881,7 +1000,7 @@ function appendTailStepRows(params: {
         return params.rows;
     }
     const stats = params.stats ?? {};
-    const steps = resolveTailStepsForStats(stats, params.runFinished);
+    const steps = resolveTailStepsForStats(stats);
     const tailRows = steps.map((step) =>
         buildTailStepRow({
             label: step.label,
@@ -1047,12 +1166,19 @@ export function buildRunningEntityProgressRows(params: {
     enabledEntities: ImportType[];
     syncStates: ConnectorSyncStatePublic[] | undefined;
     entityStats?: SyncRunSummary["entity_stats"];
+    /** Backend-declared orchestrator step — preferred over heuristics when set. */
+    activeStep?: string | null;
     /** When set, distinguishes stale sync_state from checkpoints written this run. */
     runStartedAt?: string | null;
     /** Correlates browser console logs with backend execution id. */
     runId?: string | null;
     /** Names the replay window in the AR replay sub-line. */
     mepBreachStartDate?: string | null;
+    /**
+     * Start was requested with clear-before-import — show Deleting… immediately
+     * even before the first purge progress patch arrives.
+     */
+    expectPurge?: boolean;
 }): EntityProgressRow[] {
     const ordered = orderEnabledBackfillEntities(params.enabledEntities);
     const byType = new Map(
@@ -1061,7 +1187,10 @@ export function buildRunningEntityProgressRows(params: {
     const stats = params.entityStats ?? {};
     const maturity = readMaturityStats(stats);
     const purge = readPurgeStats(stats);
-    const purgeRunning = purge?.status === "running";
+    const expectPurge = params.expectPurge === true;
+    const purgeRunning =
+        purge?.status === "running" ||
+        (expectPurge && purge?.status !== "done");
     const runHasProgress = Object.entries(stats).some(
         ([key, entityStats]) =>
             key !== MATURITY_ENTITY_STATS_KEY &&
@@ -1134,6 +1263,16 @@ export function buildRunningEntityProgressRows(params: {
             runHasProgress &&
             firstIncompleteIndex >= 0 &&
             index < firstIncompleteIndex &&
+            hasMeaningfulEntityStats(stats[entity])
+        ) {
+            return true;
+        }
+
+        // A later entity already has live stats — done even when this entity's
+        // sync_state checkpoint lags (poll interval / between-page work).
+        if (
+            runHasProgress &&
+            lastTouchedIndex > index &&
             hasMeaningfulEntityStats(stats[entity])
         ) {
             return true;
@@ -1273,7 +1412,7 @@ export function buildRunningEntityProgressRows(params: {
                 phase: "done" as const,
                 records_pulled: pulled,
                 total_records: total,
-                progress_percent: total != null ? 100 : null,
+                progress_percent: 100,
                 last_error: null,
                 success: resolveCompletedSuccessCount(
                     entityStats,
@@ -1377,13 +1516,14 @@ export function buildRunningEntityProgressRows(params: {
         rowPhases: entityRows.map((row) => [row.entity_type, row.phase]),
     });
 
-    return appendTailStepRows({
-        rows: shouldShowPurgeProgressRow(stats)
+    const rows = appendTailStepRows({
+        rows: shouldShowPurgeProgressRow(stats, expectPurge)
             ? prependDeletingRow(
                   withLinkRow,
                   buildDeletingProgressRow({
                       entityStats: stats,
                       runFinished: false,
+                      expectPurge,
                   })
               )
             : withLinkRow,
@@ -1392,12 +1532,24 @@ export function buildRunningEntityProgressRows(params: {
         enabledEntities: ordered,
         mepBreachStartDate: params.mepBreachStartDate,
     });
+
+    const activeStep =
+        params.activeStep ??
+        (purgeRunning && !purge?.status ? PURGE_ENTITY_STATS_KEY : null);
+
+    return activeStep
+        ? applyExplicitActiveStepToRows(rows, activeStep)
+        : rows;
 }
 
 /**
  * While deferred AR post-ingest drains on the worker, connector config exposes
  * how many customers are still on ArPostIngestRetryQueue — use it when sync-run
  * entity_stats have not caught up yet.
+ *
+ * Only rewrite queued (worker-deferred) rows. Inline `_ar_replay` /
+ * `_live_refresh` already emit real chunk progress; applying the queue depth
+ * there zeroed the counter ("0 processed") and dropped the determinate bar.
  */
 export function enrichPostIngestDrainProgressRow(
     rows: EntityProgressRow[],
@@ -1409,7 +1561,6 @@ export function enrichPostIngestDrainProgressRow(
     const drainLabels = [
         BACKFILL_AR_REPLAY_LABEL,
         BACKFILL_LIVE_REFRESH_LABEL,
-        BACKFILL_POST_INGEST_LABEL,
     ] as const;
     let next = rows;
     for (const label of drainLabels) {
@@ -1418,7 +1569,8 @@ export function enrichPostIngestDrainProgressRow(
             continue;
         }
         const row = next[index];
-        if (row.phase !== "queued" && row.phase !== "running") {
+        // Queued = deferred to worker. Do not clobber inline running progress.
+        if (row.phase !== "queued") {
             continue;
         }
         const total = row.total_records;
@@ -1515,7 +1667,11 @@ export function buildFinishedEntityProgressRows(params: {
             records_pulled: pulled,
             total_records: total,
             progress_percent:
-                total != null ? clampPercent(pulled, total) : null,
+                resolvedPhase === "done"
+                    ? 100
+                    : total != null
+                      ? clampPercent(pulled, total)
+                      : null,
             last_error: sampleError ?? stateError,
             success,
             failed: failedCount,
@@ -1562,6 +1718,15 @@ export function buildBackfillProgressHeader(params: {
     run: SyncRunSummary;
     rows: EntityProgressRow[];
 }): { title: string; subtitle: string; severity: "info" | "success" | "warning" | "error" } {
+    if (isPlaceholderBackfillProgressRun(params.run)) {
+        return {
+            title: "Backfill progress",
+            subtitle:
+                "Run preview, start or resume backfill, or run incremental sync.",
+            severity: "info",
+        };
+    }
+
     const isRunning = params.run.status === "RUNNING";
     const activeRow = params.rows.find(
         (row) => row.phase === "running" || row.phase === "queued"
@@ -1572,6 +1737,30 @@ export function buildBackfillProgressHeader(params: {
     ).length;
 
     if (isRunning) {
+        if (params.run.active_step) {
+            const stepLabel = resolveRowLabelForActiveStep(
+                params.run.active_step
+            );
+            const stepRow = params.rows.find(
+                (row) => row.entity_type === stepLabel
+            );
+            // Ignore stale active_step after that step already finished.
+            const stepStillActive =
+                stepRow == null ||
+                (stepRow.phase !== "done" && stepRow.phase !== "failed");
+            if (stepStillActive) {
+                const fromStep = resolveBackfillSubtitleFromActiveStep(
+                    params.run.active_step
+                );
+                if (fromStep) {
+                    return {
+                        title: "Backfill progress",
+                        subtitle: fromStep,
+                        severity: "info",
+                    };
+                }
+            }
+        }
         if (activeRow?.entity_type === BACKFILL_DELETING_LABEL) {
             return {
                 title: "Backfill progress",
@@ -1739,7 +1928,10 @@ export function zeroBackfillProgressSyncStates(
 }
 
 /** Placeholder RUNNING run used until the server returns a real execution. */
-export function createPendingBackfillRun(): SyncRunSummary {
+export function createPendingBackfillRun(options?: {
+    expectPurge?: boolean;
+}): SyncRunSummary {
+    const expectPurge = options?.expectPurge === true;
     return {
         id: "pending-backfill",
         trigger: "backfill",
@@ -1748,6 +1940,42 @@ export function createPendingBackfillRun(): SyncRunSummary {
         started_at: new Date().toISOString(),
         completed_at: null,
         duration_seconds: null,
+        active_step: expectPurge ? PURGE_ENTITY_STATS_KEY : null,
+        entity_stats: {
+            Customer: { pulled: 0, success: 0, failed: 0, skipped: 0 },
+            Payment: { pulled: 0, success: 0, failed: 0, skipped: 0 },
+            Invoice: { pulled: 0, success: 0, failed: 0, skipped: 0 },
+            Contact: { pulled: 0, success: 0, failed: 0, skipped: 0 },
+            ...(expectPurge
+                ? {
+                      [PURGE_ENTITY_STATS_KEY]: {
+                          pulled: 0,
+                          success: 0,
+                          failed: 0,
+                          skipped: 0,
+                          status: "running" as const,
+                      },
+                  }
+                : {}),
+        },
+        error_message: null,
+        error_type: null,
+    };
+}
+
+/** Cleared progress panel after Run Preview (or similar) until the next real import. */
+export const BACKFILL_PROGRESS_RESET_RUN_ID = "progress-reset";
+
+export function createResetBackfillProgressRun(): SyncRunSummary {
+    const now = new Date().toISOString();
+    return {
+        id: BACKFILL_PROGRESS_RESET_RUN_ID,
+        trigger: "backfill",
+        sync_mode: "BACKFILL",
+        status: "SUCCESS",
+        started_at: now,
+        completed_at: now,
+        duration_seconds: 0,
         entity_stats: {
             Customer: { pulled: 0, success: 0, failed: 0, skipped: 0 },
             Payment: { pulled: 0, success: 0, failed: 0, skipped: 0 },
@@ -1757,6 +1985,15 @@ export function createPendingBackfillRun(): SyncRunSummary {
         error_message: null,
         error_type: null,
     };
+}
+
+export function isPlaceholderBackfillProgressRun(
+    run: Pick<SyncRunSummary, "id"> | null | undefined
+): boolean {
+    return (
+        run?.id === "pending-backfill" ||
+        run?.id === BACKFILL_PROGRESS_RESET_RUN_ID
+    );
 }
 
 type FirstBackfillPreviewParams = {

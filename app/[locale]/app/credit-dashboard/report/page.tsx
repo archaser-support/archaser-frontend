@@ -42,6 +42,7 @@ const REPORT_TITLE_KEY: Record<ReportType, string> = {
     top_up: "title_top_up",
     top_up_expiring: "title_top_up_expiring",
     no_policy_exposure: "title_no_policy_exposure",
+    utilization_bin: "title_utilization_bin",
 };
 
 const REPORT_DESCRIPTION_KEY: Record<ReportType, string> = {
@@ -56,6 +57,7 @@ const REPORT_DESCRIPTION_KEY: Record<ReportType, string> = {
     top_up: "description_top_up",
     top_up_expiring: "description_top_up_expiring",
     no_policy_exposure: "description_no_policy_exposure",
+    utilization_bin: "description_utilization_bin",
 };
 
 export default function CreditDashboardReportPage() {
@@ -127,6 +129,16 @@ export default function CreditDashboardReportPage() {
             return null;
         }
         return Math.min(n, 365);
+    }, [searchParams]);
+
+    const utilizationBinFromUrl = useMemo(() => {
+        const raw = searchParams?.get("bin")?.trim() ?? "";
+        return raw || null;
+    }, [searchParams]);
+
+    const asOfDateFromUrl = useMemo(() => {
+        const raw = searchParams?.get("asOf")?.trim() ?? "";
+        return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null;
     }, [searchParams]);
 
     const policyIdForScope = useMemo(() => {
@@ -278,7 +290,7 @@ export default function CreditDashboardReportPage() {
                                     onChange={setPolicyScope}
                                 />
                             </Box>
-                            {summary && (
+                            {summary && type !== "utilization_bin" && (
                                 <CreditReportSummaryCards
                                     type={type}
                                     summary={summary}
@@ -302,6 +314,8 @@ export default function CreditDashboardReportPage() {
                                 termsBreachReason={termsBreachReasonFromUrl}
                                 termsOverdueOnly={termsOverdueOnlyFromUrl}
                                 withinDays={withinDaysFromUrl}
+                                utilizationBin={utilizationBinFromUrl}
+                                asOfDate={asOfDateFromUrl}
                             />
                         </Box>
                     </Box>

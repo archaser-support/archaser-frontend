@@ -1,40 +1,9 @@
 "use client";
 
-import {
-    Alert,
-    Accordion,
-    AccordionDetails,
-    AccordionSummary,
-    Box,
-    Button,
-    Card,
-    CardContent,
-    CircularProgress,
-    FormControl,
-    FormControlLabel,
-    Grid,
-    InputLabel,
-    MenuItem,
-    Select,
-    Switch,
-    Tab,
-    Tabs,
-    TextField,
-    Tooltip,
-    Typography,
-    Autocomplete,
-} from "@mui/material";
-import { useTheme } from "@mui/material/styles";
-import {
-    Info as InfoIcon,
-    ExpandMore as ExpandMoreIcon,
-    Psychology as PsychologyIcon,
-    Settings as SettingsIcon,
-    Sync as SyncIcon,
-} from "@mui/icons-material";
+import { Alert, Box, CircularProgress, Typography } from "@mui/material";
 import type { ConnectorAuthType, ImportType } from "@/types/db";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, forwardRef } from "react";
+import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, forwardRef, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -56,29 +25,23 @@ import {
     type SyncRunSummary,
     type UpsertBillingConnectorPayload,
 } from "@/shared/services/billingConnectorService";
-import ConnectorFieldMapper, {
-    type ConnectorFieldMapperHandle,
-} from "@/shared/layout-components/import/ConnectorFieldMapper";
-import ConnectorEntityPullFilterEditor, {
-    type ConnectorEntityPullFilterEditorHandle,
-} from "@/shared/layout-components/import/ConnectorEntityPullFilterEditor";
-import ConnectorPreviewSyncResults from "@/shared/layout-components/import/ConnectorPreviewSyncResults";
-import ConnectorSyncHistoryGrid from "@/shared/layout-components/import/ConnectorSyncHistoryGrid";
+import type { ConnectorFieldMapperHandle } from "@/shared/layout-components/import/ConnectorFieldMapper";
+import type { ConnectorEntityPullFilterEditorHandle } from "@/shared/layout-components/import/ConnectorEntityPullFilterEditor";
 import { normalizeConnectorEnabledEntities } from "@/shared/constants/importEntityFields";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import DeleteDialog from "@/shared/layout-components/modal/DeleteDialog";
 import {
     buildClearBeforeImportConfirmCopy,
-    normalizeClearBeforeImportCustomerId,
+    type ClearBeforeImportConfirmCopy,
+    type ClearBeforeImportPrefs,
+    readClearBeforeImportPrefs,
     resolveClearBeforeImportPayload,
     shouldConfirmStartBackfillClear,
-    type ClearBeforeImportEntity,
-    type ClearBeforeImportSessionState,
+    writeClearBeforeImportPrefs,
 } from "@/shared/services/billingConnectorClearBeforeImport";
 import {
     getPreviewSyncDisabledReason,
     getResetBackfillDisabledReason,
-    getResetBackfillPurpose,
     getRunIncrementalDisabledReason,
     getStartBackfillDisabledReason,
     getStopImportDisabledReason,
@@ -95,122 +58,85 @@ import {
 import {
     canStartFirstBackfill,
     createPendingBackfillRun,
+    createResetBackfillProgressRun,
     entitiesMissingPreview,
     findRunningBackfillRun,
+    isPlaceholderBackfillProgressRun,
     readBackfillProgressSession,
     resolveBackfillProgressRun,
     writeBackfillProgressSession,
     zeroBackfillProgressSyncStates,
     type BackfillProgressSession,
 } from "@/shared/services/backfillImportProgress";
-import BackfillImportProgress from "./BackfillImportProgress";
-
 import {
-    accountCardSx,
-    accountCardTitleSx,
-    accountSectionIconSx,
-} from "../accountCardStyles";
+    BILLING_CONNECTOR_BUSY_POLL_MS,
+    billingConnectorQueryKey,
+    billingConnectorSyncHistoryQueryKey,
+    billingConnectorSyncRunsQueryKey,
+    invalidateBillingConnectorQueries,
+} from "@/shared/services/billingConnectorQueries";
+import BillingConnectionSection from "./BillingConnectionSection";
+import BillingScheduleSection from "./BillingScheduleSection";
+import BillingEntityWorkspace from "./BillingEntityWorkspace";
+import BillingProgressHost from "./BillingProgressHost";
+import BillingSyncHistorySection from "./BillingSyncHistorySection";
+import {
+    DEFAULT_PAID_TOLERANCE,
+    ENTITY_OPTIONS,
+    NONE_EXTENSION_OPTION,
+    firstEnabledEntityTabIndex,
+    formatPaidTolerance,
+    isClearBeforeImportEntity,
+    parsePaidToleranceInput,
+    type ExtensionKeyOption,
+    type SchedulePresetValue,
+} from "./billingIntegrationConstants";
 
-const ENTITY_OPTIONS: { value: ImportType; label: string }[] = [
-    { value: "Customer", label: "Customers" },
-    { value: "Contact", label: "Contacts" },
-    { value: "Invoice", label: "Invoices" },
-    { value: "Payment", label: "Payments" },
-];
-
-const CLEAR_BEFORE_IMPORT_ENTITIES: readonly ClearBeforeImportEntity[] = [
-    "Customer",
-    "Contact",
-    "Invoice",
-    "Payment",
-];
-
-function isClearBeforeImportEntity(
-    value: ImportType
-): value is ClearBeforeImportEntity {
-    return (CLEAR_BEFORE_IMPORT_ENTITIES as readonly string[]).includes(value);
-}
-
-function firstEnabledEntityTabIndex(enabledEntities: ImportType[]): number {
-    const index = ENTITY_OPTIONS.findIndex((opt) =>
-        enabledEntities.includes(opt.value)
-    );
-    return index >= 0 ? index : 0;
-}
-
-const AUTH_TYPE_OPTIONS: { value: ConnectorAuthType; label: string }[] = [
-    { value: "API_KEY", label: "API key (PAT)" },
-    { value: "BASIC", label: "Basic (username / password)" },
-    { value: "OAUTH2_CLIENT_CREDENTIALS", label: "OAuth2 client credentials" },
-];
-
-type SchedulePresetValue =
-    | "every_4h"
-    | "every_6h"
-    | "every_12h"
-    | "daily"
-    | "weekly"
-    | "custom";
-
-const SCHEDULE_PRESET_OPTIONS: { value: SchedulePresetValue; label: string }[] = [
-    { value: "every_4h", label: "Every 4 hours UTC" },
-    { value: "every_6h", label: "Every 6 hours UTC" },
-    { value: "every_12h", label: "Every 12 hours UTC" },
-    { value: "daily", label: "Daily at a time (UTC)" },
-    { value: "weekly", label: "Weekly on a day and time (UTC)" },
-    { value: "custom", label: "Custom (Advanced)" },
-];
-
-const WEEKDAY_OPTIONS: { value: number; label: string }[] = [
-    { value: 0, label: "Sunday" },
-    { value: 1, label: "Monday" },
-    { value: 2, label: "Tuesday" },
-    { value: 3, label: "Wednesday" },
-    { value: 4, label: "Thursday" },
-    { value: 5, label: "Friday" },
-    { value: 6, label: "Saturday" },
-];
-
-const DEFAULT_PAID_TOLERANCE = 0.2;
-const PAID_TOLERANCE_MIN = 0;
-const PAID_TOLERANCE_MAX = 10;
-
-function formatPaidTolerance(value: number | undefined | null): string {
-    const n = Number(value);
-    return (Number.isFinite(n) ? n : DEFAULT_PAID_TOLERANCE).toFixed(2);
-}
-
-function parsePaidToleranceInput(raw: string): number | null {
-    const trimmed = raw.trim();
-    if (!trimmed) {
-        return null;
-    }
-    const n = Number(trimmed);
-    if (!Number.isFinite(n)) {
-        return null;
-    }
-    const rounded = Math.round(n * 100) / 100;
-    if (rounded < PAID_TOLERANCE_MIN || rounded > PAID_TOLERANCE_MAX) {
-        return null;
-    }
-    return rounded;
-}
-
-const NONE_EXTENSION_OPTION = {
-    key: "",
-    label: "None (standard account)",
-} as const;
-
-type ExtensionKeyOption = { key: string; label: string };
+export type BillingIntegrationSettingsHandle = {
+    save: () => Promise<void>;
+};
 
 interface BillingIntegrationSettingsProps {
     accountId: number;
     canManage: boolean;
 }
 
-export type BillingIntegrationSettingsHandle = {
-    save: () => Promise<void>;
-};
+function renderClearBeforeImportConfirmDescription(
+    copy: ClearBeforeImportConfirmCopy
+): ReactNode {
+    if (!copy.customerScope || !copy.customerScopePrefix) {
+        return copy.description;
+    }
+
+    const prefixIndex = copy.description.indexOf(copy.customerScopePrefix);
+    if (prefixIndex < 0) {
+        return copy.description;
+    }
+
+    const before = copy.description.slice(
+        0,
+        prefixIndex + copy.customerScopePrefix.length
+    );
+    const after = copy.description.slice(
+        prefixIndex + copy.customerScopePrefix.length
+    );
+    const { id, name } = copy.customerScope;
+
+    return (
+        <>
+            {before}{" "}
+            <Box component="span" sx={{ fontWeight: 700 }}>
+                {name}
+            </Box>
+            {" (id "}
+            <Box component="span" sx={{ fontWeight: 700 }}>
+                {id}
+            </Box>
+            {")"}
+            {after}
+        </>
+    );
+}
 
 const BillingIntegrationSettings = forwardRef<
     BillingIntegrationSettingsHandle,
@@ -223,29 +149,11 @@ const BillingIntegrationSettings = forwardRef<
     const queryClient = useQueryClient();
     const { i18n } = useTranslation(["common"]);
     const isHebrew = i18n.language === "he";
-    const theme = useTheme();
-    const pillRadiusPx = `${theme.appButton.sizeMedium.borderRadius}px`;
 
     const { data: config, isLoading } = useQuery({
-        queryKey: ["billing-connector", accountId],
+        queryKey: billingConnectorQueryKey(accountId),
         queryFn: () => fetchBillingConnectorConfig(accountId),
         enabled: accountId > 0,
-        refetchInterval: () => {
-            const runs = queryClient.getQueryData<SyncRunSummary[]>([
-                "billing-connector-sync-runs",
-                accountId,
-            ]);
-            if (runs?.some(isActiveConnectorSyncRun)) {
-                return 2500;
-            }
-            const cached = queryClient.getQueryData<{
-                pending_ar_post_ingest_customers?: number;
-            }>(["billing-connector", accountId]);
-            if ((cached?.pending_ar_post_ingest_customers ?? 0) > 0) {
-                return 2500;
-            }
-            return false;
-        },
     });
 
     const [provider, setProvider] = useState<"PRIORITY" | "SAP_BUSINESS_ONE">(
@@ -316,10 +224,22 @@ const BillingIntegrationSettings = forwardRef<
     const [resetDialogOpen, setResetDialogOpen] = useState(false);
     const [clearBeforeStartDialogOpen, setClearBeforeStartDialogOpen] =
         useState(false);
-    const [clearBeforeImportSession, setClearBeforeImportSession] =
-        useState<ClearBeforeImportSessionState>({});
-    const [clearBeforeImportCustomerId, setClearBeforeImportCustomerId] =
-        useState("");
+    const [clearBeforeImportPrefs, setClearBeforeImportPrefs] =
+        useState<ClearBeforeImportPrefs>(() =>
+            readClearBeforeImportPrefs(accountId)
+        );
+    const clearBeforeImportSession = clearBeforeImportPrefs.entities;
+    const clearBeforeImportCustomerId = clearBeforeImportPrefs.customerId;
+    const clearBeforeImportCustomerLookup =
+        clearBeforeImportPrefs.customerId != null
+            ? {
+                  id: clearBeforeImportPrefs.customerId,
+                  name:
+                      clearBeforeImportPrefs.customerName ||
+                      `Customer ${clearBeforeImportPrefs.customerId}`,
+              }
+            : null;
+    const skipClearBeforeImportPersistRef = useRef(true);
     const [
         clearBeforeImportCustomerError,
         setClearBeforeImportCustomerError,
@@ -332,7 +252,13 @@ const BillingIntegrationSettings = forwardRef<
         );
     /** Clears progress counters immediately on Start, before the new run polls in. */
     const [pendingBackfillReset, setPendingBackfillReset] = useState(false);
+    /** Clears progress bars/counters after Run Preview until the next real import. */
+    const [progressUiReset, setProgressUiReset] = useState(false);
+    /** Start requested clear-before-import — keep Deleting… visible before purge stats arrive. */
+    const [expectDeletingStep, setExpectDeletingStep] = useState(false);
     const cutoverDirtyRef = useRef(false);
+    /** Prevents config reload from clearing preview stale after local mapping/filter edits. */
+    const previewStaleRef = useRef(false);
     const mapperRefs = useRef<
         Partial<Record<ImportType, ConnectorFieldMapperHandle | null>>
     >({});
@@ -342,6 +268,21 @@ const BillingIntegrationSettings = forwardRef<
     const entityTabsRef = useRef<HTMLDivElement | null>(null);
     const entityTabFocusPendingRef = useRef(true);
 
+    useLayoutEffect(() => {
+        skipClearBeforeImportPersistRef.current = true;
+        setClearBeforeImportPrefs(readClearBeforeImportPrefs(accountId));
+        setClearBeforeImportCustomerError(null);
+        setClearBeforeStartDialogOpen(false);
+    }, [accountId]);
+
+    useEffect(() => {
+        if (skipClearBeforeImportPersistRef.current) {
+            skipClearBeforeImportPersistRef.current = false;
+            return;
+        }
+        writeClearBeforeImportPrefs(accountId, clearBeforeImportPrefs);
+    }, [accountId, clearBeforeImportPrefs]);
+
     useEffect(() => {
         setProgressSession(readBackfillProgressSession(accountId));
         setConnectionExpanded(null);
@@ -350,11 +291,8 @@ const BillingIntegrationSettings = forwardRef<
         setProgressExpanded(null);
         setHistoryExpanded(false);
         setMappingEntityTab(null);
+        previewStaleRef.current = false;
         setPreviewUpToDate(false);
-        setClearBeforeImportSession({});
-        setClearBeforeImportCustomerId("");
-        setClearBeforeImportCustomerError(null);
-        setClearBeforeStartDialogOpen(false);
         entityTabFocusPendingRef.current = true;
     }, [accountId]);
 
@@ -402,6 +340,27 @@ const BillingIntegrationSettings = forwardRef<
                 : {}
         );
     }, [config?.id, config?.modified_at]);
+
+    useEffect(() => {
+        if (!config || previewStaleRef.current) {
+            return;
+        }
+        setPreviewUpToDate(
+            canStartFirstBackfill({
+                enabledEntities: normalizeConnectorEnabledEntities(
+                    config.enabled_entities
+                ),
+                previewPasses: config.preview_passes,
+                backfillOptionsLocked: config.backfill_options_locked,
+                syncMode: config.sync_mode,
+            })
+        );
+    }, [
+        config?.preview_passes,
+        config?.backfill_options_locked,
+        config?.sync_mode,
+        config?.enabled_entities,
+    ]);
 
     const buildCredentials = (): Record<string, unknown> | null => {
         if (authType === "API_KEY") {
@@ -477,8 +436,8 @@ const BillingIntegrationSettings = forwardRef<
         },
         onSuccess: () => {
             cutoverDirtyRef.current = false;
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector", accountId],
+            void invalidateBillingConnectorQueries(queryClient, accountId, {
+                syncRuns: false,
             });
             setApiKeyToken("");
             setBasicPassword("");
@@ -558,8 +517,8 @@ const BillingIntegrationSettings = forwardRef<
         onSuccess: (result) => {
             if (result.success) {
                 success("Connection test succeeded");
-                queryClient.invalidateQueries({
-                    queryKey: ["billing-connector", accountId],
+                void invalidateBillingConnectorQueries(queryClient, accountId, {
+                    syncRuns: false,
                 });
             } else {
                 showError(result.error ?? "Connection test failed");
@@ -574,11 +533,20 @@ const BillingIntegrationSettings = forwardRef<
 
     const previewMutation = useMutation({
         mutationFn: () => runBillingConnectorPreviewSync(accountId),
+        onMutate: () => {
+            // Clear previous import progress immediately when Preview starts.
+            setProgressUiReset(true);
+            setPendingBackfillReset(false);
+            setExpectDeletingStep(false);
+            setProgressSession(null);
+            writeBackfillProgressSession(accountId, null);
+        },
         onSuccess: (result) => {
             setPreviewResult(result);
+            previewStaleRef.current = false;
             setPreviewUpToDate(true);
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector", accountId],
+            void invalidateBillingConnectorQueries(queryClient, accountId, {
+                syncRuns: false,
             });
             setEntityWorkspaceTab("preview");
             if (result.go_no_go.passed) {
@@ -600,8 +568,8 @@ const BillingIntegrationSettings = forwardRef<
         mutationFn: () => refreshBillingConnectorEntitySets(accountId),
         onSuccess: () => {
             success("Priority table catalog refreshed");
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector", accountId],
+            void invalidateBillingConnectorQueries(queryClient, accountId, {
+                syncRuns: false,
             });
         },
         onError: (err: unknown) => {
@@ -613,6 +581,7 @@ const BillingIntegrationSettings = forwardRef<
 
     const handleEntityConfigDirtyChange = useCallback((dirty: boolean) => {
         if (dirty) {
+            previewStaleRef.current = true;
             setPreviewUpToDate(false);
         }
     }, []);
@@ -620,12 +589,13 @@ const BillingIntegrationSettings = forwardRef<
     const handleEntitySetChange = useCallback(
         async (importType: ImportType, value: string | null) => {
             try {
+                previewStaleRef.current = true;
                 setPreviewUpToDate(false);
                 await saveBillingConnectorConfig(accountId, {
                     entity_sets: { [importType]: value },
                 });
-                await queryClient.invalidateQueries({
-                    queryKey: ["billing-connector", accountId],
+                await invalidateBillingConnectorQueries(queryClient, accountId, {
+                    syncRuns: false,
                 });
                 success(
                     value
@@ -651,7 +621,7 @@ const BillingIntegrationSettings = forwardRef<
                     invoice_paid_tolerance: value,
                 });
                 queryClient.setQueryData(
-                    ["billing-connector", accountId],
+                    billingConnectorQueryKey(accountId),
                     saved
                 );
             } catch (err: unknown) {
@@ -676,7 +646,7 @@ const BillingIntegrationSettings = forwardRef<
                     patch
                 );
                 queryClient.setQueryData(
-                    ["billing-connector", accountId],
+                    billingConnectorQueryKey(accountId),
                     saved
                 );
                 cutoverDirtyRef.current = false;
@@ -702,31 +672,76 @@ const BillingIntegrationSettings = forwardRef<
             >;
             customer_id?: number | null;
         }) => runBillingConnectorBackfill(accountId, options),
-        onMutate: () => {
+        onMutate: (options) => {
             // Reset counters immediately — do not wait for the new RUNNING run.
+            const expectPurge =
+                (options?.clear_before_import?.length ?? 0) > 0;
+            setExpectDeletingStep(expectPurge);
             setPendingBackfillReset(true);
+            setProgressUiReset(false);
             setProgressSession(null);
             writeBackfillProgressSession(accountId, null);
             setMappingExpanded(false);
+            return { expectPurge };
         },
-        onSuccess: (result: { status?: string } | undefined) => {
+        onSuccess: (
+            result?: {
+                status?: string;
+                execution_id?: string;
+                sync_mode?: string;
+                trigger?: string;
+            },
+            _variables?: unknown,
+            context?: { expectPurge?: boolean }
+        ) => {
             success(
                 result?.status === "RUNNING"
                     ? "Backfill started"
                     : "Backfill sync completed"
             );
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector", accountId],
-            });
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector-sync-runs", accountId],
-            });
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector-sync-history", accountId],
+            // Bind progress immediately — don't wait for sync-runs poll (avoids a
+            // gap where pendingBackfillReset clears before the RUNNING run lands).
+            const executionId =
+                typeof result?.execution_id === "string"
+                    ? result.execution_id
+                    : null;
+            if (executionId) {
+                if (result?.status === "RUNNING") {
+                    const seeded = createPendingBackfillRun({
+                        expectPurge: context?.expectPurge === true,
+                    });
+                    seeded.id = executionId;
+                    if (result.sync_mode) {
+                        seeded.sync_mode = result.sync_mode;
+                    }
+                    if (result.trigger) {
+                        seeded.trigger = result.trigger;
+                    }
+                    queryClient.setQueryData<SyncRunSummary[]>(
+                        billingConnectorSyncRunsQueryKey(accountId),
+                        (runs) => {
+                            const rest = (runs ?? []).filter(
+                                (run) => run.id !== executionId
+                            );
+                            return [seeded, ...rest];
+                        }
+                    );
+                }
+                const session = {
+                    executionId,
+                    dismissed: false,
+                };
+                setProgressSession(session);
+                writeBackfillProgressSession(accountId, session);
+                setPendingBackfillReset(false);
+            }
+            void invalidateBillingConnectorQueries(queryClient, accountId, {
+                history: true,
             });
         },
         onError: (err: unknown) => {
             setPendingBackfillReset(false);
+            setExpectDeletingStep(false);
             showError(axiosErrorMessage(err) ?? "Backfill sync failed");
         },
     });
@@ -739,14 +754,8 @@ const BillingIntegrationSettings = forwardRef<
                     ? "Incremental sync started"
                     : "Incremental sync completed"
             );
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector", accountId],
-            });
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector-sync-runs", accountId],
-            });
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector-sync-history", accountId],
+            void invalidateBillingConnectorQueries(queryClient, accountId, {
+                history: true,
             });
         },
         onError: (err: unknown) => {
@@ -759,14 +768,8 @@ const BillingIntegrationSettings = forwardRef<
         onSuccess: () => {
             setResetDialogOpen(false);
             success("Backfill reset — start date is editable again");
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector", accountId],
-            });
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector-sync-runs", accountId],
-            });
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector-sync-history", accountId],
+            void invalidateBillingConnectorQueries(queryClient, accountId, {
+                history: true,
             });
         },
         onError: (err: unknown) => {
@@ -786,7 +789,7 @@ const BillingIntegrationSettings = forwardRef<
                 setPendingBackfillReset(false);
                 const cancelledAt = new Date().toISOString();
                 queryClient.setQueryData<SyncRunSummary[]>(
-                    ["billing-connector-sync-runs", accountId],
+                    billingConnectorSyncRunsQueryKey(accountId),
                     (runs) => {
                         if (!runs?.length) {
                             return runs;
@@ -820,14 +823,8 @@ const BillingIntegrationSettings = forwardRef<
                     }
                 );
             }
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector", accountId],
-            });
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector-sync-runs", accountId],
-            });
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector-sync-history", accountId],
+            void invalidateBillingConnectorQueries(queryClient, accountId, {
+                history: true,
             });
         },
         onError: (err: unknown) => {
@@ -836,17 +833,9 @@ const BillingIntegrationSettings = forwardRef<
     });
 
     const { data: syncRuns = [] } = useQuery({
-        queryKey: ["billing-connector-sync-runs", accountId],
+        queryKey: billingConnectorSyncRunsQueryKey(accountId),
         queryFn: () => fetchBillingConnectorSyncRuns(accountId),
         enabled: accountId > 0 && Boolean(config?.has_credentials),
-        refetchInterval: (query) => {
-            const runs = query.state.data as SyncRunSummary[] | undefined;
-            const hasRunning = runs?.some(isActiveConnectorSyncRun);
-            if (hasRunning || backfillMutation.isPending) {
-                return 2500;
-            }
-            return false;
-        },
     });
 
     const {
@@ -854,7 +843,7 @@ const BillingIntegrationSettings = forwardRef<
         isLoading: syncHistoryLoading,
         isFetching: syncHistoryFetching,
     } = useQuery({
-        queryKey: ["billing-connector-sync-history", accountId],
+        queryKey: billingConnectorSyncHistoryQueryKey(accountId),
         queryFn: () => fetchBillingConnectorSyncHistory(accountId),
         enabled: accountId > 0 && Boolean(config?.has_credentials),
     });
@@ -863,8 +852,10 @@ const BillingIntegrationSettings = forwardRef<
     const wasSyncInProgressRef = useRef(false);
     useEffect(() => {
         if (wasSyncInProgressRef.current && !syncInProgress) {
-            void queryClient.invalidateQueries({
-                queryKey: ["billing-connector-sync-history", accountId],
+            void invalidateBillingConnectorQueries(queryClient, accountId, {
+                config: false,
+                syncRuns: false,
+                history: true,
             });
         }
         wasSyncInProgressRef.current = syncInProgress;
@@ -875,19 +866,33 @@ const BillingIntegrationSettings = forwardRef<
         session: progressSession,
     });
     const progressRun = progressResolution.run;
-    const displayProgressRun = useMemo(
-        () =>
-            pendingBackfillReset
-                ? findRunningBackfillRun(syncRuns) ?? createPendingBackfillRun()
-                : progressRun,
-        [pendingBackfillReset, syncRuns, progressRun]
-    );
+    const displayProgressRun = useMemo(() => {
+        if (pendingBackfillReset) {
+            return (
+                findRunningBackfillRun(syncRuns) ??
+                createPendingBackfillRun({ expectPurge: expectDeletingStep })
+            );
+        }
+        if (progressUiReset) {
+            return createResetBackfillProgressRun();
+        }
+        return progressRun;
+    }, [
+        pendingBackfillReset,
+        progressUiReset,
+        expectDeletingStep,
+        syncRuns,
+        progressRun,
+    ]);
     const displayProgressRunActive = Boolean(
-        displayProgressRun && isActiveConnectorSyncRun(displayProgressRun)
+        displayProgressRun &&
+            isActiveConnectorSyncRun(displayProgressRun) &&
+            !isPlaceholderBackfillProgressRun(displayProgressRun)
     );
-    const displaySyncStates = pendingBackfillReset
-        ? zeroBackfillProgressSyncStates(config?.sync_states)
-        : config?.sync_states;
+    const displaySyncStates =
+        pendingBackfillReset || progressUiReset
+            ? zeroBackfillProgressSyncStates(config?.sync_states)
+            : config?.sync_states;
     const deferredArPostIngestPending = hasPendingDeferredArPostIngest(
         config?.pending_ar_post_ingest_customers
     );
@@ -904,8 +909,23 @@ const BillingIntegrationSettings = forwardRef<
     const showProgressStopButton =
         canManage &&
         Boolean(displayProgressRun) &&
-        displayProgressRun?.id !== "pending-backfill" &&
+        !isPlaceholderBackfillProgressRun(displayProgressRun) &&
         (displayProgressRun?.status === "RUNNING" || progressRunStopping);
+
+    useEffect(() => {
+        if (!progressUiReset) {
+            return;
+        }
+        if (pendingBackfillReset) {
+            setProgressUiReset(false);
+            return;
+        }
+        // A real backfill started — drop the preview reset placeholder.
+        const running = findRunningBackfillRun(syncRuns);
+        if (running && !isPlaceholderBackfillProgressRun(running)) {
+            setProgressUiReset(false);
+        }
+    }, [progressUiReset, pendingBackfillReset, syncRuns]);
 
     useEffect(() => {
         if (!pendingBackfillReset) {
@@ -918,16 +938,28 @@ const BillingIntegrationSettings = forwardRef<
         const running = findRunningBackfillRun(syncRuns);
         if (running && running.id !== "pending-backfill") {
             setPendingBackfillReset(false);
+        }
+        // Do not clear on !syncInProgress alone — sync-runs can still be stale
+        // right after Start accepts, which used to drop the poller and hide bars
+        // until a full page refresh.
+    }, [pendingBackfillReset, syncRuns, backfillMutation.isPending]);
+
+    useEffect(() => {
+        if (!expectDeletingStep) {
             return;
         }
-        if (!syncInProgress) {
-            setPendingBackfillReset(false);
+        if (
+            !pendingBackfillReset &&
+            !backfillMutation.isPending &&
+            !findRunningBackfillRun(syncRuns)
+        ) {
+            setExpectDeletingStep(false);
         }
     }, [
+        expectDeletingStep,
         pendingBackfillReset,
-        syncRuns,
         backfillMutation.isPending,
-        syncInProgress,
+        syncRuns,
     ]);
 
     useEffect(() => {
@@ -942,31 +974,32 @@ const BillingIntegrationSettings = forwardRef<
         writeBackfillProgressSession(accountId, next);
     }, [accountId, progressResolution.session, progressSession]);
 
+    // Single busy poller — replaces stacked refetchInterval + invalidate loops.
     useEffect(() => {
-        if (
-            !backfillMutation.isPending &&
-            !incrementalMutation.isPending &&
-            !syncInProgress &&
-            !displayProgressRunActive &&
-            !deferredArPostIngestPending
-        ) {
+        const shouldPoll =
+            backfillMutation.isPending ||
+            pendingBackfillReset ||
+            incrementalMutation.isPending ||
+            syncInProgress ||
+            displayProgressRunActive ||
+            deferredArPostIngestPending;
+        if (!shouldPoll) {
             return;
         }
         const poll = () => {
-            void queryClient.invalidateQueries({
-                queryKey: ["billing-connector", accountId],
-            });
-            void queryClient.invalidateQueries({
-                queryKey: ["billing-connector-sync-runs", accountId],
-            });
+            void invalidateBillingConnectorQueries(queryClient, accountId);
         };
         poll();
-        const timer = window.setInterval(poll, 2500);
+        const timer = window.setInterval(
+            poll,
+            BILLING_CONNECTOR_BUSY_POLL_MS
+        );
         return () => window.clearInterval(timer);
     }, [
         accountId,
         queryClient,
         backfillMutation.isPending,
+        pendingBackfillReset,
         incrementalMutation.isPending,
         syncInProgress,
         displayProgressRunActive,
@@ -1022,10 +1055,12 @@ const BillingIntegrationSettings = forwardRef<
         (showProgressStopButton ||
             (syncInProgress && !progressRun && !pendingBackfillReset));
 
+    const previewRequired = previewBlocked || !previewUpToDate;
+
     const actionStage = config
         ? resolveBackfillActionStage({
               syncMode: config.sync_mode,
-              previewBlocked,
+              previewBlocked: previewRequired,
               backfillOptionsLocked: Boolean(config.backfill_options_locked),
               syncStates: config.sync_states,
               enabledEntities,
@@ -1084,32 +1119,35 @@ const BillingIntegrationSettings = forwardRef<
                         session: clearBeforeImportSession,
                         enabledEntities,
                     });
-                    const customerId = normalizeClearBeforeImportCustomerId(
-                        clearBeforeImportCustomerId
-                    );
+                    const customerId = clearBeforeImportCustomerId;
                     setClearBeforeImportCustomerError(null);
-                    const customerIdRaw = clearBeforeImportCustomerId.trim();
-                    if (customerIdRaw && customerId == null) {
-                        setClearBeforeImportCustomerError(
-                            "Enter a valid Archaser customer id"
-                        );
-                        return;
-                    }
                     if (customerId != null) {
-                        setClearBeforeCustomerValidating(true);
-                        try {
-                            await lookupBillingConnectorCustomerById(
-                                accountId,
-                                customerId
-                            );
-                        } catch (err) {
-                            setClearBeforeImportCustomerError(
-                                axiosErrorMessage(err) ??
-                                    `Customer not found on this account: id ${customerId}`
-                            );
-                            return;
-                        } finally {
-                            setClearBeforeCustomerValidating(false);
+                        if (
+                            clearBeforeImportCustomerLookup?.id === customerId
+                        ) {
+                            // Already resolved from autocomplete selection.
+                        } else {
+                            setClearBeforeCustomerValidating(true);
+                            try {
+                                const customer =
+                                    await lookupBillingConnectorCustomerById(
+                                        accountId,
+                                        customerId
+                                    );
+                                setClearBeforeImportPrefs((prev) => ({
+                                    ...prev,
+                                    customerId: customer.id,
+                                    customerName: customer.name,
+                                }));
+                            } catch (err) {
+                                setClearBeforeImportCustomerError(
+                                    axiosErrorMessage(err) ??
+                                        `Customer not found on this account: id ${customerId}`
+                                );
+                                return;
+                            } finally {
+                                setClearBeforeCustomerValidating(false);
+                            }
                         }
                     }
                     if (
@@ -1145,19 +1183,31 @@ const BillingIntegrationSettings = forwardRef<
             session: clearBeforeImportSession,
             enabledEntities,
         });
-        const customerId = normalizeClearBeforeImportCustomerId(
-            clearBeforeImportCustomerId
-        );
+        const customerId = clearBeforeImportCustomerId;
         return buildClearBeforeImportConfirmCopy({
             clearBeforeImport,
             scope: customerId != null ? "customer" : "account",
             customerId,
+            customerName:
+                customerId != null &&
+                clearBeforeImportCustomerLookup?.id === customerId
+                    ? clearBeforeImportCustomerLookup.name
+                    : null,
         });
     }, [
         clearBeforeImportSession,
         clearBeforeImportCustomerId,
+        clearBeforeImportCustomerLookup,
         enabledEntities,
     ]);
+
+    const clearBeforeStartConfirmDescription = useMemo(
+        () =>
+            renderClearBeforeImportConfirmDescription(
+                clearBeforeStartConfirmCopy
+            ),
+        [clearBeforeStartConfirmCopy]
+    );
 
     const primaryPending =
         clearBeforeCustomerValidating ||
@@ -1286,7 +1336,7 @@ const BillingIntegrationSettings = forwardRef<
             // Update enabled_entities in cache without bumping modified_at so
             // the form sync effect does not reset unsaved connection fields.
             queryClient.setQueryData<BillingConnectorConfig | null>(
-                ["billing-connector", accountId],
+                billingConnectorQueryKey(accountId),
                 (prev) => {
                     if (!prev) {
                         return saved;
@@ -1301,25 +1351,33 @@ const BillingIntegrationSettings = forwardRef<
         },
     });
 
-    const toggleEntity = (entity: ImportType) => {
-        if (!canManage || persistEnabledEntitiesMutation.isPending) {
-            return;
-        }
-        const previous = enabledEntities;
-        const next = previous.includes(entity)
-            ? previous.filter((e) => e !== entity)
-            : [...previous, entity];
-        setEnabledEntities(next);
-        persistEnabledEntitiesMutation.mutate(next, {
-            onError: (err: unknown) => {
-                setEnabledEntities(previous);
-                showError(
-                    axiosErrorMessage(err) ??
-                        "Failed to update enabled entities"
-                );
-            },
-        });
-    };
+    const toggleEntity = useCallback(
+        (entity: ImportType) => {
+            if (!canManage || persistEnabledEntitiesMutation.isPending) {
+                return;
+            }
+            const previous = enabledEntities;
+            const next = previous.includes(entity)
+                ? previous.filter((e) => e !== entity)
+                : [...previous, entity];
+            setEnabledEntities(next);
+            persistEnabledEntitiesMutation.mutate(next, {
+                onError: (err: unknown) => {
+                    setEnabledEntities(previous);
+                    showError(
+                        axiosErrorMessage(err) ??
+                            "Failed to update enabled entities"
+                    );
+                },
+            });
+        },
+        [
+            canManage,
+            enabledEntities,
+            persistEnabledEntitiesMutation,
+            showError,
+        ]
+    );
 
     const allEnabledMappingsComplete = useMemo(
         () =>
@@ -1336,6 +1394,75 @@ const BillingIntegrationSettings = forwardRef<
         },
         []
     );
+
+    const handleClearBeforeImportEntityChange = useCallback(
+        (entity: ImportType, checked: boolean) => {
+            if (!isClearBeforeImportEntity(entity)) {
+                return;
+            }
+            setClearBeforeImportPrefs((prev) => ({
+                ...prev,
+                entities: {
+                    ...prev.entities,
+                    [entity]: checked,
+                },
+            }));
+        },
+        []
+    );
+
+    const handleRefreshEntitySetCatalog = useCallback(async () => {
+        await refreshEntitySetsMutation.mutateAsync();
+    }, [refreshEntitySetsMutation]);
+
+    const handlePullFilterSaved = useCallback(
+        (saved: BillingConnectorConfig) => {
+            queryClient.setQueryData(
+                billingConnectorQueryKey(accountId),
+                saved
+            );
+        },
+        [accountId, queryClient]
+    );
+
+    const handleOpenResetDialog = useCallback(() => {
+        setResetDialogOpen(true);
+    }, []);
+
+    const handleClearBeforeImportCustomerChange = useCallback(
+        (
+            customerId: number | null,
+            option: { id: number; name: string } | null
+        ) => {
+            setClearBeforeImportCustomerError(null);
+            setClearBeforeImportPrefs((prev) => ({
+                ...prev,
+                customerId,
+                customerName:
+                    customerId != null && option
+                        ? option.name
+                        : null,
+            }));
+        },
+        []
+    );
+
+    /**
+     * Keep a stable config reference for mapping/pull-filter while only
+     * sync_states / pending AR counters change during busy polls.
+     */
+    const entityWorkspaceConfig = useMemo(() => config, [
+        config?.id,
+        config?.modified_at,
+        config?.entity_sets,
+        config?.default_entity_sets,
+        config?.entity_set_catalog,
+        config?.entity_set_catalog_fetched_at,
+        config?.backfill_options_locked,
+        config?.pull_filters,
+        config?.preview_passes,
+        config?.has_credentials,
+    ]);
 
     useEffect(() => {
         if (!entityTabFocusPendingRef.current || !config?.has_credentials) {
@@ -1370,52 +1497,6 @@ const BillingIntegrationSettings = forwardRef<
     const isScheduleExpanded = scheduleExpanded ?? !connectionAlreadySet;
     const isMappingExpanded = mappingExpanded ?? false;
     const isProgressExpanded = progressExpanded ?? true;
-    const billingAccordionSx = {
-        border: "1px solid",
-        borderColor: "divider",
-        borderRadius: pillRadiusPx,
-        overflow: "hidden",
-        bgcolor: "background.paper",
-        "&:before": { display: "none" },
-        "&:first-of-type, &:last-of-type, &:not(:first-of-type)": {
-            borderRadius: pillRadiusPx,
-        },
-        "&.Mui-expanded": {
-            margin: 0,
-        },
-    };
-    const billingAccordionSummarySx = (expanded: boolean) => ({
-        bgcolor: "background.paper",
-        px: 2,
-        py: 0.75,
-        minHeight: 48,
-        borderTopLeftRadius: pillRadiusPx,
-        borderTopRightRadius: pillRadiusPx,
-        borderBottomLeftRadius: expanded ? 0 : pillRadiusPx,
-        borderBottomRightRadius: expanded ? 0 : pillRadiusPx,
-        "& .MuiAccordionSummary-content": {
-            my: 0,
-            alignItems: "center",
-            gap: 1,
-            "&.Mui-expanded": { my: 0 },
-        },
-        "&.Mui-expanded": {
-            minHeight: 48,
-            borderBottomLeftRadius: 0,
-            borderBottomRightRadius: 0,
-        },
-    });
-    const billingAccordionDetailsSx = {
-        p: 0,
-        bgcolor: "background.paper",
-        borderBottomLeftRadius: pillRadiusPx,
-        borderBottomRightRadius: pillRadiusPx,
-    };
-    const billingAccordionContentSx = {
-        px: 2,
-        py: 1.5,
-        "&:last-child": { pb: 1.5 },
-    };
 
     return (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -1430,1457 +1511,169 @@ const BillingIntegrationSettings = forwardRef<
                 </Alert>
             )}
 
-            <Card elevation={0} sx={accountCardSx}>
-                <Accordion
-                    disableGutters
-                    elevation={0}
-                    expanded={isConnectionExpanded}
-                    onChange={(_, expanded) => setConnectionExpanded(expanded)}
-                    sx={billingAccordionSx}
-                >
-                    <AccordionSummary
-                        expandIcon={<ExpandMoreIcon />}
-                        sx={billingAccordionSummarySx(isConnectionExpanded)}
-                    >
-                        <SyncIcon sx={accountSectionIconSx} />
-                        <Box sx={{ minWidth: 0, flex: 1 }}>
-                            <Typography
-                                variant="subtitle1"
-                                sx={accountCardTitleSx}
-                            >
-                                Connection
-                            </Typography>
-                            <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                sx={{ mt: 0.25 }}
-                            >
-                                {connectionAlreadySet
-                                    ? `${provider === "PRIORITY" ? "Priority" : provider} · credentials saved`
-                                    : "Configure provider, base URL, and authentication."}
-                            </Typography>
-                        </Box>
-                    </AccordionSummary>
-                    <AccordionDetails sx={billingAccordionDetailsSx}>
-                <CardContent sx={billingAccordionContentSx}>
-                    <Grid container spacing={2} alignItems="flex-start">
-                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                            <FormControl fullWidth disabled={!canManage}>
-                                <InputLabel id="billing-provider-label">
-                                    Provider
-                                </InputLabel>
-                                <Select
-                                    labelId="billing-provider-label"
-                                    label="Provider"
-                                    value={provider}
-                                    onChange={(e) =>
-                                        setProvider(
-                                            e.target.value as
-                                                | "PRIORITY"
-                                                | "SAP_BUSINESS_ONE"
-                                        )
-                                    }
-                                >
-                                    <MenuItem value="PRIORITY">Priority</MenuItem>
-                                    <MenuItem value="SAP_BUSINESS_ONE" disabled>
-                                        SAP Business One (coming soon)
-                                    </MenuItem>
-                                </Select>
-                            </FormControl>
-                        </Grid>
+            <BillingConnectionSection
+                canManage={canManage}
+                expanded={isConnectionExpanded}
+                onExpandedChange={setConnectionExpanded}
+                connectionAlreadySet={connectionAlreadySet}
+                provider={provider}
+                onProviderChange={setProvider}
+                baseUrl={baseUrl}
+                onBaseUrlChange={setBaseUrl}
+                authType={authType}
+                onAuthTypeChange={setAuthType}
+                apiKeyToken={apiKeyToken}
+                onApiKeyTokenChange={setApiKeyToken}
+                basicUsername={basicUsername}
+                onBasicUsernameChange={setBasicUsername}
+                basicPassword={basicPassword}
+                onBasicPasswordChange={setBasicPassword}
+                oauthClientId={oauthClientId}
+                onOauthClientIdChange={setOauthClientId}
+                oauthClientSecret={oauthClientSecret}
+                onOauthClientSecretChange={setOauthClientSecret}
+                oauthTokenEndpoint={oauthTokenEndpoint}
+                onOauthTokenEndpointChange={setOauthTokenEndpoint}
+                hasCredentials={Boolean(config?.has_credentials)}
+                testPending={testMutation.isPending}
+                onTestConnection={() => testMutation.mutate()}
+            />
 
-                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                            <TextField
-                                fullWidth
-                                label="Base URL"
-                                value={baseUrl}
-                                onChange={(e) => setBaseUrl(e.target.value)}
-                                disabled={!canManage || provider !== "PRIORITY"}
-                                placeholder="https://host/odata/Priority/ini/company"
-                            />
-                        </Grid>
+            <BillingScheduleSection
+                canManage={canManage}
+                isHebrew={isHebrew}
+                expanded={isScheduleExpanded}
+                onExpandedChange={setScheduleExpanded}
+                syncEnabled={syncEnabled}
+                onSyncEnabledChange={setSyncEnabled}
+                scheduleSummary={config?.schedule_summary}
+                extensionKey={extensionKey}
+                onExtensionKeyChange={setExtensionKey}
+                schedulePreset={schedulePreset}
+                onSchedulePresetChange={setSchedulePreset}
+                syncCron={syncCron}
+                onSyncCronChange={setSyncCron}
+                dailyTimeUtc={dailyTimeUtc}
+                onDailyTimeUtcChange={setDailyTimeUtc}
+                weeklyDay={weeklyDay}
+                onWeeklyDayChange={setWeeklyDay}
+                scheduleWarning={config?.schedule_warning}
+                nextScheduledSyncAtUtc={config?.next_scheduled_sync_at_utc}
+                invoicePaidTolerance={invoicePaidTolerance}
+                onInvoicePaidToleranceChange={setInvoicePaidTolerance}
+                invoicePaidToleranceError={invoicePaidToleranceError}
+                onInvoicePaidToleranceErrorChange={setInvoicePaidToleranceError}
+                persistPaidTolerance={persistPaidTolerance}
+                hasCredentials={Boolean(config?.has_credentials)}
+                allEnabledMappingsComplete={allEnabledMappingsComplete}
+                backfillStartDate={backfillStartDate}
+                onBackfillStartDateChange={setBackfillStartDate}
+                mepBreachStartDate={mepBreachStartDate}
+                onMepBreachStartDateChange={setMepBreachStartDate}
+                includeOlderOpenInvoices={includeOlderOpenInvoices}
+                onIncludeOlderOpenInvoicesChange={setIncludeOlderOpenInvoices}
+                skipReportingBreachOnBackfill={skipReportingBreachOnBackfill}
+                onSkipReportingBreachOnBackfillChange={
+                    setSkipReportingBreachOnBackfill
+                }
+                backfillOptionsLocked={Boolean(config?.backfill_options_locked)}
+                persistCutoverOptions={persistCutoverOptions}
+                extensionKeyOptions={extensionKeyOptions}
+                selectedExtensionOption={selectedExtensionOption}
+                extensionConfig={extensionConfig}
+                onExtensionConfigChange={setExtensionConfig}
+                accountId={accountId}
+                ExtensionPanel={ExtensionPanel}
+                extensionRegistrationKey={extensionRegistration?.key}
+            />
 
-                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                            <FormControl fullWidth disabled={!canManage}>
-                                <InputLabel id="billing-auth-type-label">
-                                    Authentication
-                                </InputLabel>
-                                <Select
-                                    labelId="billing-auth-type-label"
-                                    label="Authentication"
-                                    value={authType}
-                                    onChange={(e) =>
-                                        setAuthType(
-                                            e.target.value as ConnectorAuthType
-                                        )
-                                    }
-                                >
-                                    {AUTH_TYPE_OPTIONS.map((opt) => (
-                                        <MenuItem key={opt.value} value={opt.value}>
-                                            {opt.label}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-
-                        {authType === "API_KEY" && (
-                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                                <TextField
-                                    fullWidth
-                                    type="password"
-                                    label="API Token"
-                                    value={apiKeyToken}
-                                    onChange={(e) => setApiKeyToken(e.target.value)}
-                                    disabled={!canManage}
-                                    placeholder={
-                                        config?.has_credentials
-                                            ? "Leave blank to keep existing token"
-                                            : "REST access token"
-                                    }
-                                />
-                            </Grid>
-                        )}
-
-                        {authType === "BASIC" && (
-                            <>
-                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                                    <TextField
-                                        fullWidth
-                                        label="Username"
-                                        value={basicUsername}
-                                        onChange={(e) =>
-                                            setBasicUsername(e.target.value)
-                                        }
-                                        disabled={!canManage}
-                                    />
-                                </Grid>
-                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                                    <TextField
-                                        fullWidth
-                                        type="password"
-                                        label="Password"
-                                        value={basicPassword}
-                                        onChange={(e) =>
-                                            setBasicPassword(e.target.value)
-                                        }
-                                        disabled={!canManage}
-                                        placeholder={
-                                            config?.has_credentials
-                                                ? "Leave blank to keep existing password"
-                                                : ""
-                                        }
-                                    />
-                                </Grid>
-                            </>
-                        )}
-
-                        {authType === "OAUTH2_CLIENT_CREDENTIALS" && (
-                            <>
-                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                                    <TextField
-                                        fullWidth
-                                        label="Client ID"
-                                        value={oauthClientId}
-                                        onChange={(e) =>
-                                            setOauthClientId(e.target.value)
-                                        }
-                                        disabled={!canManage}
-                                    />
-                                </Grid>
-                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                                    <TextField
-                                        fullWidth
-                                        type="password"
-                                        label="Client Secret"
-                                        value={oauthClientSecret}
-                                        onChange={(e) =>
-                                            setOauthClientSecret(e.target.value)
-                                        }
-                                        disabled={!canManage}
-                                    />
-                                </Grid>
-                                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                                    <TextField
-                                        fullWidth
-                                        label="Token Endpoint"
-                                        value={oauthTokenEndpoint}
-                                        onChange={(e) =>
-                                            setOauthTokenEndpoint(e.target.value)
-                                        }
-                                        disabled={!canManage}
-                                    />
-                                </Grid>
-                            </>
-                        )}
-
-                        <Grid size={{ xs: 12 }}>
-                            {config?.has_credentials && (
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                    sx={{ mb: 2 }}
-                                >
-                                    Credentials are stored encrypted. Values are
-                                    never shown after save.
-                                </Typography>
-                            )}
-
-                            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                                <Button
-                                    variant="outlined"
-                                    startIcon={
-                                        testMutation.isPending ? (
-                                            <CircularProgress size={16} />
-                                        ) : (
-                                            <SyncIcon />
-                                        )
-                                    }
-                                    onClick={() => testMutation.mutate()}
-                                    disabled={
-                                        !canManage || testMutation.isPending
-                                    }
-                                >
-                                    Test connection
-                                </Button>
-                            </Box>
-                        </Grid>
-                    </Grid>
-                </CardContent>
-                    </AccordionDetails>
-                </Accordion>
-            </Card>
-
-            <Card elevation={0} sx={accountCardSx}>
-                <Accordion
-                    disableGutters
-                    elevation={0}
-                    expanded={isScheduleExpanded}
-                    onChange={(_, expanded) => setScheduleExpanded(expanded)}
-                    sx={billingAccordionSx}
-                >
-                    <AccordionSummary
-                        expandIcon={<ExpandMoreIcon />}
-                        sx={billingAccordionSummarySx(isScheduleExpanded)}
-                    >
-                        <SettingsIcon sx={accountSectionIconSx} />
-                        <Box sx={{ minWidth: 0, flex: 1 }}>
-                            <Typography
-                                variant="subtitle1"
-                                sx={accountCardTitleSx}
-                            >
-                                Sync Settings
-                            </Typography>
-                            <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                sx={{ mt: 0.25 }}
-                            >
-                                {syncEnabled
-                                    ? config?.schedule_summary
-                                        ? `Sync: Enabled · ${config.schedule_summary}`
-                                        : "Sync: Enabled · choose how often sync runs."
-                                    : "Sync: disabled"}
-                                {extensionKey
-                                    ? ` · Extension: ${extensionKey}`
-                                    : ""}
-                            </Typography>
-                        </Box>
-                    </AccordionSummary>
-                    <AccordionDetails sx={billingAccordionDetailsSx}>
-                <CardContent sx={billingAccordionContentSx}>
-                    <Grid container spacing={2} alignItems="flex-start">
-                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                            <FormControlLabel
-                                control={
-                                    <Switch
-                                        checked={syncEnabled}
-                                        onChange={(e) =>
-                                            setSyncEnabled(e.target.checked)
-                                        }
-                                        disabled={!canManage}
-                                        color="primary"
-                                        {...(isHebrew && { "data-rtl": true })}
-                                    />
-                                }
-                                label="Sync Enabled"
-                                sx={{
-                                    alignItems: "center",
-                                    mt: 0.5,
-                                    "& .MuiFormControlLabel-label": {
-                                        fontSize: "0.875rem",
-                                        fontWeight: 500,
-                                        lineHeight: 1.4,
-                                        ml: 1,
-                                    },
-                                }}
-                            />
-                        </Grid>
-                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                            <FormControl
-                                fullWidth
-                                size="small"
-                                disabled={!canManage}
-                            >
-                                <InputLabel id="billing-schedule-preset-label">
-                                    Sync Schedule
-                                </InputLabel>
-                                <Select
-                                    labelId="billing-schedule-preset-label"
-                                    label="Sync Schedule"
-                                    value={schedulePreset}
-                                    onChange={(e) => {
-                                        const value = e.target
-                                            .value as SchedulePresetValue;
-                                        setSchedulePreset(value);
-                                    }}
-                                >
-                                    {SCHEDULE_PRESET_OPTIONS.map((opt) => (
-                                        <MenuItem
-                                            key={opt.value}
-                                            value={opt.value}
-                                        >
-                                            {opt.label}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-                        {schedulePreset === "custom" ? (
-                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                                <TextField
-                                    fullWidth
-                                    size="small"
-                                    label="Cron Expression (UTC)"
-                                    value={syncCron}
-                                    onChange={(e) => {
-                                        setSyncCron(e.target.value);
-                                        setSchedulePreset("custom");
-                                    }}
-                                    disabled={!canManage}
-                                />
-                            </Grid>
-                        ) : null}
-                        {(schedulePreset === "daily" ||
-                            schedulePreset === "weekly") && (
-                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                                <TextField
-                                    fullWidth
-                                    size="small"
-                                    label="Time (UTC)"
-                                    type="time"
-                                    value={dailyTimeUtc}
-                                    onChange={(e) =>
-                                        setDailyTimeUtc(
-                                            e.target.value || "03:00"
-                                        )
-                                    }
-                                    disabled={!canManage}
-                                    InputLabelProps={{ shrink: true }}
-                                />
-                            </Grid>
-                        )}
-                        {schedulePreset === "weekly" && (
-                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                                <FormControl
-                                    fullWidth
-                                    size="small"
-                                    disabled={!canManage}
-                                >
-                                    <InputLabel id="billing-weekly-day-label">
-                                        Day of Week (UTC)
-                                    </InputLabel>
-                                    <Select
-                                        labelId="billing-weekly-day-label"
-                                        label="Day of Week (UTC)"
-                                        value={weeklyDay}
-                                        onChange={(e) =>
-                                            setWeeklyDay(
-                                                Number(e.target.value)
-                                            )
-                                        }
-                                    >
-                                        {WEEKDAY_OPTIONS.map((opt) => (
-                                            <MenuItem
-                                                key={opt.value}
-                                                value={opt.value}
-                                            >
-                                                {opt.label}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
-                            </Grid>
-                        )}
-
-                        {config?.schedule_warning ? (
-                            <Grid size={{ xs: 12 }}>
-                                <Alert severity="warning">
-                                    {config.schedule_warning}
-                                </Alert>
-                            </Grid>
-                        ) : null}
-
-                        {(config?.next_scheduled_sync_at_utc ||
-                            syncEnabled) && (
-                            <Grid size={{ xs: 12 }}>
-                                {config?.next_scheduled_sync_at_utc ? (
-                                    <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                    >
-                                        Next scheduled sync (UTC):{" "}
-                                        {new Date(
-                                            config.next_scheduled_sync_at_utc
-                                        )
-                                            .toISOString()
-                                            .replace("T", " ")
-                                            .replace(/\.\d{3}Z$/, " UTC")}
-                                    </Typography>
-                                ) : syncEnabled ? (
-                                    <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                    >
-                                        Next scheduled sync (UTC): —
-                                    </Typography>
-                                ) : null}
-                            </Grid>
-                        )}
-
-                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                            <TextField
-                                fullWidth
-                                required
-                                label="Paid leftover tolerance"
-                                type="number"
-                                size="small"
-                                value={invoicePaidTolerance}
-                                onChange={(e) => {
-                                    setInvoicePaidTolerance(e.target.value);
-                                    setInvoicePaidToleranceError(null);
-                                }}
-                                onBlur={() => {
-                                    const parsed = parsePaidToleranceInput(
-                                        invoicePaidTolerance
-                                    );
-                                    if (parsed == null) {
-                                        setInvoicePaidToleranceError(
-                                            "Enter a number from 0 to 10 (two decimals). 0 means leftover must be exactly 0."
-                                        );
-                                        return;
-                                    }
-                                    setInvoicePaidTolerance(
-                                        formatPaidTolerance(parsed)
-                                    );
-                                    setInvoicePaidToleranceError(null);
-                                    if (config) {
-                                        void persistPaidTolerance(parsed);
-                                    }
-                                }}
-                                disabled={!canManage}
-                                error={Boolean(invoicePaidToleranceError)}
-                                helperText={invoicePaidToleranceError ?? undefined}
-                                inputProps={{
-                                    min: PAID_TOLERANCE_MIN,
-                                    max: PAID_TOLERANCE_MAX,
-                                    step: 0.01,
-                                }}
-                                InputProps={{
-                                    endAdornment: (
-                                        <Tooltip
-                                            title="Leftover in each invoice's customer currency. Paid when leftover is within +/- this amount. 0 means leftover must be exactly 0. Saving does not restamp invoices until the next connector sync or nightly leftover job."
-                                            arrow
-                                            enterDelay={300}
-                                            leaveDelay={100}
-                                            placement="bottom"
-                                            PopperProps={{
-                                                sx: {
-                                                    "& .MuiTooltip-tooltip": {
-                                                        direction: isHebrew
-                                                            ? "rtl"
-                                                            : "ltr",
-                                                    },
-                                                },
-                                            }}
-                                        >
-                                            <InfoIcon
-                                                fontSize="small"
-                                                color="action"
-                                                sx={{
-                                                    cursor: "help",
-                                                }}
-                                            />
-                                        </Tooltip>
-                                    ),
-                                }}
-                            />
-                        </Grid>
-
-                        {config?.has_credentials &&
-                            allEnabledMappingsComplete && (
-                                <>
-                                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                                        <TextField
-                                            fullWidth
-                                            label="Backfill Start Date"
-                                            type="date"
-                                            size="small"
-                                            value={backfillStartDate}
-                                            onChange={(e) => {
-                                                const next = e.target.value;
-                                                setBackfillStartDate(next);
-                                                void persistCutoverOptions({
-                                                    backfill_start_date:
-                                                        next.trim() || null,
-                                                });
-                                            }}
-                                            disabled={
-                                                !canManage ||
-                                                Boolean(
-                                                    config.backfill_options_locked
-                                                )
-                                            }
-                                            InputLabelProps={{ shrink: true }}
-                                            InputProps={{
-                                                endAdornment: (
-                                                    <Tooltip
-                                                        title={
-                                                            config.backfill_options_locked
-                                                                ? "Locked after backfill started. Reset backfill to change the start date."
-                                                                : "Optional. Invoices and payments created on/after this account-local day. Leave blank for full history. Customers and contacts always pull full history."
-                                                        }
-                                                        arrow
-                                                        enterDelay={300}
-                                                        leaveDelay={100}
-                                                        placement="bottom"
-                                                        PopperProps={{
-                                                            sx: {
-                                                                "& .MuiTooltip-tooltip":
-                                                                    {
-                                                                        direction:
-                                                                            isHebrew
-                                                                                ? "rtl"
-                                                                                : "ltr",
-                                                                    },
-                                                            },
-                                                        }}
-                                                    >
-                                                        <InfoIcon
-                                                            fontSize="small"
-                                                            color="action"
-                                                            sx={{
-                                                                cursor: "help",
-                                                            }}
-                                                        />
-                                                    </Tooltip>
-                                                ),
-                                            }}
-                                        />
-                                    </Grid>
-                                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                                        <TextField
-                                            fullWidth
-                                            label="MEP Breach Start Date"
-                                            type="date"
-                                            size="small"
-                                            value={mepBreachStartDate}
-                                            onChange={(e) => {
-                                                const next = e.target.value;
-                                                setMepBreachStartDate(next);
-                                                void persistCutoverOptions({
-                                                    mep_breach_start_date:
-                                                        next.trim() || null,
-                                                });
-                                            }}
-                                            disabled={
-                                                !canManage ||
-                                                Boolean(
-                                                    config.backfill_options_locked
-                                                )
-                                            }
-                                            InputLabelProps={{ shrink: true }}
-                                            InputProps={{
-                                                endAdornment: (
-                                                    <Tooltip
-                                                        title={
-                                                            config.backfill_options_locked
-                                                                ? "Locked after backfill started. Reset backfill to change the MEP breach start date."
-                                                                : "Optional. Invoices issued before this day are excluded from MEP breach evaluation. Leave blank to evaluate all history. Commonly set to the backfill start date."
-                                                        }
-                                                        arrow
-                                                        enterDelay={300}
-                                                        leaveDelay={100}
-                                                        placement="bottom"
-                                                        PopperProps={{
-                                                            sx: {
-                                                                "& .MuiTooltip-tooltip":
-                                                                    {
-                                                                        direction:
-                                                                            isHebrew
-                                                                                ? "rtl"
-                                                                                : "ltr",
-                                                                    },
-                                                            },
-                                                        }}
-                                                    >
-                                                        <InfoIcon
-                                                            fontSize="small"
-                                                            color="action"
-                                                            sx={{
-                                                                cursor: "help",
-                                                            }}
-                                                        />
-                                                    </Tooltip>
-                                                ),
-                                            }}
-                                        />
-                                    </Grid>
-                                    {Boolean(backfillStartDate.trim()) && (
-                                        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                                            <FormControlLabel
-                                                control={
-                                                    <Switch
-                                                        checked={
-                                                            includeOlderOpenInvoices
-                                                        }
-                                                        onChange={(e) => {
-                                                            const next =
-                                                                e.target
-                                                                    .checked;
-                                                            setIncludeOlderOpenInvoices(
-                                                                next
-                                                            );
-                                                            void persistCutoverOptions(
-                                                                {
-                                                                    include_older_open_invoices:
-                                                                        next,
-                                                                }
-                                                            );
-                                                        }}
-                                                        disabled={
-                                                            !canManage ||
-                                                            Boolean(
-                                                                config.backfill_options_locked
-                                                            )
-                                                        }
-                                                    />
-                                                }
-                                                label={
-                                                    <Box
-                                                        sx={{
-                                                            display: "flex",
-                                                            alignItems:
-                                                                "center",
-                                                            gap: 0.5,
-                                                        }}
-                                                    >
-                                                        Include older open
-                                                        invoices
-                                                        <Tooltip
-                                                            title={
-                                                                config.backfill_options_locked
-                                                                    ? "Locked after backfill started. Reset backfill to change this option."
-                                                                    : "When on, also pull unpaid invoices created before the start date and payments linked to those invoices (any payment date). Default on."
-                                                            }
-                                                            arrow
-                                                            enterDelay={300}
-                                                            leaveDelay={100}
-                                                            placement="bottom"
-                                                            PopperProps={{
-                                                                sx: {
-                                                                    "& .MuiTooltip-tooltip":
-                                                                        {
-                                                                            direction:
-                                                                                isHebrew
-                                                                                    ? "rtl"
-                                                                                    : "ltr",
-                                                                        },
-                                                                },
-                                                            }}
-                                                        >
-                                                            <InfoIcon
-                                                                fontSize="small"
-                                                                color="action"
-                                                                sx={{
-                                                                    cursor: "help",
-                                                                }}
-                                                            />
-                                                        </Tooltip>
-                                                    </Box>
-                                                }
-                                                sx={{
-                                                    alignItems: "center",
-                                                    mt: 0.5,
-                                                    "& .MuiFormControlLabel-label":
-                                                        {
-                                                            fontSize:
-                                                                "0.875rem",
-                                                            fontWeight: 500,
-                                                            lineHeight: 1.4,
-                                                            ml: 1,
-                                                        },
-                                                }}
-                                            />
-                                        </Grid>
-                                    )}
-                                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                                        <FormControlLabel
-                                            control={
-                                                <Switch
-                                                    checked={
-                                                        skipReportingBreachOnBackfill
-                                                    }
-                                                    onChange={(e) => {
-                                                        const next =
-                                                            e.target.checked;
-                                                        setSkipReportingBreachOnBackfill(
-                                                            next
-                                                        );
-                                                        void persistCutoverOptions(
-                                                            {
-                                                                skip_reporting_breach_on_backfill:
-                                                                    next,
-                                                            }
-                                                        );
-                                                    }}
-                                                    disabled={
-                                                        !canManage ||
-                                                        Boolean(
-                                                            config.backfill_options_locked
-                                                        )
-                                                    }
-                                                />
-                                            }
-                                            label={
-                                                <Box
-                                                    sx={{
-                                                        display: "flex",
-                                                        alignItems: "center",
-                                                        gap: 0.5,
-                                                    }}
-                                                >
-                                                    Skip reporting breach during
-                                                    backfill
-                                                    <Tooltip
-                                                        title={
-                                                            config.backfill_options_locked
-                                                                ? "Locked after backfill started. Reset backfill to change this option."
-                                                                : "Only affects connector backfill import. Incremental sync and the overnight reporting-breach job still run as usual."
-                                                        }
-                                                        arrow
-                                                        enterDelay={300}
-                                                        leaveDelay={100}
-                                                        placement="bottom"
-                                                        PopperProps={{
-                                                            sx: {
-                                                                "& .MuiTooltip-tooltip":
-                                                                    {
-                                                                        direction:
-                                                                            isHebrew
-                                                                                ? "rtl"
-                                                                                : "ltr",
-                                                                    },
-                                                            },
-                                                        }}
-                                                    >
-                                                        <InfoIcon
-                                                            fontSize="small"
-                                                            color="action"
-                                                            sx={{
-                                                                cursor: "help",
-                                                            }}
-                                                        />
-                                                    </Tooltip>
-                                                </Box>
-                                            }
-                                            sx={{
-                                                alignItems: "center",
-                                                mt: 0.5,
-                                                "& .MuiFormControlLabel-label":
-                                                    {
-                                                        fontSize: "0.875rem",
-                                                        fontWeight: 500,
-                                                        lineHeight: 1.4,
-                                                        ml: 1,
-                                                    },
-                                            }}
-                                        />
-                                    </Grid>
-                                    {config.backfill_options_locked && (
-                                        <Grid size={{ xs: 12 }}>
-                                            <Alert severity="warning">
-                                                Cutover options are locked
-                                                because backfill has started.
-                                                Use Reset backfill to unlock the
-                                                start date and switches before
-                                                changing them.
-                                            </Alert>
-                                        </Grid>
-                                    )}
-                                </>
-                            )}
-
-                        {canManage && (
-                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                                <Autocomplete
-                                    id="billing-extension-key"
-                                    options={extensionKeyOptions}
-                                    value={selectedExtensionOption}
-                                    disableClearable
-                                    fullWidth
-                                    size="small"
-                                    getOptionLabel={(option) =>
-                                        option.label
-                                    }
-                                    isOptionEqualToValue={(option, value) =>
-                                        option.key === value.key
-                                    }
-                                    onChange={(_event, next) => {
-                                        const nextKey = next?.key ?? "";
-                                        setExtensionKey(nextKey);
-                                        if (!nextKey) {
-                                            setExtensionConfig({});
-                                        }
-                                    }}
-                                    dir={isHebrew ? "rtl" : "ltr"}
-                                    {...(isHebrew && {
-                                        "data-hebrew": true,
-                                        "data-rtl": true,
-                                    })}
-                                    renderInput={(params) => (
-                                        <TextField
-                                            {...params}
-                                            label="Extension Key"
-                                            variant="outlined"
-                                            size="small"
-                                            fullWidth
-                                            dir={isHebrew ? "rtl" : "ltr"}
-                                            {...(isHebrew && {
-                                                "data-hebrew": true,
-                                            })}
-                                            InputProps={{
-                                                ...params.InputProps,
-                                                endAdornment: (
-                                                    <>
-                                                        <Tooltip
-                                                            title="Optional. Attach a registered extension for account-specific import logic. Use the account Save button to persist this field."
-                                                            arrow
-                                                            enterDelay={300}
-                                                            leaveDelay={100}
-                                                            placement="bottom"
-                                                            PopperProps={{
-                                                                sx: {
-                                                                    "& .MuiTooltip-tooltip":
-                                                                        {
-                                                                            direction:
-                                                                                isHebrew
-                                                                                    ? "rtl"
-                                                                                    : "ltr",
-                                                                        },
-                                                                },
-                                                            }}
-                                                        >
-                                                            <InfoIcon
-                                                                fontSize="small"
-                                                                color="action"
-                                                                sx={{
-                                                                    cursor: "help",
-                                                                }}
-                                                            />
-                                                        </Tooltip>
-                                                        {
-                                                            params.InputProps
-                                                                .endAdornment
-                                                        }
-                                                    </>
-                                                ),
-                                            }}
-                                        />
-                                    )}
-                                    renderOption={(props, option) => {
-                                        const { key, ...otherProps } = props;
-                                        return (
-                                            <Box
-                                                key={key}
-                                                component="li"
-                                                {...otherProps}
-                                                sx={{
-                                                    direction: isHebrew
-                                                        ? "rtl"
-                                                        : "ltr",
-                                                    textAlign: isHebrew
-                                                        ? "right"
-                                                        : "left",
-                                                }}
-                                            >
-                                                <Typography
-                                                    sx={{
-                                                        direction: isHebrew
-                                                            ? "rtl"
-                                                            : "ltr",
-                                                        textAlign: isHebrew
-                                                            ? "right"
-                                                            : "left",
-                                                        width: "100%",
-                                                    }}
-                                                >
-                                                    {option.label}
-                                                </Typography>
-                                            </Box>
-                                        );
-                                    }}
-                                />
-                            </Grid>
-                        )}
-
-                        {Boolean(extensionKey.trim()) &&
-                            ExtensionPanel &&
-                            extensionRegistration && (
-                            <Grid size={{ xs: 12 }}>
-                                <ExtensionPanel
-                                    accountId={accountId}
-                                    extensionKey={extensionRegistration.key}
-                                    extensionConfig={extensionConfig}
-                                    canManage={canManage}
-                                    onConfigChange={setExtensionConfig}
-                                />
-                            </Grid>
-                        )}
-                    </Grid>
-                </CardContent>
-                    </AccordionDetails>
-                </Accordion>
-            </Card>
-
-            {config?.has_credentials && (
-                <Card elevation={0} sx={accountCardSx}>
-                    <Accordion
-                        disableGutters
-                        elevation={0}
-                        expanded={isMappingExpanded}
-                        onChange={(_, expanded) => setMappingExpanded(expanded)}
-                        sx={billingAccordionSx}
-                    >
-                        <AccordionSummary
-                            expandIcon={<ExpandMoreIcon />}
-                            sx={billingAccordionSummarySx(isMappingExpanded)}
-                        >
-                            <PsychologyIcon sx={accountSectionIconSx} />
-                            <Box sx={{ minWidth: 0, flex: 1 }}>
-                                <Typography
-                                    variant="subtitle1"
-                                    sx={accountCardTitleSx}
-                                >
-                                    Field mapping
-                                </Typography>
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                    sx={{ mt: 0.25 }}
-                                >
-                                    {entitiesForMapping.length === 0
-                                        ? "Enable entities to map fields and pull filters."
-                                        : allEnabledMappingsComplete
-                                          ? `${entitiesForMapping.length} entit${entitiesForMapping.length === 1 ? "y" : "ies"} mapped · pull filters and preview available.`
-                                          : `Map fields for ${entitiesForMapping.length} enabled entit${entitiesForMapping.length === 1 ? "y" : "ies"}.`}
-                                </Typography>
-                            </Box>
-                        </AccordionSummary>
-                        <AccordionDetails sx={billingAccordionDetailsSx}>
-                            <CardContent sx={billingAccordionContentSx}>
-                        <Box>
-                            {entitiesForMapping.length === 0 && (
-                                <Alert severity="info" sx={{ mb: 2 }}>
-                                    No entities are enabled. Turn on a switch
-                                    under a tab to include that entity in sync.
-                                </Alert>
-                            )}
-                            <Box ref={entityTabsRef}>
-                            <Tabs
-                                value={selectedMappingEntityTab}
-                                onChange={(_, value) =>
-                                    setMappingEntityTab(value)
-                                }
-                                variant="scrollable"
-                                scrollButtons="auto"
-                            >
-                                {ENTITY_OPTIONS.map((opt) => {
-                                    const entityEnabled =
-                                        enabledEntities.includes(opt.value);
-                                    return (
-                                        <Tab
-                                            key={opt.value}
-                                            label={opt.label}
-                                            sx={{
-                                                color: entityEnabled
-                                                    ? "primary.main"
-                                                    : "text.disabled",
-                                                "&.Mui-selected": {
-                                                    color: entityEnabled
-                                                        ? "primary.main"
-                                                        : "text.disabled",
-                                                },
-                                            }}
-                                        />
-                                    );
-                                })}
-                            </Tabs>
-                            </Box>
-
-                            {ENTITY_OPTIONS.map((opt, index) => {
-                                const entity = opt.value;
-                                const entityEnabled =
-                                    enabledEntities.includes(entity);
-                                const previewEntity =
-                                    previewResult?.entities.find(
-                                        (row) =>
-                                            row.import_type === entity
-                                    );
-                                return (
-                                <Box
-                                    key={entity}
-                                    role="tabpanel"
-                                    hidden={selectedMappingEntityTab !== index}
-                                    sx={{ pt: 2 }}
-                                >
-                                    <Box
-                                        sx={{
-                                            display: "flex",
-                                            flexWrap: "wrap",
-                                            alignItems: "center",
-                                            gap: 2,
-                                            mb: entityEnabled ? 2 : 1,
-                                        }}
-                                    >
-                                        <FormControlLabel
-                                            control={
-                                                <Switch
-                                                    checked={entityEnabled}
-                                                    onChange={() =>
-                                                        toggleEntity(entity)
-                                                    }
-                                                    disabled={
-                                                        !canManage ||
-                                                        persistEnabledEntitiesMutation.isPending
-                                                    }
-                                                />
-                                            }
-                                            label={`Enable ${opt.label.toLowerCase()}`}
-                                        />
-                                        {isClearBeforeImportEntity(entity) ? (
-                                            <FormControlLabel
-                                                control={
-                                                    <Switch
-                                                        checked={Boolean(
-                                                            clearBeforeImportSession[
-                                                                entity
-                                                            ]
-                                                        )}
-                                                        onChange={(e) => {
-                                                            const next =
-                                                                e.target
-                                                                    .checked;
-                                                            setClearBeforeImportSession(
-                                                                (prev) => ({
-                                                                    ...prev,
-                                                                    [entity]:
-                                                                        next,
-                                                                })
-                                                            );
-                                                        }}
-                                                        disabled={
-                                                            !canManage ||
-                                                            !entityEnabled
-                                                        }
-                                                    />
-                                                }
-                                                label="Delete existing data before import"
-                                                sx={{
-                                                    "& .MuiFormControlLabel-label":
-                                                        {
-                                                            fontSize:
-                                                                "0.875rem",
-                                                            fontWeight: 500,
-                                                            lineHeight: 1.4,
-                                                        },
-                                                }}
-                                            />
-                                        ) : null}
-                                    </Box>
-                                    {entityEnabled ? (
-                                        <>
-                                    <Tabs
-                                        value={entityWorkspaceTab}
-                                        onChange={(_, value) =>
-                                            setEntityWorkspaceTab(value)
-                                        }
-                                        sx={{ mb: 2 }}
-                                    >
-                                                <Tab
-                                                    label="Mapping"
-                                                    value="mapping"
-                                                />
-                                                <Tab
-                                                    label="Pull Filter"
-                                                    value="pullFilter"
-                                                />
-                                                <Tab
-                                                    label="Preview Sample Records"
-                                                    value="preview"
-                                                />
-                                            </Tabs>
-                                            <Box
-                                                hidden={
-                                                    entityWorkspaceTab !==
-                                                    "mapping"
-                                                }
-                                            >
-                                                <ConnectorFieldMapper
-                                                    ref={(handle) => {
-                                                        mapperRefs.current[
-                                                            entity
-                                                        ] = handle;
-                                                    }}
-                                                    accountId={accountId}
-                                                    importType={entity}
-                                                    canManage={canManage}
-                                                    hideEntityHeader
-                                                    hideSaveButton
-                                                    entitySet={
-                                                        config.entity_sets?.[
-                                                            entity
-                                                        ] ?? ""
-                                                    }
-                                                    defaultEntitySet={
-                                                        config
-                                                            .default_entity_sets?.[
-                                                            entity
-                                                        ] ?? ""
-                                                    }
-                                                    entitySetCatalog={
-                                                        config.entity_set_catalog ??
-                                                        []
-                                                    }
-                                                    onEntitySetChange={
-                                                        handleEntitySetChange
-                                                    }
-                                                    onRefreshEntitySetCatalog={async () => {
-                                                        await refreshEntitySetsMutation.mutateAsync();
-                                                    }}
-                                                    isRefreshingEntitySetCatalog={
-                                                        refreshEntitySetsMutation.isPending
-                                                    }
-                                                    onCompletenessChange={
-                                                        handleMappingCompleteness
-                                                    }
-                                                    onDirtyChange={
-                                                        handleEntityConfigDirtyChange
-                                                    }
-                                                />
-                                            </Box>
-                                            <Box
-                                                hidden={
-                                                    entityWorkspaceTab !==
-                                                    "pullFilter"
-                                                }
-                                            >
-                                                <ConnectorEntityPullFilterEditor
-                                                    ref={(handle) => {
-                                                        pullFilterRefs.current[
-                                                            entity
-                                                        ] = handle;
-                                                    }}
-                                                    accountId={accountId}
-                                                    importType={entity}
-                                                    canManage={canManage}
-                                                    locked={Boolean(
-                                                        config.backfill_options_locked
-                                                    )}
-                                                    config={config}
-                                                    hideSaveButton
-                                                    onDirtyChange={
-                                                        handleEntityConfigDirtyChange
-                                                    }
-                                                    onSaved={(saved) => {
-                                                        queryClient.setQueryData(
-                                                            [
-                                                                "billing-connector",
-                                                                accountId,
-                                                            ],
-                                                            saved
-                                                        );
-                                                    }}
-                                                />
-                                            </Box>
-                                            <Box
-                                                hidden={
-                                                    entityWorkspaceTab !==
-                                                    "preview"
-                                                }
-                                            >
-                                                {previewEntity ? (
-                                                    <ConnectorPreviewSyncResults
-                                                        entity={previewEntity}
-                                                    />
-                                                ) : (
-                                                    <Alert severity="info">
-                                                        Run preview sync to
-                                                        pull sample rows for{" "}
-                                                        {entity}.
-                                                    </Alert>
-                                                )}
-                                            </Box>
-                                        </>
-                                    ) : null}
-                                        </Box>
-                                        );
-                                    })}
-                        </Box>
-                            </CardContent>
-                        </AccordionDetails>
-                    </Accordion>
-                </Card>
+            {entityWorkspaceConfig?.has_credentials && (
+                <BillingEntityWorkspace
+                    canManage={canManage}
+                    accountId={accountId}
+                    expanded={isMappingExpanded}
+                    onExpandedChange={setMappingExpanded}
+                    entitiesForMapping={entitiesForMapping}
+                    allEnabledMappingsComplete={allEnabledMappingsComplete}
+                    enabledEntities={enabledEntities}
+                    selectedMappingEntityTab={selectedMappingEntityTab}
+                    onMappingEntityTabChange={setMappingEntityTab}
+                    entityWorkspaceTab={entityWorkspaceTab}
+                    onEntityWorkspaceTabChange={setEntityWorkspaceTab}
+                    entityTabsRef={entityTabsRef}
+                    onToggleEntity={toggleEntity}
+                    persistEnabledEntitiesPending={
+                        persistEnabledEntitiesMutation.isPending
+                    }
+                    clearBeforeImportSession={clearBeforeImportSession}
+                    onClearBeforeImportEntityChange={
+                        handleClearBeforeImportEntityChange
+                    }
+                    previewResult={previewResult}
+                    config={entityWorkspaceConfig}
+                    mapperRefs={mapperRefs}
+                    pullFilterRefs={pullFilterRefs}
+                    handleEntitySetChange={handleEntitySetChange}
+                    onRefreshEntitySetCatalog={handleRefreshEntitySetCatalog}
+                    isRefreshingEntitySetCatalog={
+                        refreshEntitySetsMutation.isPending
+                    }
+                    handleMappingCompleteness={handleMappingCompleteness}
+                    handleEntityConfigDirtyChange={handleEntityConfigDirtyChange}
+                    onPullFilterSaved={handlePullFilterSaved}
+                />
             )}
 
             {config?.has_credentials &&
                 (allEnabledMappingsComplete || Boolean(displayProgressRun)) && (
-                <BackfillImportProgress
-                    run={displayProgressRun}
-                    enabledEntities={enabledEntities}
-                    syncStates={displaySyncStates}
-                    pendingArPostIngestCustomers={
-                        config?.pending_ar_post_ingest_customers
-                    }
-                    expanded={isProgressExpanded}
-                    onExpandedChange={setProgressExpanded}
-                    actions={
-                        allEnabledMappingsComplete ? (
-                        <>
-                            <Box
-                                sx={{
-                                    display: "flex",
-                                    gap: 2,
-                                    flexWrap: "wrap",
-                                    alignItems: "flex-end",
-                                    width: "100%",
-                                }}
-                            >
-                                {showPrimaryAction && actionStage ? (
-                                    <Tooltip
-                                        title={primaryTooltipTitle}
-                                        arrow
-                                        enterDelay={300}
-                                        leaveDelay={100}
-                                        placement="bottom"
-                                    >
-                                        <span>
-                                            <Button
-                                                variant="contained"
-                                                color={
-                                                    actionStage.primaryAction ===
-                                                    "stop"
-                                                        ? "error"
-                                                        : "primary"
-                                                }
-                                                onClick={handlePrimaryAction}
-                                                disabled={Boolean(
-                                                    primaryDisabledReason ||
-                                                        primaryPending
-                                                )}
-                                                startIcon={
-                                                    primaryPending ? (
-                                                        <CircularProgress
-                                                            size={16}
-                                                            color="inherit"
-                                                        />
-                                                    ) : undefined
-                                                }
-                                            >
-                                                {primaryButtonLabel}
-                                            </Button>
-                                        </span>
-                                    </Tooltip>
-                                ) : importBusy ? (
-                                    <Tooltip
-                                        title={importBusyTooltipTitle}
-                                        arrow
-                                        enterDelay={300}
-                                        leaveDelay={100}
-                                        placement="bottom"
-                                    >
-                                        <span>
-                                            <CircularProgress size={24} />
-                                        </span>
-                                    </Tooltip>
-                                ) : null}
-                                {actionStage?.showReset ? (
-                                    <Tooltip
-                                        title={
-                                            resetBackfillDisabledReason ? (
-                                                <Box>
-                                                    <Typography variant="body2">
-                                                        {getResetBackfillPurpose()}
-                                                    </Typography>
-                                                    <Typography
-                                                        variant="body2"
-                                                        sx={{ mt: 1 }}
-                                                    >
-                                                        {
-                                                            resetBackfillDisabledReason
-                                                        }
-                                                    </Typography>
-                                                </Box>
-                                            ) : (
-                                                getResetBackfillPurpose()
-                                            )
-                                        }
-                                        arrow
-                                        enterDelay={300}
-                                        leaveDelay={100}
-                                        placement="bottom"
-                                    >
-                                        <span>
-                                            <Button
-                                                variant="outlined"
-                                                color="warning"
-                                                onClick={() =>
-                                                    setResetDialogOpen(true)
-                                                }
-                                                disabled={Boolean(
-                                                    resetBackfillDisabledReason
-                                                )}
-                                            >
-                                                {resetBackfillMutation.isPending
-                                                    ? "Resetting…"
-                                                    : "Reset backfill"}
-                                            </Button>
-                                        </span>
-                                    </Tooltip>
-                                ) : null}
-                                <TextField
-                                    label="Customer id"
-                                    value={clearBeforeImportCustomerId}
-                                    onChange={(e) => {
-                                        setClearBeforeImportCustomerId(
-                                            e.target.value
-                                        );
-                                        if (clearBeforeImportCustomerError) {
-                                            setClearBeforeImportCustomerError(
-                                                null
-                                            );
-                                        }
-                                    }}
-                                    disabled={!canManage}
-                                    size="small"
-                                    error={Boolean(
-                                        clearBeforeImportCustomerError
-                                    )}
-                                    helperText={
-                                        clearBeforeImportCustomerError ??
-                                        undefined
-                                    }
-                                    sx={{
-                                        width: 200,
-                                        // Keep the outlined input on the same baseline as adjacent buttons
-                                        // (floating label must not shift vertical alignment).
-                                        mb: 0,
-                                        "& .MuiFormHelperText-root": {
-                                            position: "absolute",
-                                            top: "100%",
-                                            mx: 0,
-                                        },
-                                    }}
-                                    InputProps={{
-                                        endAdornment: (
-                                            <Tooltip
-                                                title="Archaser customer id. Limits this Start backfill to that customer for all enabled entities. Delete switches still control wipe. Leave empty for the whole account. Resume ignores this field."
-                                                arrow
-                                                enterDelay={300}
-                                                leaveDelay={100}
-                                                placement="bottom"
-                                                PopperProps={{
-                                                    sx: {
-                                                        "& .MuiTooltip-tooltip":
-                                                            {
-                                                                direction:
-                                                                    isHebrew
-                                                                        ? "rtl"
-                                                                        : "ltr",
-                                                            },
-                                                    },
-                                                }}
-                                            >
-                                                <InfoIcon
-                                                    fontSize="small"
-                                                    color="action"
-                                                    sx={{ cursor: "help" }}
-                                                />
-                                            </Tooltip>
-                                        ),
-                                    }}
-                                />
-                            </Box>
-                        </>
-                        ) : undefined
-                    }
+                    <BillingProgressHost
+                        canManage={canManage}
+                        isHebrew={isHebrew}
+                        displayProgressRun={displayProgressRun}
+                        enabledEntities={enabledEntities}
+                        displaySyncStates={displaySyncStates}
+                        expectDeletingStep={expectDeletingStep}
+                        pendingArPostIngestCustomers={
+                            progressUiReset || pendingBackfillReset
+                                ? 0
+                                : config?.pending_ar_post_ingest_customers
+                        }
+                        expanded={isProgressExpanded}
+                        onExpandedChange={setProgressExpanded}
+                        allEnabledMappingsComplete={allEnabledMappingsComplete}
+                        showPrimaryAction={Boolean(showPrimaryAction)}
+                        actionStage={actionStage}
+                        primaryTooltipTitle={primaryTooltipTitle}
+                        primaryDisabledReason={primaryDisabledReason}
+                        primaryPending={primaryPending}
+                        primaryButtonLabel={primaryButtonLabel}
+                        onPrimaryAction={handlePrimaryAction}
+                        importBusy={importBusy}
+                        importBusyTooltipTitle={importBusyTooltipTitle}
+                        resetBackfillDisabledReason={resetBackfillDisabledReason}
+                        resetBackfillPending={resetBackfillMutation.isPending}
+                        onOpenResetDialog={handleOpenResetDialog}
+                        accountId={accountId}
+                        clearBeforeImportCustomerId={clearBeforeImportCustomerId}
+                        onClearBeforeImportCustomerChange={
+                            handleClearBeforeImportCustomerChange
+                        }
+                        clearBeforeImportCustomerError={
+                            clearBeforeImportCustomerError
+                        }
+                    />
+                )}
+
+            {config?.has_credentials && (
+                <BillingSyncHistorySection
+                    expanded={historyExpanded}
+                    onExpandedChange={setHistoryExpanded}
+                    syncHistory={syncHistory}
+                    syncHistoryLoading={syncHistoryLoading}
+                    syncHistoryFetching={syncHistoryFetching}
                 />
             )}
 
-            {config?.has_credentials && (
-                <Card elevation={0} sx={accountCardSx}>
-                    <Accordion
-                        disableGutters
-                        elevation={0}
-                        expanded={historyExpanded}
-                        onChange={(_, expanded) =>
-                            setHistoryExpanded(expanded)
-                        }
-                        sx={billingAccordionSx}
-                    >
-                        <AccordionSummary
-                            expandIcon={<ExpandMoreIcon />}
-                            sx={billingAccordionSummarySx(historyExpanded)}
-                        >
-                            <SyncIcon sx={accountSectionIconSx} />
-                            <Box sx={{ minWidth: 0, flex: 1 }}>
-                                <Typography
-                                    variant="subtitle1"
-                                    sx={accountCardTitleSx}
-                                >
-                                    Sync history
-                                </Typography>
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                    sx={{ mt: 0.25 }}
-                                >
-                                    {syncHistoryLoading &&
-                                    syncHistory.length === 0
-                                        ? "Loading recent runs…"
-                                        : `${syncHistory.length} recent run${syncHistory.length === 1 ? "" : "s"}${
-                                              syncHistory[0]?.status
-                                                  ? ` · latest ${syncHistory[0].status}`
-                                                  : ""
-                                          }.`}
-                                </Typography>
-                            </Box>
-                        </AccordionSummary>
-                        <AccordionDetails sx={billingAccordionDetailsSx}>
-                            <CardContent sx={billingAccordionContentSx}>
-                                <ConnectorSyncHistoryGrid
-                                    runs={syncHistory}
-                                    isLoading={
-                                        syncHistoryLoading ||
-                                        (syncHistoryFetching &&
-                                            syncHistory.length === 0)
-                                    }
-                                />
-                            </CardContent>
-                        </AccordionDetails>
-                    </Accordion>
-                </Card>
-            )}
             <DeleteDialog
                 isOpen={resetDialogOpen}
                 onClose={() => setResetDialogOpen(false)}
@@ -2902,9 +1695,7 @@ const BillingIntegrationSettings = forwardRef<
                         session: clearBeforeImportSession,
                         enabledEntities,
                     });
-                    const customerId = normalizeClearBeforeImportCustomerId(
-                        clearBeforeImportCustomerId
-                    );
+                    const customerId = clearBeforeImportCustomerId;
                     setClearBeforeStartDialogOpen(false);
                     backfillMutation.mutate({
                         clear_before_import: clearBeforeImport,
@@ -2914,7 +1705,7 @@ const BillingIntegrationSettings = forwardRef<
                     });
                 }}
                 title={clearBeforeStartConfirmCopy.title}
-                description={clearBeforeStartConfirmCopy.description}
+                description={clearBeforeStartConfirmDescription}
                 confirmLabel="Start backfill"
                 cancelLabel="Cancel"
                 isLoading={backfillMutation.isPending}

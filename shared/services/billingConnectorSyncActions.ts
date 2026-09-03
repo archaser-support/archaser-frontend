@@ -50,7 +50,7 @@ export function getStartBackfillDisabledReason(params: {
         return "A sync is already running. Cancel it or wait for it to finish.";
     }
     if ((params.pendingArPostIngestCustomers ?? 0) > 0) {
-        return "Refresh AR & insurance is still running in the background. Wait for it to finish before starting or resuming backfill.";
+        return "AR post-ingest is still running in the background. Wait for it to finish before starting or resuming backfill.";
     }
     if (params.backfillPending) {
         return "Backfill request is still in progress.";
