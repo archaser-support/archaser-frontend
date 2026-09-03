@@ -867,11 +867,16 @@ export function UtilizationSectionView({
                                         offset={6}
                                         fill={CPH.ink}
                                         fontSize={10}
-                                        formatter={(value: number) =>
-                                            value > 0
+                                        formatter={(label) => {
+                                            const value =
+                                                typeof label === "number"
+                                                    ? label
+                                                    : Number(label);
+                                            return Number.isFinite(value) &&
+                                                value > 0
                                                 ? formatPct(value, language, 0)
-                                                : ""
-                                        }
+                                                : "";
+                                        }}
                                     />
                                 </Bar>
                                 <Bar
@@ -921,11 +926,16 @@ export function UtilizationSectionView({
                                         offset={6}
                                         fill={CPH.ink}
                                         fontSize={10}
-                                        formatter={(value: number) =>
-                                            value > 0
+                                        formatter={(label) => {
+                                            const value =
+                                                typeof label === "number"
+                                                    ? label
+                                                    : Number(label);
+                                            return Number.isFinite(value) &&
+                                                value > 0
                                                 ? formatPct(value, language, 0)
-                                                : ""
-                                        }
+                                                : "";
+                                        }}
                                     />
                                 </Bar>
                             </BarChart>
