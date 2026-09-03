@@ -817,20 +817,22 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                 case "Enter":
                     event.preventDefault();
                     event.stopPropagation();
-                    setSelectedIndex((currentIndex) => {
-                        if (currentIndex >= 0 && hasResults) {
-                            handleResultClick(results[currentIndex]);
-                        } else if (currentIndex >= 0 && showRecentSearches) {
-                            setSearchTerm(recentSearches[currentIndex]);
-                        } else if (
-                            currentIndex >= 0 &&
-                            showLastResults &&
-                            displayResults[currentIndex]
-                        ) {
-                            handleResultClick(displayResults[currentIndex]);
-                        }
-                        return -1;
-                    });
+                    // Navigate / update outside setState updaters — calling
+                    // router.push inside an updater updates Router during render.
+                    if (selectedIndex >= 0 && hasResults) {
+                        handleResultClick(results[selectedIndex]);
+                    } else if (selectedIndex >= 0 && showRecentSearches) {
+                        setSearchTerm(recentSearches[selectedIndex]);
+                        setSelectedIndex(-1);
+                    } else if (
+                        selectedIndex >= 0 &&
+                        showLastResults &&
+                        displayResults[selectedIndex]
+                    ) {
+                        handleResultClick(displayResults[selectedIndex]);
+                    } else {
+                        setSelectedIndex(-1);
+                    }
                     break;
                 case "Escape":
                     event.preventDefault();
@@ -849,6 +851,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
             results,
             recentSearches,
             displayResults,
+            selectedIndex,
             handleResultClick,
         ]
     );

@@ -168,6 +168,7 @@ const BillingCustomerAutocomplete: React.FC<BillingCustomerAutocompleteProps> = 
             }}
         >
             <Autocomplete
+                className="toolbar-autocomplete toolbar-autocomplete-labeled"
                 options={options}
                 value={selectedOption}
                 open={isOpen}
@@ -195,6 +196,10 @@ const BillingCustomerAutocomplete: React.FC<BillingCustomerAutocompleteProps> = 
                 size="small"
                 dir={isHebrew ? "rtl" : "ltr"}
                 {...(isHebrew && { "data-hebrew": true, "data-rtl": true })}
+                slotProps={{
+                    popupIndicator: { size: "small" },
+                    clearIndicator: { size: "small" },
+                }}
                 renderOption={(props, option) => {
                     const { key, ...otherProps } = props;
                     return (
@@ -228,7 +233,9 @@ const BillingCustomerAutocomplete: React.FC<BillingCustomerAutocompleteProps> = 
                         label={label}
                         error={Boolean(error)}
                         helperText={error ?? undefined}
+                        margin="none"
                         size="small"
+                        fullWidth
                         dir={isHebrew ? "rtl" : "ltr"}
                         {...(isHebrew && {
                             "data-hebrew": true,
@@ -251,7 +258,7 @@ const BillingCustomerAutocomplete: React.FC<BillingCustomerAutocompleteProps> = 
                                     {loading ? (
                                         <CircularProgress
                                             color="inherit"
-                                            size={20}
+                                            size={16}
                                         />
                                     ) : null}
                                     {params.InputProps.endAdornment}
@@ -272,6 +279,24 @@ const BillingCustomerAutocomplete: React.FC<BillingCustomerAutocompleteProps> = 
                     flex: 1,
                     minWidth: 0,
                     direction: isHebrew ? "rtl" : "ltr",
+                    "& .MuiOutlinedInput-root": {
+                        height: (theme) =>
+                            `${theme.appButton.toolbarControl.height}px`,
+                        minHeight: (theme) =>
+                            `${theme.appButton.toolbarControl.height}px`,
+                        maxHeight: (theme) =>
+                            `${theme.appButton.toolbarControl.height}px`,
+                    },
+                    "& .MuiAutocomplete-inputRoot": {
+                        paddingTop: "0 !important",
+                        paddingBottom: "0 !important",
+                    },
+                    "& .MuiAutocomplete-popupIndicator, & .MuiAutocomplete-clearIndicator":
+                        {
+                            width: 24,
+                            height: 24,
+                            padding: 0.5,
+                        },
                 }}
             />
             {helperTooltip ? (

@@ -134,6 +134,23 @@ function formatPct(value: number, language: string, decimals = 1): string {
     })}%`;
 }
 
+/** Leave room for long legal names; ellipsis via tick keeps bars clear. */
+const TOP_CUSTOMERS_Y_AXIS_WIDTH = 180;
+const TOP_CUSTOMERS_Y_LABEL_MAX_CHARS = 22;
+
+function truncateChartLabel(
+    value: string,
+    maxChars: number,
+    rtl: boolean
+): string {
+    if (value.length <= maxChars) {
+        return value;
+    }
+    const truncated = value.slice(0, Math.max(0, maxChars - 1));
+    // Chart SVG is LTR; prefix … in RTL so it sits on the visual left.
+    return rtl ? `…${truncated}` : `${truncated}…`;
+}
+
 function formatAsOfYmd(ymd: string, language: string): string {
     const date = new Date(`${ymd}T12:00:00.000Z`);
     if (Number.isNaN(date.getTime())) {
@@ -918,12 +935,19 @@ export function UtilizationSectionView({
                             {asOfLabel}
                         </p>
                     ) : null}
-                    <div style={{ width: "100%", height: topChartHeight }}>
+                    <div
+                        style={{
+                            width: "100%",
+                            height: topChartHeight,
+                            // Keep Recharts geometry LTR so Y ticks don't bleed into bars under page RTL.
+                            direction: "ltr",
+                        }}
+                    >
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart
                                 layout="vertical"
                                 data={topCustomersChartData}
-                                margin={{ left: 0, right: 20 }}
+                                margin={{ left: 8, right: 20, top: 4, bottom: 4 }}
                             >
                                 <CartesianGrid
                                     strokeDasharray="3 6"
@@ -943,8 +967,16 @@ export function UtilizationSectionView({
                                 <YAxis
                                     type="category"
                                     dataKey="name"
-                                    width={100}
+                                    width={TOP_CUSTOMERS_Y_AXIS_WIDTH}
+                                    tickMargin={6}
                                     tick={{ fill: CPH.slate, fontSize: 11.5 }}
+                                    tickFormatter={(value: string) =>
+                                        truncateChartLabel(
+                                            value,
+                                            TOP_CUSTOMERS_Y_LABEL_MAX_CHARS,
+                                            isRtl
+                                        )
+                                    }
                                     axisLine={false}
                                     tickLine={false}
                                     reversed={isRtl}
