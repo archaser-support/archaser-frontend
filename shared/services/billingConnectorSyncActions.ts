@@ -3,9 +3,15 @@ import type { ConnectorSyncStatePublic } from "@/shared/services/billingConnecto
 
 export function isActiveConnectorSyncRun(run: {
     status: string;
+    sync_mode?: string;
     error_type?: string | null;
     completed_at?: string | null;
 }): boolean {
+    // Preview is accepted async like import, but must not block Start backfill
+    // or show as an in-flight import in the primary action stage.
+    if (String(run.sync_mode ?? "").toUpperCase() === "PREVIEW") {
+        return false;
+    }
     if (run.status === "RUNNING") {
         return true;
     }
