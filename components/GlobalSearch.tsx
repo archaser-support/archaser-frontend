@@ -20,6 +20,7 @@ import {
     Typography,
     Chip,
     Popper,
+    Paper,
     useTheme,
     useMediaQuery,
     Skeleton,
@@ -35,9 +36,11 @@ import { useSession } from "next-auth/react";
 import React, {
     useState,
     useEffect,
+    useLayoutEffect,
     useCallback,
     useRef,
     useMemo,
+    forwardRef,
 } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -57,6 +60,11 @@ interface GlobalSearchProps {
 const RECENT_SEARCHES_KEY = "globalSearch_recentSearches";
 const LAST_SEARCH_RESULTS_KEY = "globalSearch_lastResults";
 const MAX_RECENT_SEARCHES = 5;
+const SEARCH_RESULTS_PANEL_WIDTH_PX = 400;
+const SEARCH_PREVIEW_PANEL_WIDTH_PX = 250;
+const SEARCH_DROPDOWN_MAX_HEIGHT_PX = 400;
+const SEARCH_DROPDOWN_EXPANDED_WIDTH_PX =
+    SEARCH_RESULTS_PANEL_WIDTH_PX + SEARCH_PREVIEW_PANEL_WIDTH_PX;
 
 // Helper function to highlight search terms
 const highlightText = (text: string, searchTerm: string): React.ReactNode => {
@@ -212,21 +220,57 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
     const resultRefs = useRef<{ [key: number]: HTMLElement | null }>({});
     const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    const appTextDirection = i18n.language === "he" ? "rtl" : "ltr";
+    const appTextDirection =
+        i18n.language === "he" || i18n.language.startsWith("he-")
+            ? ("rtl" as const)
+            : ("ltr" as const);
     const textDirection = useMemo(
         () => resolveTextDirection(searchTerm, appTextDirection),
         [searchTerm, appTextDirection]
     );
+    // Dropdown chrome (placement, expand side, preview side) follows the *query*
+    // script direction — English UI + Hebrew search must right-align to the input
+    // and open the preview to the left of the results (same as Hebrew UI).
+    // App language only affects chrome translations / theme, not panel geometry.
     const isRtl = textDirection === "rtl";
+    const layoutIsRtl = appTextDirection === "rtl";
+    const panelIsRtl = isRtl;
 
-    const hoveredResultRef = useRef(hoveredResult);
-    hoveredResultRef.current = hoveredResult;
+    const previewOpen = Boolean(hoveredResult) && !isMobile;
+    const dropdownPanelWidth = previewOpen
+        ? SEARCH_DROPDOWN_EXPANDED_WIDTH_PX
+        : SEARCH_RESULTS_PANEL_WIDTH_PX;
 
     const listboxRendererRef = useRef<(props: any) => React.ReactNode>(
         () => null
     );
-    const StableListboxComponent = useCallback(
-        (props: any) => listboxRendererRef.current(props) as React.ReactElement,
+    const paperRendererRef = useRef<(props: any) => React.ReactNode>(
+        () => null
+    );
+    // Stable slot components — MUI v7 ignores deprecated ListboxComponent prop;
+    // must use slots.listbox / slots.paper. Content comes from refs updated each render.
+    const ListboxComponent = useMemo(
+        () =>
+            forwardRef<HTMLUListElement, React.HTMLAttributes<HTMLElement>>(
+                function GlobalSearchListbox(props, ref) {
+                    return listboxRendererRef.current({
+                        ...props,
+                        ref,
+                    }) as React.ReactElement;
+                }
+            ),
+        []
+    );
+    const PaperComponent = useMemo(
+        () =>
+            forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLElement>>(
+                function GlobalSearchPaper(props, ref) {
+                    return paperRendererRef.current({
+                        ...props,
+                        ref,
+                    }) as React.ReactElement;
+                }
+            ),
         []
     );
 
@@ -483,12 +527,15 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
         };
     }, []);
 
-    // Fix alignment for Hebrew when dropdown opens (throttled; hover width via ref)
-    useEffect(() => {
+    // Keep RTL dropdown right-edge glued to the input when preview opens/closes.
+    // useLayoutEffect: align before paint so preview never flashes on the wrong side.
+    // Measure the Paper (not the listbox) — listbox stays 400px while Paper expands to 650.
+    // Follow query/panel direction so English UI + Hebrew search right-aligns.
+    useLayoutEffect(() => {
         if (
             !isOpen ||
             !isWidthTransitionComplete ||
-            !isRtl ||
+            !panelIsRtl ||
             !searchInputRef.current
         ) {
             return;
@@ -504,19 +551,24 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                 ".MuiAutocomplete-root"
             ) as HTMLElement | null;
 
-            const popperSelectors = [
-                ".MuiAutocomplete-popper",
-                ".MuiPopper-root",
-                '[role="presentation"]',
-                "[data-popper-placement]",
-            ];
+            // Prefer the popper we own — querySelector can hit another Autocomplete.
+            let popperElement: HTMLElement | null =
+                (popperRef.current as HTMLElement | null) || null;
 
-            let popperElement: HTMLElement | null = null;
-            for (const selector of popperSelectors) {
-                popperElement = document.querySelector(
-                    selector
-                ) as HTMLElement | null;
-                if (popperElement) break;
+            if (!popperElement) {
+                const popperSelectors = [
+                    ".MuiAutocomplete-popper",
+                    ".MuiPopper-root",
+                    '[role="presentation"]',
+                    "[data-popper-placement]",
+                ];
+
+                for (const selector of popperSelectors) {
+                    popperElement = document.querySelector(
+                        selector
+                    ) as HTMLElement | null;
+                    if (popperElement) break;
+                }
             }
 
             if (!popperElement && autocompleteRoot) {
@@ -526,21 +578,32 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                     ) as HTMLElement | null;
             }
 
-            if (!autocompleteRoot || !popperElement) return;
+            if (!autocompleteRoot || !popperElement) {
+                return;
+            }
 
-            const dropdownContainer = popperElement.querySelector(
-                'ul[role="listbox"], ul'
-            ) as HTMLElement | null;
-            if (!dropdownContainer) return;
+            const panel =
+                (popperElement.querySelector(
+                    "[data-global-search-paper='true']"
+                ) as HTMLElement | null) ||
+                (popperElement.querySelector(
+                    ".MuiAutocomplete-paper"
+                ) as HTMLElement | null);
+            if (!panel) {
+                return;
+            }
 
-            const expectedWidth =
-                hoveredResultRef.current && !isMobile ? 650 : 400;
-            const dropdownRect = dropdownContainer.getBoundingClientRect();
-            if (Math.abs(dropdownRect.width - expectedWidth) > 10) return;
+            const panelRect = panel.getBoundingClientRect();
+            if (Math.abs(panelRect.width - dropdownPanelWidth) > 10) {
+                return;
+            }
 
+            // Physical right edges — independent of theme start/end mirroring.
             const inputRect = autocompleteRoot.getBoundingClientRect();
-            const offsetX = inputRect.right - dropdownRect.right;
-            if (Math.abs(offsetX) <= 0.5) return;
+            const offsetX = inputRect.right - panelRect.right;
+            if (Math.abs(offsetX) <= 0.5) {
+                return;
+            }
 
             const currentTransform = popperElement.style.transform || "";
             let match = currentTransform.match(
@@ -553,39 +616,29 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
             }
             const currentX = match ? parseFloat(match[1]) : 0;
             const currentY = match ? parseFloat(match[2]) : 0;
-            popperElement.style.transform = `translate3d(${currentX + offsetX}px, ${currentY}px, 0)`;
+            const nextTransform = `translate3d(${currentX + offsetX}px, ${currentY}px, 0)`;
+            popperElement.style.transform = nextTransform;
         };
 
         const scheduleAlign = () => {
+            alignDropdown();
             if (rafId) cancelAnimationFrame(rafId);
             rafId = requestAnimationFrame(alignDropdown);
         };
 
-        const dropdownContainer = document.querySelector(
-            '.MuiAutocomplete-popper ul[role="listbox"], .MuiAutocomplete-popper ul'
-        ) as HTMLElement | null;
-
         scheduleAlign();
-        const timeout = setTimeout(scheduleAlign, 200);
-
-        const handleTransitionEnd = (e: TransitionEvent) => {
-            if (e.propertyName === "width") scheduleAlign();
-        };
-        dropdownContainer?.addEventListener(
-            "transitionend",
-            handleTransitionEnd
-        );
 
         return () => {
             cancelled = true;
             if (rafId) cancelAnimationFrame(rafId);
-            clearTimeout(timeout);
-            dropdownContainer?.removeEventListener(
-                "transitionend",
-                handleTransitionEnd
-            );
         };
-    }, [isOpen, isRtl, isMobile, isWidthTransitionComplete]);
+    }, [
+        isOpen,
+        panelIsRtl,
+        isWidthTransitionComplete,
+        previewOpen,
+        dropdownPanelWidth,
+    ]);
 
     // Fix noOptions container alignment for Hebrew (rAF-throttled observer)
     useEffect(() => {
@@ -670,55 +723,109 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
         };
     }, [isOpen, isRtl, searchTerm]);
 
-    // Get entity type icon
-    const getEntityIcon = useCallback((type: string, metadata?: any) => {
-        switch (type) {
-            case "customer":
-                // Use BusinessIcon for Company type customers, PersonIcon for Person type
-                if (metadata?.type === "Company") {
-                    return (
-                        <BusinessIcon
-                            fontSize="small"
-                            sx={{ color: "primary.main" }}
-                        />
-                    );
-                }
-                return (
-                    <PersonIcon
-                        fontSize="small"
-                        sx={{ color: "primary.main" }}
-                    />
-                );
-            case "invoice":
-                return (
-                    <DescriptionIcon
-                        fontSize="small"
-                        sx={{ color: "primary.main" }}
-                    />
-                );
-            case "contact":
-                return (
-                    <ContactMailIcon
-                        fontSize="small"
-                        sx={{ color: "primary.main" }}
-                    />
-                );
-            case "dispute":
-                return (
-                    <GavelIcon
-                        fontSize="small"
-                        sx={{ color: "primary.main" }}
-                    />
-                );
-            default:
-                return (
-                    <SearchIcon
-                        fontSize="small"
-                        sx={{ color: "primary.main" }}
-                    />
-                );
-        }
-    }, []);
+    // Theme color per search entity type (customer / invoice / contact / dispute)
+    const getEntityTypeColor = useCallback(
+        (type: string): string => {
+            switch (type) {
+                case "customer":
+                    return theme.palette.primary.main;
+                case "invoice":
+                    return theme.palette.success.main;
+                case "contact":
+                    return theme.palette.info.main;
+                case "dispute":
+                    return theme.palette.warning.main;
+                default:
+                    return theme.palette.primary.main;
+            }
+        },
+        [theme]
+    );
+
+    // Soft-tint chip styles shared by filters, rows, and preview
+    const getEntityTypeChipSx = useCallback(
+        (
+            type: string,
+            options?: { selected?: boolean; interactive?: boolean }
+        ) => {
+            const color = getEntityTypeColor(type);
+            const isSelected = options?.selected ?? true;
+            const interactive = options?.interactive ?? false;
+            return {
+                height: 20,
+                fontSize: "0.65rem",
+                fontWeight: 500,
+                backgroundColor: alpha(color, isSelected ? 0.12 : 0.06),
+                color,
+                border: `1px solid ${alpha(color, isSelected ? 0.4 : 0.2)}`,
+                opacity: isSelected ? 1 : 0.55,
+                cursor: interactive ? "pointer" : "default",
+                "& .MuiChip-label": {
+                    padding: "0 6px",
+                },
+                ...(interactive
+                    ? {
+                          "&:hover": {
+                              backgroundColor: alpha(
+                                  color,
+                                  isSelected ? 0.2 : 0.1
+                              ),
+                              opacity: 1,
+                          },
+                      }
+                    : {}),
+            };
+        },
+        [getEntityTypeColor]
+    );
+
+    // Get entity type icon inside a soft tinted circle
+    const getEntityIcon = useCallback(
+        (type: string, metadata?: any) => {
+            const color = getEntityTypeColor(type);
+            const iconSx = { color, fontSize: 18 };
+            let icon: React.ReactNode;
+            switch (type) {
+                case "customer":
+                    // Use BusinessIcon for Company type customers, PersonIcon for Person type
+                    icon =
+                        metadata?.type === "Company" ? (
+                            <BusinessIcon fontSize="small" sx={iconSx} />
+                        ) : (
+                            <PersonIcon fontSize="small" sx={iconSx} />
+                        );
+                    break;
+                case "invoice":
+                    icon = <DescriptionIcon fontSize="small" sx={iconSx} />;
+                    break;
+                case "contact":
+                    icon = <ContactMailIcon fontSize="small" sx={iconSx} />;
+                    break;
+                case "dispute":
+                    icon = <GavelIcon fontSize="small" sx={iconSx} />;
+                    break;
+                default:
+                    icon = <SearchIcon fontSize="small" sx={iconSx} />;
+            }
+            return (
+                <Box
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 28,
+                        height: 28,
+                        borderRadius: "50%",
+                        backgroundColor: alpha(color, 0.12),
+                        flexShrink: 0,
+                    }}
+                >
+                    {icon}
+                </Box>
+            );
+        },
+        [getEntityTypeColor]
+    );
 
     // Get entity type label
     const getEntityLabel = useCallback(
@@ -865,7 +972,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
 
     // Handle result hover
     const handleResultHover = (
-        event: React.MouseEvent<HTMLElement>,
+        _event: React.MouseEvent<HTMLElement>,
         result: GlobalSearchResult
     ) => {
         setHoveredResult(result);
@@ -1103,12 +1210,24 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
     // Custom Popper component for Autocomplete - allows dropdown to extend beyond textbox
     const CustomPopperImpl = useCallback(
         (props: any) => {
-            const placement =
-                isRtl ? "bottom-end" : "bottom-start";
+            // Physical edges only: pass direction="ltr" so MUI does NOT flip start/end
+            // under RtlProvider (that flip was landing the Hebrew panel on the left).
+            const placement = panelIsRtl ? "bottom-end" : "bottom-start";
+            // MUI Autocomplete sets popper style.width = anchorEl.clientWidth (input width).
+            // That caps the Paper at ~400px — override so preview can expand the panel.
+            const { style: incomingStyle, ...popperProps } = props;
 
             return (
                 <Popper
-                    {...props}
+                    {...popperProps}
+                    // Beat RtlProvider: keep start/end physical (end = right edge).
+                    direction="ltr"
+                    style={{
+                        ...incomingStyle,
+                        width: dropdownPanelWidth,
+                        minWidth: dropdownPanelWidth,
+                        maxWidth: dropdownPanelWidth,
+                    }}
                     ref={(node) => {
                         popperRef.current = node;
                         if (typeof props.ref === "function") {
@@ -1127,7 +1246,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                         },
                         {
                             name: "preventOverflow",
-                            enabled: !isRtl, // Disable for Hebrew to allow proper right alignment
+                            enabled: !panelIsRtl, // Off for RTL panel so right-edge glue can extend past viewport padding
                             options: {
                                 altAxis: true,
                                 altBoundary: true,
@@ -1143,114 +1262,51 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                         {
                             name: "computeStyles",
                             options: {
-                                adaptive: false, // Disable adaptive positioning for consistent alignment
+                                adaptive: false,
                             },
                         },
+                        // Glue physical right edges. Must patch popperOffsets (not DOM
+                        // transform after rAF) — BasePopper forceUpdate() every render
+                        // would otherwise overwrite a post-hoc transform.
                         {
-                            name: "custom",
-                            enabled: isRtl,
-                            phase: "afterWrite",
-                            requires: [
-                                "offset",
-                                "preventOverflow",
-                                "computeStyles",
-                            ],
+                            name: "alignToAnchorRightEdge",
+                            enabled: panelIsRtl,
+                            phase: "main",
+                            requires: ["popperOffsets"],
                             fn: ({ state }: any) => {
-                                // Fine-tune alignment after offset modifier runs
-                                if (
-                                    isRtl &&
-                                    state.elements.reference &&
-                                    state.elements.popper
-                                ) {
-                                    // Use requestAnimationFrame to ensure DOM is fully updated
-                                    requestAnimationFrame(() => {
-                                        const referenceRect =
-                                            state.elements.reference.getBoundingClientRect();
-                                        const popperElement = state.elements
-                                            .popper as HTMLElement;
-                                        const dropdownContainer =
-                                            popperElement?.querySelector(
-                                                'ul[role="listbox"], ul'
-                                            ) as HTMLElement;
-
-                                        if (!dropdownContainer) return;
-
-                                        const dropdownRect =
-                                            dropdownContainer.getBoundingClientRect();
-                                        const expectedWidth =
-                                            hoveredResultRef.current && !isMobile
-                                                ? 650
-                                                : 400;
-                                        const currentWidth = dropdownRect.width;
-                                        const widthDifference = Math.abs(
-                                            currentWidth - expectedWidth
-                                        );
-
-                                        // If width is still transitioning, skip alignment to prevent flicker
-                                        if (widthDifference > 10) {
-                                            return;
-                                        }
-
-                                        const inputRight = referenceRect.right;
-                                        const dropdownRight =
-                                            dropdownRect.right;
-                                        const offsetX =
-                                            inputRight - dropdownRight;
-
-                                        if (Math.abs(offsetX) > 0.5) {
-                                            // Get current position from Popper's transform
-                                            const currentTransform =
-                                                popperElement.style.transform ||
-                                                "";
-                                            let match = currentTransform.match(
-                                                /translate3d\(([^,]+)px,\s*([^,]+)px/
-                                            );
-                                            if (!match) {
-                                                match = currentTransform.match(
-                                                    /translate\(([^,]+)px,\s*([^,]+)px/
-                                                );
-                                            }
-                                            const currentX = match
-                                                ? parseFloat(match[1])
-                                                : 0;
-                                            const currentY = match
-                                                ? parseFloat(match[2])
-                                                : 8;
-
-                                            const newX = currentX + offsetX;
-
-                                            // Apply the transform directly to the element
-                                            popperElement.style.transform = `translate3d(${newX}px, ${currentY}px, 0)`;
-                                        }
-                                    });
-                                }
+                                if (!state.modifiersData.popperOffsets) return;
+                                const { reference, popper } = state.rects;
+                                state.modifiersData.popperOffsets.x =
+                                    reference.x +
+                                    reference.width -
+                                    popper.width;
                             },
                         },
                     ]}
                     sx={{
                         zIndex: 1300,
-                        ...(isRtl && {
-                            direction: "rtl",
+                        // Do NOT set direction:rtl on the Popper — it inherits onto Paper
+                        // and mirrors flex layout (preview ends up on the wrong side).
+                        // Text RTL lives on the results/preview panes themselves.
+                        ...(panelIsRtl && {
                             textAlign: "right",
                         }),
                         "& .MuiAutocomplete-paper": {
-                            minWidth:
-                                hoveredResultRef.current && !isMobile
-                                    ? 650
-                                    : 400,
-                            width:
-                                hoveredResultRef.current && !isMobile
-                                    ? 650
-                                    : 400,
+                            minWidth: dropdownPanelWidth,
+                            width: dropdownPanelWidth,
+                            maxWidth: dropdownPanelWidth,
+                            overflow: "hidden",
                             margin: 0,
                             marginTop: "8px",
                             padding: 0,
-                            ...(isRtl && {
+                            transition: panelIsRtl
+                                ? "none"
+                                : "width 0.2s ease-in-out",
+                            ...(panelIsRtl && {
                                 "&:has(.MuiAutocomplete-noOptions)": {
                                     width: "100%",
                                     minWidth: "100%",
                                     maxWidth: "100%",
-                                    direction: "rtl",
                                     textAlign: "right",
                                 },
                             }),
@@ -1272,7 +1328,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                 />
             );
         },
-        [isRtl, isMobile]
+        [isRtl, panelIsRtl, dropdownPanelWidth]
     );
     popperRendererRef.current = CustomPopperImpl;
 
@@ -1320,7 +1376,6 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                         {Object.entries(countsByType).map(([type, count]) => {
                             if (count === 0) return null;
                             const isSelected = selectedEntityTypes.has(type);
-                            const allSelected = selectedEntityTypes.size === 4;
                             return (
                                 <Chip
                                     key={type}
@@ -1330,54 +1385,10 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                         e.stopPropagation();
                                         toggleEntityType(type);
                                     }}
-                                    sx={{
-                                        height: 20,
-                                        fontSize: "0.65rem",
-                                        backgroundColor: isSelected
-                                            ? allSelected
-                                                ? alpha(
-                                                    theme.palette.primary
-                                                        .main,
-                                                    0.25
-                                                )
-                                                : alpha(
-                                                    theme.palette.primary
-                                                        .main,
-                                                    0.2
-                                                )
-                                            : alpha(
-                                                theme.palette.primary.main,
-                                                0.08
-                                            ),
-                                        color: isSelected
-                                            ? theme.palette.primary.main
-                                            : theme.palette.text.secondary,
-                                        border: isSelected
-                                            ? `1px solid ${theme.palette.primary.main}`
-                                            : `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
-                                        cursor: "pointer",
-                                        opacity: isSelected ? 1 : 0.7,
-                                        "&:hover": {
-                                            backgroundColor: isSelected
-                                                ? allSelected
-                                                    ? alpha(
-                                                        theme.palette.primary
-                                                            .main,
-                                                        0.35
-                                                    )
-                                                    : alpha(
-                                                        theme.palette.primary
-                                                            .main,
-                                                        0.3
-                                                    )
-                                                : alpha(
-                                                    theme.palette.primary
-                                                        .main,
-                                                    0.15
-                                                ),
-                                            opacity: 1,
-                                        },
-                                    }}
+                                    sx={getEntityTypeChipSx(type, {
+                                        selected: isSelected,
+                                        interactive: true,
+                                    })}
                                 />
                             );
                         })}
@@ -1432,7 +1443,6 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        color: "primary.main",
                     }}
                 >
                     {getEntityIcon(option.type, option.metadata)}
@@ -1475,77 +1485,13 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                         <Chip
                             label={getEntityLabel(option.type)}
                             size="small"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                toggleEntityType(option.type);
-                            }}
                             sx={{
-                                height: 20,
-                                fontSize: "0.65rem",
-                                backgroundColor: (() => {
-                                    const isSelected = selectedEntityTypes.has(
-                                        option.type
-                                    );
-                                    const allSelected =
-                                        selectedEntityTypes.size === 4;
-                                    return isSelected
-                                        ? allSelected
-                                            ? alpha(
-                                                theme.palette.primary.main,
-                                                0.25
-                                            )
-                                            : alpha(
-                                                theme.palette.primary.main,
-                                                0.2
-                                            )
-                                        : alpha(
-                                            theme.palette.primary.main,
-                                            0.08
-                                        );
-                                })(),
-                                color: selectedEntityTypes.has(option.type)
-                                    ? theme.palette.primary.main
-                                    : theme.palette.text.secondary,
-                                fontWeight: 500,
-                                border: selectedEntityTypes.has(option.type)
-                                    ? `1px solid ${theme.palette.primary.main}`
-                                    : `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
-                                cursor: "pointer",
-                                opacity: selectedEntityTypes.has(option.type)
-                                    ? 1
-                                    : 0.7,
-                                "& .MuiChip-label": {
-                                    padding: "0 6px",
-                                },
+                                ...getEntityTypeChipSx(option.type, {
+                                    selected: true,
+                                    interactive: false,
+                                }),
                                 order: isRtl ? -1 : 1,
                                 flexShrink: 0,
-                                "&:hover": {
-                                    backgroundColor: (() => {
-                                        const isSelected =
-                                            selectedEntityTypes.has(
-                                                option.type
-                                            );
-                                        const allSelected =
-                                            selectedEntityTypes.size === 4;
-                                        return isSelected
-                                            ? allSelected
-                                                ? alpha(
-                                                    theme.palette.primary
-                                                        .main,
-                                                    0.35
-                                                )
-                                                : alpha(
-                                                    theme.palette.primary
-                                                        .main,
-                                                    0.3
-                                                )
-                                            : alpha(
-                                                theme.palette.primary.main,
-                                                0.15
-                                            );
-                                    })(),
-                                    opacity: 1,
-                                },
                             }}
                         />
                     </Box>
@@ -1748,10 +1694,20 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
         );
     };
 
-    listboxRendererRef.current = (props: any) => (
+    listboxRendererRef.current = (props: any) => {
+                    // Drop Autocomplete option children — we render grouped rows ourselves.
+                    // Don't forward MUI slot internals (ownerState) to the DOM <ul>.
+                    const {
+                        children: _children,
+                        ownerState: _ownerState,
+                        ...listboxProps
+                    } = props;
+                    return (
                     <Box
                         component="ul"
-                        {...(props as any)}
+                        {...(listboxProps as any)}
+                        data-global-search-listbox="true"
+                        data-preview-open={previewOpen ? "true" : "false"}
                         onMouseLeave={(e: React.MouseEvent<HTMLElement>) => {
                             (props as any).onMouseLeave?.(e);
                             // Keep preview while keyboard selection is active;
@@ -1762,32 +1718,15 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                         }}
                         sx={{
                             position: "relative",
-                            display: "flex",
-                            flexDirection: "row",
-                            direction: isRtl ? "rtl" : "ltr",
-                            maxHeight: "400px",
-                            width:
-                                hoveredResult && !isMobile ? "650px" : "400px", // Expand when preview is shown
-                            minWidth:
-                                hoveredResult && !isMobile ? "650px" : "400px",
+                            maxHeight: `${SEARCH_DROPDOWN_MAX_HEIGHT_PX}px`,
+                            width: "100%",
                             margin: 0,
                             padding: 0,
-                            transition: "width 0.2s ease-in-out",
+                            listStyle: "none",
+                            boxSizing: "border-box",
+                            overflowY: "auto",
                         }}
                     >
-                        {/* Results Column */}
-                        <Box
-                            component="div"
-                            sx={{
-                                width: "400px",
-                                flexShrink: 0,
-                                overflowY: "auto",
-                                margin: 0,
-                                padding: 0,
-                                position: "relative",
-                                order: isRtl ? 1 : 1, // Results: order 1 (appears on right in RTL)
-                            }}
-                        >
                             {renderKeyboardHint()}
                             {showRecentSearches && renderRecentSearches()}
                             {showRecentSearches && hasResults && <Divider />}
@@ -1823,7 +1762,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                                             alignItems:
                                                                 "center",
                                                             gap: 1,
-                                                            color: "primary.main",
+                                                            color: getEntityTypeColor(
+                                                                "customer"
+                                                            ),
                                                             flexDirection:
                                                                 isRtl
                                                                     ? "row-reverse"
@@ -1890,7 +1831,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                                             alignItems:
                                                                 "center",
                                                             gap: 1,
-                                                            color: "primary.main",
+                                                            color: getEntityTypeColor(
+                                                                "invoice"
+                                                            ),
                                                             flexDirection:
                                                                 isRtl
                                                                     ? "row-reverse"
@@ -1957,7 +1900,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                                             alignItems:
                                                                 "center",
                                                             gap: 1,
-                                                            color: "primary.main",
+                                                            color: getEntityTypeColor(
+                                                                "contact"
+                                                            ),
                                                             flexDirection:
                                                                 isRtl
                                                                     ? "row-reverse"
@@ -2024,7 +1969,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                                             alignItems:
                                                                 "center",
                                                             gap: 1,
-                                                            color: "primary.main",
+                                                            color: getEntityTypeColor(
+                                                                "dispute"
+                                                            ),
                                                             flexDirection:
                                                                 isRtl
                                                                     ? "row-reverse"
@@ -2115,30 +2062,93 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                         </Typography>
                                     </Box>
                                 )}
-                        </Box>
-                        {/* Preview Column */}
-                        {hoveredResult && !isMobile && (
+                    </Box>
+                    );
+    };
+
+    paperRendererRef.current = (props: any) => {
+        // Don't forward MUI slot internals (ownerState) to the DOM.
+        // Keep incoming sx but put our panel width LAST so Autocomplete's
+        // anchor-sized paper width (400) cannot override the expanded preview width.
+        const {
+            children,
+            ownerState: _ownerState,
+            sx: incomingSx,
+            style: incomingStyle,
+            ...paperProps
+        } = props;
+        // DOM order is always [results, preview]. Flip with row-reverse for RTL query.
+        // Panel geometry follows query script (English UI + Hebrew search right-aligns
+        // with preview to the left of results).
+        // Inline direction:ltr is required — Popper sets direction:rtl and sx/dir
+        // lose to that inheritance (see diagnosis paper_still_direction_rtl_despite_sx_ltr_lock).
+        const panelFlexDirection = panelIsRtl ? "row-reverse" : "row";
+        return (
+            <Paper
+                {...(paperProps as any)}
+                data-global-search-paper="true"
+                style={{
+                    ...incomingStyle,
+                    // Beat inherited Popper direction:rtl (attr/sx were not enough)
+                    direction: "ltr",
+                }}
+                sx={[
+                    ...(Array.isArray(incomingSx)
+                        ? incomingSx
+                        : incomingSx
+                          ? [incomingSx]
+                          : []),
+                    {
+                        display: "flex",
+                        flexDirection: panelFlexDirection,
+                        direction: "ltr",
+                        width: dropdownPanelWidth,
+                        minWidth: dropdownPanelWidth,
+                        maxWidth: dropdownPanelWidth,
+                        overflow: "hidden",
+                        margin: 0,
+                        // Instant width in RTL UI avoids preview flashing on the wrong side
+                        // while the popper re-anchors to the input's right edge.
+                        transition: panelIsRtl
+                            ? "none"
+                            : "width 0.2s ease-in-out",
+                    },
+                ]}
+            >
+                <Box
+                    data-global-search-results="true"
+                    sx={{
+                        width: SEARCH_RESULTS_PANEL_WIDTH_PX,
+                        flexShrink: 0,
+                        maxHeight: SEARCH_DROPDOWN_MAX_HEIGHT_PX,
+                        overflowY: "auto",
+                        direction: isRtl ? "rtl" : "ltr",
+                    }}
+                >
+                    {children}
+                </Box>
+                {previewOpen && hoveredResult ? (
+                        <>
                             <Box
                                 component="div"
+                                data-global-search-preview="true"
                                 sx={{
-                                    width: "250px",
+                                    width: SEARCH_PREVIEW_PANEL_WIDTH_PX,
                                     flexShrink: 0,
-                                    order: isRtl ? 2 : 2, // Preview: order 2 (appears on left in RTL)
                                     borderLeft:
-                                        isRtl
+                                        panelIsRtl
                                             ? "none"
                                             : `1px solid ${theme.palette.divider}`,
                                     borderRight:
-                                        isRtl
+                                        panelIsRtl
                                             ? `1px solid ${theme.palette.divider}`
                                             : "none",
                                     backgroundColor:
                                         theme.palette.background.paper,
                                     overflowY: "auto",
-                                    maxHeight: "400px",
+                                    maxHeight: SEARCH_DROPDOWN_MAX_HEIGHT_PX,
                                     p: 2,
-                                    direction:
-                                        isRtl ? "rtl" : "ltr",
+                                    direction: isRtl ? "rtl" : "ltr",
                                 }}
                             >
                                 <Box
@@ -2147,7 +2157,6 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                         alignItems: "center",
                                         gap: 1,
                                         mb: 1,
-                                        color: "primary.main",
                                         flexDirection:
                                             isRtl
                                                 ? "row-reverse"
@@ -2155,6 +2164,10 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                         width: "100%",
                                     }}
                                 >
+                                    {getEntityIcon(
+                                        hoveredResult.type,
+                                        hoveredResult.metadata
+                                    )}
                                     <Typography
                                         variant="body1"
                                         fontWeight="bold"
@@ -2169,7 +2182,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                                     ? "rtl"
                                                     : "ltr",
                                             flex: 1,
-                                            width: "100%",
+                                            minWidth: 0,
                                         }}
                                     >
                                         {highlightText(
@@ -2177,6 +2190,22 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                             searchTerm || debouncedSearch
                                         )}
                                     </Typography>
+                                    <Chip
+                                        label={getEntityLabel(
+                                            hoveredResult.type
+                                        )}
+                                        size="small"
+                                        sx={{
+                                            ...getEntityTypeChipSx(
+                                                hoveredResult.type,
+                                                {
+                                                    selected: true,
+                                                    interactive: false,
+                                                }
+                                            ),
+                                            flexShrink: 0,
+                                        }}
+                                    />
                                 </Box>
                                 {/* Show customer code at the top for customers */}
                                 {hoveredResult.type === "customer" &&
@@ -2549,9 +2578,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                     </Box>
                                 )}
                             </Box>
-                        )}
-                    </Box>
-                );
+                        </>
+                ) : null}
+            </Paper>
+        );
+    };
 
     return (
         <Box
@@ -2700,18 +2731,6 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                             opacity: 1,
                         },
                     },
-                    "& .MuiAutocomplete-paper": {
-                        minWidth: hoveredResult && !isMobile ? 650 : 400,
-                        width: hoveredResult && !isMobile ? 650 : 400,
-                        ...(isRtl && {
-                            "&:has(.MuiAutocomplete-noOptions)": {
-                                width: "100%",
-                                minWidth: "100%",
-                                maxWidth: "100%",
-                                direction: "rtl",
-                            },
-                        }),
-                    },
                     "& .MuiAutocomplete-noOptions": {
                         direction:
                             `${isRtl ? "rtl" : "ltr"} !important` as any,
@@ -2731,7 +2750,25 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                 : undefined,
                     },
                 }}
-                ListboxComponent={StableListboxComponent}
+                slots={{
+                    listbox: ListboxComponent,
+                    paper: PaperComponent,
+                    popper: StablePopperComponent,
+                }}
+                slotProps={{
+                    listbox: {
+                        // Force paper/list updates when preview opens
+                        "data-preview-open": previewOpen ? "true" : "false",
+                    } as React.HTMLAttributes<HTMLUListElement>,
+                    paper: {
+                        sx: {
+                            width: dropdownPanelWidth,
+                            minWidth: dropdownPanelWidth,
+                            maxWidth: dropdownPanelWidth,
+                            overflow: "hidden",
+                        },
+                    },
+                }}
                 renderInput={(params) => (
                     <TextField
                         {...params}
@@ -3092,7 +3129,6 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                         ))}
                     </Box>
                 }
-                PopperComponent={StablePopperComponent}
             />
         </Box>
     );

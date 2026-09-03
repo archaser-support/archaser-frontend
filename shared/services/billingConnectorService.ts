@@ -359,14 +359,72 @@ export async function discoverBillingConnectorFields(
 
 export async function runBillingConnectorPreviewSync(
     accountId: number,
-    importType?: ImportType
+    options?: {
+        importType?: ImportType;
+        customer_id?: number | null;
+    }
 ): Promise<PreviewSyncResponse> {
-    const response = await api.post<{ result: PreviewSyncResponse }>(
-        `${basePath(accountId)}/sync`,
-        importType ? { importType } : {},
-        { params: { mode: "preview", ...(importType ? { importType } : {}) } }
+    const importType = options?.importType;
+    const body: Record<string, unknown> = {};
+    if (importType) {
+        body.importType = importType;
+    }
+    if (
+        typeof options?.customer_id === "number" &&
+        Number.isFinite(options.customer_id) &&
+        options.customer_id > 0
+    ) {
+        body.customer_id = Math.trunc(options.customer_id);
+    }
+    const accepted = await api.post<{
+        result: {
+            ok?: boolean;
+            accepted?: boolean;
+            execution_id?: string;
+            status?: string;
+        };
+    }>(`${basePath(accountId)}/sync`, body, {
+        params: { mode: "preview", ...(importType ? { importType } : {}) },
+    });
+    const executionId = accepted.data.result?.execution_id;
+    if (!executionId || accepted.data.result?.accepted !== true) {
+        throw new Error("Preview sync did not start");
+    }
+
+    const deadline = Date.now() + 5 * 60 * 1000;
+    while (Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        const job = await fetchBillingConnectorPreviewResult(accountId);
+        if (job.execution_id && job.execution_id !== executionId) {
+            continue;
+        }
+        if (job.status === "RUNNING" || job.status == null) {
+            continue;
+        }
+        if (job.result) {
+            return job.result;
+        }
+        throw new Error(job.error ?? "Preview sync failed");
+    }
+    throw new Error("Preview sync timed out waiting for results");
+}
+
+export interface PreviewJobResponse {
+    execution_id: string | null;
+    status: "RUNNING" | "SUCCESS" | "FAILED" | null;
+    started_at: string | null;
+    completed_at: string | null;
+    result: PreviewSyncResponse | null;
+    error: string | null;
+}
+
+export async function fetchBillingConnectorPreviewResult(
+    accountId: number
+): Promise<PreviewJobResponse> {
+    const response = await api.get<PreviewJobResponse>(
+        `${basePath(accountId)}/preview-result`
     );
-    return response.data.result;
+    return response.data;
 }
 
 export async function runBillingConnectorBackfill(
