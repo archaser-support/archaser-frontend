@@ -437,13 +437,13 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                                 ? 0
                                 : sidebarOpen
                                     ? "210px"
-                                    : "61px",
+                                    : "48px",
                         },
                         mr: {
                             sm: isHebrewUser
                                 ? sidebarOpen
                                     ? "210px"
-                                    : "61px"
+                                    : "48px"
                                 : 0,
                         },
                         transition:

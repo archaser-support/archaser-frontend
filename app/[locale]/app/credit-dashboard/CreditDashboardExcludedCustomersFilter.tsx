@@ -14,6 +14,7 @@ type ExcludedCustomersOption = {
 };
 
 const EXCLUDED_CUSTOMERS_FILTER_WIDTH_SPACING = 30;
+const EXCLUDED_CUSTOMERS_FILTER_WIDTH_SPACING_HE = 26;
 
 type CreditDashboardExcludedCustomersFilterProps = {
     /** When true, no-policy exposure cohort is included in dashboard KPIs. */
@@ -50,19 +51,23 @@ export function CreditDashboardExcludedCustomersFilter({
         "credit_insurance_dashboard.excluded_customers_scope_label"
     );
 
+    const filterWidthSpacing = isHe
+        ? EXCLUDED_CUSTOMERS_FILTER_WIDTH_SPACING_HE
+        : EXCLUDED_CUSTOMERS_FILTER_WIDTH_SPACING;
+
     const filterSx = useMemo(
         () => ({
             minWidth: {
                 xs: "100%",
-                sm: theme.spacing(EXCLUDED_CUSTOMERS_FILTER_WIDTH_SPACING),
+                sm: theme.spacing(filterWidthSpacing),
             },
             width: {
                 xs: "100%",
-                sm: theme.spacing(EXCLUDED_CUSTOMERS_FILTER_WIDTH_SPACING),
+                sm: theme.spacing(filterWidthSpacing),
             },
             flexShrink: 0,
         }),
-        [theme]
+        [theme, filterWidthSpacing]
     );
 
     return (

@@ -71,10 +71,10 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
     const isRTL = i18n.language === "he";
     const isHebrew = i18n.language === "he";
 
-    /** Custom start/end pickers — wide enough for DD/MM/YYYY + calendar adornment. */
+    /** Custom start/end pickers — compact width for DD/MM/YYYY + calendar adornment. */
     const betweenRangePickerLayoutSx = useMemo(() => {
         // Hebrew labels (e.g. תאריך התחלה) need a bit more notch room.
-        const pickerWidthPx = isHebrew ? 184 : 168;
+        const pickerWidthPx = isHebrew ? 160 : 148;
         return {
             row: {
                 display: "flex",
