@@ -18,6 +18,7 @@ import {
     BarChart,
     CartesianGrid,
     Cell,
+    LabelList,
     Legend,
     ResponsiveContainer,
     Tooltip,
@@ -783,7 +784,7 @@ export function UtilizationSectionView({
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart
                                 data={distributionChartData}
-                                margin={{ top: 10, left: -10, right: 10 }}
+                                margin={{ top: 22, left: -10, right: 10 }}
                             >
                                 <CartesianGrid
                                     strokeDasharray="3 6"
@@ -860,6 +861,18 @@ export function UtilizationSectionView({
                                             }
                                         />
                                     ))}
+                                    <LabelList
+                                        dataKey="customerPct"
+                                        position="top"
+                                        offset={6}
+                                        fill={CPH.ink}
+                                        fontSize={10}
+                                        formatter={(value: number) =>
+                                            value > 0
+                                                ? formatPct(value, language, 0)
+                                                : ""
+                                        }
+                                    />
                                 </Bar>
                                 <Bar
                                     dataKey="usagePct"
@@ -902,6 +915,18 @@ export function UtilizationSectionView({
                                             />
                                         );
                                     })}
+                                    <LabelList
+                                        dataKey="usagePct"
+                                        position="top"
+                                        offset={6}
+                                        fill={CPH.ink}
+                                        fontSize={10}
+                                        formatter={(value: number) =>
+                                            value > 0
+                                                ? formatPct(value, language, 0)
+                                                : ""
+                                        }
+                                    />
                                 </Bar>
                             </BarChart>
                         </ResponsiveContainer>
