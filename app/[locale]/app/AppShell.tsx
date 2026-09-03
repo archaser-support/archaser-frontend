@@ -66,6 +66,7 @@ import AppUrls from "@/utils/appUrls";
 import ReactQueryProvider from "./ReactQueryProvider";
 
 const drawerWidth = 210;
+const collapsedDrawerWidth = 48;
 
 // Global fix for aria-hidden accessibility issues with Material-UI components
 const useAriaHiddenFix = () => {
@@ -1444,7 +1445,7 @@ const AppLayout = ({ children }: any) => {
                                                         mx: sidebarOpen
                                                             ? 0.25
                                                             : 0,
-                                                        px: sidebarOpen ? 0 : 2,
+                                                        px: sidebarOpen ? 0 : 1,
                                                         // Consistent left/start padding for all items, extra right/end padding only for items with badges > 0
                                                         ...(sidebarOpen && {
                                                             ...(isHebrewUser
@@ -1772,7 +1773,7 @@ const AppLayout = ({ children }: any) => {
                                                 }
                                                 sx={{
                                                     mx: sidebarOpen ? 0.25 : 0,
-                                                    px: sidebarOpen ? 0 : 2,
+                                                    px: sidebarOpen ? 0 : 1,
                                                     // Consistent left/start padding for all items, extra right/end padding only for items with badges > 0
                                                     ...(sidebarOpen && {
                                                         ...(isHebrewUser
@@ -2121,7 +2122,11 @@ const AppLayout = ({ children }: any) => {
                 <Box
                     component="nav"
                     sx={{
-                        width: { sm: sidebarOpen ? drawerWidth : 61 },
+                        width: {
+                            sm: sidebarOpen
+                                ? drawerWidth
+                                : collapsedDrawerWidth,
+                        },
                         flexShrink: { sm: 0 },
                         order: isHebrewUser ? 2 : 1,
                     }}
@@ -2171,7 +2176,9 @@ const AppLayout = ({ children }: any) => {
                             display: { xs: "none", sm: "block" },
                             "& .MuiDrawer-paper": {
                                 boxSizing: "border-box",
-                                width: sidebarOpen ? drawerWidth : 61,
+                                width: sidebarOpen
+                                    ? drawerWidth
+                                    : collapsedDrawerWidth,
                                 overflow: "hidden",
                                 transition: theme.transitions.create("width", {
                                     easing: theme.transitions.easing.sharp,
