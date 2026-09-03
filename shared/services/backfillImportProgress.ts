@@ -1,7 +1,9 @@
 import type { ImportType } from "@/types/db";
 
 import type {
+    BillingConnectorConfig,
     ConnectorSyncStatePublic,
+    PreviewSyncResponse,
     SyncRunSummary,
 } from "@/shared/services/billingConnectorService";
 
@@ -1137,21 +1139,6 @@ function entityCompletedInCurrentRun(
     );
 }
 
-let lastBackfillProgressDebugFingerprint = "";
-
-/** Dev-only: log why the progress panel picked the active entity (deduped). */
-function logBackfillProgressDebug(payload: Record<string, unknown>): void {
-    if (process.env.NODE_ENV !== "development") {
-        return;
-    }
-    const fingerprint = JSON.stringify(payload);
-    if (fingerprint === lastBackfillProgressDebugFingerprint) {
-        return;
-    }
-    lastBackfillProgressDebugFingerprint = fingerprint;
-    console.log("[BackfillImportProgress] progress-debug:", payload);
-}
-
 /**
  * Build per-entity rows while a backfill execution is RUNNING.
  * Always lists every enabled entity. Active entity = first that is not
@@ -1490,45 +1477,6 @@ export function buildRunningEntityProgressRows(params: {
               })
           )
         : entityRows;
-
-    logBackfillProgressDebug({
-        runId: params.runId ?? null,
-        runStartedAt: runStartedAt ?? null,
-        enabledEntities: ordered,
-        runHasProgress,
-        hasFreshPlaceholderStats,
-        firstIncompleteIndex,
-        firstIncompleteEntity:
-            firstIncompleteIndex >= 0 ? ordered[firstIncompleteIndex] : null,
-        hasCompletedEntityBeforeFrontierInCurrentRun,
-        resumeFromCheckpoint,
-        useLiveOrCheckpoint,
-        lastTouchedIndex,
-        lastTouchedEntity:
-            lastTouchedIndex >= 0 ? ordered[lastTouchedIndex] : null,
-        activeIndex,
-        activeEntity: activeIndex >= 0 ? ordered[activeIndex] : null,
-        entityStatsKeys: Object.keys(stats),
-        entityStatsPulled: Object.fromEntries(
-            ordered.map((entity) => [entity, stats[entity]?.pulled ?? null])
-        ),
-        syncStateSummary: ordered.map((entity) => {
-            const state = byType.get(entity);
-            return {
-                entity,
-                backfill_completed: state?.backfill_completed ?? false,
-                backfill_cursor_present: state?.backfill_cursor_present ?? false,
-                backfill_records_pulled: state?.backfill_records_pulled ?? 0,
-                last_attempt_at: state?.last_attempt_at ?? null,
-                touchedInRun: syncStateTouchedInRun(state, runStartedAt),
-                completedInCurrentRun: entityCompletedInCurrentRun(
-                    state,
-                    runStartedAt
-                ),
-            };
-        }),
-        rowPhases: entityRows.map((row) => [row.entity_type, row.phase]),
-    });
 
     const rows = appendTailStepRows({
         rows: shouldShowPurgeProgressRow(stats, expectPurge)
@@ -2013,4 +1961,26 @@ export function canStartFirstBackfill(
         return false;
     }
     return entitiesMissingPreview(params).length === 0;
+}
+
+/**
+ * Build per-entity preview_passes from a preview sync response (same rules as
+ * the billing-connector computeEntityPreviewPassed helper).
+ */
+export function previewPassesFromSyncResult(
+    result: Pick<PreviewSyncResponse, "entities" | "completed_at">,
+    existing?: BillingConnectorConfig["preview_passes"]
+): NonNullable<BillingConnectorConfig["preview_passes"]> {
+    const next: NonNullable<BillingConnectorConfig["preview_passes"]> = {
+        ...(existing ?? {}),
+    };
+    const completed_at = result.completed_at;
+    for (const entity of result.entities) {
+        const passed =
+            entity.validation_errors.length === 0 &&
+            entity.sample_rows.length > 0 &&
+            (entity.import_type !== "Invoice" || entity.sorted_preview);
+        next[entity.import_type] = { passed, completed_at };
+    }
+    return next;
 }
