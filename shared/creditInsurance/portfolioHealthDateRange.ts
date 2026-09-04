@@ -1,5 +1,7 @@
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const PORTFOLIO_HEALTH_MAX_RANGE_DAYS = 366;
+/** Show Generate guidance when the selected range exceeds this many days. */
+export const PORTFOLIO_HEALTH_LARGE_RANGE_DAYS = 90;
 
 export type ParsedPortfolioHealthDateRange = {
     from: string;
@@ -26,7 +28,7 @@ export function countInclusiveCalendarDays(fromYmd: string, toYmd: string): numb
     return Math.floor(ms / 86_400_000) + 1;
 }
 
-/** Default range: last 30 inclusive UTC calendar days ending today. */
+/** Default range: calendar This Year (Jan 1–Dec 31, UTC year of `todayUtc`). */
 export function defaultPortfolioHealthDateRange(
     todayUtc: Date = new Date(
         Date.UTC(
@@ -36,10 +38,11 @@ export function defaultPortfolioHealthDateRange(
         )
     )
 ): { from: string; to: string } {
-    const to = normalizeDateString(todayUtc);
-    const fromDate = new Date(todayUtc.getTime());
-    fromDate.setUTCDate(fromDate.getUTCDate() - 29);
-    return { from: normalizeDateString(fromDate), to };
+    const year = todayUtc.getUTCFullYear();
+    return {
+        from: `${year}-01-01`,
+        to: `${year}-12-31`,
+    };
 }
 
 export function parsePortfolioHealthDateRange(
