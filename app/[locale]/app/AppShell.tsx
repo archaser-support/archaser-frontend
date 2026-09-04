@@ -16,6 +16,7 @@ import {
     Person as PersonIcon,
     Schedule as ScheduleIcon,
     Settings as SettingsIcon,
+    ShowChart as ShowChartIcon,
     ViewList as ViewListIcon
 } from "@mui/icons-material";
 import {
@@ -1025,7 +1026,7 @@ const AppLayout = ({ children }: any) => {
                                                     "Portfolio Health",
                                             }
                                         ),
-                                        icon: <CreditInsuranceNavIcon />,
+                                        icon: <ShowChartIcon />,
                                         href:
                                             AppUrls.CREDIT_PORTFOLIO_HEALTH ||
                                             "/app/credit-portfolio-health",

@@ -11,7 +11,9 @@ import {
     Typography,
     useTheme,
 } from "@mui/material";
+import { CalendarDays } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useEffect, useState } from "react";
 
 import PageHeader from "@/components/PageHeader";
 import DateRangePicker from "@/app/[locale]/app/operation-dashboard/(cards)/DateRangePicker";
@@ -21,6 +23,7 @@ import {
 } from "@/app/[locale]/app/credit-dashboard/CreditDashboardPolicySelect";
 import { CreditDashboardExcludedCustomersFilter } from "@/app/[locale]/app/credit-dashboard/CreditDashboardExcludedCustomersFilter";
 import BusinessUnitDashboardFilter from "@/shared/components/BusinessUnitDashboardFilter";
+import { PORTFOLIO_HEALTH_LARGE_RANGE_DAYS } from "@/shared/creditInsurance/portfolioHealthDateRange";
 import Seo from "@/shared/layout-components/seo/seo";
 import { getRTLTooltipProps } from "@/utils/reportFieldUtils";
 import type {
@@ -70,7 +73,20 @@ export type CreditPortfolioHealthScreenProps = {
     retryPending: boolean;
     ignoreReportingBreach: boolean;
     onIgnoreReportingBreachChange: (value: boolean) => void;
+    generateDaysInRange: number;
 };
+
+function formatEstimatedSecondsRemaining(seconds: number): string {
+    if (seconds < 60) {
+        return `~${Math.max(1, Math.round(seconds))} sec`;
+    }
+    if (seconds < 3600) {
+        return `~${Math.max(1, Math.round(seconds / 60))} min`;
+    }
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.round((seconds % 3600) / 60);
+    return mins > 0 ? `~${hours} hr ${mins} min` : `~${hours} hr`;
+}
 
 export function CreditPortfolioHealthScreen({
     policies,
@@ -100,12 +116,23 @@ export function CreditPortfolioHealthScreen({
     retryPending,
     ignoreReportingBreach,
     onIgnoreReportingBreachChange,
+    generateDaysInRange,
 }: CreditPortfolioHealthScreenProps) {
     const { t, i18n } = useTranslation(["dashboard"]);
     const theme = useTheme();
     const isRtl = i18n.language === "he" || i18n.language.startsWith("he-");
     const prefersReducedMotion = usePrefersReducedMotion();
     const ns = { ns: "dashboard" as const };
+    const [confirmingLargeGenerate, setConfirmingLargeGenerate] =
+        useState(false);
+    const isLargeGenerateRange =
+        generateDaysInRange > PORTFOLIO_HEALTH_LARGE_RANGE_DAYS;
+
+    useEffect(() => {
+        if (!isLargeGenerateRange) {
+            setConfirmingLargeGenerate(false);
+        }
+    }, [isLargeGenerateRange, generateDaysInRange]);
 
     const pageTitle = t("credit_portfolio_health.page_title", {
         ...ns,
@@ -194,18 +221,42 @@ export function CreditPortfolioHealthScreen({
         backfillJob != null && backfillJob.daysTotal > 0
             ? Math.min(
                   100,
-                  Math.round(
-                      (backfillJob.daysDone / backfillJob.daysTotal) * 100
-                  )
+                  (backfillJob.daysDone / backfillJob.daysTotal) * 100
               )
             : 0;
+    const showIndeterminateProgress =
+        isBackfillRunning && (backfillJob?.daysDone ?? 0) === 0;
     const generateDisabled =
         isBackfillRunning || generatePending || stopPending || retryPending;
+    const backfillUpdatedAtMs = backfillJob?.updatedAt
+        ? Date.parse(backfillJob.updatedAt)
+        : 0;
+    const isStaleRunning =
+        isBackfillRunning &&
+        backfillUpdatedAtMs > 0 &&
+        Date.now() - backfillUpdatedAtMs > 45_000;
     const ignoreReportingBreachLocked =
         backfillStatus === "running" ||
         backfillStatus === "paused" ||
         backfillStatus === "failed" ||
         generatePending;
+
+    const handleGenerateClick = () => {
+        if (isLargeGenerateRange && !confirmingLargeGenerate) {
+            setConfirmingLargeGenerate(true);
+            return;
+        }
+        setConfirmingLargeGenerate(false);
+        onGenerateSnapshots();
+    };
+
+    const estimatedRemainingLabel =
+        backfillJob?.estimatedSecondsRemaining != null &&
+        backfillJob.estimatedSecondsRemaining > 0
+            ? formatEstimatedSecondsRemaining(
+                  backfillJob.estimatedSecondsRemaining
+              )
+            : null;
 
     return (
         <>
@@ -309,17 +360,34 @@ export function CreditPortfolioHealthScreen({
                                 />
                             </span>
                         </Tooltip>
-                        <Button
-                            variant="contained"
-                            size="small"
-                            disabled={generateDisabled}
-                            onClick={onGenerateSnapshots}
+                        <Tooltip
+                            title={t(
+                                "credit_portfolio_health.generate_snapshots_tooltip",
+                                {
+                                    ...ns,
+                                    defaultValue:
+                                        "Builds daily portfolio health snapshots for the selected date range. Runs in the background — use Stop to pause and Resume to continue.",
+                                }
+                            )}
+                            {...getRTLTooltipProps(i18n)}
                         >
-                            {t("credit_portfolio_health.generate_snapshots", {
-                                ...ns,
-                                defaultValue: "Generate",
-                            })}
-                        </Button>
+                            <span>
+                                <Button
+                                    variant="contained"
+                                    size="small"
+                                    disabled={generateDisabled}
+                                    onClick={handleGenerateClick}
+                                >
+                                    {t(
+                                        "credit_portfolio_health.generate_snapshots",
+                                        {
+                                            ...ns,
+                                            defaultValue: "Generate",
+                                        }
+                                    )}
+                                </Button>
+                            </span>
+                        </Tooltip>
                         {isBackfillRunning ? (
                             <Button
                                 variant="outlined"
@@ -334,20 +402,84 @@ export function CreditPortfolioHealthScreen({
                             </Button>
                         ) : null}
                         {backfillStatus === "paused" ||
-                        backfillStatus === "failed" ? (
+                        backfillStatus === "failed" ||
+                        isStaleRunning ? (
                             <Button
                                 variant="outlined"
                                 size="small"
                                 disabled={retryPending || generatePending}
                                 onClick={onRetryGenerate}
                             >
-                                {t("credit_portfolio_health.retry_generate", {
-                                    ...ns,
-                                    defaultValue: "Retry",
-                                })}
+                                {isStaleRunning
+                                    ? t(
+                                          "credit_portfolio_health.resume_generate",
+                                          {
+                                              ...ns,
+                                              defaultValue: "Resume",
+                                          }
+                                      )
+                                    : t(
+                                          "credit_portfolio_health.retry_generate",
+                                          {
+                                              ...ns,
+                                              defaultValue: "Retry",
+                                          }
+                                      )}
                             </Button>
                         ) : null}
                     </Box>
+                    {confirmingLargeGenerate ? (
+                        <Box
+                            sx={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 1,
+                            }}
+                        >
+                            <Typography variant="body2" color="text.secondary">
+                                {t(
+                                    "credit_portfolio_health.large_range_confirm",
+                                    {
+                                        ...ns,
+                                        defaultValue:
+                                            "Generate {{days}} days of snapshot history? This can take a while on large accounts.",
+                                        days: generateDaysInRange,
+                                    }
+                                )}
+                            </Typography>
+                            <Box sx={{ display: "flex", gap: 1 }}>
+                                <Button
+                                    variant="contained"
+                                    size="small"
+                                    disabled={generateDisabled}
+                                    onClick={handleGenerateClick}
+                                >
+                                    {t(
+                                        "credit_portfolio_health.large_range_confirm_button",
+                                        {
+                                            ...ns,
+                                            defaultValue: "Generate anyway",
+                                        }
+                                    )}
+                                </Button>
+                                <Button
+                                    variant="outlined"
+                                    size="small"
+                                    onClick={() =>
+                                        setConfirmingLargeGenerate(false)
+                                    }
+                                >
+                                    {t(
+                                        "credit_portfolio_health.large_range_cancel_button",
+                                        {
+                                            ...ns,
+                                            defaultValue: "Cancel",
+                                        }
+                                    )}
+                                </Button>
+                            </Box>
+                        </Box>
+                    ) : null}
                     {showProgress ? (
                         <Box
                             sx={{
@@ -357,20 +489,56 @@ export function CreditPortfolioHealthScreen({
                                 gap: 0.75,
                             }}
                         >
-                            <Typography variant="body2" color="text.secondary">
-                                {t(
-                                    "credit_portfolio_health.generate_progress",
-                                    {
-                                        ...ns,
-                                        defaultValue:
-                                            "Generating snapshots: {{done}} of {{total}} days",
-                                        done: backfillJob?.daysDone ?? 0,
-                                        total: backfillJob?.daysTotal ?? 0,
-                                    }
-                                )}
-                            </Typography>
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    gap: 1,
+                                    flexWrap: "wrap",
+                                    width: "100%",
+                                }}
+                            >
+                                <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                >
+                                    {t(
+                                        "credit_portfolio_health.generate_progress",
+                                        {
+                                            ...ns,
+                                            defaultValue:
+                                                "Generating snapshots: {{done}} of {{total}} days",
+                                            done: backfillJob?.daysDone ?? 0,
+                                            total: backfillJob?.daysTotal ?? 0,
+                                        }
+                                    )}
+                                </Typography>
+                                {estimatedRemainingLabel ? (
+                                    <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                    >
+                                        {t(
+                                            "credit_portfolio_health.generate_eta",
+                                            {
+                                                ...ns,
+                                                defaultValue:
+                                                    "Estimated time remaining: {{estimate}}",
+                                                estimate:
+                                                    estimatedRemainingLabel,
+                                            }
+                                        )}
+                                    </Typography>
+                                ) : null}
+                            </Box>
                             <LinearProgress
-                                variant="determinate"
+                                variant={
+                                    showIndeterminateProgress
+                                        ? "indeterminate"
+                                        : "determinate"
+                                }
                                 value={progressPct}
                                 sx={{ height: 8, borderRadius: 4 }}
                             />
@@ -424,32 +592,83 @@ export function CreditPortfolioHealthScreen({
                             }}
                         >
                             <div className={layout.islandShell}>
-                                {daysFootnote ? (
-                                    <p
-                                        style={{
-                                            margin: 0,
-                                            fontSize: 14,
-                                            color: CPH.slate,
-                                        }}
-                                    >
-                                        {daysFootnote}
-                                    </p>
-                                ) : null}
-
-                                <PillTabs
-                                    activeTab={activeTab}
-                                    onChange={onTabChange}
-                                    labels={tabLabels}
-                                    ariaLabel={t(
-                                        "credit_portfolio_health.tablist_aria",
-                                        {
-                                            ...ns,
-                                            defaultValue:
-                                                "Portfolio health sections",
-                                        }
-                                    )}
-                                    isRtl={isRtl}
-                                />
+                                <div className={layout.tabsRow}>
+                                    <PillTabs
+                                        activeTab={activeTab}
+                                        onChange={onTabChange}
+                                        labels={tabLabels}
+                                        ariaLabel={t(
+                                            "credit_portfolio_health.tablist_aria",
+                                            {
+                                                ...ns,
+                                                defaultValue:
+                                                    "Portfolio health sections",
+                                            }
+                                        )}
+                                        isRtl={isRtl}
+                                    />
+                                    {data != null && daysFootnote ? (
+                                        <div
+                                            className={layout.daysMeta}
+                                            title={t(
+                                                "credit_portfolio_health.days_available_tooltip",
+                                                {
+                                                    ...ns,
+                                                    defaultValue:
+                                                        "Snapshot data exists for {{available}} of {{total}} days in the selected range.",
+                                                    available:
+                                                        data.daysAvailable,
+                                                    total: data.daysInRange,
+                                                }
+                                            )}
+                                            aria-label={daysFootnote}
+                                        >
+                                            <CalendarDays
+                                                size={16}
+                                                strokeWidth={2.25}
+                                                aria-hidden
+                                            />
+                                            <div className={layout.daysMetaCopy}>
+                                                <span
+                                                    className={
+                                                        layout.daysMetaLabel
+                                                    }
+                                                >
+                                                    {t(
+                                                        "credit_portfolio_health.days_with_data_label",
+                                                        {
+                                                            ...ns,
+                                                            defaultValue:
+                                                                "Days with data",
+                                                        }
+                                                    )}
+                                                </span>
+                                                <span
+                                                    className={
+                                                        layout.daysMetaRatio
+                                                    }
+                                                >
+                                                    {data.daysAvailable}
+                                                    <span
+                                                        className={
+                                                            layout.daysMetaRatioMuted
+                                                        }
+                                                    >
+                                                        {t(
+                                                            "credit_portfolio_health.days_of_range_suffix",
+                                                            {
+                                                                ...ns,
+                                                                defaultValue:
+                                                                    " of {{total}} in range",
+                                                                total: data.daysInRange,
+                                                            }
+                                                        )}
+                                                    </span>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </div>
 
                                 <div
                                     id={`cph-panel-${activeTab}`}
