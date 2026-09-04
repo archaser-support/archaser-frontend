@@ -428,6 +428,8 @@ export type CreditAsOfBackfillJobView = {
     startedAt: string | null;
     updatedAt: string | null;
     skipReportingBreach: boolean;
+    avgSecondsPerDay?: number | null;
+    estimatedSecondsRemaining?: number | null;
 };
 
 export type CreditPortfolioHealthResponse = {
