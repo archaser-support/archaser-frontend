@@ -7,6 +7,8 @@ import dynamic from "next/dynamic";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
+import { CreditDashboardTitleInfoIcon } from "@/app/[locale]/app/credit-dashboard/creditDashboardTitleTooltip";
+
 import type {
     RiskExposureTrendSeries,
     TermsBreachReasonSlice,
@@ -29,7 +31,9 @@ export type CustomerDashboardCreditChartsProps = {
     zeroLineSubtitle: string;
     noBreachesLabel: string;
     riskExposureTitle: string;
+    riskExposureTooltip: string;
     termsBreachReasonTitle: string;
+    termsBreachReasonTooltip: string;
     termsBreachSupplementaryLine?: string;
     isRtl: boolean;
 };
@@ -41,7 +45,9 @@ export function CustomerDashboardCreditCharts({
     zeroLineSubtitle,
     noBreachesLabel,
     riskExposureTitle,
+    riskExposureTooltip,
     termsBreachReasonTitle,
+    termsBreachReasonTooltip,
     termsBreachSupplementaryLine,
     isRtl,
 }: CustomerDashboardCreditChartsProps) {
@@ -49,6 +55,10 @@ export function CustomerDashboardCreditCharts({
     const chartCard = theme.creditDashboardChartCard;
     const { t } = useTranslation(["dashboard", "common"]);
     const cp = theme.palette.chartPalette;
+    const chartTitleHelpAria = t(
+        "credit_insurance_dashboard.chart_title_help_aria",
+        { ns: "dashboard" }
+    );
 
     const lineChart = useMemo(() => {
         const policies = riskExposureByPolicy.filter(
@@ -232,9 +242,31 @@ export function CustomerDashboardCreditCharts({
                         <ShowChartIcon />
                     </Box>
                     <Box sx={chartCard.headerColumn(theme, isRtl)}>
-                        <Typography sx={chartCard.headerTitle(theme, isRtl)}>
-                            {riskExposureTitle}
-                        </Typography>
+                        <Box
+                            sx={{
+                                ...chartCard.headerTitleRow(theme, isRtl),
+                                mb: theme.spacing(1),
+                            }}
+                        >
+                            <Typography
+                                variant="body2"
+                                component="span"
+                                sx={{
+                                    ...chartCard.headerTitleInRow(theme, isRtl),
+                                    ml: 0,
+                                    mr: 0,
+                                    mb: 0,
+                                    minWidth: 0,
+                                }}
+                            >
+                                {riskExposureTitle}
+                            </Typography>
+                            <CreditDashboardTitleInfoIcon
+                                isRtl={isRtl}
+                                title={riskExposureTooltip}
+                                ariaLabel={chartTitleHelpAria}
+                            />
+                        </Box>
                         {!lineChart.hasData && (
                             <Typography variant="caption" color="text.secondary">
                                 {zeroLineSubtitle}
@@ -270,9 +302,31 @@ export function CustomerDashboardCreditCharts({
                         <GavelIcon />
                     </Box>
                     <Box sx={chartCard.headerColumn(theme, isRtl)}>
-                        <Typography sx={chartCard.headerTitle(theme, isRtl)}>
-                            {termsBreachReasonTitle}
-                        </Typography>
+                        <Box
+                            sx={{
+                                ...chartCard.headerTitleRow(theme, isRtl),
+                                mb: theme.spacing(1),
+                            }}
+                        >
+                            <Typography
+                                variant="body2"
+                                component="span"
+                                sx={{
+                                    ...chartCard.headerTitleInRow(theme, isRtl),
+                                    ml: 0,
+                                    mr: 0,
+                                    mb: 0,
+                                    minWidth: 0,
+                                }}
+                            >
+                                {termsBreachReasonTitle}
+                            </Typography>
+                            <CreditDashboardTitleInfoIcon
+                                isRtl={isRtl}
+                                title={termsBreachReasonTooltip}
+                                ariaLabel={chartTitleHelpAria}
+                            />
+                        </Box>
                         {termsBreachSupplementaryLine ? (
                             <Typography variant="caption" color="text.secondary">
                                 {termsBreachSupplementaryLine}
