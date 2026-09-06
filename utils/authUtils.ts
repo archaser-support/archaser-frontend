@@ -8,7 +8,7 @@ import { getEnvironmentLabel } from "@/utils/domainUtils";
 import { serializeBigInt } from "@/utils/serializeBigInt";
 
 /** Checked against SERVICE_NAME, which is set per deployment (e.g. archaser-staging). */
-const ENVIRONMENT_LABELS = ["staging", "dev", "preprod"] as const;
+const ENVIRONMENT_LABELS = ["staging", "dev", "preprod", "production"] as const;
 
 function hostnameOf(url: string): string {
     try {
