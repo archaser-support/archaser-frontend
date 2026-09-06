@@ -75,7 +75,12 @@ export function detectEnvironment(): EnvironmentType {
     const hostname = window.location.hostname;
     const port = window.location.port;
 
-    if (isEnvironmentHost(hostname) || port === '3001') {
+    const label = leadingLabel(hostname);
+    if (label === 'production' || hostname === 'archaser.com') {
+        return 'production';
+    }
+
+    if (['staging', 'dev', 'preprod'].includes(label) || port === '3001') {
         return 'preprod';
     }
 
@@ -164,7 +169,12 @@ export function detectServerEnvironment(): EnvironmentType {
                 const hostname = url.hostname;
                 const urlPort = url.port;
 
-                if (urlPort === '3001' || isEnvironmentHost(hostname)) {
+                const label = leadingLabel(hostname);
+                if (label === 'production' || hostname === 'archaser.com') {
+                    return 'production';
+                }
+
+                if (urlPort === '3001' || ['staging', 'dev', 'preprod'].includes(label)) {
                     return 'preprod';
                 }
             } catch (e) { /* ignore */ }
