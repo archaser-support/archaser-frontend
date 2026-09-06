@@ -40,6 +40,8 @@ interface CreditDashboardReportViewGridProps {
     termsOverdueOnly?: boolean;
     withinDays?: number | null;
     topUpReason?: string | null;
+    utilizationBin?: string | null;
+    asOfDate?: string | null;
     viewportRecalcDependency?: unknown;
 }
 
@@ -60,6 +62,8 @@ export const CreditDashboardReportViewGrid: React.FC<
     termsOverdueOnly,
     withinDays,
     topUpReason,
+    utilizationBin = null,
+    asOfDate = null,
     viewportRecalcDependency,
 }) => {
     const { t, i18n } = useTranslation(["dashboard", "common"]);
@@ -93,6 +97,8 @@ export const CreditDashboardReportViewGrid: React.FC<
                 termsOverdueOnly,
                 withinDays,
                 topUpReason,
+                utilizationBin,
+                asOfDate,
             }),
         [
             type,
@@ -103,6 +109,8 @@ export const CreditDashboardReportViewGrid: React.FC<
             termsOverdueOnly,
             withinDays,
             topUpReason,
+            utilizationBin,
+            asOfDate,
         ]
     );
 

@@ -68,6 +68,11 @@ export type ConnectorFieldMapperHandle = {
     save: () => Promise<boolean>;
 };
 
+/** Invoice/Payment use a date column for sync windows; Customer/Contact use pull filters only. */
+function usesPullDateField(importType: ImportType): boolean {
+    return importType === "Invoice" || importType === "Payment";
+}
+
 const ConnectorFieldMapper = React.forwardRef<
     ConnectorFieldMapperHandle,
     ConnectorFieldMapperProps
@@ -91,6 +96,7 @@ const ConnectorFieldMapper = React.forwardRef<
 ) {
     const { i18n } = useTranslation();
     const { success, error: showError } = useToast();
+    const showPullDateField = usesPullDateField(importType);
     const catalog = useMemo(
         () => getImportEntityFieldCatalog(importType),
         [importType]
@@ -165,13 +171,15 @@ const ConnectorFieldMapper = React.forwardRef<
     useEffect(() => {
         onDirtyChange?.(
             JSON.stringify(rules) !== baselineRulesJson ||
-                pullDateField !== baselinePullDateField
+                (showPullDateField &&
+                    pullDateField !== baselinePullDateField)
         );
     }, [
         rules,
         baselineRulesJson,
         pullDateField,
         baselinePullDateField,
+        showPullDateField,
         onDirtyChange,
     ]);
 
@@ -260,7 +268,8 @@ const ConnectorFieldMapper = React.forwardRef<
         }
         if (
             JSON.stringify(rules) === baselineRulesJson &&
-            pullDateField === baselinePullDateField
+            (!showPullDateField ||
+                pullDateField === baselinePullDateField)
         ) {
             return true;
         }
@@ -274,7 +283,7 @@ const ConnectorFieldMapper = React.forwardRef<
                         rule.erpField.trim() ||
                         (rule.defaultValue?.trim() ?? "") !== ""
                 ),
-                { pullDateField }
+                { pullDateField: showPullDateField ? pullDateField : null }
             );
             setRules(saved.mapping);
             setBaselineRulesJson(JSON.stringify(saved.mapping));
@@ -305,6 +314,7 @@ const ConnectorFieldMapper = React.forwardRef<
         baselineRulesJson,
         pullDateField,
         baselinePullDateField,
+        showPullDateField,
         onCompletenessChange,
         hideSaveButton,
         isLoading,
@@ -625,32 +635,36 @@ const ConnectorFieldMapper = React.forwardRef<
                             )}
                         />
                     )}
-                    <Autocomplete
-                        size="small"
-                        sx={{ minWidth: 220 }}
-                        freeSolo
-                        options={rawHeaders}
-                        value={pullDateField}
-                        onChange={(_event, value) => {
-                            const next =
-                                typeof value === "string" ? value.trim() : "";
-                            setPullDateField(next || null);
-                        }}
-                        onInputChange={(_event, value, reason) => {
-                            if (reason === "input") {
-                                setPullDateField(value.trim() || null);
-                            }
-                        }}
-                        disabled={!canManage}
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                label="Date field"
-                                size="small"
-                                placeholder="Auto (from table)"
-                            />
-                        )}
-                    />
+                    {showPullDateField && (
+                        <Autocomplete
+                            size="small"
+                            sx={{ minWidth: 220 }}
+                            freeSolo
+                            options={rawHeaders}
+                            value={pullDateField}
+                            onChange={(_event, value) => {
+                                const next =
+                                    typeof value === "string"
+                                        ? value.trim()
+                                        : "";
+                                setPullDateField(next || null);
+                            }}
+                            onInputChange={(_event, value, reason) => {
+                                if (reason === "input") {
+                                    setPullDateField(value.trim() || null);
+                                }
+                            }}
+                            disabled={!canManage}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="Date field"
+                                    size="small"
+                                    placeholder="Auto (from table)"
+                                />
+                            )}
+                        />
+                    )}
                     {onRefreshEntitySetCatalog && (
                         <Button
                             size="small"

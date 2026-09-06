@@ -4,7 +4,6 @@ import {
     Add,
     Clear as ClearIcon,
     Delete,
-    ExpandLess,
     ExpandMore,
     Person,
     Search as SearchIcon,
@@ -44,13 +43,13 @@ import { useTranslation } from "react-i18next";
 
 import api from "@/app/api";
 import { useSessionState } from "@/hooks/useSessionState";
+import { currencies, Currency } from "@/shared/data/common/currencies";
 import {
     type DatePreset,
     isDatePresetValue,
     resolveDatePreset,
     resolveDatePresetRange,
 } from "@/utils/datePresetUtils";
-import { currencies, Currency } from "@/shared/data/common/currencies";
 import {
     formatDateForDisplay,
     getDatePickerFormat,
@@ -408,6 +407,12 @@ interface FilterBuilderProps {
     validationErrors?: Record<number, string>;
 }
 
+/**
+ * Fields whose stored value is a set of codes rather than one value, so only
+ * multi-select and presence operators make sense.
+ */
+export const PICK_LIST_ONLY_FIELD_KEYS = new Set(["terms_breach_reason"]);
+
 /** Lookup-backed string fields that support Prisma `in` (multi-select OR). */
 export const REPORT_LOOKUP_FIELD_KEYS_WITH_IN = new Set([
     "Country.name",
@@ -434,7 +439,6 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
         "invoices",
         "disputes",
         "activities",
-        "payments",
         "contacts",
         "companies",
         "accounts",
@@ -699,23 +703,6 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
             textAlign: isRTL ? "right" : "left",
         }),
         [isRTL]
-    );
-
-    const filterRowAutocompleteStyles = React.useCallback(
-        (minWidth: number = 150) => ({
-            minWidth,
-            padding: 0,
-            margin: 0,
-            "& .MuiFormControl-root": {
-                padding: 0,
-                margin: 0,
-            },
-            "& .MuiTextField-root": {
-                padding: 0,
-                margin: 0,
-            },
-        }),
-        []
     );
 
     /** Side-by-side start/end pickers must shrink inside narrow modals (no fixed minWidth). */
@@ -1091,9 +1078,8 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                     { key: "sections.title", ns: "activities" },
                     { key: "tables.activities", ns: "reports" },
                 ],
-                Payment: [
-                    { key: "sections.title", ns: "payments" },
-                    { key: "tables.payments", ns: "reports" },
+                InvoicePayment: [
+                    { key: "tables.invoice_payments", ns: "reports" },
                 ],
                 Contact: [
                     { key: "sections.title", ns: "contacts" },
@@ -1338,6 +1324,19 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                     return translation;
                 }
                 // Fallback: format the value by replacing underscores with spaces
+                return stringValue.replace(/_/g, " ");
+            }
+
+            // Terms breach reason codes reuse the invoice flag labels, so the
+            // pick-list names each reason exactly as the report column does.
+            if (normalizedFieldName === "terms_breach_reason") {
+                const translation = t(stringValue, {
+                    ns: "invoices",
+                    defaultValue: stringValue,
+                });
+                if (translation && translation !== stringValue) {
+                    return translation;
+                }
                 return stringValue.replace(/_/g, " ");
             }
 
@@ -1625,6 +1624,13 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                         }),
                     },
                     {
+                        value: "not_in",
+                        label: t("values.operator_not_in", {
+                            ns: "reports",
+                            defaultValue: "Not In",
+                        }),
+                    },
+                    {
                         value: "is_empty",
                         label: t("values.operator_is_empty", {
                             ns: "reports",
@@ -1702,6 +1708,12 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
         normalizedField: string
     ) {
         const base = getOperatorsForType(fieldType);
+        if (PICK_LIST_ONLY_FIELD_KEYS.has(normalizedField)) {
+            // Value is a set of codes, so single-value comparison is meaningless.
+            return base.filter((op) =>
+                ["in", "not_in", "is_empty", "is_not_empty"].includes(op.value)
+            );
+        }
         if (
             fieldType === "string" &&
             REPORT_LOOKUP_FIELD_KEYS_WITH_IN.has(normalizedField)
@@ -1801,7 +1813,7 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                 } else {
                     updated[index].value = ["", ""];
                 }
-            } else if (value === "in") {
+            } else if (value === "in" || value === "not_in") {
                 updated[index].value = [];
             } else if (value === "is_empty" || value === "is_not_empty") {
                 // For empty operators, set value to null (will be handled by backend)
@@ -2033,7 +2045,7 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                     return value ? t("values.true", "True") : t("values.false", "False");
                 }
                 if (typeof value === "string" && value.length > 50) {
-                    return value.substring(0, 50) + "...";
+                    return `${value.substring(0, 50)  }...`;
                 }
                 return String(value);
             };
@@ -2845,7 +2857,10 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                     const sortedOptions = [...fieldInfo.options].sort((a, b) =>
                         String(a).localeCompare(String(b))
                     );
-                    if (filter.operator === "in") {
+                    if (
+                        filter.operator === "in" ||
+                        filter.operator === "not_in"
+                    ) {
                         // Multi-select for "in" operator (LogActivity-style: Select + Chips + Checkbox)
                         const selectedValues: string[] = Array.isArray(filter.value)
                             ? filter.value
@@ -3069,7 +3084,7 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                     />
                 );
 
-            case "date":
+            case "date": {
                 if (isBetween) {
                     const [startValue, endValue] = getBetweenValues();
                     return (
@@ -3405,8 +3420,9 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                         )}
                     </Box>
                 );
+            }
 
-            case "datetime":
+            case "datetime": {
                 if (isBetween) {
                     const [startValue, endValue] = getBetweenValues();
                     return (
@@ -3737,6 +3753,7 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                         )}
                     </Box>
                 );
+            }
 
             case "number":
             case "decimal":
@@ -4266,8 +4283,6 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
 
                 const displayFilter = { ...filter, field: resolvedField };
 
-                // Get label for display in card header
-                const tableLabel = getTableLabel(filter.table);
                 const filterDescription = getFilterDescription(filter);
                 const isExpanded = expandedFilters.has(index);
 

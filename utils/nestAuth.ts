@@ -6,6 +6,7 @@
 import { isNestUiMode } from "@/utils/amplifyMode";
 
 const NEST_TOKEN_KEY = "archaser_nest_access_token";
+const LOGIN_HANDOFF_STORAGE_KEY = "loginHandoffInProgress";
 let handlingExpiredSession = false;
 
 export function isNestAuthEnabled(): boolean {
@@ -62,6 +63,19 @@ export async function handleExpiredNestSession(): Promise<void> {
     if (typeof window === "undefined" || handlingExpiredSession) {
         return;
     }
+    // Mid-login / fresh app boot: a 401 must not signOut + bounce to /login.
+    // SessionLanguageMonitor used to clear the handoff on first /app paint,
+    // which allowed apiFetch 401 → signOut right after a successful login.
+    try {
+        if (sessionStorage.getItem(LOGIN_HANDOFF_STORAGE_KEY) === "true") {
+            return;
+        }
+        if (localStorage.getItem("freshLogin") === "true") {
+            return;
+        }
+    } catch {
+        // storage may be unavailable
+    }
     handlingExpiredSession = true;
     clearNestAccessToken();
     try {
@@ -82,6 +96,37 @@ export async function handleExpiredNestSession(): Promise<void> {
 export function restoreNestAccessToken(token: string | null | undefined): void {
     if (token) {
         setNestAccessToken(token);
+    }
+}
+
+/** Decode Nest JWT payload for post-login navigation without awaiting getSession(). */
+export function nestJwtClaimsFromToken(token: string): {
+    sub?: string;
+    role?: string;
+    account_id?: number | null;
+    language?: string;
+} | null {
+    try {
+        const segment = token.split(".")[1];
+        if (!segment) {
+            return null;
+        }
+        const normalized = segment.replace(/-/g, "+").replace(/_/g, "/");
+        const payload = JSON.parse(atob(normalized)) as Record<string, unknown>;
+        return {
+            sub: typeof payload.sub === "string" ? payload.sub : undefined,
+            role: typeof payload.role === "string" ? payload.role : undefined,
+            account_id:
+                typeof payload.account_id === "number"
+                    ? payload.account_id
+                    : null,
+            language:
+                typeof payload.language === "string"
+                    ? payload.language
+                    : undefined,
+        };
+    } catch {
+        return null;
     }
 }
 

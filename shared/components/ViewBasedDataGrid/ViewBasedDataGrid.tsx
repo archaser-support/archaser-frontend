@@ -31,6 +31,11 @@ import {
 import DeleteDialog from "@/shared/layout-components/modal/DeleteDialog";
 import { generateViewColumns } from "@/shared/utils/viewColumnGenerator";
 import { getViewConfig, ViewContextConfig } from "@/shared/utils/viewConfigs";
+import { isFormulaOutputKey } from "@/shared/reportFormula/types";
+import {
+    getUserDateLocale,
+    getUserTimezone,
+} from "@/utils/datetimeOperations";
 import {
     appendDashboardChartDetailsReturnParams,
     isDashboardChartDetailsReportContext,
@@ -127,6 +132,8 @@ export interface ViewBasedDataGridProps {
     includeInvoiceCreditInsuranceViolationFields?: boolean;
     /** Extra columns inserted after view columns (e.g. CI violations summary). */
     additionalDataColumns?: GridColDef[];
+    /** Row to highlight and scroll into view (e.g. invoice opened from global search). */
+    highlightedRowId?: number | string | null;
     /** Credit-only accounts: blank category column and hide automation-stuck icon. */
     hideCollectionCategoryDisplay?: boolean;
 }
@@ -167,6 +174,7 @@ export const ViewBasedDataGrid: React.FC<ViewBasedDataGridProps> = ({
     refreshTrigger,
     includeInvoiceCreditInsuranceViolationFields = false,
     additionalDataColumns,
+    highlightedRowId,
     hideCollectionCategoryDisplay = false,
 }) => {
     const { t, i18n } = useTranslation([context, "common", "reports"]);
@@ -298,6 +306,9 @@ export const ViewBasedDataGrid: React.FC<ViewBasedDataGridProps> = ({
     const reportSortModel = useMemo<GridSortModel>(() => {
         const sorting = viewConfig?.sorting;
         if (Array.isArray(sorting) && sorting.length > 0 && sorting[0]?.field) {
+            if (isFormulaOutputKey(sorting[0].field)) {
+                return [config.defaultSort];
+            }
             const direction = String(
                 sorting[0].direction || "ASC"
             ).toLowerCase();
@@ -326,6 +337,10 @@ export const ViewBasedDataGrid: React.FC<ViewBasedDataGridProps> = ({
     }, [selectedViewId, reportSortModel, viewConfig]);
 
     const handleSortModelChange = useCallback((model: GridSortModel) => {
+        const field = model[0]?.field;
+        if (field && isFormulaOutputKey(field)) {
+            return;
+        }
         hasUserChangedSort.current = true;
         setSortModel(model);
     }, []);
@@ -953,10 +968,11 @@ export const ViewBasedDataGrid: React.FC<ViewBasedDataGridProps> = ({
                         sortField: sortField || "",
                         sortDirection: sortDirection || "asc",
                         filters,
-                        locale: i18n.language === "he" ? "he-IL" : "en-US",
+                        locale: getUserDateLocale(session ?? null),
                         language:
                             session?.user?.language ??
                             (i18n.language === "he" ? "Hebrew" : "English"),
+                        timezone: getUserTimezone(session ?? null),
                         ...(businessUnitId != null
                             ? { businessUnitId }
                             : {}),
@@ -1018,6 +1034,7 @@ export const ViewBasedDataGrid: React.FC<ViewBasedDataGridProps> = ({
             businessUnitId,
             selectedUserId,
             i18n.language,
+            session,
         ]
     );
 
@@ -1123,6 +1140,7 @@ export const ViewBasedDataGrid: React.FC<ViewBasedDataGridProps> = ({
                 viewportRecalcDependency={viewportRecalcDependency}
                 visibleRows={visibleRows}
                 resizableColumns={true}
+                highlightedRowId={highlightedRowId}
                 columnVisibilityModel={columnVisibilityModel}
                 noRowsMessage={t("messages.no_results", { ns: "common" })}
                 noRowsDescription={t("messages.no_results_description", {

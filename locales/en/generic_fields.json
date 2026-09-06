@@ -25,7 +25,6 @@
         "entity_customer": "Customer",
         "entity_contact": "Contact",
         "entity_invoice": "Invoice",
-        "entity_payment": "Payment",
         "field_type_text": "Text",
         "field_type_number": "Number",
         "field_type_date": "Date"

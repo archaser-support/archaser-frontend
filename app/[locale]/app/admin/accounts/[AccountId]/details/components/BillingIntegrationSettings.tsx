@@ -1,49 +1,17 @@
 "use client";
 
-import {
-    Alert,
-    Accordion,
-    AccordionDetails,
-    AccordionSummary,
-    Box,
-    Button,
-    Card,
-    CardContent,
-    CircularProgress,
-    FormControl,
-    FormControlLabel,
-    Grid,
-    InputLabel,
-    List,
-    ListItem,
-    ListItemText,
-    MenuItem,
-    Select,
-    Switch,
-    Tab,
-    Tabs,
-    TextField,
-    Tooltip,
-    Typography,
-    Autocomplete,
-} from "@mui/material";
-import { useTheme } from "@mui/material/styles";
-import {
-    Info as InfoIcon,
-    ExpandMore as ExpandMoreIcon,
-    Psychology as PsychologyIcon,
-    Settings as SettingsIcon,
-    Sync as SyncIcon,
-} from "@mui/icons-material";
+import { Alert, Box, CircularProgress, Typography } from "@mui/material";
 import type { ConnectorAuthType, ImportType } from "@/types/db";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, forwardRef } from "react";
+import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, forwardRef, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
     fetchBillingConnectorConfig,
+    fetchBillingConnectorSyncHistory,
     fetchBillingConnectorSyncRuns,
     cancelBillingConnectorSync,
+    lookupBillingConnectorCustomerById,
     resetBillingConnectorBackfill,
     refreshBillingConnectorEntitySets,
     runBillingConnectorBackfill,
@@ -51,27 +19,36 @@ import {
     runBillingConnectorPreviewSync,
     saveBillingConnectorConfig,
     testBillingConnectorConnection,
+    type BillingConnectorConfig,
     type PreviewSyncResponse,
     type PullFiltersMap,
     type SyncRunSummary,
     type UpsertBillingConnectorPayload,
 } from "@/shared/services/billingConnectorService";
-import ConnectorFieldMapper, {
-    type ConnectorFieldMapperHandle,
-} from "@/shared/layout-components/import/ConnectorFieldMapper";
-import ConnectorEntityPullFilterEditor, {
-    type ConnectorEntityPullFilterEditorHandle,
-} from "@/shared/layout-components/import/ConnectorEntityPullFilterEditor";
-import ConnectorPreviewSyncResults from "@/shared/layout-components/import/ConnectorPreviewSyncResults";
+import type { ConnectorFieldMapperHandle } from "@/shared/layout-components/import/ConnectorFieldMapper";
+import type { ConnectorEntityPullFilterEditorHandle } from "@/shared/layout-components/import/ConnectorEntityPullFilterEditor";
 import { normalizeConnectorEnabledEntities } from "@/shared/constants/importEntityFields";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import DeleteDialog from "@/shared/layout-components/modal/DeleteDialog";
 import {
-    getPreviewBlockedReason,
+    buildClearBeforeImportConfirmCopy,
+    type ClearBeforeImportConfirmCopy,
+    type ClearBeforeImportPrefs,
+    readClearBeforeImportPrefs,
+    resolveClearBeforeImportPayload,
+    shouldConfirmStartBackfillClear,
+    writeClearBeforeImportPrefs,
+} from "@/shared/services/billingConnectorClearBeforeImport";
+import {
+    getPreviewSyncDisabledReason,
     getResetBackfillDisabledReason,
     getRunIncrementalDisabledReason,
     getStartBackfillDisabledReason,
+    getStopImportDisabledReason,
+    getBackfillActionPurpose,
+    hasPendingDeferredArPostIngest,
     isActiveConnectorSyncRun,
+    resolveBackfillActionStage,
     toDateInputValue,
 } from "@/shared/services/billingConnectorSyncActions";
 import {
@@ -80,89 +57,87 @@ import {
 } from "@/shared/billing-extensions/registry";
 import {
     canStartFirstBackfill,
+    createPendingBackfillRun,
+    createResetBackfillProgressRun,
     entitiesMissingPreview,
+    findRunningBackfillRun,
+    isPlaceholderBackfillProgressRun,
+    previewPassesFromSyncResult,
     readBackfillProgressSession,
     resolveBackfillProgressRun,
     writeBackfillProgressSession,
+    zeroBackfillProgressSyncStates,
     type BackfillProgressSession,
 } from "@/shared/services/backfillImportProgress";
-import BackfillImportProgress from "./BackfillImportProgress";
-
 import {
-    accountCardContentSx,
-    accountCardSx,
-    accountCardTitleSx,
-    accountSectionIconSx,
-} from "../accountCardStyles";
-import AccountSectionCardHeader from "./AccountSectionCardHeader";
+    BILLING_CONNECTOR_BUSY_POLL_MS,
+    billingConnectorQueryKey,
+    billingConnectorSyncHistoryQueryKey,
+    billingConnectorSyncRunsQueryKey,
+    invalidateBillingConnectorQueries,
+} from "@/shared/services/billingConnectorQueries";
+import BillingConnectionSection from "./BillingConnectionSection";
+import BillingScheduleSection from "./BillingScheduleSection";
+import BillingEntityWorkspace from "./BillingEntityWorkspace";
+import BillingProgressHost from "./BillingProgressHost";
+import BillingSyncHistorySection from "./BillingSyncHistorySection";
+import {
+    DEFAULT_PAID_TOLERANCE,
+    ENTITY_OPTIONS,
+    NONE_EXTENSION_OPTION,
+    firstEnabledEntityTabIndex,
+    formatPaidTolerance,
+    isClearBeforeImportEntity,
+    parsePaidToleranceInput,
+    type ExtensionKeyOption,
+    type SchedulePresetValue,
+} from "./billingIntegrationConstants";
 
-const compactBillingCardContentSx = {
-    p: 0,
-    "&:last-child": { pb: 0 },
+export type BillingIntegrationSettingsHandle = {
+    save: () => Promise<void>;
 };
-
-const ENTITY_OPTIONS: { value: ImportType; label: string }[] = [
-    { value: "Customer", label: "Customers" },
-    { value: "Contact", label: "Contacts" },
-    { value: "Invoice", label: "Invoices" },
-    { value: "Payment", label: "Payments" },
-];
-
-function firstEnabledEntityTabIndex(enabledEntities: ImportType[]): number {
-    const index = ENTITY_OPTIONS.findIndex((opt) =>
-        enabledEntities.includes(opt.value)
-    );
-    return index >= 0 ? index : 0;
-}
-
-const AUTH_TYPE_OPTIONS: { value: ConnectorAuthType; label: string }[] = [
-    { value: "API_KEY", label: "API key (PAT)" },
-    { value: "BASIC", label: "Basic (username / password)" },
-    { value: "OAUTH2_CLIENT_CREDENTIALS", label: "OAuth2 client credentials" },
-];
-
-type SchedulePresetValue =
-    | "every_4h"
-    | "every_6h"
-    | "every_12h"
-    | "daily"
-    | "weekly"
-    | "custom";
-
-const SCHEDULE_PRESET_OPTIONS: { value: SchedulePresetValue; label: string }[] = [
-    { value: "every_4h", label: "Every 4 hours UTC" },
-    { value: "every_6h", label: "Every 6 hours UTC" },
-    { value: "every_12h", label: "Every 12 hours UTC" },
-    { value: "daily", label: "Daily at a time (UTC)" },
-    { value: "weekly", label: "Weekly on a day and time (UTC)" },
-    { value: "custom", label: "Custom (Advanced)" },
-];
-
-const WEEKDAY_OPTIONS: { value: number; label: string }[] = [
-    { value: 0, label: "Sunday" },
-    { value: 1, label: "Monday" },
-    { value: 2, label: "Tuesday" },
-    { value: 3, label: "Wednesday" },
-    { value: 4, label: "Thursday" },
-    { value: 5, label: "Friday" },
-    { value: 6, label: "Saturday" },
-];
-
-const NONE_EXTENSION_OPTION = {
-    key: "",
-    label: "None (standard account)",
-} as const;
-
-type ExtensionKeyOption = { key: string; label: string };
 
 interface BillingIntegrationSettingsProps {
     accountId: number;
     canManage: boolean;
 }
 
-export type BillingIntegrationSettingsHandle = {
-    save: () => Promise<void>;
-};
+function renderClearBeforeImportConfirmDescription(
+    copy: ClearBeforeImportConfirmCopy
+): ReactNode {
+    if (!copy.customerScope || !copy.customerScopePrefix) {
+        return copy.description;
+    }
+
+    const prefixIndex = copy.description.indexOf(copy.customerScopePrefix);
+    if (prefixIndex < 0) {
+        return copy.description;
+    }
+
+    const before = copy.description.slice(
+        0,
+        prefixIndex + copy.customerScopePrefix.length
+    );
+    const after = copy.description.slice(
+        prefixIndex + copy.customerScopePrefix.length
+    );
+    const { id, name } = copy.customerScope;
+
+    return (
+        <>
+            {before}{" "}
+            <Box component="span" sx={{ fontWeight: 700 }}>
+                {name}
+            </Box>
+            {" (id "}
+            <Box component="span" sx={{ fontWeight: 700 }}>
+                {id}
+            </Box>
+            {")"}
+            {after}
+        </>
+    );
+}
 
 const BillingIntegrationSettings = forwardRef<
     BillingIntegrationSettingsHandle,
@@ -175,11 +150,9 @@ const BillingIntegrationSettings = forwardRef<
     const queryClient = useQueryClient();
     const { i18n } = useTranslation(["common"]);
     const isHebrew = i18n.language === "he";
-    const theme = useTheme();
-    const pillRadiusPx = `${theme.appButton.sizeMedium.borderRadius}px`;
 
     const { data: config, isLoading } = useQuery({
-        queryKey: ["billing-connector", accountId],
+        queryKey: billingConnectorQueryKey(accountId),
         queryFn: () => fetchBillingConnectorConfig(accountId),
         enabled: accountId > 0,
     });
@@ -207,6 +180,13 @@ const BillingIntegrationSettings = forwardRef<
     const [scheduleExpanded, setScheduleExpanded] = useState<boolean | null>(
         null
     );
+    const [mappingExpanded, setMappingExpanded] = useState<boolean | null>(
+        null
+    );
+    const [progressExpanded, setProgressExpanded] = useState<boolean | null>(
+        null
+    );
+    const [historyExpanded, setHistoryExpanded] = useState(false);
     const [enabledEntities, setEnabledEntities] = useState<ImportType[]>([
         "Customer",
         "Contact",
@@ -218,6 +198,8 @@ const BillingIntegrationSettings = forwardRef<
     >({});
     const [previewResult, setPreviewResult] =
         useState<PreviewSyncResponse | null>(null);
+    /** Blocks re-running preview until mapping or pull filters change again. */
+    const [previewUpToDate, setPreviewUpToDate] = useState(false);
     const [mappingEntityTab, setMappingEntityTab] = useState<number | null>(
         null
     );
@@ -225,18 +207,59 @@ const BillingIntegrationSettings = forwardRef<
         "mapping" | "pullFilter" | "preview"
     >("mapping");
     const [backfillStartDate, setBackfillStartDate] = useState("");
+    const [mepBreachStartDate, setMepBreachStartDate] = useState("");
     const [skipReportingBreachOnBackfill, setSkipReportingBreachOnBackfill] =
         useState(false);
     const [includeOlderOpenInvoices, setIncludeOlderOpenInvoices] =
         useState(true);
+    const [invoicePaidTolerance, setInvoicePaidTolerance] = useState(
+        formatPaidTolerance(DEFAULT_PAID_TOLERANCE)
+    );
+    const [invoicePaidToleranceError, setInvoicePaidToleranceError] = useState<
+        string | null
+    >(null);
     const [extensionKey, setExtensionKey] = useState("");
     const [extensionConfig, setExtensionConfig] = useState<
         Record<string, unknown>
     >({});
     const [resetDialogOpen, setResetDialogOpen] = useState(false);
+    const [clearBeforeStartDialogOpen, setClearBeforeStartDialogOpen] =
+        useState(false);
+    const [clearBeforeImportPrefs, setClearBeforeImportPrefs] =
+        useState<ClearBeforeImportPrefs>(() =>
+            readClearBeforeImportPrefs(accountId)
+        );
+    const clearBeforeImportSession = clearBeforeImportPrefs.entities;
+    const clearBeforeImportCustomerId = clearBeforeImportPrefs.customerId;
+    const clearBeforeImportCustomerLookup =
+        clearBeforeImportPrefs.customerId != null
+            ? {
+                  id: clearBeforeImportPrefs.customerId,
+                  name:
+                      clearBeforeImportPrefs.customerName ||
+                      `Customer ${clearBeforeImportPrefs.customerId}`,
+              }
+            : null;
+    const skipClearBeforeImportPersistRef = useRef(true);
+    const [
+        clearBeforeImportCustomerError,
+        setClearBeforeImportCustomerError,
+    ] = useState<string | null>(null);
+    const [clearBeforeCustomerValidating, setClearBeforeCustomerValidating] =
+        useState(false);
     const [progressSession, setProgressSession] =
-        useState<BackfillProgressSession | null>(null);
+        useState<BackfillProgressSession | null>(() =>
+            readBackfillProgressSession(accountId)
+        );
+    /** Clears progress counters immediately on Start, before the new run polls in. */
+    const [pendingBackfillReset, setPendingBackfillReset] = useState(false);
+    /** Clears progress bars/counters after Run Preview until the next real import. */
+    const [progressUiReset, setProgressUiReset] = useState(false);
+    /** Start requested clear-before-import — keep Deleting… visible before purge stats arrive. */
+    const [expectDeletingStep, setExpectDeletingStep] = useState(false);
     const cutoverDirtyRef = useRef(false);
+    /** Prevents config reload from clearing preview stale after local mapping/filter edits. */
+    const previewStaleRef = useRef(false);
     const mapperRefs = useRef<
         Partial<Record<ImportType, ConnectorFieldMapperHandle | null>>
     >({});
@@ -246,11 +269,31 @@ const BillingIntegrationSettings = forwardRef<
     const entityTabsRef = useRef<HTMLDivElement | null>(null);
     const entityTabFocusPendingRef = useRef(true);
 
+    useLayoutEffect(() => {
+        skipClearBeforeImportPersistRef.current = true;
+        setClearBeforeImportPrefs(readClearBeforeImportPrefs(accountId));
+        setClearBeforeImportCustomerError(null);
+        setClearBeforeStartDialogOpen(false);
+    }, [accountId]);
+
+    useEffect(() => {
+        if (skipClearBeforeImportPersistRef.current) {
+            skipClearBeforeImportPersistRef.current = false;
+            return;
+        }
+        writeClearBeforeImportPrefs(accountId, clearBeforeImportPrefs);
+    }, [accountId, clearBeforeImportPrefs]);
+
     useEffect(() => {
         setProgressSession(readBackfillProgressSession(accountId));
         setConnectionExpanded(null);
         setScheduleExpanded(null);
+        setMappingExpanded(null);
+        setProgressExpanded(null);
+        setHistoryExpanded(false);
         setMappingEntityTab(null);
+        previewStaleRef.current = false;
+        setPreviewUpToDate(false);
         entityTabFocusPendingRef.current = true;
     }, [accountId]);
 
@@ -271,7 +314,13 @@ const BillingIntegrationSettings = forwardRef<
             normalizeConnectorEnabledEntities(config.enabled_entities)
         );
         if (!cutoverDirtyRef.current) {
-            setBackfillStartDate(toDateInputValue(config.backfill_start_date));
+            const nextBackfillStartDate = toDateInputValue(
+                config.backfill_start_date
+            );
+            setBackfillStartDate(nextBackfillStartDate);
+            setMepBreachStartDate(
+                toDateInputValue(config.mep_breach_start_date)
+            );
             setIncludeOlderOpenInvoices(
                 config.include_older_open_invoices ?? true
             );
@@ -279,6 +328,10 @@ const BillingIntegrationSettings = forwardRef<
                 Boolean(config.skip_reporting_breach_on_backfill)
             );
         }
+        setInvoicePaidTolerance(
+            formatPaidTolerance(config.invoice_paid_tolerance)
+        );
+        setInvoicePaidToleranceError(null);
         setExtensionKey(config.extension_key?.trim() ?? "");
         setExtensionConfig(
             config.extension_config &&
@@ -288,6 +341,27 @@ const BillingIntegrationSettings = forwardRef<
                 : {}
         );
     }, [config?.id, config?.modified_at]);
+
+    useEffect(() => {
+        if (!config || previewStaleRef.current) {
+            return;
+        }
+        setPreviewUpToDate(
+            canStartFirstBackfill({
+                enabledEntities: normalizeConnectorEnabledEntities(
+                    config.enabled_entities
+                ),
+                previewPasses: config.preview_passes,
+                backfillOptionsLocked: config.backfill_options_locked,
+                syncMode: config.sync_mode,
+            })
+        );
+    }, [
+        config?.preview_passes,
+        config?.backfill_options_locked,
+        config?.sync_mode,
+        config?.enabled_entities,
+    ]);
 
     const buildCredentials = (): Record<string, unknown> | null => {
         if (authType === "API_KEY") {
@@ -329,8 +403,12 @@ const BillingIntegrationSettings = forwardRef<
                 sync_enabled: syncEnabled,
                 enabled_entities: enabledEntities,
                 backfill_start_date: backfillStartDate.trim() || null,
+                mep_breach_start_date: mepBreachStartDate.trim() || null,
                 include_older_open_invoices: includeOlderOpenInvoices,
                 skip_reporting_breach_on_backfill: skipReportingBreachOnBackfill,
+                invoice_paid_tolerance:
+                    parsePaidToleranceInput(invoicePaidTolerance) ??
+                    DEFAULT_PAID_TOLERANCE,
                 extension_key: extensionKey.trim() || null,
                 extension_config: extensionKey.trim()
                     ? extensionConfig
@@ -359,8 +437,8 @@ const BillingIntegrationSettings = forwardRef<
         },
         onSuccess: () => {
             cutoverDirtyRef.current = false;
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector", accountId],
+            void invalidateBillingConnectorQueries(queryClient, accountId, {
+                syncRuns: false,
             });
             setApiKeyToken("");
             setBasicPassword("");
@@ -374,6 +452,12 @@ const BillingIntegrationSettings = forwardRef<
     saveBillingSettingsRef.current = async () => {
         if (!canManage) {
             return;
+        }
+        const paidTolerance = parsePaidToleranceInput(invoicePaidTolerance);
+        if (paidTolerance == null) {
+            throw new Error(
+                "Paid leftover tolerance must be a number from 0 to 10."
+            );
         }
         const pullFiltersLocked = Boolean(config?.backfill_options_locked);
         const pull_filters: PullFiltersMap = {};
@@ -434,8 +518,8 @@ const BillingIntegrationSettings = forwardRef<
         onSuccess: (result) => {
             if (result.success) {
                 success("Connection test succeeded");
-                queryClient.invalidateQueries({
-                    queryKey: ["billing-connector", accountId],
+                void invalidateBillingConnectorQueries(queryClient, accountId, {
+                    syncRuns: false,
                 });
             } else {
                 showError(result.error ?? "Connection test failed");
@@ -449,11 +533,41 @@ const BillingIntegrationSettings = forwardRef<
     });
 
     const previewMutation = useMutation({
-        mutationFn: () => runBillingConnectorPreviewSync(accountId),
+        mutationFn: (options?: { customer_id?: number | null }) =>
+            runBillingConnectorPreviewSync(accountId, {
+                customer_id: options?.customer_id,
+            }),
+        onMutate: () => {
+            // Clear previous import progress immediately when Preview starts.
+            setProgressUiReset(true);
+            setPendingBackfillReset(false);
+            setExpectDeletingStep(false);
+            setProgressSession(null);
+            writeBackfillProgressSession(accountId, null);
+        },
         onSuccess: (result) => {
             setPreviewResult(result);
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector", accountId],
+            previewStaleRef.current = false;
+            setPreviewUpToDate(true);
+            // Optimistically apply preview_passes so the primary action flips to
+            // Start backfill immediately (invalidate alone leaves a stale gap).
+            queryClient.setQueryData<BillingConnectorConfig | null>(
+                billingConnectorQueryKey(accountId),
+                (current) => {
+                    if (!current) {
+                        return current;
+                    }
+                    return {
+                        ...current,
+                        preview_passes: previewPassesFromSyncResult(
+                            result,
+                            current.preview_passes
+                        ),
+                    };
+                }
+            );
+            void invalidateBillingConnectorQueries(queryClient, accountId, {
+                syncRuns: true,
             });
             setEntityWorkspaceTab("preview");
             if (result.go_no_go.passed) {
@@ -465,6 +579,9 @@ const BillingIntegrationSettings = forwardRef<
             }
         },
         onError: (err: unknown) => {
+            void invalidateBillingConnectorQueries(queryClient, accountId, {
+                syncRuns: true,
+            });
             const message =
                 axiosErrorMessage(err) ?? "Preview sync failed";
             showError(message);
@@ -475,8 +592,8 @@ const BillingIntegrationSettings = forwardRef<
         mutationFn: () => refreshBillingConnectorEntitySets(accountId),
         onSuccess: () => {
             success("Priority table catalog refreshed");
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector", accountId],
+            void invalidateBillingConnectorQueries(queryClient, accountId, {
+                syncRuns: false,
             });
         },
         onError: (err: unknown) => {
@@ -486,14 +603,23 @@ const BillingIntegrationSettings = forwardRef<
         },
     });
 
+    const handleEntityConfigDirtyChange = useCallback((dirty: boolean) => {
+        if (dirty) {
+            previewStaleRef.current = true;
+            setPreviewUpToDate(false);
+        }
+    }, []);
+
     const handleEntitySetChange = useCallback(
         async (importType: ImportType, value: string | null) => {
             try {
+                previewStaleRef.current = true;
+                setPreviewUpToDate(false);
                 await saveBillingConnectorConfig(accountId, {
                     entity_sets: { [importType]: value },
                 });
-                await queryClient.invalidateQueries({
-                    queryKey: ["billing-connector", accountId],
+                await invalidateBillingConnectorQueries(queryClient, accountId, {
+                    syncRuns: false,
                 });
                 success(
                     value
@@ -509,6 +635,29 @@ const BillingIntegrationSettings = forwardRef<
         [accountId, queryClient, showError, success]
     );
 
+    const persistPaidTolerance = useCallback(
+        async (value: number) => {
+            if (!canManage) {
+                return;
+            }
+            try {
+                const saved = await saveBillingConnectorConfig(accountId, {
+                    invoice_paid_tolerance: value,
+                });
+                queryClient.setQueryData(
+                    billingConnectorQueryKey(accountId),
+                    saved
+                );
+            } catch (err: unknown) {
+                showError(
+                    axiosErrorMessage(err) ??
+                        "Failed to save paid leftover tolerance"
+                );
+            }
+        },
+        [accountId, canManage, queryClient, showError]
+    );
+
     const persistCutoverOptions = useCallback(
         async (patch: UpsertBillingConnectorPayload) => {
             if (!canManage || config?.backfill_options_locked) {
@@ -521,7 +670,7 @@ const BillingIntegrationSettings = forwardRef<
                     patch
                 );
                 queryClient.setQueryData(
-                    ["billing-connector", accountId],
+                    billingConnectorQueryKey(accountId),
                     saved
                 );
                 cutoverDirtyRef.current = false;
@@ -540,31 +689,86 @@ const BillingIntegrationSettings = forwardRef<
         ]
     );
 
-    const backfillMutation = useMutation({
-        mutationFn: () => runBillingConnectorBackfill(accountId),
-        onMutate: () => {
-            // Only Start / resume backfill clears the progress panel session.
-            // Entity transitions within a run keep prior rows (sync_states).
+    const backfillMutation = useMutation<
+        | {
+              status?: string;
+              execution_id?: string;
+              sync_mode?: string;
+              trigger?: string;
+          }
+        | undefined,
+        unknown,
+        {
+            clear_before_import?: Array<
+                "Customer" | "Contact" | "Invoice" | "Payment"
+            >;
+            customer_id?: number | null;
+        },
+        { expectPurge: boolean }
+    >({
+        mutationFn: (options) =>
+            runBillingConnectorBackfill(accountId, options),
+        onMutate: (options) => {
+            // Reset counters immediately — do not wait for the new RUNNING run.
+            const expectPurge =
+                (options?.clear_before_import?.length ?? 0) > 0;
+            setExpectDeletingStep(expectPurge);
+            setPendingBackfillReset(true);
+            setProgressUiReset(false);
             setProgressSession(null);
             writeBackfillProgressSession(accountId, null);
-            void queryClient.invalidateQueries({
-                queryKey: ["billing-connector-sync-runs", accountId],
-            });
+            setMappingExpanded(false);
+            return { expectPurge };
         },
-        onSuccess: (result: { status?: string } | undefined) => {
+        onSuccess: (result, _variables, context) => {
             success(
                 result?.status === "RUNNING"
                     ? "Backfill started"
                     : "Backfill sync completed"
             );
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector", accountId],
-            });
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector-sync-runs", accountId],
+            // Bind progress immediately — don't wait for sync-runs poll (avoids a
+            // gap where pendingBackfillReset clears before the RUNNING run lands).
+            const executionId =
+                typeof result?.execution_id === "string"
+                    ? result.execution_id
+                    : null;
+            if (executionId) {
+                if (result?.status === "RUNNING") {
+                    const seeded = createPendingBackfillRun({
+                        expectPurge: context?.expectPurge === true,
+                    });
+                    seeded.id = executionId;
+                    if (result.sync_mode) {
+                        seeded.sync_mode = result.sync_mode;
+                    }
+                    if (result.trigger) {
+                        seeded.trigger = result.trigger;
+                    }
+                    queryClient.setQueryData<SyncRunSummary[]>(
+                        billingConnectorSyncRunsQueryKey(accountId),
+                        (runs) => {
+                            const rest = (runs ?? []).filter(
+                                (run) => run.id !== executionId
+                            );
+                            return [seeded, ...rest];
+                        }
+                    );
+                }
+                const session = {
+                    executionId,
+                    dismissed: false,
+                };
+                setProgressSession(session);
+                writeBackfillProgressSession(accountId, session);
+                setPendingBackfillReset(false);
+            }
+            void invalidateBillingConnectorQueries(queryClient, accountId, {
+                history: true,
             });
         },
         onError: (err: unknown) => {
+            setPendingBackfillReset(false);
+            setExpectDeletingStep(false);
             showError(axiosErrorMessage(err) ?? "Backfill sync failed");
         },
     });
@@ -577,11 +781,8 @@ const BillingIntegrationSettings = forwardRef<
                     ? "Incremental sync started"
                     : "Incremental sync completed"
             );
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector", accountId],
-            });
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector-sync-runs", accountId],
+            void invalidateBillingConnectorQueries(queryClient, accountId, {
+                history: true,
             });
         },
         onError: (err: unknown) => {
@@ -594,11 +795,8 @@ const BillingIntegrationSettings = forwardRef<
         onSuccess: () => {
             setResetDialogOpen(false);
             success("Backfill reset — start date is editable again");
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector", accountId],
-            });
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector-sync-runs", accountId],
+            void invalidateBillingConnectorQueries(queryClient, accountId, {
+                history: true,
             });
         },
         onError: (err: unknown) => {
@@ -614,8 +812,46 @@ const BillingIntegrationSettings = forwardRef<
                     ? "Sync cancel requested"
                     : "No running sync to cancel"
             );
-            queryClient.invalidateQueries({
-                queryKey: ["billing-connector-sync-runs", accountId],
+            if (result.cancelled) {
+                setPendingBackfillReset(false);
+                const cancelledAt = new Date().toISOString();
+                queryClient.setQueryData<SyncRunSummary[]>(
+                    billingConnectorSyncRunsQueryKey(accountId),
+                    (runs) => {
+                        if (!runs?.length) {
+                            return runs;
+                        }
+                        if (result.execution_id) {
+                            return runs.map((run) =>
+                                run.id === result.execution_id
+                                    ? {
+                                          ...run,
+                                          status: "TIMEOUT",
+                                          error_type: "cancelled",
+                                          completed_at: cancelledAt,
+                                          error_message:
+                                              "Sync stopped by operator",
+                                      }
+                                    : run
+                            );
+                        }
+                        return runs.map((run) =>
+                            run.status === "RUNNING"
+                                ? {
+                                      ...run,
+                                      status: "TIMEOUT",
+                                      error_type: "cancelled",
+                                      completed_at: cancelledAt,
+                                      error_message:
+                                          "Sync stopped by operator",
+                                  }
+                                : run
+                        );
+                    }
+                );
+            }
+            void invalidateBillingConnectorQueries(queryClient, accountId, {
+                history: true,
             });
         },
         onError: (err: unknown) => {
@@ -624,30 +860,134 @@ const BillingIntegrationSettings = forwardRef<
     });
 
     const { data: syncRuns = [] } = useQuery({
-        queryKey: ["billing-connector-sync-runs", accountId],
+        queryKey: billingConnectorSyncRunsQueryKey(accountId),
         queryFn: () => fetchBillingConnectorSyncRuns(accountId),
         enabled: accountId > 0 && Boolean(config?.has_credentials),
-        refetchInterval: (query) => {
-            const runs = query.state.data as SyncRunSummary[] | undefined;
-            const hasRunning = runs?.some(isActiveConnectorSyncRun);
-            if (hasRunning || backfillMutation.isPending) {
-                return 2500;
-            }
-            return false;
-        },
+    });
+
+    const {
+        data: syncHistory = [],
+        isLoading: syncHistoryLoading,
+        isFetching: syncHistoryFetching,
+    } = useQuery({
+        queryKey: billingConnectorSyncHistoryQueryKey(accountId),
+        queryFn: () => fetchBillingConnectorSyncHistory(accountId),
+        enabled: accountId > 0 && Boolean(config?.has_credentials),
     });
 
     const syncInProgress = syncRuns.some(isActiveConnectorSyncRun);
+    const wasSyncInProgressRef = useRef(false);
+    useEffect(() => {
+        if (wasSyncInProgressRef.current && !syncInProgress) {
+            void invalidateBillingConnectorQueries(queryClient, accountId, {
+                config: false,
+                syncRuns: false,
+                history: true,
+            });
+        }
+        wasSyncInProgressRef.current = syncInProgress;
+    }, [accountId, queryClient, syncInProgress]);
+
     const progressResolution = resolveBackfillProgressRun({
         runs: syncRuns,
         session: progressSession,
     });
     const progressRun = progressResolution.run;
+    const displayProgressRun = useMemo(() => {
+        if (pendingBackfillReset) {
+            return (
+                findRunningBackfillRun(syncRuns) ??
+                createPendingBackfillRun({ expectPurge: expectDeletingStep })
+            );
+        }
+        if (progressUiReset) {
+            return createResetBackfillProgressRun();
+        }
+        return progressRun;
+    }, [
+        pendingBackfillReset,
+        progressUiReset,
+        expectDeletingStep,
+        syncRuns,
+        progressRun,
+    ]);
+    const displayProgressRunActive = Boolean(
+        displayProgressRun &&
+            isActiveConnectorSyncRun(displayProgressRun) &&
+            !isPlaceholderBackfillProgressRun(displayProgressRun)
+    );
+    const displaySyncStates =
+        pendingBackfillReset || progressUiReset
+            ? zeroBackfillProgressSyncStates(config?.sync_states)
+            : config?.sync_states;
+    const deferredArPostIngestPending = hasPendingDeferredArPostIngest(
+        config?.pending_ar_post_ingest_customers
+    );
     const importBusy =
         syncInProgress ||
         backfillMutation.isPending ||
         incrementalMutation.isPending ||
-        Boolean(progressRun && isActiveConnectorSyncRun(progressRun));
+        Boolean(progressRun && isActiveConnectorSyncRun(progressRun)) ||
+        pendingBackfillReset;
+    const progressRunStopping =
+        displayProgressRun?.status === "TIMEOUT" &&
+        displayProgressRun.error_type === "cancelled" &&
+        !displayProgressRun.completed_at;
+    const showProgressStopButton =
+        canManage &&
+        Boolean(displayProgressRun) &&
+        !isPlaceholderBackfillProgressRun(displayProgressRun) &&
+        (displayProgressRun?.status === "RUNNING" || progressRunStopping);
+
+    useEffect(() => {
+        if (!progressUiReset) {
+            return;
+        }
+        if (pendingBackfillReset) {
+            setProgressUiReset(false);
+            return;
+        }
+        // A real backfill started — drop the preview reset placeholder.
+        const running = findRunningBackfillRun(syncRuns);
+        if (running && !isPlaceholderBackfillProgressRun(running)) {
+            setProgressUiReset(false);
+        }
+    }, [progressUiReset, pendingBackfillReset, syncRuns]);
+
+    useEffect(() => {
+        if (!pendingBackfillReset) {
+            return;
+        }
+        // Keep the zeroed chips/counters until Start finishes and a real run exists.
+        if (backfillMutation.isPending) {
+            return;
+        }
+        const running = findRunningBackfillRun(syncRuns);
+        if (running && running.id !== "pending-backfill") {
+            setPendingBackfillReset(false);
+        }
+        // Do not clear on !syncInProgress alone — sync-runs can still be stale
+        // right after Start accepts, which used to drop the poller and hide bars
+        // until a full page refresh.
+    }, [pendingBackfillReset, syncRuns, backfillMutation.isPending]);
+
+    useEffect(() => {
+        if (!expectDeletingStep) {
+            return;
+        }
+        if (
+            !pendingBackfillReset &&
+            !backfillMutation.isPending &&
+            !findRunningBackfillRun(syncRuns)
+        ) {
+            setExpectDeletingStep(false);
+        }
+    }, [
+        expectDeletingStep,
+        pendingBackfillReset,
+        backfillMutation.isPending,
+        syncRuns,
+    ]);
 
     useEffect(() => {
         const next = progressResolution.session;
@@ -661,31 +1001,38 @@ const BillingIntegrationSettings = forwardRef<
         writeBackfillProgressSession(accountId, next);
     }, [accountId, progressResolution.session, progressSession]);
 
+    // Single busy poller — replaces stacked refetchInterval + invalidate loops.
     useEffect(() => {
-        if (
-            !backfillMutation.isPending &&
-            !incrementalMutation.isPending &&
-            !syncInProgress
-        ) {
+        const shouldPoll =
+            backfillMutation.isPending ||
+            pendingBackfillReset ||
+            incrementalMutation.isPending ||
+            previewMutation.isPending ||
+            syncInProgress ||
+            displayProgressRunActive ||
+            deferredArPostIngestPending;
+        if (!shouldPoll) {
             return;
         }
         const poll = () => {
-            void queryClient.invalidateQueries({
-                queryKey: ["billing-connector", accountId],
-            });
-            void queryClient.invalidateQueries({
-                queryKey: ["billing-connector-sync-runs", accountId],
-            });
+            void invalidateBillingConnectorQueries(queryClient, accountId);
         };
         poll();
-        const timer = window.setInterval(poll, 2500);
+        const timer = window.setInterval(
+            poll,
+            BILLING_CONNECTOR_BUSY_POLL_MS
+        );
         return () => window.clearInterval(timer);
     }, [
         accountId,
         queryClient,
         backfillMutation.isPending,
+        pendingBackfillReset,
         incrementalMutation.isPending,
+        previewMutation.isPending,
         syncInProgress,
+        displayProgressRunActive,
+        deferredArPostIngestPending,
     ]);
 
     const entitiesForMapping = useMemo(
@@ -696,12 +1043,7 @@ const BillingIntegrationSettings = forwardRef<
         [enabledEntities]
     );
     const selectedMappingEntityTab =
-        mappingEntityTab ??
-        firstEnabledEntityTabIndex(
-            config
-                ? normalizeConnectorEnabledEntities(config.enabled_entities)
-                : enabledEntities
-        );
+        mappingEntityTab ?? firstEnabledEntityTabIndex(enabledEntities);
 
     const previewGateParams = {
         enabledEntities: entitiesForMapping,
@@ -711,9 +1053,6 @@ const BillingIntegrationSettings = forwardRef<
     };
     const missingPreviewEntities = entitiesMissingPreview(previewGateParams);
     const previewBlocked = !canStartFirstBackfill(previewGateParams);
-    const previewBlockedReason = getPreviewBlockedReason(
-        missingPreviewEntities
-    );
     const startBackfillDisabledReason = config
         ? getStartBackfillDisabledReason({
               canManage,
@@ -722,6 +1061,8 @@ const BillingIntegrationSettings = forwardRef<
               syncMode: config.sync_mode,
               previewBlocked,
               previewBlockedEntities: missingPreviewEntities,
+              pendingArPostIngestCustomers:
+                  config.pending_ar_post_ingest_customers,
           })
         : "Billing connector is still loading.";
     const resetBackfillDisabledReason = getResetBackfillDisabledReason({
@@ -737,6 +1078,251 @@ const BillingIntegrationSettings = forwardRef<
               syncMode: config.sync_mode,
           })
         : "Billing connector is still loading.";
+
+    const showStopImport =
+        canManage &&
+        (showProgressStopButton ||
+            (syncInProgress && !progressRun && !pendingBackfillReset));
+
+    const previewRequired = previewBlocked || !previewUpToDate;
+
+    const actionStage = config
+        ? resolveBackfillActionStage({
+              syncMode: config.sync_mode,
+              previewBlocked: previewRequired,
+              backfillOptionsLocked: Boolean(config.backfill_options_locked),
+              syncStates: config.sync_states,
+              enabledEntities,
+              importBusy,
+              showStopImport,
+          })
+        : null;
+
+    const previewSyncDisabledReason = getPreviewSyncDisabledReason({
+        canManage,
+        previewPending: previewMutation.isPending,
+        importBusy,
+        previewUpToDate,
+    });
+
+    const stopImportDisabledReason = getStopImportDisabledReason({
+        canManage,
+        stopPending: cancelSyncMutation.isPending,
+        stopInProgress: progressRunStopping,
+    });
+
+    const primaryDisabledReason = (() => {
+        if (!actionStage) {
+            return "Billing connector is still loading.";
+        }
+        switch (actionStage.primaryAction) {
+            case "preview":
+                return previewSyncDisabledReason;
+            case "start_backfill":
+            case "resume_backfill":
+                return startBackfillDisabledReason;
+            case "incremental":
+                return runIncrementalDisabledReason;
+            case "stop":
+                return stopImportDisabledReason;
+            default:
+                return null;
+        }
+    })();
+
+    const showPrimaryAction =
+        actionStage &&
+        (actionStage.stage !== "import_running" || actionStage.showStop);
+
+    const handlePrimaryAction = () => {
+        if (!actionStage) {
+            return;
+        }
+        switch (actionStage.primaryAction) {
+            case "preview":
+                previewMutation.mutate({
+                    customer_id: clearBeforeImportCustomerId,
+                });
+                break;
+            case "start_backfill": {
+                void (async () => {
+                    const clearBeforeImport = resolveClearBeforeImportPayload({
+                        session: clearBeforeImportSession,
+                        enabledEntities,
+                    });
+                    const customerId = clearBeforeImportCustomerId;
+                    setClearBeforeImportCustomerError(null);
+                    if (customerId != null) {
+                        if (
+                            clearBeforeImportCustomerLookup?.id === customerId
+                        ) {
+                            // Already resolved from autocomplete selection.
+                        } else {
+                            setClearBeforeCustomerValidating(true);
+                            try {
+                                const customer =
+                                    await lookupBillingConnectorCustomerById(
+                                        accountId,
+                                        customerId
+                                    );
+                                setClearBeforeImportPrefs((prev) => ({
+                                    ...prev,
+                                    customerId: customer.id,
+                                    customerName: customer.name,
+                                }));
+                            } catch (err) {
+                                setClearBeforeImportCustomerError(
+                                    axiosErrorMessage(err) ??
+                                        `Customer not found on this account: id ${customerId}`
+                                );
+                                return;
+                            } finally {
+                                setClearBeforeCustomerValidating(false);
+                            }
+                        }
+                    }
+                    if (
+                        shouldConfirmStartBackfillClear({
+                            clearBeforeImport,
+                            customerId,
+                        })
+                    ) {
+                        setClearBeforeStartDialogOpen(true);
+                        return;
+                    }
+                    backfillMutation.mutate({});
+                })();
+                break;
+            }
+            case "resume_backfill":
+                // Resume never sends clear_before_import or customer_id.
+                backfillMutation.mutate({});
+                break;
+            case "incremental":
+                incrementalMutation.mutate();
+                break;
+            case "stop":
+                cancelSyncMutation.mutate();
+                break;
+            default:
+                break;
+        }
+    };
+
+    const clearBeforeStartConfirmCopy = useMemo(() => {
+        const clearBeforeImport = resolveClearBeforeImportPayload({
+            session: clearBeforeImportSession,
+            enabledEntities,
+        });
+        const customerId = clearBeforeImportCustomerId;
+        return buildClearBeforeImportConfirmCopy({
+            clearBeforeImport,
+            scope: customerId != null ? "customer" : "account",
+            customerId,
+            customerName:
+                customerId != null &&
+                clearBeforeImportCustomerLookup?.id === customerId
+                    ? clearBeforeImportCustomerLookup.name
+                    : null,
+        });
+    }, [
+        clearBeforeImportSession,
+        clearBeforeImportCustomerId,
+        clearBeforeImportCustomerLookup,
+        enabledEntities,
+    ]);
+
+    const clearBeforeStartConfirmDescription = useMemo(
+        () =>
+            renderClearBeforeImportConfirmDescription(
+                clearBeforeStartConfirmCopy
+            ),
+        [clearBeforeStartConfirmCopy]
+    );
+
+    const primaryPending =
+        clearBeforeCustomerValidating ||
+        (actionStage?.primaryAction === "preview" &&
+            previewMutation.isPending) ||
+        (actionStage?.primaryAction === "incremental" &&
+            incrementalMutation.isPending) ||
+        ((actionStage?.primaryAction === "start_backfill" ||
+            actionStage?.primaryAction === "resume_backfill") &&
+            backfillMutation.isPending) ||
+        (actionStage?.primaryAction === "stop" &&
+            (cancelSyncMutation.isPending || progressRunStopping));
+
+    const primaryPurpose = actionStage
+        ? getBackfillActionPurpose(actionStage.primaryAction)
+        : "";
+
+    const primaryTooltipTitle = actionStage ? (
+        primaryDisabledReason ? (
+            <Box>
+                <Typography variant="body2">{primaryPurpose}</Typography>
+                {actionStage.caption ? (
+                    <Typography variant="body2" sx={{ mt: 1 }}>
+                        {actionStage.caption}
+                    </Typography>
+                ) : null}
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                    {primaryDisabledReason}
+                </Typography>
+            </Box>
+        ) : (
+            <Box>
+                <Typography variant="body2">{primaryPurpose}</Typography>
+                {actionStage.caption ? (
+                    <Typography variant="body2" sx={{ mt: 1 }}>
+                        {actionStage.caption}
+                    </Typography>
+                ) : null}
+            </Box>
+        )
+    ) : (
+        ""
+    );
+
+    const importBusyTooltipTitle = actionStage?.caption ? (
+        <Box>
+            <Typography variant="body2">{primaryPurpose}</Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+                {actionStage.caption}
+            </Typography>
+        </Box>
+    ) : (
+        primaryPurpose
+    );
+
+    const primaryPendingLabel = (() => {
+        if (!actionStage) {
+            return "";
+        }
+        if (
+            clearBeforeCustomerValidating &&
+            actionStage.primaryAction === "start_backfill"
+        ) {
+            return "Validating customer…";
+        }
+        switch (actionStage.primaryAction) {
+            case "preview":
+                return "Running preview…";
+            case "start_backfill":
+                return "Starting backfill…";
+            case "resume_backfill":
+                return "Resuming backfill…";
+            case "incremental":
+                return "Running sync…";
+            case "stop":
+                return "Stopping…";
+            default:
+                return actionStage.primaryLabel;
+        }
+    })();
+
+    const primaryButtonLabel = primaryPending
+        ? primaryPendingLabel
+        : (actionStage?.primaryLabel ?? "");
 
     const extensionKeyOptions = useMemo<ExtensionKeyOption[]>(() => {
         const registered = listBillingExtensionPanelOptions().map((option) => ({
@@ -772,13 +1358,57 @@ const BillingIntegrationSettings = forwardRef<
         [config]
     );
 
-    const toggleEntity = (entity: ImportType) => {
-        setEnabledEntities((prev) =>
-            prev.includes(entity)
-                ? prev.filter((e) => e !== entity)
-                : [...prev, entity]
-        );
-    };
+    const persistEnabledEntitiesMutation = useMutation({
+        mutationFn: (entities: ImportType[]) =>
+            saveBillingConnectorConfig(accountId, {
+                enabled_entities: entities,
+            }),
+        onSuccess: (saved) => {
+            // Update enabled_entities in cache without bumping modified_at so
+            // the form sync effect does not reset unsaved connection fields.
+            queryClient.setQueryData<BillingConnectorConfig | null>(
+                billingConnectorQueryKey(accountId),
+                (prev) => {
+                    if (!prev) {
+                        return saved;
+                    }
+                    return {
+                        ...prev,
+                        enabled_entities: saved.enabled_entities,
+                        sync_states: saved.sync_states ?? prev.sync_states,
+                    };
+                }
+            );
+        },
+    });
+
+    const toggleEntity = useCallback(
+        (entity: ImportType) => {
+            if (!canManage || persistEnabledEntitiesMutation.isPending) {
+                return;
+            }
+            const previous = enabledEntities;
+            const next = previous.includes(entity)
+                ? previous.filter((e) => e !== entity)
+                : [...previous, entity];
+            setEnabledEntities(next);
+            persistEnabledEntitiesMutation.mutate(next, {
+                onError: (err: unknown) => {
+                    setEnabledEntities(previous);
+                    showError(
+                        axiosErrorMessage(err) ??
+                            "Failed to update enabled entities"
+                    );
+                },
+            });
+        },
+        [
+            canManage,
+            enabledEntities,
+            persistEnabledEntitiesMutation,
+            showError,
+        ]
+    );
 
     const allEnabledMappingsComplete = useMemo(
         () =>
@@ -795,6 +1425,75 @@ const BillingIntegrationSettings = forwardRef<
         },
         []
     );
+
+    const handleClearBeforeImportEntityChange = useCallback(
+        (entity: ImportType, checked: boolean) => {
+            if (!isClearBeforeImportEntity(entity)) {
+                return;
+            }
+            setClearBeforeImportPrefs((prev) => ({
+                ...prev,
+                entities: {
+                    ...prev.entities,
+                    [entity]: checked,
+                },
+            }));
+        },
+        []
+    );
+
+    const handleRefreshEntitySetCatalog = useCallback(async () => {
+        await refreshEntitySetsMutation.mutateAsync();
+    }, [refreshEntitySetsMutation]);
+
+    const handlePullFilterSaved = useCallback(
+        (saved: BillingConnectorConfig) => {
+            queryClient.setQueryData(
+                billingConnectorQueryKey(accountId),
+                saved
+            );
+        },
+        [accountId, queryClient]
+    );
+
+    const handleOpenResetDialog = useCallback(() => {
+        setResetDialogOpen(true);
+    }, []);
+
+    const handleClearBeforeImportCustomerChange = useCallback(
+        (
+            customerId: number | null,
+            option: { id: number; name: string } | null
+        ) => {
+            setClearBeforeImportCustomerError(null);
+            setClearBeforeImportPrefs((prev) => ({
+                ...prev,
+                customerId,
+                customerName:
+                    customerId != null && option
+                        ? option.name
+                        : null,
+            }));
+        },
+        []
+    );
+
+    /**
+     * Keep a stable config reference for mapping/pull-filter while only
+     * sync_states / pending AR counters change during busy polls.
+     */
+    const entityWorkspaceConfig = useMemo(() => config, [
+        config?.id,
+        config?.modified_at,
+        config?.entity_sets,
+        config?.default_entity_sets,
+        config?.entity_set_catalog,
+        config?.entity_set_catalog_fetched_at,
+        config?.backfill_options_locked,
+        config?.pull_filters,
+        config?.preview_passes,
+        config?.has_credentials,
+    ]);
 
     useEffect(() => {
         if (!entityTabFocusPendingRef.current || !config?.has_credentials) {
@@ -827,52 +1526,8 @@ const BillingIntegrationSettings = forwardRef<
     const connectionAlreadySet = Boolean(config?.has_credentials);
     const isConnectionExpanded = connectionExpanded ?? !connectionAlreadySet;
     const isScheduleExpanded = scheduleExpanded ?? !connectionAlreadySet;
-    const billingAccordionSx = {
-        border: "1px solid",
-        borderColor: "divider",
-        borderRadius: pillRadiusPx,
-        overflow: "hidden",
-        bgcolor: "background.paper",
-        "&:before": { display: "none" },
-        "&:first-of-type, &:last-of-type, &:not(:first-of-type)": {
-            borderRadius: pillRadiusPx,
-        },
-        "&.Mui-expanded": {
-            margin: 0,
-        },
-    };
-    const billingAccordionSummarySx = (expanded: boolean) => ({
-        bgcolor: "background.paper",
-        px: 2,
-        py: 0.25,
-        minHeight: 36,
-        borderTopLeftRadius: pillRadiusPx,
-        borderTopRightRadius: pillRadiusPx,
-        borderBottomLeftRadius: expanded ? 0 : pillRadiusPx,
-        borderBottomRightRadius: expanded ? 0 : pillRadiusPx,
-        "& .MuiAccordionSummary-content": {
-            my: 0,
-            alignItems: "center",
-            gap: 1,
-            "&.Mui-expanded": { my: 0 },
-        },
-        "&.Mui-expanded": {
-            minHeight: 36,
-            borderBottomLeftRadius: 0,
-            borderBottomRightRadius: 0,
-        },
-    });
-    const billingAccordionDetailsSx = {
-        p: 0,
-        bgcolor: "background.paper",
-        borderBottomLeftRadius: pillRadiusPx,
-        borderBottomRightRadius: pillRadiusPx,
-    };
-    const billingAccordionContentSx = {
-        px: 2,
-        py: 1.5,
-        "&:last-child": { pb: 1.5 },
-    };
+    const isMappingExpanded = mappingExpanded ?? false;
+    const isProgressExpanded = progressExpanded ?? true;
 
     return (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -887,1112 +1542,169 @@ const BillingIntegrationSettings = forwardRef<
                 </Alert>
             )}
 
-            <Card elevation={0} sx={accountCardSx}>
-                <Accordion
-                    disableGutters
-                    elevation={0}
-                    expanded={isConnectionExpanded}
-                    onChange={(_, expanded) => setConnectionExpanded(expanded)}
-                    sx={billingAccordionSx}
-                >
-                    <AccordionSummary
-                        expandIcon={<ExpandMoreIcon />}
-                        sx={billingAccordionSummarySx(isConnectionExpanded)}
-                    >
-                        <SyncIcon sx={accountSectionIconSx} />
-                        <Typography variant="subtitle1" sx={accountCardTitleSx}>
-                            Connection
-                        </Typography>
-                    </AccordionSummary>
-                    <AccordionDetails sx={billingAccordionDetailsSx}>
-                <CardContent sx={billingAccordionContentSx}>
-                    <Grid container spacing={2}>
-                        <Grid size={{ xs: 12, md: 6 }}>
-                            <FormControl
-                                fullWidth
-                                sx={{ mb: 2 }}
-                                disabled={!canManage}
-                            >
-                                <InputLabel id="billing-provider-label">
-                                    Provider
-                                </InputLabel>
-                                <Select
-                                    labelId="billing-provider-label"
-                                    label="Provider"
-                                    value={provider}
-                                    onChange={(e) =>
-                                        setProvider(
-                                            e.target.value as
-                                                | "PRIORITY"
-                                                | "SAP_BUSINESS_ONE"
-                                        )
-                                    }
-                                >
-                                    <MenuItem value="PRIORITY">Priority</MenuItem>
-                                    <MenuItem value="SAP_BUSINESS_ONE" disabled>
-                                        SAP Business One (coming soon)
-                                    </MenuItem>
-                                </Select>
-                            </FormControl>
+            <BillingConnectionSection
+                canManage={canManage}
+                expanded={isConnectionExpanded}
+                onExpandedChange={setConnectionExpanded}
+                connectionAlreadySet={connectionAlreadySet}
+                provider={provider}
+                onProviderChange={setProvider}
+                baseUrl={baseUrl}
+                onBaseUrlChange={setBaseUrl}
+                authType={authType}
+                onAuthTypeChange={setAuthType}
+                apiKeyToken={apiKeyToken}
+                onApiKeyTokenChange={setApiKeyToken}
+                basicUsername={basicUsername}
+                onBasicUsernameChange={setBasicUsername}
+                basicPassword={basicPassword}
+                onBasicPasswordChange={setBasicPassword}
+                oauthClientId={oauthClientId}
+                onOauthClientIdChange={setOauthClientId}
+                oauthClientSecret={oauthClientSecret}
+                onOauthClientSecretChange={setOauthClientSecret}
+                oauthTokenEndpoint={oauthTokenEndpoint}
+                onOauthTokenEndpointChange={setOauthTokenEndpoint}
+                hasCredentials={Boolean(config?.has_credentials)}
+                testPending={testMutation.isPending}
+                onTestConnection={() => testMutation.mutate()}
+            />
 
-                            <TextField
-                                fullWidth
-                                label="Base URL"
-                                value={baseUrl}
-                                onChange={(e) => setBaseUrl(e.target.value)}
-                                disabled={!canManage || provider !== "PRIORITY"}
-                                placeholder="https://host/odata/Priority/ini/company"
-                            />
-                        </Grid>
+            <BillingScheduleSection
+                canManage={canManage}
+                isHebrew={isHebrew}
+                expanded={isScheduleExpanded}
+                onExpandedChange={setScheduleExpanded}
+                syncEnabled={syncEnabled}
+                onSyncEnabledChange={setSyncEnabled}
+                scheduleSummary={config?.schedule_summary}
+                extensionKey={extensionKey}
+                onExtensionKeyChange={setExtensionKey}
+                schedulePreset={schedulePreset}
+                onSchedulePresetChange={setSchedulePreset}
+                syncCron={syncCron}
+                onSyncCronChange={setSyncCron}
+                dailyTimeUtc={dailyTimeUtc}
+                onDailyTimeUtcChange={setDailyTimeUtc}
+                weeklyDay={weeklyDay}
+                onWeeklyDayChange={setWeeklyDay}
+                scheduleWarning={config?.schedule_warning}
+                nextScheduledSyncAtUtc={config?.next_scheduled_sync_at_utc}
+                invoicePaidTolerance={invoicePaidTolerance}
+                onInvoicePaidToleranceChange={setInvoicePaidTolerance}
+                invoicePaidToleranceError={invoicePaidToleranceError}
+                onInvoicePaidToleranceErrorChange={setInvoicePaidToleranceError}
+                persistPaidTolerance={persistPaidTolerance}
+                hasCredentials={Boolean(config?.has_credentials)}
+                allEnabledMappingsComplete={allEnabledMappingsComplete}
+                backfillStartDate={backfillStartDate}
+                onBackfillStartDateChange={setBackfillStartDate}
+                mepBreachStartDate={mepBreachStartDate}
+                onMepBreachStartDateChange={setMepBreachStartDate}
+                includeOlderOpenInvoices={includeOlderOpenInvoices}
+                onIncludeOlderOpenInvoicesChange={setIncludeOlderOpenInvoices}
+                skipReportingBreachOnBackfill={skipReportingBreachOnBackfill}
+                onSkipReportingBreachOnBackfillChange={
+                    setSkipReportingBreachOnBackfill
+                }
+                backfillOptionsLocked={Boolean(config?.backfill_options_locked)}
+                persistCutoverOptions={persistCutoverOptions}
+                extensionKeyOptions={extensionKeyOptions}
+                selectedExtensionOption={selectedExtensionOption}
+                extensionConfig={extensionConfig}
+                onExtensionConfigChange={setExtensionConfig}
+                accountId={accountId}
+                ExtensionPanel={ExtensionPanel}
+                extensionRegistrationKey={extensionRegistration?.key}
+            />
 
-                        <Grid size={{ xs: 12, md: 6 }}>
-                            <FormControl
-                                fullWidth
-                                sx={{ mb: 2 }}
-                                disabled={!canManage}
-                            >
-                                <InputLabel id="billing-auth-type-label">
-                                    Authentication
-                                </InputLabel>
-                                <Select
-                                    labelId="billing-auth-type-label"
-                                    label="Authentication"
-                                    value={authType}
-                                    onChange={(e) =>
-                                        setAuthType(
-                                            e.target.value as ConnectorAuthType
-                                        )
-                                    }
-                                >
-                                    {AUTH_TYPE_OPTIONS.map((opt) => (
-                                        <MenuItem key={opt.value} value={opt.value}>
-                                            {opt.label}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-
-                            {authType === "API_KEY" && (
-                                <TextField
-                                    fullWidth
-                                    type="password"
-                                    label="API token"
-                                    value={apiKeyToken}
-                                    onChange={(e) => setApiKeyToken(e.target.value)}
-                                    disabled={!canManage}
-                                    placeholder={
-                                        config?.has_credentials
-                                            ? "Leave blank to keep existing token"
-                                            : "REST access token"
-                                    }
-                                />
-                            )}
-
-                            {authType === "BASIC" && (
-                                <Box
-                                    sx={{
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        gap: 2,
-                                    }}
-                                >
-                                    <TextField
-                                        fullWidth
-                                        label="Username"
-                                        value={basicUsername}
-                                        onChange={(e) =>
-                                            setBasicUsername(e.target.value)
-                                        }
-                                        disabled={!canManage}
-                                    />
-                                    <TextField
-                                        fullWidth
-                                        type="password"
-                                        label="Password"
-                                        value={basicPassword}
-                                        onChange={(e) =>
-                                            setBasicPassword(e.target.value)
-                                        }
-                                        disabled={!canManage}
-                                        placeholder={
-                                            config?.has_credentials
-                                                ? "Leave blank to keep existing password"
-                                                : ""
-                                        }
-                                    />
-                                </Box>
-                            )}
-
-                            {authType === "OAUTH2_CLIENT_CREDENTIALS" && (
-                                <Box
-                                    sx={{
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        gap: 2,
-                                    }}
-                                >
-                                    <TextField
-                                        fullWidth
-                                        label="Client ID"
-                                        value={oauthClientId}
-                                        onChange={(e) =>
-                                            setOauthClientId(e.target.value)
-                                        }
-                                        disabled={!canManage}
-                                    />
-                                    <TextField
-                                        fullWidth
-                                        type="password"
-                                        label="Client secret"
-                                        value={oauthClientSecret}
-                                        onChange={(e) =>
-                                            setOauthClientSecret(e.target.value)
-                                        }
-                                        disabled={!canManage}
-                                    />
-                                    <TextField
-                                        fullWidth
-                                        label="Token endpoint"
-                                        value={oauthTokenEndpoint}
-                                        onChange={(e) =>
-                                            setOauthTokenEndpoint(e.target.value)
-                                        }
-                                        disabled={!canManage}
-                                    />
-                                </Box>
-                            )}
-                        </Grid>
-
-                        <Grid size={{ xs: 12 }}>
-                            {config?.has_credentials && (
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                    sx={{ mb: 2 }}
-                                >
-                                    Credentials are stored encrypted. Values are
-                                    never shown after save.
-                                </Typography>
-                            )}
-
-                            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                                <Button
-                                    variant="outlined"
-                                    startIcon={
-                                        testMutation.isPending ? (
-                                            <CircularProgress size={16} />
-                                        ) : (
-                                            <SyncIcon />
-                                        )
-                                    }
-                                    onClick={() => testMutation.mutate()}
-                                    disabled={
-                                        !canManage || testMutation.isPending
-                                    }
-                                >
-                                    Test connection
-                                </Button>
-                            </Box>
-                        </Grid>
-                    </Grid>
-                </CardContent>
-                    </AccordionDetails>
-                </Accordion>
-            </Card>
-
-            {canManage && (
-                <Card elevation={0} sx={accountCardSx}>
-                    <CardContent sx={compactBillingCardContentSx}>
-                        <Grid container spacing={2}>
-                            <Grid size={{ xs: 12, md: 6 }}>
-                                <Autocomplete
-                                    id="billing-extension-key"
-                                    options={extensionKeyOptions}
-                                    value={selectedExtensionOption}
-                                    disableClearable
-                                    fullWidth
-                                    size="small"
-                                    getOptionLabel={(option) =>
-                                        option.label
-                                    }
-                                    isOptionEqualToValue={(option, value) =>
-                                        option.key === value.key
-                                    }
-                                    onChange={(_event, next) => {
-                                        const nextKey = next?.key ?? "";
-                                        setExtensionKey(nextKey);
-                                        if (!nextKey) {
-                                            setExtensionConfig({});
-                                        }
-                                    }}
-                                    dir={isHebrew ? "rtl" : "ltr"}
-                                    {...(isHebrew && {
-                                        "data-hebrew": true,
-                                        "data-rtl": true,
-                                    })}
-                                    renderInput={(params) => (
-                                        <TextField
-                                            {...params}
-                                            label="Extension key"
-                                            variant="outlined"
-                                            size="small"
-                                            fullWidth
-                                            dir={isHebrew ? "rtl" : "ltr"}
-                                            {...(isHebrew && {
-                                                "data-hebrew": true,
-                                            })}
-                                            InputProps={{
-                                                ...params.InputProps,
-                                                endAdornment: (
-                                                    <>
-                                                        <Tooltip
-                                                            title="Optional. Attach a registered extension for account-specific import logic. Use the account Save button to persist this field."
-                                                            arrow
-                                                            enterDelay={300}
-                                                            leaveDelay={100}
-                                                            placement="bottom"
-                                                            PopperProps={{
-                                                                sx: {
-                                                                    "& .MuiTooltip-tooltip":
-                                                                        {
-                                                                            direction:
-                                                                                isHebrew
-                                                                                    ? "rtl"
-                                                                                    : "ltr",
-                                                                        },
-                                                                },
-                                                            }}
-                                                        >
-                                                            <InfoIcon
-                                                                fontSize="small"
-                                                                color="action"
-                                                                sx={{
-                                                                    cursor: "help",
-                                                                }}
-                                                            />
-                                                        </Tooltip>
-                                                        {
-                                                            params.InputProps
-                                                                .endAdornment
-                                                        }
-                                                    </>
-                                                ),
-                                            }}
-                                        />
-                                    )}
-                                    renderOption={(props, option) => {
-                                        const { key, ...otherProps } = props;
-                                        return (
-                                            <Box
-                                                key={key}
-                                                component="li"
-                                                {...otherProps}
-                                                sx={{
-                                                    direction: isHebrew
-                                                        ? "rtl"
-                                                        : "ltr",
-                                                    textAlign: isHebrew
-                                                        ? "right"
-                                                        : "left",
-                                                }}
-                                            >
-                                                <Typography
-                                                    sx={{
-                                                        direction: isHebrew
-                                                            ? "rtl"
-                                                            : "ltr",
-                                                        textAlign: isHebrew
-                                                            ? "right"
-                                                            : "left",
-                                                        width: "100%",
-                                                    }}
-                                                >
-                                                    {option.label}
-                                                </Typography>
-                                            </Box>
-                                        );
-                                    }}
-                                />
-                            </Grid>
-                        </Grid>
-                    </CardContent>
-                </Card>
-            )}
-
-            {ExtensionPanel && extensionRegistration && (
-                <Card elevation={0} sx={accountCardSx}>
-                    <CardContent sx={compactBillingCardContentSx}>
-                        <ExtensionPanel
-                            accountId={accountId}
-                            extensionKey={extensionRegistration.key}
-                            extensionConfig={extensionConfig}
-                            canManage={canManage}
-                            onConfigChange={setExtensionConfig}
-                        />
-                    </CardContent>
-                </Card>
-            )}
-
-            <Card elevation={0} sx={accountCardSx}>
-                <Accordion
-                    disableGutters
-                    elevation={0}
-                    expanded={isScheduleExpanded}
-                    onChange={(_, expanded) => setScheduleExpanded(expanded)}
-                    sx={billingAccordionSx}
-                >
-                    <AccordionSummary
-                        expandIcon={<ExpandMoreIcon />}
-                        sx={billingAccordionSummarySx(isScheduleExpanded)}
-                    >
-                        <SettingsIcon sx={accountSectionIconSx} />
-                        <Typography variant="subtitle1" sx={accountCardTitleSx}>
-                            Sync schedule and actions
-                        </Typography>
-                    </AccordionSummary>
-                    <AccordionDetails sx={billingAccordionDetailsSx}>
-                <CardContent sx={billingAccordionContentSx}>
-                    <Box
-                        sx={{
-                            display: "flex",
-                            flexWrap: "wrap",
-                            alignItems: "center",
-                            gap: 2,
-                        }}
-                    >
-                            <FormControlLabel
-                                control={
-                                    <Switch
-                                        checked={syncEnabled}
-                                        onChange={(e) =>
-                                            setSyncEnabled(e.target.checked)
-                                        }
-                                        disabled={!canManage}
-                                        color="primary"
-                                        {...(isHebrew && { "data-rtl": true })}
-                                    />
-                                }
-                                label="Sync enabled"
-                                sx={{
-                                    alignItems: "center",
-                                    "& .MuiFormControlLabel-label": {
-                                        fontSize: "0.875rem",
-                                        fontWeight: 500,
-                                        lineHeight: 1.4,
-                                        ml: 1,
-                                    },
-                                }}
-                            />
-                            <FormControl
-                                size="small"
-                                disabled={!canManage}
-                                sx={{ width: 200 }}
-                            >
-                                <InputLabel id="billing-schedule-preset-label">
-                                    Sync schedule
-                                </InputLabel>
-                                <Select
-                                    labelId="billing-schedule-preset-label"
-                                    label="Sync schedule"
-                                    value={schedulePreset}
-                                    onChange={(e) => {
-                                        const value = e.target
-                                            .value as SchedulePresetValue;
-                                        setSchedulePreset(value);
-                                    }}
-                                >
-                                    {SCHEDULE_PRESET_OPTIONS.map((opt) => (
-                                        <MenuItem
-                                            key={opt.value}
-                                            value={opt.value}
-                                        >
-                                            {opt.label}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        {schedulePreset === "custom" ? (
-                                <TextField
-                                    size="small"
-                                    label="Cron expression (UTC)"
-                                    value={syncCron}
-                                    onChange={(e) => {
-                                        setSyncCron(e.target.value);
-                                        setSchedulePreset("custom");
-                                    }}
-                                    disabled={!canManage}
-                                    sx={{ width: 180 }}
-                                />
-                        ) : null}
-                    </Box>
-
-                    {(schedulePreset === "daily" ||
-                        schedulePreset === "weekly") && (
-                        <TextField
-                            fullWidth
-                            size="small"
-                            label="Time (UTC)"
-                            type="time"
-                            value={dailyTimeUtc}
-                            onChange={(e) =>
-                                setDailyTimeUtc(e.target.value || "03:00")
-                            }
-                            disabled={!canManage}
-                            InputLabelProps={{ shrink: true }}
-                            sx={{ mt: 2 }}
-                        />
-                    )}
-
-                    {schedulePreset === "weekly" && (
-                        <FormControl
-                            fullWidth
-                            size="small"
-                            disabled={!canManage}
-                            sx={{ mt: 2 }}
-                        >
-                            <InputLabel id="billing-weekly-day-label">
-                                Day of week (UTC)
-                            </InputLabel>
-                            <Select
-                                labelId="billing-weekly-day-label"
-                                label="Day of week (UTC)"
-                                value={weeklyDay}
-                                onChange={(e) =>
-                                    setWeeklyDay(Number(e.target.value))
-                                }
-                            >
-                                {WEEKDAY_OPTIONS.map((opt) => (
-                                    <MenuItem
-                                        key={opt.value}
-                                        value={opt.value}
-                                    >
-                                        {opt.label}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                    )}
-
-                    {config?.schedule_warning ? (
-                        <Alert severity="warning" sx={{ mt: 2 }}>
-                            {config.schedule_warning}
-                        </Alert>
-                    ) : null}
-
-                    {config?.schedule_summary ? (
-                        <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{ mt: 2 }}
-                        >
-                            Schedule: {config.schedule_summary}
-                        </Typography>
-                    ) : null}
-
-                    {config?.next_scheduled_sync_at_utc ? (
-                        <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{ mt: config?.schedule_summary ? 0.5 : 2 }}
-                        >
-                            Next scheduled sync (UTC):{" "}
-                            {new Date(
-                                config.next_scheduled_sync_at_utc
-                            ).toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC")}
-                        </Typography>
-                    ) : syncEnabled ? (
-                        <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{ mt: config?.schedule_summary ? 0.5 : 2 }}
-                        >
-                            Next scheduled sync (UTC): —
-                        </Typography>
-                    ) : null}
-
-                    {config?.has_credentials &&
-                        allEnabledMappingsComplete && (
-                            <>
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                    sx={{ mt: 2, mb: 2 }}
-                                >
-                                    Mode: {config.sync_mode}. Start or resume
-                                    initial backfill, or run an incremental
-                                    catch-up when backfill is complete.
-                                </Typography>
-
-                                <TextField
-                                    label="Backfill start date"
-                                    type="date"
-                                    size="small"
-                                    value={backfillStartDate}
-                                    onChange={(e) => {
-                                        const next = e.target.value;
-                                        setBackfillStartDate(next);
-                                        void persistCutoverOptions({
-                                            backfill_start_date:
-                                                next.trim() || null,
-                                        });
-                                    }}
-                                    disabled={
-                                        !canManage ||
-                                        Boolean(
-                                            config.backfill_options_locked
-                                        )
-                                    }
-                                    InputLabelProps={{ shrink: true }}
-                                    helperText={
-                                        config.backfill_options_locked
-                                            ? "Locked after backfill started. Reset backfill to change the start date."
-                                            : "Optional. Invoices and payments created on/after this account-local day. Leave blank for full history. Customers and contacts always pull full history."
-                                    }
-                                    sx={{ mb: 2, maxWidth: 280 }}
-                                />
-
-                                {Boolean(backfillStartDate.trim()) && (
-                                    <FormControlLabel
-                                        control={
-                                            <Switch
-                                                checked={
-                                                    includeOlderOpenInvoices
-                                                }
-                                                onChange={(e) => {
-                                                    const next =
-                                                        e.target.checked;
-                                                    setIncludeOlderOpenInvoices(
-                                                        next
-                                                    );
-                                                    void persistCutoverOptions(
-                                                        {
-                                                            include_older_open_invoices:
-                                                                next,
-                                                        }
-                                                    );
-                                                }}
-                                                disabled={
-                                                    !canManage ||
-                                                    Boolean(
-                                                        config.backfill_options_locked
-                                                    )
-                                                }
-                                            />
-                                        }
-                                        label="Include older open invoices"
-                                        sx={{ mb: 1, display: "block" }}
-                                    />
-                                )}
-                                {Boolean(backfillStartDate.trim()) && (
-                                    <Typography
-                                        variant="caption"
-                                        color="text.secondary"
-                                        display="block"
-                                        sx={{ mb: 2 }}
-                                    >
-                                        {config.backfill_options_locked
-                                            ? "Locked after backfill started. Reset backfill to change this option."
-                                            : "When on, also pull unpaid invoices created before the start date and payments linked to those invoices (any payment date). Default on."}
-                                    </Typography>
-                                )}
-
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={
-                                                skipReportingBreachOnBackfill
-                                            }
-                                            onChange={(e) => {
-                                                const next =
-                                                    e.target.checked;
-                                                setSkipReportingBreachOnBackfill(
-                                                    next
-                                                );
-                                                void persistCutoverOptions({
-                                                    skip_reporting_breach_on_backfill:
-                                                        next,
-                                                });
-                                            }}
-                                            disabled={
-                                                !canManage ||
-                                                Boolean(
-                                                    config.backfill_options_locked
-                                                )
-                                            }
-                                        />
-                                    }
-                                    label="Skip reporting breach during backfill"
-                                    sx={{ mb: 0.5, display: "block" }}
-                                />
-                                <Typography
-                                    variant="caption"
-                                    color="text.secondary"
-                                    display="block"
-                                    sx={{ mb: 2 }}
-                                >
-                                    {config.backfill_options_locked
-                                        ? "Locked after backfill started. Reset backfill to change this option."
-                                        : "Only affects connector backfill import. Incremental sync and the overnight reporting-breach job still run as usual."}
-                                </Typography>
-
-                                {config.backfill_options_locked && (
-                                    <Alert
-                                        severity="warning"
-                                        sx={{ mb: 2 }}
-                                    >
-                                        Cutover options are locked because
-                                        backfill has started. Use Reset
-                                        backfill to unlock the start date
-                                        and switches before changing them.
-                                    </Alert>
-                                )}
-                            </>
-                        )}
-                </CardContent>
-                    </AccordionDetails>
-                </Accordion>
-            </Card>
-
-            {config?.has_credentials && (
-                <Card elevation={0} sx={accountCardSx}>
-                    <AccountSectionCardHeader
-                        icon={PsychologyIcon}
-                        title="Field mapping"
-                    />
-                    <CardContent sx={accountCardContentSx}>
-                        <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{ mb: 2 }}
-                        >
-                            Map Priority fields to Archaser import columns.
-                            Enable an entity on its tab to include it in sync.
-                            Set a pull filter and Priority table per entity,
-                            then use the account Save button to persist them.
-                            Run preview and open the Preview sample records
-                            tab for sample rows.
-                        </Typography>
-
-                        <Button
-                            variant="contained"
-                            startIcon={
-                                previewMutation.isPending ? (
-                                    <CircularProgress size={16} />
-                                ) : (
-                                    <SyncIcon />
-                                )
-                            }
-                            onClick={() => previewMutation.mutate()}
-                            disabled={
-                                !canManage ||
-                                previewMutation.isPending ||
-                                !allEnabledMappingsComplete
-                            }
-                            sx={{ mb: 2 }}
-                        >
-                            {previewMutation.isPending
-                                ? "Running preview…"
-                                : "Run preview sync"}
-                        </Button>
-
-                        {!allEnabledMappingsComplete &&
-                            entitiesForMapping.length > 0 && (
-                            <Alert severity="info" sx={{ mb: 2 }}>
-                                Complete field mapping for all enabled entities
-                                before running preview sync.
-                            </Alert>
-                        )}
-
-                        <Box>
-                            {entitiesForMapping.length === 0 && (
-                                <Alert severity="info" sx={{ mb: 2 }}>
-                                    No entities are enabled. Turn on a switch
-                                    under a tab to include that entity in sync.
-                                </Alert>
-                            )}
-                            <Box ref={entityTabsRef}>
-                            <Tabs
-                                value={selectedMappingEntityTab}
-                                onChange={(_, value) =>
-                                    setMappingEntityTab(value)
-                                }
-                                variant="scrollable"
-                                scrollButtons="auto"
-                            >
-                                {ENTITY_OPTIONS.map((opt) => {
-                                    const entityEnabled =
-                                        enabledEntities.includes(opt.value);
-                                    return (
-                                        <Tab
-                                            key={opt.value}
-                                            label={opt.label}
-                                            sx={{
-                                                color: entityEnabled
-                                                    ? "primary.main"
-                                                    : "text.disabled",
-                                                "&.Mui-selected": {
-                                                    color: entityEnabled
-                                                        ? "primary.main"
-                                                        : "text.disabled",
-                                                },
-                                            }}
-                                        />
-                                    );
-                                })}
-                            </Tabs>
-                            </Box>
-
-                            {ENTITY_OPTIONS.map((opt, index) => {
-                                const entity = opt.value;
-                                const entityEnabled =
-                                    enabledEntities.includes(entity);
-                                const previewEntity =
-                                    previewResult?.entities.find(
-                                        (row) =>
-                                            row.import_type === entity
-                                    );
-                                return (
-                                <Box
-                                    key={entity}
-                                    role="tabpanel"
-                                    hidden={selectedMappingEntityTab !== index}
-                                    sx={{ pt: 2 }}
-                                >
-                                    <FormControlLabel
-                                        control={
-                                            <Switch
-                                                checked={entityEnabled}
-                                                onChange={() =>
-                                                    toggleEntity(entity)
-                                                }
-                                                disabled={!canManage}
-                                            />
-                                        }
-                                        label={`Enable ${opt.label.toLowerCase()}`}
-                                        sx={{
-                                            mb: entityEnabled ? 2 : 0,
-                                            display: "block",
-                                        }}
-                                    />
-                                    {entityEnabled ? (
-                                        <>
-                                    <Tabs
-                                        value={entityWorkspaceTab}
-                                        onChange={(_, value) =>
-                                            setEntityWorkspaceTab(value)
-                                        }
-                                        sx={{ mb: 2 }}
-                                    >
-                                                <Tab
-                                                    label="Mapping"
-                                                    value="mapping"
-                                                />
-                                                <Tab
-                                                    label="Pull filter"
-                                                    value="pullFilter"
-                                                />
-                                                <Tab
-                                                    label="Preview sample records"
-                                                    value="preview"
-                                                />
-                                            </Tabs>
-                                            <Box
-                                                hidden={
-                                                    entityWorkspaceTab !==
-                                                    "mapping"
-                                                }
-                                            >
-                                                <ConnectorFieldMapper
-                                                    ref={(handle) => {
-                                                        mapperRefs.current[
-                                                            entity
-                                                        ] = handle;
-                                                    }}
-                                                    accountId={accountId}
-                                                    importType={entity}
-                                                    canManage={canManage}
-                                                    hideEntityHeader
-                                                    hideSaveButton
-                                                    entitySet={
-                                                        config.entity_sets?.[
-                                                            entity
-                                                        ] ?? ""
-                                                    }
-                                                    defaultEntitySet={
-                                                        config
-                                                            .default_entity_sets?.[
-                                                            entity
-                                                        ] ?? ""
-                                                    }
-                                                    entitySetCatalog={
-                                                        config.entity_set_catalog ??
-                                                        []
-                                                    }
-                                                    onEntitySetChange={
-                                                        handleEntitySetChange
-                                                    }
-                                                    onRefreshEntitySetCatalog={() =>
-                                                        refreshEntitySetsMutation.mutateAsync()
-                                                    }
-                                                    isRefreshingEntitySetCatalog={
-                                                        refreshEntitySetsMutation.isPending
-                                                    }
-                                                    onCompletenessChange={
-                                                        handleMappingCompleteness
-                                                    }
-                                                />
-                                            </Box>
-                                            <Box
-                                                hidden={
-                                                    entityWorkspaceTab !==
-                                                    "pullFilter"
-                                                }
-                                            >
-                                                <ConnectorEntityPullFilterEditor
-                                                    ref={(handle) => {
-                                                        pullFilterRefs.current[
-                                                            entity
-                                                        ] = handle;
-                                                    }}
-                                                    accountId={accountId}
-                                                    importType={entity}
-                                                    canManage={canManage}
-                                                    locked={Boolean(
-                                                        config.backfill_options_locked
-                                                    )}
-                                                    config={config}
-                                                    hideSaveButton
-                                                    onSaved={(saved) => {
-                                                        queryClient.setQueryData(
-                                                            [
-                                                                "billing-connector",
-                                                                accountId,
-                                                            ],
-                                                            saved
-                                                        );
-                                                    }}
-                                                />
-                                            </Box>
-                                            <Box
-                                                hidden={
-                                                    entityWorkspaceTab !==
-                                                    "preview"
-                                                }
-                                            >
-                                                {previewEntity ? (
-                                                    <ConnectorPreviewSyncResults
-                                                        entity={previewEntity}
-                                                    />
-                                                ) : (
-                                                    <Alert severity="info">
-                                                        Run preview sync to
-                                                        pull sample rows for{" "}
-                                                        {entity}.
-                                                    </Alert>
-                                                )}
-                                            </Box>
-                                        </>
-                                    ) : null}
-                                        </Box>
-                                        );
-                                    })}
-                        </Box>
-                    </CardContent>
-                </Card>
-            )}
-
-            {config?.has_credentials && progressRun && (
-                <BackfillImportProgress
-                    run={progressRun}
-                    enabledEntities={normalizeConnectorEnabledEntities(
-                        config.enabled_entities
-                    )}
-                    syncStates={config.sync_states}
-                    onDismiss={() => {
-                        const next = {
-                            executionId: progressRun.id,
-                            dismissed: true,
-                        };
-                        setProgressSession(next);
-                        writeBackfillProgressSession(accountId, next);
-                    }}
-                    onStop={
-                        canManage
-                            ? () => cancelSyncMutation.mutate()
-                            : undefined
+            {entityWorkspaceConfig?.has_credentials && (
+                <BillingEntityWorkspace
+                    canManage={canManage}
+                    accountId={accountId}
+                    expanded={isMappingExpanded}
+                    onExpandedChange={setMappingExpanded}
+                    entitiesForMapping={entitiesForMapping}
+                    allEnabledMappingsComplete={allEnabledMappingsComplete}
+                    enabledEntities={enabledEntities}
+                    selectedMappingEntityTab={selectedMappingEntityTab}
+                    onMappingEntityTabChange={setMappingEntityTab}
+                    entityWorkspaceTab={entityWorkspaceTab}
+                    onEntityWorkspaceTabChange={setEntityWorkspaceTab}
+                    entityTabsRef={entityTabsRef}
+                    onToggleEntity={toggleEntity}
+                    persistEnabledEntitiesPending={
+                        persistEnabledEntitiesMutation.isPending
                     }
-                    stopPending={cancelSyncMutation.isPending}
+                    clearBeforeImportSession={clearBeforeImportSession}
+                    onClearBeforeImportEntityChange={
+                        handleClearBeforeImportEntityChange
+                    }
+                    previewResult={previewResult}
+                    config={entityWorkspaceConfig}
+                    mapperRefs={mapperRefs}
+                    pullFilterRefs={pullFilterRefs}
+                    handleEntitySetChange={handleEntitySetChange}
+                    onRefreshEntitySetCatalog={handleRefreshEntitySetCatalog}
+                    isRefreshingEntitySetCatalog={
+                        refreshEntitySetsMutation.isPending
+                    }
+                    handleMappingCompleteness={handleMappingCompleteness}
+                    handleEntityConfigDirtyChange={handleEntityConfigDirtyChange}
+                    onPullFilterSaved={handlePullFilterSaved}
                 />
             )}
 
-            {config?.has_credentials && allEnabledMappingsComplete && (
-                <Card elevation={0} sx={accountCardSx}>
-                    <CardContent sx={accountCardContentSx}>
-                        {importBusy && (
-                            <Alert severity="info" sx={{ mb: 2 }}>
-                                Sync in progress — actions are disabled
-                                until the current run finishes.
-                            </Alert>
-                        )}
-
-                        {previewBlocked && (
-                            <Alert severity="info" sx={{ mb: 2 }}>
-                                {previewBlockedReason}
-                            </Alert>
-                        )}
-
-                        <Box
-                            sx={{
-                                display: "flex",
-                                gap: 2,
-                                flexWrap: "wrap",
-                            }}
-                        >
-                            <Tooltip
-                                title={startBackfillDisabledReason ?? ""}
-                                arrow
-                                enterDelay={300}
-                                leaveDelay={100}
-                                placement="bottom"
-                                disableHoverListener={
-                                    !startBackfillDisabledReason
-                                }
-                            >
-                                <span>
-                                    <Button
-                                        variant="contained"
-                                        startIcon={
-                                            backfillMutation.isPending ? (
-                                                <CircularProgress size={16} />
-                                            ) : (
-                                                <SyncIcon />
-                                            )
-                                        }
-                                        onClick={() =>
-                                            backfillMutation.mutate()
-                                        }
-                                        disabled={Boolean(
-                                            startBackfillDisabledReason
-                                        )}
-                                    >
-                                        {config.sync_mode === "BACKFILL"
-                                            ? "Start / resume backfill"
-                                            : "Backfill complete"}
-                                    </Button>
-                                </span>
-                            </Tooltip>
-                            <Tooltip
-                                title={runIncrementalDisabledReason ?? ""}
-                                arrow
-                                enterDelay={300}
-                                leaveDelay={100}
-                                placement="bottom"
-                                disableHoverListener={
-                                    !runIncrementalDisabledReason
-                                }
-                            >
-                                <span>
-                                    <Button
-                                        variant="outlined"
-                                        startIcon={
-                                            incrementalMutation.isPending ? (
-                                                <CircularProgress size={16} />
-                                            ) : (
-                                                <SyncIcon />
-                                            )
-                                        }
-                                        onClick={() =>
-                                            incrementalMutation.mutate()
-                                        }
-                                        disabled={Boolean(
-                                            runIncrementalDisabledReason
-                                        )}
-                                    >
-                                        Run incremental sync now
-                                    </Button>
-                                </span>
-                            </Tooltip>
-                            {syncInProgress && !progressRun && (
-                                <Button
-                                    variant="outlined"
-                                    color="warning"
-                                    onClick={() =>
-                                        cancelSyncMutation.mutate()
-                                    }
-                                    disabled={
-                                        !canManage ||
-                                        cancelSyncMutation.isPending
-                                    }
-                                >
-                                    {cancelSyncMutation.isPending
-                                        ? "Cancelling…"
-                                        : "Cancel running sync"}
-                                </Button>
-                            )}
-                            <Tooltip
-                                title={resetBackfillDisabledReason ?? ""}
-                                arrow
-                                enterDelay={300}
-                                leaveDelay={100}
-                                placement="bottom"
-                                disableHoverListener={
-                                    !resetBackfillDisabledReason
-                                }
-                            >
-                                <span>
-                                    <Button
-                                        variant="outlined"
-                                        color="warning"
-                                        onClick={() =>
-                                            setResetDialogOpen(true)
-                                        }
-                                        disabled={Boolean(
-                                            resetBackfillDisabledReason
-                                        )}
-                                    >
-                                        {resetBackfillMutation.isPending
-                                            ? "Resetting…"
-                                            : "Reset backfill"}
-                                    </Button>
-                                </span>
-                            </Tooltip>
-                        </Box>
-                    </CardContent>
-                </Card>
-            )}
-
-            {config?.has_credentials && syncRuns.length > 0 && (
-                <Card elevation={0} sx={accountCardSx}>
-                    <AccountSectionCardHeader
-                        icon={SyncIcon}
-                        title="Sync history"
+            {config?.has_credentials &&
+                (allEnabledMappingsComplete || Boolean(displayProgressRun)) && (
+                    <BillingProgressHost
+                        canManage={canManage}
+                        isHebrew={isHebrew}
+                        displayProgressRun={displayProgressRun}
+                        enabledEntities={enabledEntities}
+                        displaySyncStates={displaySyncStates}
+                        expectDeletingStep={expectDeletingStep}
+                        pendingArPostIngestCustomers={
+                            progressUiReset || pendingBackfillReset
+                                ? 0
+                                : config?.pending_ar_post_ingest_customers
+                        }
+                        expanded={isProgressExpanded}
+                        onExpandedChange={setProgressExpanded}
+                        allEnabledMappingsComplete={allEnabledMappingsComplete}
+                        showPrimaryAction={Boolean(showPrimaryAction)}
+                        actionStage={actionStage}
+                        primaryTooltipTitle={primaryTooltipTitle}
+                        primaryDisabledReason={primaryDisabledReason}
+                        primaryPending={primaryPending}
+                        primaryButtonLabel={primaryButtonLabel}
+                        onPrimaryAction={handlePrimaryAction}
+                        importBusy={importBusy}
+                        importBusyTooltipTitle={importBusyTooltipTitle}
+                        resetBackfillDisabledReason={resetBackfillDisabledReason}
+                        resetBackfillPending={resetBackfillMutation.isPending}
+                        onOpenResetDialog={handleOpenResetDialog}
+                        accountId={accountId}
+                        clearBeforeImportCustomerId={clearBeforeImportCustomerId}
+                        onClearBeforeImportCustomerChange={
+                            handleClearBeforeImportCustomerChange
+                        }
+                        clearBeforeImportCustomerError={
+                            clearBeforeImportCustomerError
+                        }
                     />
-                    <CardContent sx={accountCardContentSx}>
-                        <List dense>
-                            {syncRuns.map((run) => (
-                                <ListItem key={run.id}>
-                                        <ListItemText
-                                            primary={`${run.sync_mode} (${run.trigger}) — ${run.status}`}
-                                            secondary={`${new Date(run.started_at).toLocaleString()}${
-                                                run.duration_seconds
-                                                    ? ` — ${run.duration_seconds}s`
-                                                    : ""
-                                            }${
-                                                run.cutover_summary
-                                                    ? ` — ${run.cutover_summary}`
-                                                    : ""
-                                            }${
-                                                run.error_message
-                                                    ? ` — ${run.error_message}`
-                                                    : ""
-                                            }`}
-                                        />
-                                </ListItem>
-                            ))}
-                        </List>
-                    </CardContent>
-                </Card>
+                )}
+
+            {config?.has_credentials && (
+                <BillingSyncHistorySection
+                    expanded={historyExpanded}
+                    onExpandedChange={setHistoryExpanded}
+                    syncHistory={syncHistory}
+                    syncHistoryLoading={syncHistoryLoading}
+                    syncHistoryFetching={syncHistoryFetching}
+                />
             )}
+
             <DeleteDialog
                 isOpen={resetDialogOpen}
                 onClose={() => setResetDialogOpen(false)}
@@ -2002,6 +1714,32 @@ const BillingIntegrationSettings = forwardRef<
                 confirmLabel="Reset backfill"
                 cancelLabel="Cancel"
                 isLoading={resetBackfillMutation.isPending}
+                type="warning"
+                maxWidth="sm"
+                locale={i18n.language}
+            />
+            <DeleteDialog
+                isOpen={clearBeforeStartDialogOpen}
+                onClose={() => setClearBeforeStartDialogOpen(false)}
+                onConfirm={() => {
+                    const clearBeforeImport = resolveClearBeforeImportPayload({
+                        session: clearBeforeImportSession,
+                        enabledEntities,
+                    });
+                    const customerId = clearBeforeImportCustomerId;
+                    setClearBeforeStartDialogOpen(false);
+                    backfillMutation.mutate({
+                        clear_before_import: clearBeforeImport,
+                        ...(customerId != null
+                            ? { customer_id: customerId }
+                            : {}),
+                    });
+                }}
+                title={clearBeforeStartConfirmCopy.title}
+                description={clearBeforeStartConfirmDescription}
+                confirmLabel="Start backfill"
+                cancelLabel="Cancel"
+                isLoading={backfillMutation.isPending}
                 type="warning"
                 maxWidth="sm"
                 locale={i18n.language}

@@ -1174,7 +1174,10 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                 customer_number?: string | null;
                 customer_number_policy?: string | null;
             },
-            options?: { namedMatchByPolicyCustomerNumberOnly?: boolean }
+            options?: {
+                namedMatchByPolicyCustomerNumberOnly?: boolean;
+                dclOnly?: boolean;
+            }
         ) => {
             policyPrefillAbortRef.current?.abort();
             const ac = new AbortController();
@@ -1187,17 +1190,24 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
             if (snapshot.country_id) {
                 params.set("country_id", String(snapshot.country_id));
             }
-            if (snapshot.customer_number) {
-                params.set("customer_number", String(snapshot.customer_number));
-            }
-            if (snapshot.customer_number_policy) {
-                params.set(
-                    "customer_number_policy",
-                    String(snapshot.customer_number_policy)
-                );
-            }
-            if (options?.namedMatchByPolicyCustomerNumberOnly) {
-                params.set("named_match", "policy_customer_number");
+            if (options?.dclOnly) {
+                params.set("limit_type", "DCL");
+            } else {
+                if (snapshot.customer_number) {
+                    params.set(
+                        "customer_number",
+                        String(snapshot.customer_number)
+                    );
+                }
+                if (snapshot.customer_number_policy) {
+                    params.set(
+                        "customer_number_policy",
+                        String(snapshot.customer_number_policy)
+                    );
+                }
+                if (options?.namedMatchByPolicyCustomerNumberOnly) {
+                    params.set("named_match", "policy_customer_number");
+                }
             }
 
             try {
@@ -1234,7 +1244,8 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
 
                     const next: Record<string, unknown> = {
                         ...prev,
-                        limit_type: data.limit_type ?? prev.limit_type,
+                        limit_type:
+                            data.limit_type === "Named" ? "Named" : "DCL",
                     };
 
                     if (data.max_payment_term != null) {
@@ -1258,12 +1269,25 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                         data.payment_term_cutoff_day_of_month ?? null;
                     next.payment_term_substitute_day_of_month =
                         data.payment_term_substitute_day_of_month ?? null;
-                    if (data.approved_limit != null && data.approved_limit !== "") {
-                        next.approved_limit = String(data.approved_limit);
-                    }
-                    if (data.approved_limit_expiration_date !== undefined) {
-                        next.approved_limit_expiration_date =
-                            data.approved_limit_expiration_date ?? null;
+                    const isNamedLimit = data.limit_type === "Named";
+                    if (isNamedLimit) {
+                        if (
+                            data.approved_limit != null &&
+                            data.approved_limit !== ""
+                        ) {
+                            next.approved_limit = String(data.approved_limit);
+                        }
+                        if (data.approved_limit_expiration_date !== undefined) {
+                            next.approved_limit_expiration_date =
+                                data.approved_limit_expiration_date ?? null;
+                        }
+                    } else {
+                        next.approved_limit =
+                            data.approved_limit != null &&
+                            data.approved_limit !== ""
+                                ? String(data.approved_limit)
+                                : null;
+                        next.approved_limit_expiration_date = null;
                     }
                     if (data.credit_score != null && data.credit_score !== "") {
                         next.credit_score = String(data.credit_score);
@@ -1294,6 +1318,7 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                         const next = {
                             ...prev,
                             policy_id: value,
+                            limit_type: "DCL",
                         };
                         void applyCreditInsurancePolicyPrefill(
                             policyId,
@@ -1304,11 +1329,7 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                                 customer_number_policy:
                                     prev.customer_number_policy,
                             },
-                            prev.limit_type === "Named"
-                                ? {
-                                    namedMatchByPolicyCustomerNumberOnly: true,
-                                }
-                                : undefined
+                            { dclOnly: true }
                         );
                         return next;
                     });
@@ -1318,7 +1339,7 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
 
             if (
                 field === "limit_type" &&
-                value === "Named" &&
+                (value === "Named" || value === "DCL") &&
                 isCreditInsuranceAccount &&
                 isEditing
             ) {
@@ -1326,8 +1347,12 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                     const next = {
                         ...prev,
                         limit_type: value,
-                        excluded_from_policy: false,
-                        policy_exclusion_reason: null,
+                        ...(value === "Named"
+                            ? {
+                                  excluded_from_policy: false,
+                                  policy_exclusion_reason: null,
+                              }
+                            : {}),
                     };
                     const rawPid = prev.policy_id;
                     const policyId =
@@ -1345,7 +1370,9 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                                 customer_number_policy:
                                     prev.customer_number_policy,
                             },
-                            { namedMatchByPolicyCustomerNumberOnly: true }
+                            value === "Named"
+                                ? { namedMatchByPolicyCustomerNumberOnly: true }
+                                : { dclOnly: true }
                         );
                     }
                     return next;

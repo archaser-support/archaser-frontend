@@ -75,6 +75,29 @@ describe("sessionLanguageMonitor", () => {
             expect(result).toEqual({ redirect: false });
         });
 
+        it("does not redirect during post-login handoff on /app", () => {
+            const result = shouldRedirectForSessionLocale({
+                pathname: "/en/app/dashboard",
+                status: "authenticated",
+                sessionLanguage: "Hebrew",
+                languageChangeInProgress: false,
+                loginHandoffInProgress: true,
+                isPortalRoute: false,
+            });
+            expect(result).toEqual({ redirect: false });
+        });
+
+        it("treats hebrew language case-insensitively", () => {
+            const result = shouldRedirectForSessionLocale({
+                pathname: "/he/app/dashboard",
+                status: "authenticated",
+                sessionLanguage: "hebrew",
+                languageChangeInProgress: false,
+                isPortalRoute: false,
+            });
+            expect(result).toEqual({ redirect: false });
+        });
+
         it("skips portal routes", () => {
             const result = shouldRedirectForSessionLocale({
                 pathname: "/en/portal/abc",

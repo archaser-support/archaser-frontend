@@ -4,11 +4,12 @@
     "private": true,
     "description": "Archaser Next.js frontend",
     "scripts": {
-        "dev": "NODE_OPTIONS=--disable-warning=DEP0169 next dev --webpack",
-        "dev:turbo": "NODE_OPTIONS=--disable-warning=DEP0169 next dev --turbopack",
-        "build": "NODE_OPTIONS=--max-old-space-size=4096 next build --webpack",
-        "build:amplify": "node scripts/check-amplify-ui-imports.js && node scripts/check-no-relative-product-api.js && node scripts/run-amplify-build.js",
-        "start": "next start",
+        "dev": "node ./scripts/run-with-env.cjs NODE_OPTIONS=--disable-warning=DEP0169 next dev --webpack",
+        "dev:all": "bash ./scripts/dev-all.sh",
+        "dev:turbo": "node ./scripts/run-with-env.cjs NODE_OPTIONS=--disable-warning=DEP0169 next dev --turbopack",
+        "build": "node ./scripts/run-with-env.cjs NODE_OPTIONS=--max-old-space-size=4096 next build --webpack",
+        "build:amplify": "node ./scripts/run-with-env.cjs node scripts/check-amplify-ui-imports.js && node scripts/check-no-relative-product-api.js && node scripts/run-amplify-build.js",
+        "start": "node ./scripts/run-with-env.cjs next start",
         "lint": "next lint",
         "type-check": "NODE_OPTIONS=--max-old-space-size=4096 tsc --noEmit -p tsconfig.json",
         "format": "prettier --write .",
@@ -121,7 +122,8 @@
         "vitest": "^3.2.4"
     },
     "overrides": {
-        "esbuild": "0.24.2"
+        "esbuild": "0.25.0",
+        "uuid": "$uuid"
     },
     "engines": {
         "node": ">=20.0.0",

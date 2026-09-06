@@ -1,5 +1,7 @@
 import * as ExcelJS from "exceljs";
 
+import { formatDateForDisplay } from "@/utils/datetimeOperations";
+
 export type ExportFormat = "excel" | "csv" | "pdf";
 
 export interface ExportToExcelOptions {
@@ -13,6 +15,58 @@ export interface ExportToExcelOptions {
         string,
         { amountField: string; currencyField: string }
     >;
+    /** BCP 47 locale for date/datetime cells (e.g. he-IL, en-US). */
+    locale?: string;
+    /** IANA timezone for datetime fields. */
+    timezone?: string;
+}
+
+/** Raw ISO / Date values still need locale formatting; already-display strings do not. */
+function formatCellForExport(
+    value: unknown,
+    columnField: string,
+    locale?: string,
+    timezone?: string
+): unknown {
+    if (value === null || value === undefined) {
+        return "";
+    }
+    if (typeof value === "boolean") {
+        return value ? "Yes" : "No";
+    }
+
+    const isRawDate =
+        value instanceof Date ||
+        (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value.trim()));
+
+    if (isRawDate && locale) {
+        const field = columnField.toLowerCase();
+        const asDateTime =
+            field.includes("_at") ||
+            field.endsWith("_time") ||
+            field.includes("schedule_time") ||
+            field.includes("call_time") ||
+            field.includes("delivery_time") ||
+            field.includes("sent_time");
+        try {
+            return formatDateForDisplay(
+                value as Date | string,
+                asDateTime ? "datetime" : "date",
+                locale,
+                timezone
+            );
+        } catch {
+            return value instanceof Date ? value.toISOString() : value;
+        }
+    }
+
+    if (value instanceof Date) {
+        return value.toISOString();
+    }
+    if (typeof value === "object") {
+        return JSON.stringify(value);
+    }
+    return value;
 }
 
 /**
@@ -79,8 +133,25 @@ const isIntegerNumericColumn = (columnField: string): boolean => {
  * @param columnField - The column field name
  * @returns true if the column should be treated as numeric
  */
+const isDateLikeColumn = (columnField: string): boolean => {
+    const f = columnField.toLowerCase();
+    return (
+        f.includes("date") ||
+        f.endsWith("_at") ||
+        f.endsWith("_time") ||
+        f.includes("schedule_time") ||
+        f.includes("call_time") ||
+        f.includes("delivery_time") ||
+        f.includes("sent_time")
+    );
+};
+
 const isNumericColumn = (columnField: string): boolean => {
     if (isPolicyIdentifierColumn(columnField)) {
+        return false;
+    }
+    // Avoid treating payment_date / overdue_date / etc. as numeric
+    if (isDateLikeColumn(columnField)) {
         return false;
     }
     if (isIntegerNumericColumn(columnField)) {
@@ -258,6 +329,8 @@ export const exportToExcel = async (
         sortModel,
         format = "excel",
         currencyColumns,
+        locale,
+        timezone,
     } = options;
 
     if (!data || data.length === 0) {
@@ -363,23 +436,12 @@ export const exportToExcel = async (
                     }
                 }
             } else {
-                // Regular field processing
-                const value = row[columnField];
-
-                // Handle different data types for better Excel formatting
-                if (value === null || value === undefined) {
-                    exportRow[columnField] = "";
-                } else if (typeof value === "boolean") {
-                    exportRow[columnField] = value ? "Yes" : "No";
-                } else if (value instanceof Date) {
-                    // Format dates as ISO string for Excel compatibility
-                    exportRow[columnField] = value.toISOString();
-                } else if (typeof value === "object") {
-                    // Handle complex objects by converting to string
-                    exportRow[columnField] = JSON.stringify(value);
-                } else {
-                    exportRow[columnField] = value;
-                }
+                exportRow[columnField] = formatCellForExport(
+                    row[columnField],
+                    columnField,
+                    locale,
+                    timezone
+                );
             }
         });
 
@@ -408,7 +470,8 @@ export const exportToExcel = async (
             exportData,
             processedColumns,
             processedColumnHeaders,
-            fileName
+            fileName,
+            locale
         );
     }
 };
@@ -646,7 +709,8 @@ const exportToExcelFormat = async (
     data: any[],
     selectedColumns: string[],
     columnHeaders: Record<string, string>,
-    fileName: string
+    fileName: string,
+    locale?: string
 ): Promise<void> => {
     // Create workbook
     const workbook = new ExcelJS.Workbook();
@@ -654,22 +718,13 @@ const exportToExcelFormat = async (
     // Add worksheet
     const worksheet = workbook.addWorksheet("Export");
 
-    // Prepare data for export
+    // Prepare data for export (dates already locale-formatted by formatCellForExport upstream)
     const exportData = data.map((row) => {
         const exportRow: Record<string, any> = {};
         selectedColumns.forEach((columnField) => {
             const value = row[columnField];
 
-            // Handle different data types for better Excel formatting
-            if (value === null || value === undefined) {
-                exportRow[columnField] = "";
-            } else if (typeof value === "boolean") {
-                exportRow[columnField] = value ? "Yes" : "No";
-            } else if (value instanceof Date) {
-                exportRow[columnField] = value.toISOString();
-            } else if (typeof value === "object") {
-                exportRow[columnField] = JSON.stringify(value);
-            } else if (typeof value === "string") {
+            if (typeof value === "string") {
                 // Keep formatted currency strings intact (e.g. "7,000.00 ILS")
                 if (
                     isNumericColumn(columnField) &&
@@ -838,9 +893,10 @@ const exportToExcelFormat = async (
             });
         }
 
-        // Format date columns
+        // Locale-aware date display format (values are usually already formatted strings).
+        // en-US is month-first; most other locales (incl. he-IL) are day-first.
         if (columnField.includes("date") || columnField.includes("Date")) {
-            column.numFmt = "dd/mm/yyyy";
+            column.numFmt = locale === "en-US" ? "mm/dd/yyyy" : "dd/mm/yyyy";
         }
     });
 

@@ -111,6 +111,14 @@ export const useColumnResizing = ({
     );
 
     const handleResizeEnd = useCallback(() => {
+        // The browser dispatches `click` on the nearest common ancestor of mousedown
+        // and mouseup, which is the header cell rather than the handle. Record the
+        // drag so the header can ignore that click instead of sorting.
+        resizeHandleClickRef.current = {
+            field: resizeStateRef.current.resizeColumn ?? "",
+            timestamp: Date.now(),
+        };
+
         setIsResizing(false);
         setResizeColumn(null);
         resizeStateRef.current.isResizing = false;

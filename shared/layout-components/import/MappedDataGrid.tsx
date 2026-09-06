@@ -304,6 +304,30 @@ const MappedDataGrid: React.FC<MappedDataGridProps> = ({
         [rows]
     );
 
+    const handleImportClick = useCallback(() => {
+        const rowsWithMessage = rows.filter((row) => row.message);
+        console.warn("[MappedDataGrid] Import button clicked:", {
+            rowCount: rows.length,
+            isLoading,
+            isSubmitted,
+            shouldDisable: buttonLogic.shouldDisable,
+            allRowsHaveErrors: buttonLogic.allRowsHaveErrors,
+            validationErrorCount: validationErrors.length,
+            rowsWithMessageCount: rowsWithMessage.length,
+            firstRowStatus: rows[0]?.status ?? null,
+            firstRowMessage: rows[0]?.message ?? null,
+            statusCounts: JSON.stringify(
+                rows.reduce<Record<string, number>>((acc, row) => {
+                    const key = String(row.status ?? "none");
+                    acc[key] = (acc[key] || 0) + 1;
+                    return acc;
+                }, {})
+            ),
+            onSubmitType: typeof onSubmit,
+        });
+        onSubmit();
+    }, [rows, isLoading, isSubmitted, buttonLogic, validationErrors, onSubmit]);
+
     // Memoized import button for toolbar
     const importButton = useMemo(() => {
         const { shouldDisable, getTooltipText } = buttonLogic;
@@ -313,7 +337,7 @@ const MappedDataGrid: React.FC<MappedDataGridProps> = ({
                 size="small"
                 variant="outlined"
                 startIcon={<FileUploadIcon />}
-                onClick={onSubmit}
+                onClick={handleImportClick}
                 disabled={shouldDisable}
                 sx={{
                     minWidth: "auto",
@@ -377,7 +401,7 @@ const MappedDataGrid: React.FC<MappedDataGridProps> = ({
         ) : (
             button
         );
-    }, [buttonLogic, onSubmit, t, theme, i18n.language]);
+    }, [buttonLogic, handleImportClick, t, theme, i18n.language]);
 
     return (
         <Box

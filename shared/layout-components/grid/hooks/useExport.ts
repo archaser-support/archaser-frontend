@@ -1,10 +1,16 @@
 import { useState, useCallback } from "react";
 import { GridColDef, GridSortModel } from "@mui/x-data-grid";
+import { useSession } from "next-auth/react";
+
 import {
     exportToExcel,
     createColumnHeaders,
     ExportFormat,
 } from "../../../utility/exportToExcel";
+import {
+    getUserDateLocale,
+    getUserTimezone,
+} from "@/utils/datetimeOperations";
 
 interface UseExportOptions {
     columns: GridColDef[];
@@ -46,6 +52,7 @@ export const useExport = ({
     exportDisabled = false,
     totalRecords,
 }: UseExportOptions): UseExportReturn => {
+    const { data: session } = useSession();
     const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
 
@@ -74,12 +81,10 @@ export const useExport = ({
                     format
                 );
 
-
-
                 // Create column headers mapping
                 const columnHeaders = createColumnHeaders(columns);
 
-                // Export to Excel or CSV
+                // Export to Excel or CSV (locale for any remaining raw date cells)
                 exportToExcel({
                     data: exportData,
                     selectedColumns,
@@ -95,12 +100,14 @@ export const useExport = ({
                         : undefined,
                     format,
                     currencyColumns,
+                    locale: getUserDateLocale(session ?? null),
+                    timezone: getUserTimezone(session ?? null),
                 });
             } finally {
                 setIsExporting(false);
             }
         },
-        [onExport, columns, sortModel, currencyColumns]
+        [onExport, columns, sortModel, currencyColumns, session]
     );
 
     const handleExportDialogClose = useCallback(() => {

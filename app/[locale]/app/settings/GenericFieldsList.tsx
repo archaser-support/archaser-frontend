@@ -36,7 +36,6 @@ const ENTITY_LABELS: Record<GenericEntityKey, string> = {
     customer: "values.entity_customer",
     contact: "values.entity_contact",
     invoice: "values.entity_invoice",
-    payment: "values.entity_payment",
 };
 
 const FIELD_TYPE_LABELS: Record<string, string> = {

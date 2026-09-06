@@ -199,6 +199,7 @@ export function isAmountField(
         fieldNameLower === "effective_approved_limit" ||
         fieldNameLower === "capacity_gap_amount" ||
         fieldNameLower === "policy_risk_allocated" ||
+        fieldNameLower === "at_risk_exposure" ||
         fieldNameLower === "terms_breach_outstanding" ||
         fieldNameLower === "top_up_resolved_amount"
     ) {

@@ -437,13 +437,13 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                                 ? 0
                                 : sidebarOpen
                                     ? "210px"
-                                    : "61px",
+                                    : "48px",
                         },
                         mr: {
                             sm: isHebrewUser
                                 ? sidebarOpen
                                     ? "210px"
-                                    : "61px"
+                                    : "48px"
                                 : 0,
                         },
                         transition:
@@ -580,7 +580,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                     {/* Last Sync Status - Compact Indicator */}
                     {!lastSyncLoading && (
                         <Tooltip
-                            title={`${lastSyncDate ? formatDateForDisplay(lastSyncDate, "datetime", session?.user?.locale, session?.user?.timezone) : tCommon("messages.sync_status_never_synced", "Never synced")} — ${tCommon("messages.sync_status_erp_scheduled_only", "Reflects scheduled ERP billing sync only; file import and manual sync are excluded")}. ${tCommon("messages.sync_status_click_to_refresh")}`}
+                            title={`${lastSyncDate ? formatDateForDisplay(lastSyncDate, "datetime", session?.user?.locale, session?.user?.timezone) : tCommon("messages.sync_status_never_synced", "Never synced")} — ${tCommon("messages.sync_status_erp_scheduled_only", "Reflects completed ERP billing sync, scheduled or manual; file import is excluded")}. ${tCommon("messages.sync_status_click_to_refresh")}`}
                             arrow
                         >
                             <Box

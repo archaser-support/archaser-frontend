@@ -46,18 +46,24 @@ export const SessionInitializer: React.FC<SessionInitializerProps> = ({
                         return;
                     }
 
-                    // Check for fresh login
+                    // Check for fresh login — clear flags only; never reload.
+                    // A reload here races the login hard-nav and loads the app twice.
                     if (typeof window !== "undefined") {
                         const freshLogin = localStorage.getItem("freshLogin");
                         const loginUserId = localStorage.getItem("loginUserId");
 
                         if (freshLogin === "true" && loginUserId) {
-                            if (loginUserId !== session.user.id) {
-                                // Session mismatch, reload the page
-                                window.location.reload();
-                                return;
+                            if (
+                                String(loginUserId) ===
+                                String(session.user.id)
+                            ) {
+                                localStorage.removeItem("freshLogin");
+                                localStorage.removeItem("loginUserId");
+                                localStorage.removeItem("loginUserRole");
+                                localStorage.removeItem("loginAccountId");
                             } else {
-                                // Clear fresh login flags
+                                // Stale/mismatched handoff markers — drop them
+                                // without a full page reload.
                                 localStorage.removeItem("freshLogin");
                                 localStorage.removeItem("loginUserId");
                                 localStorage.removeItem("loginUserRole");
