@@ -104,14 +104,15 @@ export type CreditDashboardSummary = {
      */
     compliantExposure: number;
     /**
-     * Sum of per-customer allocated at-risk: no-policy customers → full AR;
-     * with policy → min(AR, capacity gap + terms breach outstanding);
-     * plus portfolio limit residual: max(0, Σ policy max(0, policy AR − max cover) − capacity gap total).
+     * Sum of per-customer at-risk under the shared formula: uncovered → full AR;
+     * insured → Σ max(capacity_gap_i, terms_breach_i) per open invoice.
+     * Live portfolio has no policy max-cover residual on top of customer sums.
      */
     atRiskExposure: number;
     /**
-     * Sum of min(AR, gap + terms breach) for customers with a linked policy only.
-     * Equals atRiskExposure minus withoutPolicy.totalAmount.
+     * Sum of insured-customer at-risk (same per-invoice max formula) only.
+     * Equals atRiskExposure minus withoutPolicy.totalAmount when without-policy
+     * cohort is included in scope.
      */
     policyRiskExposure: number;
     /**
@@ -119,8 +120,8 @@ export type CreditDashboardSummary = {
      */
     policyRiskExposureCustomerCount: number;
     /**
-     * Uncapped driver sum: no-policy → full AR; with policy → capacity gap +
-     * terms breach (gap invoices omitted from breach; before min with AR).
+     * Same customer-sum drivers as {@link CreditDashboardSummary.atRiskExposure}
+     * (no post-sum AR min-cap; live path has no policy residual).
      */
     grossRiskExposure: number;
     overdueBlockCustomerCount: number;
