@@ -10,10 +10,10 @@ export type EnvironmentType = 'localhost' | 'preprod' | 'production' | 'unknown'
  * no account can ever own one — treating them as tenants would send every
  * visitor through an organization lookup that can only 404.
  */
-const ENVIRONMENT_SUBDOMAINS = ['staging', 'dev', 'preprod'];
+const ENVIRONMENT_SUBDOMAINS = ['staging', 'dev', 'preprod', 'production'];
 
 /** Labels that are never a customer subdomain, environment or otherwise. */
-const NON_TENANT_SUBDOMAINS = [...ENVIRONMENT_SUBDOMAINS, 'www', 'portal'];
+const NON_TENANT_SUBDOMAINS = [...ENVIRONMENT_SUBDOMAINS, 'www', 'portal', 'api'];
 
 function leadingLabel(hostname: string): string {
     return hostname.split('.')[0]?.toLowerCase() ?? '';
