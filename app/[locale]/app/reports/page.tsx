@@ -46,6 +46,11 @@ import DeleteDialog from "@/shared/layout-components/modal/DeleteDialog";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import { MAIN_REPORTS_MENU_CONTEXT } from "@/shared/utils/viewConfigs";
 import AppUrls from "@/utils/appUrls";
+import {
+    formatDateForDisplay,
+    getUserDateLocale,
+    getUserTimezone,
+} from "@/utils/datetimeOperations";
 
 const reportsMenuBuilderContextQuery = `context=${MAIN_REPORTS_MENU_CONTEXT}`;
 
@@ -83,6 +88,23 @@ const ReportsPage: React.FC = () => {
     const { success, error: showError } = useToast();
 
     const isAdmin = session?.user?.account_id === 10013;
+
+    const userLocale = useMemo(() => getUserDateLocale(session), [session]);
+    const userTimezone = useMemo(() => getUserTimezone(session), [session]);
+    const formatAuditDate = useCallback(
+        (value: unknown) => {
+            if (value === null || value === undefined || value === "") {
+                return "-";
+            }
+            return formatDateForDisplay(
+                String(value),
+                "datetime",
+                userLocale,
+                userTimezone
+            );
+        },
+        [userLocale, userTimezone]
+    );
 
     // Search state
     const [search, setSearch] = useState("");
@@ -155,9 +177,22 @@ const ReportsPage: React.FC = () => {
                 sortField,
                 sortDirection,
                 version: queryKeyVersion,
+                // Master admin list is system-report catalog for sync; others see all saved reports.
+                systemOnly: isAdmin,
             },
         ],
-        [debouncedSearch, sortField, sortDirection, queryKeyVersion]
+        [debouncedSearch, sortField, sortDirection, queryKeyVersion, isAdmin]
+    );
+
+    const reportsListParams = useMemo(
+        () => ({
+            search: debouncedSearch,
+            sortField: sortField || "",
+            sortDirection: sortDirection || "asc",
+            context: "reports",
+            ...(isAdmin ? { isSystem: "true" } : {}),
+        }),
+        [debouncedSearch, sortField, sortDirection, isAdmin]
     );
 
     // Use virtual infinite scroll hook
@@ -171,15 +206,7 @@ const ReportsPage: React.FC = () => {
         reset,
     } = useVirtualInfiniteScroll({
         queryKey,
-        queryFn: createQueryFn(
-            "/api/reports",
-            {
-                search: debouncedSearch,
-                sortField: sortField || "",
-                sortDirection: sortDirection || "asc",
-            },
-            "reports"
-        ),
+        queryFn: createQueryFn("/api/reports", reportsListParams, "reports"),
     });
 
     // Transform reports to grid rows - ensure stable IDs
@@ -195,12 +222,8 @@ const ReportsPage: React.FC = () => {
                 context: report.context || "",
                 description: report.description || "",
                 created_at: report.created_at,
-                created_at_formatted:
-                    report.created_at_formatted || report.created_at, // Use backend formatted date
                 created_by: getReportAuditUserDisplayName(createdByUser),
                 modified_at: report.modified_at,
-                modified_at_formatted:
-                    report.modified_at_formatted || report.modified_at, // Use backend formatted date
                 modified_by: getReportAuditUserDisplayName(modifiedByUser),
                 is_system: report.is_system || false,
                 is_shared: report.is_shared || false,
@@ -329,6 +352,8 @@ const ReportsPage: React.FC = () => {
             search: debouncedSearch,
             sortField: sortField || "",
             sortDirection: sortDirection || "asc",
+            context: "reports",
+            ...(isAdmin ? { isSystem: "true" } : {}),
             export: "true",
             limit: "10000",
         });
@@ -340,7 +365,7 @@ const ReportsPage: React.FC = () => {
 
         const data = await response.json();
         return data.reports || [];
-    }, [debouncedSearch, sortField, sortDirection]);
+    }, [debouncedSearch, sortField, sortDirection, isAdmin]);
 
     const columns: GridColDef[] = useMemo(() => {
         const cols = [
@@ -481,7 +506,9 @@ const ReportsPage: React.FC = () => {
                 minWidth: 100,
                 renderCell: (params: GridRenderCellParams) => (
                     <Typography variant="body2">
-                        {params.row.created_at_formatted || params.value || "-"}
+                        {formatAuditDate(
+                            params.row.created_at || params.value
+                        )}
                     </Typography>
                 ),
             },
@@ -521,9 +548,9 @@ const ReportsPage: React.FC = () => {
                 minWidth: 100,
                 renderCell: (params: GridRenderCellParams) => (
                     <Typography variant="body2">
-                        {params.row.modified_at_formatted ||
-                            params.value ||
-                            "-"}
+                        {formatAuditDate(
+                            params.row.modified_at || params.value
+                        )}
                     </Typography>
                 ),
             },
@@ -778,6 +805,7 @@ const ReportsPage: React.FC = () => {
         handleDeleteClick,
         isLoadingPermissions,
         i18n.language,
+        formatAuditDate,
     ]);
 
     // Error state

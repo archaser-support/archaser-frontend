@@ -63,6 +63,11 @@ export interface BillingConnectorConfig {
     /** YYYY-MM-DD, or null for full-history backfill. */
     backfill_start_date?: string | null;
     /**
+     * YYYY-MM-DD, or null for no gate. Invoices issued before this UTC calendar
+     * day are out of scope for MEP breach evaluation.
+     */
+    mep_breach_start_date?: string | null;
+    /**
      * When start date is set: also pull unpaid pre-date invoices + related payments.
      * Default true.
      */
@@ -72,8 +77,17 @@ export interface BillingConnectorConfig {
      * Default false. Incremental sync and overnight job ignore this.
      */
     skip_reporting_breach_on_backfill?: boolean;
+    /**
+     * Leftover band for Paid (customer outstanding). Default 0.20. Range 0–10.
+     */
+    invoice_paid_tolerance?: number;
     /** Locked after backfill starts until reset. */
     backfill_options_locked?: boolean;
+    /**
+     * Customers with deferred AR replay / insurance refresh still pending on
+     * the worker queue. Start/resume backfill stays disabled while > 0.
+     */
+    pending_ar_post_ingest_customers?: number;
     /** Optional account-extension key; null/empty = standard path. */
     extension_key?: string | null;
     /** Plugin-owned settings for the attached extension. */
@@ -139,7 +153,17 @@ export interface SyncRunSummary {
             success: number;
             failed: number;
             skipped: number;
+            /** Rows removed during Start backfill clear-before-import. */
+            deleted?: number;
             sample_errors?: string[];
+            /** Present for `_maturity` while linking / after it finishes. */
+            status?: "running" | "done" | "failed" | "queued";
+            /** Present for tail steps while running: the sub-step in flight. */
+            detail?: {
+                step: string;
+                processed?: number;
+                total?: number;
+            };
         }
     >;
     error_message: string | null;
@@ -147,10 +171,15 @@ export interface SyncRunSummary {
     /** Present on backfill runs — start date / older-open / skip-breach. */
     cutover_options?: {
         backfill_start_date: string | null;
+        mep_breach_start_date?: string | null;
         include_older_open_invoices: boolean;
         skip_reporting_breach_on_backfill: boolean;
     } | null;
     cutover_summary?: string | null;
+    /** Registry key for the step currently executing (Customer, _maturity, …). */
+    active_step?: string | null;
+    /** Sub-phase within the active step (pulling, linking, …). */
+    active_step_detail?: string | null;
 }
 
 export interface UpsertBillingConnectorPayload {
@@ -172,8 +201,12 @@ export interface UpsertBillingConnectorPayload {
     enabled_entities?: ImportType[];
     /** YYYY-MM-DD, null/"" to clear. */
     backfill_start_date?: string | null;
+    /** YYYY-MM-DD, null/"" to clear. */
+    mep_breach_start_date?: string | null;
     include_older_open_invoices?: boolean;
     skip_reporting_breach_on_backfill?: boolean;
+    /** Required. 0–10, two decimals. Default 0.20. */
+    invoice_paid_tolerance?: number;
     /** Null/"" clears the extension attachment. */
     extension_key?: string | null;
     extension_config?: Record<string, unknown> | null;
@@ -243,6 +276,8 @@ export interface DiscoverFieldsResponse {
 export interface PreviewSyncEntityResult {
     import_type: ImportType;
     pulled: number;
+    importable_count?: number;
+    match_count?: number;
     match_count_capped?: boolean;
     sample_rows: Record<string, unknown>[];
     validation_errors: string[];
@@ -324,21 +359,134 @@ export async function discoverBillingConnectorFields(
 
 export async function runBillingConnectorPreviewSync(
     accountId: number,
-    importType?: ImportType
+    options?: {
+        importType?: ImportType;
+        customer_id?: number | null;
+    }
 ): Promise<PreviewSyncResponse> {
-    const response = await api.post<{ result: PreviewSyncResponse }>(
-        `${basePath(accountId)}/sync`,
-        importType ? { importType } : {},
-        { params: { mode: "preview", ...(importType ? { importType } : {}) } }
-    );
-    return response.data.result;
+    const importType = options?.importType;
+    const body: Record<string, unknown> = {};
+    if (importType) {
+        body.importType = importType;
+    }
+    if (
+        typeof options?.customer_id === "number" &&
+        Number.isFinite(options.customer_id) &&
+        options.customer_id > 0
+    ) {
+        body.customer_id = Math.trunc(options.customer_id);
+    }
+    const accepted = await api.post<{
+        result: {
+            ok?: boolean;
+            accepted?: boolean;
+            execution_id?: string;
+            status?: string;
+        };
+    }>(`${basePath(accountId)}/sync`, body, {
+        params: { mode: "preview", ...(importType ? { importType } : {}) },
+    });
+    const executionId = accepted.data.result?.execution_id;
+    if (!executionId || accepted.data.result?.accepted !== true) {
+        throw new Error("Preview sync did not start");
+    }
+
+    const deadline = Date.now() + 5 * 60 * 1000;
+    while (Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        const job = await fetchBillingConnectorPreviewResult(accountId);
+        if (job.execution_id && job.execution_id !== executionId) {
+            continue;
+        }
+        if (job.status === "RUNNING" || job.status == null) {
+            continue;
+        }
+        if (job.result) {
+            return job.result;
+        }
+        throw new Error(job.error ?? "Preview sync failed");
+    }
+    throw new Error("Preview sync timed out waiting for results");
 }
 
-export async function runBillingConnectorBackfill(accountId: number) {
-    const response = await api.post(`${basePath(accountId)}/sync`, {}, {
+export interface PreviewJobResponse {
+    execution_id: string | null;
+    status: "RUNNING" | "SUCCESS" | "FAILED" | null;
+    started_at: string | null;
+    completed_at: string | null;
+    result: PreviewSyncResponse | null;
+    error: string | null;
+}
+
+export async function fetchBillingConnectorPreviewResult(
+    accountId: number
+): Promise<PreviewJobResponse> {
+    const response = await api.get<PreviewJobResponse>(
+        `${basePath(accountId)}/preview-result`
+    );
+    return response.data;
+}
+
+export async function runBillingConnectorBackfill(
+    accountId: number,
+    options?: {
+        clear_before_import?: Array<
+            "Customer" | "Contact" | "Invoice" | "Payment"
+        >;
+        customer_id?: number | null;
+    }
+) {
+    const body: Record<string, unknown> = {};
+    if (options?.clear_before_import && options.clear_before_import.length > 0) {
+        body.clear_before_import = options.clear_before_import;
+    }
+    if (
+        typeof options?.customer_id === "number" &&
+        Number.isFinite(options.customer_id) &&
+        options.customer_id > 0
+    ) {
+        body.customer_id = Math.trunc(options.customer_id);
+    }
+    const response = await api.post(`${basePath(accountId)}/sync`, body, {
         params: { mode: "backfill" },
     });
     return response.data.result;
+}
+
+export async function lookupBillingConnectorCustomerById(
+    accountId: number,
+    customerId: number
+): Promise<{ id: number; customer_number: string; name: string }> {
+    const response = await api.get<{
+        customer: { id: number; customer_number: string; name: string };
+    }>(`${basePath(accountId)}/customers/by-id`, {
+        params: { customer_id: customerId },
+    });
+    return response.data.customer;
+}
+
+export async function searchBillingConnectorCustomers(
+    accountId: number,
+    searchTerm: string
+): Promise<
+    Array<{
+        id: number;
+        customer_number: string;
+        name: string;
+        type: string;
+    }>
+> {
+    const response = await api.get<{
+        items: Array<{
+            id: number;
+            customer_number: string;
+            name: string;
+            type: string;
+        }>;
+    }>(`${basePath(accountId)}/customers/search`, {
+        params: { q: searchTerm },
+    });
+    return response.data.items ?? [];
 }
 
 export async function runBillingConnectorIncrementalSync(accountId: number) {
@@ -355,6 +503,16 @@ export async function fetchBillingConnectorSyncRuns(
     const response = await api.get<{ runs: SyncRunSummary[] }>(
         `${basePath(accountId)}/sync-runs`,
         { params: { limit } }
+    );
+    return response.data.runs;
+}
+
+/** Durable Mongo sync history (last 90 days). Live progress stays on `/sync-runs`. */
+export async function fetchBillingConnectorSyncHistory(
+    accountId: number
+): Promise<SyncRunSummary[]> {
+    const response = await api.get<{ runs: SyncRunSummary[] }>(
+        `${basePath(accountId)}/sync-history`
     );
     return response.data.runs;
 }

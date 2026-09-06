@@ -477,12 +477,6 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
     });
 
     const getOpenCollectionPeriod = () => {
-        if (customer?.CustomerCollectionPeriod) {
-            customer.CustomerCollectionPeriod.forEach(() => {
-                // Period data processing
-            });
-        }
-
         const openPeriod = customer?.CustomerCollectionPeriod?.find(
             (period: any) => !period.period_end_date
         );
@@ -892,11 +886,15 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
             if (!customer || !showHeaderDualCurrency || !headerSecondaryCurrencyCode) {
                 return null;
             }
-            if (bucketSecondary > 0) {
+            if (bucketSecondary !== 0) {
                 return bucketSecondary;
             }
-            if (primaryAmount <= 0) {
+            if (primaryAmount === 0) {
                 return 0;
+            }
+            if (primaryAmount < 0) {
+                // Credit balances: no positive bucket ratio to project from.
+                return null;
             }
             const pair =
                 arPair ??
@@ -926,10 +924,11 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
             if (amount == null || !Number.isFinite(amount)) {
                 return "—";
             }
-            const primary = Math.max(0, Number(amount));
+            // Keep sign so overdue credit balances (negative) are visible.
+            const primary = Number(amount);
             const secondary =
                 showHeaderDualCurrency && secondaryAmount != null
-                    ? Math.max(0, Number(secondaryAmount))
+                    ? Number(secondaryAmount)
                     : null;
             return formatDualCurrencyCreditInsuranceLine(
                 isRtl,
@@ -946,10 +945,8 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
             showHeaderDualCurrency,
         ]
     );
-    const overduePrimaryAmount = Math.max(
-        0,
-        Number(customer?.total_overdue_amount ?? 0)
-    );
+    // Signed: overdue can be negative when only credit notes are overdue.
+    const overduePrimaryAmount = Number(customer?.total_overdue_amount ?? 0);
     const duePrimaryAmount = Math.max(0, Number(customer?.total_due_amount ?? 0));
     const overdueSecondaryAmount = useMemo(() => {
         if (!customer) {
@@ -1089,12 +1086,17 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
     const formatInvoiceCountSecondary = (count: number) =>
         `(${count} ${t("fields.invoices", { ns: "customers" })})`;
     const headerCompactValueFontSize = "0.875rem";
-    const overdueDays = customer.oldest_invoice_overdue_date
+    // The ungated column counts invoices issued before the MEP breach start date;
+    // the gated one is only a fallback for rows synced before it existed.
+    const oldestOverdueDateForDisplay =
+        customer.oldest_invoice_overdue_date_all ??
+        customer.oldest_invoice_overdue_date;
+    const overdueDays = oldestOverdueDateForDisplay
         ? Math.max(
             0,
             Math.floor(
                 (Date.now() -
-                    new Date(customer.oldest_invoice_overdue_date).getTime()) /
+                    new Date(oldestOverdueDateForDisplay).getTime()) /
                 86_400_000
             )
         )
@@ -1514,13 +1516,10 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                     iconAccent="overdue"
                                     label={t("fields.total_outstanding_amount")}
                                     value={formatHeaderAmount(
-                                        Math.max(
-                                            0,
-                                            Number(
-                                                customer.total_overdue_amount ??
-                                                    overdueDisplay.amount ??
-                                                    0
-                                            )
+                                        Number(
+                                            customer.total_overdue_amount ??
+                                                overdueDisplay.amount ??
+                                                0
                                         ),
                                         overdueSecondaryAmount
                                     )}
@@ -1608,6 +1607,17 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                             : formatHeaderAmount(
                                                   creditKpiCards.termsBreachOutstanding,
                                                   creditKpiCards.termsBreachOutstandingSecondary
+                                              )
+                                    }
+                                    secondaryLine={
+                                        creditKpiQuery.isPending ||
+                                        !creditKpiCards ||
+                                        !Number.isFinite(
+                                            creditKpiCards.termsBreachInvoiceCount
+                                        )
+                                            ? undefined
+                                            : formatInvoiceCountSecondary(
+                                                  creditKpiCards.termsBreachInvoiceCount
                                               )
                                     }
                                     compactValueFontSize={headerCompactValueFontSize}

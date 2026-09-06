@@ -38,7 +38,7 @@ import api, { apiFetch } from "@/app/api";
 import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import FollowUpReminder from "@/app/[locale]/app/agents/components/FollowUpReminder";
@@ -51,18 +51,22 @@ import { CreditInsuranceNavIcon } from "@/shared/components/CreditInsuranceNavIc
 import SpinnerOverlay from "@/shared/layout-components/spinner/SpinnerOverlay";
 import { SpinnerProvider } from "@/shared/layout-components/spinner/SpinnerProvider";
 import { ToastProvider, useToast } from "@/shared/layout-components/toast/ToastProvider";
+import { isFileImportVisible } from "@/shared/utils/accountProducts";
 import {
     getDefaultLandingPage,
     getFirstAccessiblePage,
     isAppRouteAccessible,
     normalizeAppPathname,
 } from "@/shared/utils/navigation";
+import { resolveAppHomePath } from "@/shared/utils/resolveAppHomePath";
+import { LOGIN_HANDOFF_STORAGE_KEY } from "@/shared/utils/sessionLanguageKeys";
 import { getLocalizedPath } from "@/utils/navigationUtils";
 import AppUrls from "@/utils/appUrls";
 
 import ReactQueryProvider from "./ReactQueryProvider";
 
 const drawerWidth = 210;
+const collapsedDrawerWidth = 48;
 
 // Global fix for aria-hidden accessibility issues with Material-UI components
 const useAriaHiddenFix = () => {
@@ -650,8 +654,7 @@ const AppLayout = ({ children }: any) => {
             : true;
     const hasCreditInsuranceProduct =
         effectiveAccountProducts?.has_credit_insurance === true;
-    const hasFileImportProduct =
-        effectiveAccountProducts?.has_file_import !== false;
+    const hasFileImportProduct = isFileImportVisible(effectiveAccountProducts);
     const isCreditOnlyAccount =
         !hasCollectionProduct && hasCreditInsuranceProduct;
 
@@ -1442,7 +1445,7 @@ const AppLayout = ({ children }: any) => {
                                                         mx: sidebarOpen
                                                             ? 0.25
                                                             : 0,
-                                                        px: sidebarOpen ? 0 : 2,
+                                                        px: sidebarOpen ? 0 : 1,
                                                         // Consistent left/start padding for all items, extra right/end padding only for items with badges > 0
                                                         ...(sidebarOpen && {
                                                             ...(isHebrewUser
@@ -1770,7 +1773,7 @@ const AppLayout = ({ children }: any) => {
                                                 }
                                                 sx={{
                                                     mx: sidebarOpen ? 0.25 : 0,
-                                                    px: sidebarOpen ? 0 : 2,
+                                                    px: sidebarOpen ? 0 : 1,
                                                     // Consistent left/start padding for all items, extra right/end padding only for items with badges > 0
                                                     ...(sidebarOpen && {
                                                         ...(isHebrewUser
@@ -2008,6 +2011,54 @@ const AppLayout = ({ children }: any) => {
             effectiveAccountProducts
         );
 
+    // After login we may briefly land on the account default page. If the user
+    // cannot open it, send them to their first accessible page instead of Access Denied.
+    const postLoginAccessRedirectRef = useRef(false);
+    useEffect(() => {
+        if (postLoginAccessRedirectRef.current) {
+            return;
+        }
+        if (!isRouteAccessResolved || isCurrentRouteAccessible) {
+            return;
+        }
+        let loginHandoff = false;
+        try {
+            loginHandoff =
+                sessionStorage.getItem(LOGIN_HANDOFF_STORAGE_KEY) === "true";
+        } catch {
+            loginHandoff = false;
+        }
+        if (!loginHandoff) {
+            return;
+        }
+
+        const homePath = resolveAppHomePath({
+            accountId: effectiveUser.account_id,
+            permissions: userPermissions ?? [],
+            accountProducts: effectiveAccountProducts,
+        });
+        if (
+            !homePath ||
+            homePath === pathWithoutLocale ||
+            pathWithoutLocale.startsWith(`${homePath}/`)
+        ) {
+            return;
+        }
+
+        postLoginAccessRedirectRef.current = true;
+        const locale = (params?.locale as string) || "en";
+        router.replace(`/${locale}${homePath}`);
+    }, [
+        isRouteAccessResolved,
+        isCurrentRouteAccessible,
+        effectiveUser.account_id,
+        userPermissions,
+        effectiveAccountProducts,
+        pathWithoutLocale,
+        params?.locale,
+        router,
+    ]);
+
     const shouldBlockLayoutRender =
         status === "authenticated" &&
         isSessionReady &&
@@ -2071,7 +2122,11 @@ const AppLayout = ({ children }: any) => {
                 <Box
                     component="nav"
                     sx={{
-                        width: { sm: sidebarOpen ? drawerWidth : 61 },
+                        width: {
+                            sm: sidebarOpen
+                                ? drawerWidth
+                                : collapsedDrawerWidth,
+                        },
                         flexShrink: { sm: 0 },
                         order: isHebrewUser ? 2 : 1,
                     }}
@@ -2121,7 +2176,9 @@ const AppLayout = ({ children }: any) => {
                             display: { xs: "none", sm: "block" },
                             "& .MuiDrawer-paper": {
                                 boxSizing: "border-box",
-                                width: sidebarOpen ? drawerWidth : 61,
+                                width: sidebarOpen
+                                    ? drawerWidth
+                                    : collapsedDrawerWidth,
                                 overflow: "hidden",
                                 transition: theme.transitions.create("width", {
                                     easing: theme.transitions.easing.sharp,
