@@ -15,12 +15,12 @@ export type CustomerPolicyHistoryRow = {
     max_payment_term?: number | null;
     max_allowed_mep?: number | null;
     reporting_days?: number | null;
-    mep_cutoff_day_of_month?: number | null;
-    mep_substitute_day_of_month?: number | null;
-    reporting_cutoff_day_of_month?: number | null;
-    reporting_substitute_day_of_month?: number | null;
-    payment_term_cutoff_day_of_month?: number | null;
-    payment_term_substitute_day_of_month?: number | null;
+    mep_cutoff_day?: number | null;
+    mep_substitute_extra_days?: number | null;
+    reporting_cutoff_day?: number | null;
+    reporting_substitute_extra_days?: number | null;
+    payment_term_cutoff_day?: number | null;
+    payment_term_substitute_day?: number | null;
     excluded_from_policy?: boolean;
     policy_exclusion_reason?: string | null;
     credit_score?: unknown;
@@ -228,15 +228,15 @@ export function applyEffectivePolicyFieldsToCustomer<T extends CustomerWithPolic
         max_payment_term: active.max_payment_term ?? null,
         max_allowed_mep: active.max_allowed_mep ?? null,
         reporting_days: active.reporting_days ?? null,
-        mep_cutoff_day_of_month: active.mep_cutoff_day_of_month ?? null,
-        mep_substitute_day_of_month: active.mep_substitute_day_of_month ?? null,
-        reporting_cutoff_day_of_month: active.reporting_cutoff_day_of_month ?? null,
-        reporting_substitute_day_of_month:
-            active.reporting_substitute_day_of_month ?? null,
-        payment_term_cutoff_day_of_month:
-            active.payment_term_cutoff_day_of_month ?? null,
-        payment_term_substitute_day_of_month:
-            active.payment_term_substitute_day_of_month ?? null,
+        mep_cutoff_day: active.mep_cutoff_day ?? null,
+        mep_substitute_extra_days: active.mep_substitute_extra_days ?? null,
+        reporting_cutoff_day: active.reporting_cutoff_day ?? null,
+        reporting_substitute_extra_days:
+            active.reporting_substitute_extra_days ?? null,
+        payment_term_cutoff_day:
+            active.payment_term_cutoff_day ?? null,
+        payment_term_substitute_day:
+            active.payment_term_substitute_day ?? null,
         excluded_from_policy: active.excluded_from_policy ?? false,
         policy_exclusion_reason: active.policy_exclusion_reason ?? null,
         credit_score: active.credit_score ?? null,
@@ -312,13 +312,13 @@ export function buildCustomerPutPayload(
         max_payment_term: edited.max_payment_term,
         max_allowed_mep: edited.max_allowed_mep,
         reporting_days: edited.reporting_days,
-        mep_cutoff_day_of_month: edited.mep_cutoff_day_of_month,
-        mep_substitute_day_of_month: edited.mep_substitute_day_of_month,
-        reporting_cutoff_day_of_month: edited.reporting_cutoff_day_of_month,
-        reporting_substitute_day_of_month: edited.reporting_substitute_day_of_month,
-        payment_term_cutoff_day_of_month: edited.payment_term_cutoff_day_of_month,
-        payment_term_substitute_day_of_month:
-            edited.payment_term_substitute_day_of_month,
+        mep_cutoff_day: edited.mep_cutoff_day,
+        mep_substitute_extra_days: edited.mep_substitute_extra_days,
+        reporting_cutoff_day: edited.reporting_cutoff_day,
+        reporting_substitute_extra_days: edited.reporting_substitute_extra_days,
+        payment_term_cutoff_day: edited.payment_term_cutoff_day,
+        payment_term_substitute_day:
+            edited.payment_term_substitute_day,
         policy_exclusion_reason: edited.policy_exclusion_reason,
         credit_score: edited.credit_score,
         credit_score_input_date: edited.credit_score_input_date,
@@ -348,12 +348,12 @@ export function stripLegacyPolicyFieldsFromPayload(
         max_payment_term: _mpt,
         max_allowed_mep: _mam,
         reporting_days: _rd,
-        mep_cutoff_day_of_month: _mcd,
-        mep_substitute_day_of_month: _msd,
-        reporting_cutoff_day_of_month: _rcd,
-        reporting_substitute_day_of_month: _rsd,
-        payment_term_cutoff_day_of_month: _ptcd,
-        payment_term_substitute_day_of_month: _ptsd,
+        mep_cutoff_day: _mcd,
+        mep_substitute_extra_days: _msd,
+        reporting_cutoff_day: _rcd,
+        reporting_substitute_extra_days: _rsd,
+        payment_term_cutoff_day: _ptcd,
+        payment_term_substitute_day: _ptsd,
         policy_exclusion_reason: _per,
         credit_score: _cs,
         credit_score_input_date: _csid,

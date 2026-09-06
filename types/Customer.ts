@@ -143,12 +143,12 @@ export type CustomerPolicyHistoryItem = {
     max_payment_term?: number | null;
     max_allowed_mep?: number | null;
     reporting_days?: number | null;
-    mep_cutoff_day_of_month?: number | null;
-    mep_substitute_day_of_month?: number | null;
-    reporting_cutoff_day_of_month?: number | null;
-    reporting_substitute_day_of_month?: number | null;
-    payment_term_cutoff_day_of_month?: number | null;
-    payment_term_substitute_day_of_month?: number | null;
+    mep_cutoff_day?: number | null;
+    mep_substitute_extra_days?: number | null;
+    reporting_cutoff_day?: number | null;
+    reporting_substitute_extra_days?: number | null;
+    payment_term_cutoff_day?: number | null;
+    payment_term_substitute_day?: number | null;
     excluded_from_policy?: boolean;
     policy_exclusion_reason?: string | null;
     credit_score?: unknown;
