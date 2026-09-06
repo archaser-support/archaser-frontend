@@ -38,6 +38,7 @@ import {
     resolveCustomerPolicyHistoryChipKind,
     resolveUserAuditDisplayName,
 } from "@/shared/creditInsurance/customerPolicyHistoryPresentation";
+import { MonthEndFieldLabelWithTooltip } from "@/shared/creditInsurance/MonthEndFieldLabelWithTooltip";
 import { POLICY_EXCLUSION_REASONS } from "@/shared/creditInsurance/policyExclusion";
 
 import CustomerFormField from "./CustomerFormField";
@@ -276,38 +277,67 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                 ns: "settings",
                 defaultValue: "Payment term",
             }),
-            mepCutoffDayOfMonth: toTitleCaseLabel(
-                t("credit_insurance.fields.mep_cutoff_day_of_month", {
+            mepCutoffDay: toTitleCaseLabel(
+                t("credit_insurance.fields.mep_cutoff_day", {
                     ns: "settings",
-                    defaultValue: "MEP cutoff day of month",
+                    defaultValue: "MEP Cutoff Day",
                 })
             ),
-            mepSubstituteDayOfMonth: toTitleCaseLabel(
-                t("credit_insurance.fields.mep_substitute_day_of_month", {
+            mepSubstituteExtraDays: toTitleCaseLabel(
+                t("credit_insurance.fields.mep_substitute_extra_days", {
                     ns: "settings",
-                    defaultValue: "MEP substitute day of month",
+                    defaultValue: "MEP Extra Days",
                 })
             ),
-            reportingCutoffDayOfMonth: toTitleCaseLabel(
-                t("credit_insurance.fields.reporting_cutoff_day_of_month", {
+            reportingCutoffDay: toTitleCaseLabel(
+                t("credit_insurance.fields.reporting_cutoff_day", {
                     ns: "settings",
-                    defaultValue: "Reporting cutoff day of month",
+                    defaultValue: "Reporting Cutoff Day",
                 })
             ),
-            reportingSubstituteDayOfMonth: toTitleCaseLabel(
-                t("credit_insurance.fields.reporting_substitute_day_of_month", {
+            reportingSubstituteExtraDays: toTitleCaseLabel(
+                t("credit_insurance.fields.reporting_substitute_extra_days", {
                     ns: "settings",
-                    defaultValue: "Reporting substitute day of month",
+                    defaultValue: "Reporting Extra Days",
                 })
             ),
-            paymentTermCutoffDayOfMonth: toTitleCaseLabel(
-                t("credit_insurance.fields.payment_term_cutoff_day_of_month", {
+            mepCutoffDayTooltip: t("credit_insurance.tooltips.mep_cutoff_day", {
+                ns: "settings",
+                defaultValue:
+                    "Invoice issue day on/after this day uses MEP extra days.",
+            }),
+            mepSubstituteExtraDaysTooltip: t(
+                "credit_insurance.tooltips.mep_substitute_extra_days",
+                {
+                    ns: "settings",
+                    defaultValue:
+                        "Added to due date + max allowed MEP when cutoff applies.",
+                }
+            ),
+            reportingCutoffDayTooltip: t(
+                "credit_insurance.tooltips.reporting_cutoff_day",
+                {
+                    ns: "settings",
+                    defaultValue:
+                        "Invoice issue day on/after this day uses reporting extra days.",
+                }
+            ),
+            reportingSubstituteExtraDaysTooltip: t(
+                "credit_insurance.tooltips.reporting_substitute_extra_days",
+                {
+                    ns: "settings",
+                    defaultValue:
+                        "Added to due date + reporting days when cutoff applies.",
+                }
+            ),
+            paymentTermCutoffDay: toTitleCaseLabel(
+                t("credit_insurance.fields.payment_term_cutoff_day", {
                     ns: "settings",
                     defaultValue: "Payment term cutoff day of month",
                 })
             ),
-            paymentTermSubstituteDayOfMonth: toTitleCaseLabel(
-                t("credit_insurance.fields.payment_term_substitute_day_of_month", {
+            paymentTermSubstituteDay: toTitleCaseLabel(
+                t("credit_insurance.fields.payment_term_substitute_day", {
                     ns: "settings",
                     defaultValue: "Payment term substitute day of month",
                 })
@@ -356,6 +386,35 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
             ),
         }),
         [t]
+    );
+
+    const mepCutoffDayLabel = (
+        <MonthEndFieldLabelWithTooltip
+            label={creditInsuranceLabels.mepCutoffDay}
+            tooltip={creditInsuranceLabels.mepCutoffDayTooltip}
+            isRtl={isRTL}
+        />
+    );
+    const mepSubstituteExtraDaysLabel = (
+        <MonthEndFieldLabelWithTooltip
+            label={creditInsuranceLabels.mepSubstituteExtraDays}
+            tooltip={creditInsuranceLabels.mepSubstituteExtraDaysTooltip}
+            isRtl={isRTL}
+        />
+    );
+    const reportingCutoffDayLabel = (
+        <MonthEndFieldLabelWithTooltip
+            label={creditInsuranceLabels.reportingCutoffDay}
+            tooltip={creditInsuranceLabels.reportingCutoffDayTooltip}
+            isRtl={isRTL}
+        />
+    );
+    const reportingSubstituteExtraDaysLabel = (
+        <MonthEndFieldLabelWithTooltip
+            label={creditInsuranceLabels.reportingSubstituteExtraDays}
+            tooltip={creditInsuranceLabels.reportingSubstituteExtraDaysTooltip}
+            isRtl={isRTL}
+        />
     );
 
     const firstIssuedInvoiceDate = useMemo(() => {
@@ -710,40 +769,40 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                         : null
                 }
             />
-            {row.mep_cutoff_day_of_month != null ? (
+            {row.mep_cutoff_day != null ? (
                 <CreditInsuranceReadonlyField
-                    label={creditInsuranceLabels.mepCutoffDayOfMonth}
-                    value={String(row.mep_cutoff_day_of_month)}
+                    label={mepCutoffDayLabel}
+                    value={String(row.mep_cutoff_day)}
                 />
             ) : null}
-            {row.mep_substitute_day_of_month != null ? (
+            {row.mep_substitute_extra_days != null ? (
                 <CreditInsuranceReadonlyField
-                    label={creditInsuranceLabels.mepSubstituteDayOfMonth}
-                    value={String(row.mep_substitute_day_of_month)}
+                    label={mepSubstituteExtraDaysLabel}
+                    value={String(row.mep_substitute_extra_days)}
                 />
             ) : null}
-            {row.reporting_cutoff_day_of_month != null ? (
+            {row.reporting_cutoff_day != null ? (
                 <CreditInsuranceReadonlyField
-                    label={creditInsuranceLabels.reportingCutoffDayOfMonth}
-                    value={String(row.reporting_cutoff_day_of_month)}
+                    label={reportingCutoffDayLabel}
+                    value={String(row.reporting_cutoff_day)}
                 />
             ) : null}
-            {row.reporting_substitute_day_of_month != null ? (
+            {row.reporting_substitute_extra_days != null ? (
                 <CreditInsuranceReadonlyField
-                    label={creditInsuranceLabels.reportingSubstituteDayOfMonth}
-                    value={String(row.reporting_substitute_day_of_month)}
+                    label={reportingSubstituteExtraDaysLabel}
+                    value={String(row.reporting_substitute_extra_days)}
                 />
             ) : null}
-            {row.payment_term_cutoff_day_of_month != null ? (
+            {row.payment_term_cutoff_day != null ? (
                 <CreditInsuranceReadonlyField
-                    label={creditInsuranceLabels.paymentTermCutoffDayOfMonth}
-                    value={String(row.payment_term_cutoff_day_of_month)}
+                    label={creditInsuranceLabels.paymentTermCutoffDay}
+                    value={String(row.payment_term_cutoff_day)}
                 />
             ) : null}
-            {row.payment_term_substitute_day_of_month != null ? (
+            {row.payment_term_substitute_day != null ? (
                 <CreditInsuranceReadonlyField
-                    label={creditInsuranceLabels.paymentTermSubstituteDayOfMonth}
-                    value={String(row.payment_term_substitute_day_of_month)}
+                    label={creditInsuranceLabels.paymentTermSubstituteDay}
+                    value={String(row.payment_term_substitute_day)}
                 />
             ) : null}
             <CreditInsuranceReadonlyField
@@ -1034,26 +1093,26 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                         />
                     </Box>
 
-                    {customer?.payment_term_cutoff_day_of_month != null ? (
+                    {customer?.payment_term_cutoff_day != null ? (
                         <Box sx={fieldCellSx}>
                             <CreditInsuranceReadonlyField
                                 label={
-                                    creditInsuranceLabels.paymentTermCutoffDayOfMonth
+                                    creditInsuranceLabels.paymentTermCutoffDay
                                 }
                                 value={String(
-                                    customer.payment_term_cutoff_day_of_month
+                                    customer.payment_term_cutoff_day
                                 )}
                             />
                         </Box>
                     ) : null}
-                    {customer?.payment_term_substitute_day_of_month != null ? (
+                    {customer?.payment_term_substitute_day != null ? (
                         <Box sx={fieldCellSx}>
                             <CreditInsuranceReadonlyField
                                 label={
-                                    creditInsuranceLabels.paymentTermSubstituteDayOfMonth
+                                    creditInsuranceLabels.paymentTermSubstituteDay
                                 }
                                 value={String(
-                                    customer.payment_term_substitute_day_of_month
+                                    customer.payment_term_substitute_day
                                 )}
                             />
                         </Box>
@@ -1076,22 +1135,20 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                         />
                     </Box>
 
-                    {customer?.mep_cutoff_day_of_month != null ? (
+                    {customer?.mep_cutoff_day != null ? (
                         <Box sx={fieldCellSx}>
                             <CreditInsuranceReadonlyField
-                                label={creditInsuranceLabels.mepCutoffDayOfMonth}
-                                value={String(customer.mep_cutoff_day_of_month)}
+                                label={mepCutoffDayLabel}
+                                value={String(customer.mep_cutoff_day)}
                             />
                         </Box>
                     ) : null}
-                    {customer?.mep_substitute_day_of_month != null ? (
+                    {customer?.mep_substitute_extra_days != null ? (
                         <Box sx={fieldCellSx}>
                             <CreditInsuranceReadonlyField
-                                label={
-                                    creditInsuranceLabels.mepSubstituteDayOfMonth
-                                }
+                                label={mepSubstituteExtraDaysLabel}
                                 value={String(
-                                    customer.mep_substitute_day_of_month
+                                    customer.mep_substitute_extra_days
                                 )}
                             />
                         </Box>
@@ -1114,26 +1171,22 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                         />
                     </Box>
 
-                    {customer?.reporting_cutoff_day_of_month != null ? (
+                    {customer?.reporting_cutoff_day != null ? (
                         <Box sx={fieldCellSx}>
                             <CreditInsuranceReadonlyField
-                                label={
-                                    creditInsuranceLabels.reportingCutoffDayOfMonth
-                                }
+                                label={reportingCutoffDayLabel}
                                 value={String(
-                                    customer.reporting_cutoff_day_of_month
+                                    customer.reporting_cutoff_day
                                 )}
                             />
                         </Box>
                     ) : null}
-                    {customer?.reporting_substitute_day_of_month != null ? (
+                    {customer?.reporting_substitute_extra_days != null ? (
                         <Box sx={fieldCellSx}>
                             <CreditInsuranceReadonlyField
-                                label={
-                                    creditInsuranceLabels.reportingSubstituteDayOfMonth
-                                }
+                                label={reportingSubstituteExtraDaysLabel}
                                 value={String(
-                                    customer.reporting_substitute_day_of_month
+                                    customer.reporting_substitute_extra_days
                                 )}
                             />
                         </Box>
@@ -1201,25 +1254,25 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                         <TextField
                             fullWidth
                             size="small"
-                            label={creditInsuranceLabels.paymentTermCutoffDayOfMonth}
+                            label={creditInsuranceLabels.paymentTermCutoffDay}
                             type="number"
                             value={
-                                customer?.payment_term_cutoff_day_of_month != null
+                                customer?.payment_term_cutoff_day != null
                                     ? String(
-                                        customer.payment_term_cutoff_day_of_month
+                                        customer.payment_term_cutoff_day
                                     )
                                     : ""
                             }
                             onChange={(e) =>
                                 onChange(
-                                    "payment_term_cutoff_day_of_month",
+                                    "payment_term_cutoff_day",
                                     e.target.value === ""
                                         ? null
                                         : parseInt(e.target.value, 10)
                                 )
                             }
-                            error={!!errors.payment_term_cutoff_day_of_month}
-                            helperText={errors.payment_term_cutoff_day_of_month}
+                            error={!!errors.payment_term_cutoff_day}
+                            helperText={errors.payment_term_cutoff_day}
                             sx={creditInsuranceFieldSx}
                         />
                     </Box>
@@ -1227,28 +1280,28 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                         <TextField
                             fullWidth
                             size="small"
-                            label={creditInsuranceLabels.paymentTermSubstituteDayOfMonth}
+                            label={creditInsuranceLabels.paymentTermSubstituteDay}
                             type="number"
                             value={
-                                customer?.payment_term_substitute_day_of_month !=
+                                customer?.payment_term_substitute_day !=
                                     null
                                     ? String(
-                                        customer.payment_term_substitute_day_of_month
+                                        customer.payment_term_substitute_day
                                     )
                                     : ""
                             }
                             onChange={(e) =>
                                 onChange(
-                                    "payment_term_substitute_day_of_month",
+                                    "payment_term_substitute_day",
                                     e.target.value === ""
                                         ? null
                                         : parseInt(e.target.value, 10)
                                 )
                             }
-                            required={customer?.payment_term_cutoff_day_of_month != null}
-                            error={!!errors.payment_term_substitute_day_of_month}
+                            required={customer?.payment_term_cutoff_day != null}
+                            error={!!errors.payment_term_substitute_day}
                             helperText={
-                                errors.payment_term_substitute_day_of_month
+                                errors.payment_term_substitute_day
                             }
                             sx={creditInsuranceFieldSx}
                         />
@@ -1289,23 +1342,23 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                         <TextField
                             fullWidth
                             size="small"
-                            label={creditInsuranceLabels.mepCutoffDayOfMonth}
+                            label={mepCutoffDayLabel}
                             type="number"
                             value={
-                                customer?.mep_cutoff_day_of_month != null
-                                    ? String(customer.mep_cutoff_day_of_month)
+                                customer?.mep_cutoff_day != null
+                                    ? String(customer.mep_cutoff_day)
                                     : ""
                             }
                             onChange={(e) =>
                                 onChange(
-                                    "mep_cutoff_day_of_month",
+                                    "mep_cutoff_day",
                                     e.target.value === ""
                                         ? null
                                         : parseInt(e.target.value, 10)
                                 )
                             }
-                            error={!!errors.mep_cutoff_day_of_month}
-                            helperText={errors.mep_cutoff_day_of_month}
+                            error={!!errors.mep_cutoff_day}
+                            helperText={errors.mep_cutoff_day}
                             sx={creditInsuranceFieldSx}
                         />
                     </Box>
@@ -1313,27 +1366,27 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                         <TextField
                             fullWidth
                             size="small"
-                            label={creditInsuranceLabels.mepSubstituteDayOfMonth}
+                            label={mepSubstituteExtraDaysLabel}
                             type="number"
                             value={
-                                customer?.mep_substitute_day_of_month != null
+                                customer?.mep_substitute_extra_days != null
                                     ? String(
-                                        customer.mep_substitute_day_of_month
+                                        customer.mep_substitute_extra_days
                                     )
                                     : ""
                             }
                             onChange={(e) =>
                                 onChange(
-                                    "mep_substitute_day_of_month",
+                                    "mep_substitute_extra_days",
                                     e.target.value === ""
                                         ? null
                                         : parseInt(e.target.value, 10)
                                 )
                             }
-                            required={customer?.mep_cutoff_day_of_month != null}
-                            error={!!errors.mep_substitute_day_of_month}
+                            required={customer?.mep_cutoff_day != null}
+                            error={!!errors.mep_substitute_extra_days}
                             helperText={
-                                errors.mep_substitute_day_of_month
+                                errors.mep_substitute_extra_days
                             }
                             sx={creditInsuranceFieldSx}
                         />
@@ -1389,29 +1442,27 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                         <TextField
                             fullWidth
                             size="small"
-                            label={
-                                creditInsuranceLabels.reportingCutoffDayOfMonth
-                            }
+                            label={reportingCutoffDayLabel}
                             type="number"
                             value={
-                                customer?.reporting_cutoff_day_of_month !=
+                                customer?.reporting_cutoff_day !=
                                     null
                                     ? String(
-                                        customer.reporting_cutoff_day_of_month
+                                        customer.reporting_cutoff_day
                                     )
                                     : ""
                             }
                             onChange={(e) =>
                                 onChange(
-                                    "reporting_cutoff_day_of_month",
+                                    "reporting_cutoff_day",
                                     e.target.value === ""
                                         ? null
                                         : parseInt(e.target.value, 10)
                                 )
                             }
-                            error={!!errors.reporting_cutoff_day_of_month}
+                            error={!!errors.reporting_cutoff_day}
                             helperText={
-                                errors.reporting_cutoff_day_of_month
+                                errors.reporting_cutoff_day
                             }
                             sx={creditInsuranceFieldSx}
                         />
@@ -1420,27 +1471,27 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                         <TextField
                             fullWidth
                             size="small"
-                            label={creditInsuranceLabels.reportingSubstituteDayOfMonth}
+                            label={reportingSubstituteExtraDaysLabel}
                             type="number"
                             value={
-                                customer?.reporting_substitute_day_of_month !=
+                                customer?.reporting_substitute_extra_days !=
                                     null
                                     ? String(
-                                        customer.reporting_substitute_day_of_month
+                                        customer.reporting_substitute_extra_days
                                     )
                                     : ""
                             }
                             onChange={(e) =>
                                 onChange(
-                                    "reporting_substitute_day_of_month",
+                                    "reporting_substitute_extra_days",
                                     e.target.value === ""
                                         ? null
                                         : parseInt(e.target.value, 10)
                                 )
                             }
-                            required={customer?.reporting_cutoff_day_of_month != null}
+                            required={customer?.reporting_cutoff_day != null}
                             helperText={
-                                errors.reporting_substitute_day_of_month ||
+                                errors.reporting_substitute_extra_days ||
                                 t("hints.reporting_days_new_invoices_only", {
                                     ns: "customers",
                                     defaultValue:
@@ -1456,7 +1507,7 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                                 },
                             }}
                             error={
-                                !!errors.reporting_substitute_day_of_month
+                                !!errors.reporting_substitute_extra_days
                             }
                             sx={creditInsuranceFieldSx}
                         />
