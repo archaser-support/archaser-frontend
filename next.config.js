@@ -2,19 +2,35 @@
 const fs = require("fs");
 const path = require("path");
 
-// Load env from this package (frontend/.env). Falls back to backend/.env for shared secrets during monorepo transition.
+// Load env dynamically based on process.env.APP_ENV or process.env.NODE_ENV.
 const appDir = __dirname;
-const backendEnvDir = path.resolve(__dirname, "../backend");
+const backendEnvDir = path.resolve(__dirname, "../be");
 try {
-    require("dotenv").config({ path: path.join(appDir, ".env") });
-    require("dotenv").config({
-        path: path.join(backendEnvDir, ".env"),
-        override: false,
-    });
+    const dotenv = require("dotenv");
+    const targetEnv = process.env.APP_ENV || (process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "development" ? process.env.NODE_ENV : undefined);
+
+    if (targetEnv) {
+        const envLocalPath = path.join(appDir, `.env.${targetEnv}.local`);
+        const envPath = path.join(appDir, `.env.${targetEnv}`);
+        if (fs.existsSync(envLocalPath)) {
+            dotenv.config({ path: envLocalPath, override: true });
+        }
+        if (fs.existsSync(envPath)) {
+            dotenv.config({ path: envPath, override: true });
+        }
+    }
+
     const localEnv = path.join(appDir, ".env.local");
     if (fs.existsSync(localEnv)) {
-        require("dotenv").config({ path: localEnv, override: true });
+        dotenv.config({ path: localEnv, override: false });
     }
+    dotenv.config({ path: path.join(appDir, ".env"), override: false });
+
+    // Fallback to backend env for shared secrets during monorepo transition
+    if (targetEnv) {
+        dotenv.config({ path: path.join(backendEnvDir, `.env.${targetEnv}`), override: false });
+    }
+    dotenv.config({ path: path.join(backendEnvDir, ".env"), override: false });
 } catch {
     // dotenv may be unavailable in some deploy images; process env still applies.
 }
