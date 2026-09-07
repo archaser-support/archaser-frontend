@@ -7,6 +7,8 @@ import dynamic from "next/dynamic";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
+import { CreditDashboardTitleInfoIcon } from "@/app/[locale]/app/credit-dashboard/creditDashboardTitleTooltip";
+
 import {
     buildDailyCostChangeChartSeries,
     formatSignedCostChangeAmount,
@@ -21,6 +23,7 @@ export type CustomerDashboardDailyCostChartProps = {
     isRtl: boolean;
     locale: string;
     title: string;
+    titleTooltip: string;
     emptyLabel: string;
     policySeriesLabel: string;
     topUpSeriesLabel: string;
@@ -32,6 +35,7 @@ export function CustomerDashboardDailyCostChart({
     isRtl,
     locale,
     title,
+    titleTooltip,
     emptyLabel,
     policySeriesLabel,
     topUpSeriesLabel,
@@ -40,6 +44,7 @@ export function CustomerDashboardDailyCostChart({
     const theme = useTheme();
     const chartCard = theme.creditDashboardChartCard;
     const cp = theme.palette.chartPalette;
+    const { t } = useTranslation(["dashboard"]);
     const isEmpty = isDailyCostChangeChartEmpty(points);
 
     const chart = useMemo(() => {
@@ -134,9 +139,34 @@ export function CustomerDashboardDailyCostChart({
                     <PaidIcon />
                 </Box>
                 <Box sx={chartCard.headerColumn(theme, isRtl)}>
-                    <Typography sx={chartCard.headerTitle(theme, isRtl)}>
-                        {title}
-                    </Typography>
+                    <Box
+                        sx={{
+                            ...chartCard.headerTitleRow(theme, isRtl),
+                            mb: theme.spacing(1),
+                        }}
+                    >
+                        <Typography
+                            variant="body2"
+                            component="span"
+                            sx={{
+                                ...chartCard.headerTitleInRow(theme, isRtl),
+                                ml: 0,
+                                mr: 0,
+                                mb: 0,
+                                minWidth: 0,
+                            }}
+                        >
+                            {title}
+                        </Typography>
+                        <CreditDashboardTitleInfoIcon
+                            isRtl={isRtl}
+                            title={titleTooltip}
+                            ariaLabel={t(
+                                "credit_insurance_dashboard.chart_title_help_aria",
+                                { ns: "dashboard" }
+                            )}
+                        />
+                    </Box>
                     {isEmpty && (
                         <Typography variant="caption" color="text.secondary">
                             {emptyLabel}
