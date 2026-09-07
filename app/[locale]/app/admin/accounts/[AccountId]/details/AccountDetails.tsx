@@ -288,6 +288,14 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
         }
     }, [searchParams, accountId, tabIndexByName]);
 
+    // Clamp when permission-gated tabs mount/unmount (MUI warns if value is
+    // outside the rendered Tab children, e.g. value 6 with only 0–4 present).
+    useEffect(() => {
+        if (!(activeTab in tabNameByIndex)) {
+            setActiveTab(0);
+        }
+    }, [activeTab, tabNameByIndex]);
+
     // SMS Provider Configuration state
     const [selectedCountryForSMS, setSelectedCountryForSMS] =
         useState<CountryType | null>(null);

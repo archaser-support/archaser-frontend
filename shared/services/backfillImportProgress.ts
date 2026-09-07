@@ -300,6 +300,74 @@ export function findRunningBackfillRun(
     return runs.find((run) => isBackfillSyncRun(run) && run.status === "RUNNING") ?? null;
 }
 
+/**
+ * After Start/Resume we seed a RUNNING row into the React Query cache. The next
+ * sync-runs refetch can briefly return without that row (empty payload, race,
+ * or stale response) and wipe the seed — progress steps vanish until refresh.
+ * Keep the previous optimistic RUNNING backfill until the fetch includes it or
+ * another live RUNNING backfill.
+ */
+export function mergeSyncRunsPreservingOptimisticRunning(
+    fetched: SyncRunSummary[] | null | undefined,
+    previous: SyncRunSummary[] | null | undefined
+): SyncRunSummary[] {
+    const fetchedRuns = Array.isArray(fetched) ? fetched : [];
+    const previousRuns = Array.isArray(previous) ? previous : [];
+    if (findRunningBackfillRun(fetchedRuns)) {
+        return fetchedRuns;
+    }
+    const previousRunning = findRunningBackfillRun(previousRuns);
+    if (
+        !previousRunning ||
+        isPlaceholderBackfillProgressRun(previousRunning)
+    ) {
+        return fetchedRuns;
+    }
+    const fetchedSameId = fetchedRuns.find(
+        (run) => run.id === previousRunning.id
+    );
+    if (fetchedSameId) {
+        // Terminal (or non-running) update for the same execution — trust fetch.
+        return fetchedRuns;
+    }
+    return [
+        previousRunning,
+        ...fetchedRuns.filter((run) => run.id !== previousRunning.id),
+    ];
+}
+
+/**
+ * Pick the run the progress panel should render, including Start/Resume holds.
+ */
+export function resolveDisplayBackfillProgressRun(params: {
+    syncRuns: SyncRunSummary[];
+    progressRun: SyncRunSummary | null;
+    heldProgressRun: SyncRunSummary | null;
+    pendingBackfillReset: boolean;
+    progressUiReset: boolean;
+    expectDeletingStep?: boolean;
+}): SyncRunSummary | null {
+    if (params.progressUiReset) {
+        return createResetBackfillProgressRun();
+    }
+    const liveRunning = findRunningBackfillRun(params.syncRuns);
+    if (liveRunning) {
+        return liveRunning;
+    }
+    if (
+        params.heldProgressRun &&
+        params.heldProgressRun.status === "RUNNING"
+    ) {
+        return params.heldProgressRun;
+    }
+    if (params.pendingBackfillReset) {
+        return createPendingBackfillRun({
+            expectPurge: params.expectDeletingStep === true,
+        });
+    }
+    return params.progressRun;
+}
+
 export function findSyncRunById(
     runs: SyncRunSummary[],
     executionId: string
