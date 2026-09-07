@@ -15,8 +15,8 @@ export default function Account10149Panel(_props: BillingExtensionPanelProps) {
             are rewritten before save (ש&apos;ח / ש&quot;ח → ILS, $ → USD). Every
             reconciled IDG_ARFNCITEMS4 line (recon number + linked invoice + zero
             balance) queues a virtual payment for that invoice so remaining unpaid
-            amount closes. Rows with a customer id (IDG_CUSTNAME, else
-            IDC_CUSTNAMEIV) import as real payments — including VAT/tax ledger
+            amount closes. Rows with a customer id (ACCNAME) import as real
+            payments — including VAT/tax ledger
             lines — and count in paid/collected totals; virtual fill covers any
             shortfall. Helam two-invoice offsets (cancel IVNUM differs from
             FNCIREF1) queue virtual close for both invoice numbers with no
