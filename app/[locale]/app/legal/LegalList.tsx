@@ -48,6 +48,7 @@ import {
 import AppUrls from "@/utils/appUrls";
 import {
     formatDateForDisplay,
+    getUserDateLocale,
     getCountryTimezone,
     getCurrentTimeForCountry,
 } from "@/utils/datetimeOperations";
@@ -79,7 +80,7 @@ const formatLastCall = (
     return formatDateForDisplay(
         new Date(lastCall),
         "datetime",
-        session?.user?.locale,
+        getUserDateLocale(session),
         session?.user?.timezone
     );
 };
@@ -736,7 +737,7 @@ const LegalList: React.FC<LegalListProps> = ({
                             ? formatDateForDisplay(
                                 new Date(params.value),
                                 "datetime",
-                                session?.user?.locale,
+                                getUserDateLocale(session),
                                 session?.user?.timezone
                             )
                             : "-"}

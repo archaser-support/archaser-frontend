@@ -48,6 +48,7 @@ import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import { CurrencyColumnsConfig, ExportFormat } from "@/shared/utility/exportToExcel";
 import { apiFetch } from "@/utils/apiFetch";
 import {
+    getUserDateLocale,
     getUserDateFormatOptions,
     getUserDateTimeFormatOptions,
 } from "@/utils/datetimeOperations";
@@ -491,13 +492,13 @@ export default function LogList() {
                 if (isMobile) {
                     const formatOptions = getUserDateFormatOptions(session);
                     return new Date(timestamp).toLocaleDateString(
-                        session?.user?.locale || "en-US",
+                        getUserDateLocale(session),
                         formatOptions
                     );
                 } else {
                     const formatOptions = getUserDateTimeFormatOptions(session);
                     return new Date(timestamp).toLocaleString(
-                        session?.user?.locale || "en-US",
+                        getUserDateLocale(session),
                         formatOptions
                     );
                 }

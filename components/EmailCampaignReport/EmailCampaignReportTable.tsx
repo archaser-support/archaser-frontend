@@ -19,11 +19,17 @@ import { GridColDef } from "@mui/x-data-grid";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { useDebounce } from "use-debounce";
+import { useSession } from "next-auth/react";
 
 import EndlessScrollDataGrid, {
     useWindowWidth,
     BREAKPOINTS,
 } from "@/shared/layout-components/grid/EndlessScrollDataGrid";
+import {
+    formatDateForDisplay,
+    getUserDateLocale,
+    getUserTimezone,
+} from "@/utils/datetimeOperations";
 
 
 interface EmailCampaignData {
@@ -46,7 +52,7 @@ interface EmailCampaignReportTableProps {
     data: EmailCampaignData[];
     pagination?: {
         page: number;
-        limit: number;
+        pageSize: number;
         totalRecords: number;
         totalPages: number;
     };
@@ -60,6 +66,10 @@ const EmailCampaignReportTable: React.FC<EmailCampaignReportTableProps> = ({
     onPaginationChange,
     channel = "Email",
 }) => {
+    const { data: session } = useSession();
+    const userLocale = getUserDateLocale(session);
+    const userTimezone = getUserTimezone(session);
+
     const windowWidth = useWindowWidth();
     const theme = useTheme();
     const { t, i18n } = useTranslation(["common"]);
@@ -88,25 +98,25 @@ const EmailCampaignReportTable: React.FC<EmailCampaignReportTableProps> = ({
     const getStatusIcon = (status: string) => {
         switch (status.toLowerCase()) {
             case "delivered":
-                return <CheckCircleIcon color="success" />;
+                return <CheckCircleIcon fontSize="small" color="success" />;
             case "bounced":
             case "failed":
-                return <ErrorIcon color="error" />;
+                return <ErrorIcon fontSize="small" color="error" />;
             case "sent":
-                return <CheckCircleIcon color="warning" />;
+                return <CheckCircleIcon fontSize="small" color="warning" />;
             case "scheduled":
-                return <ScheduleIcon color="info" />;
+                return <ScheduleIcon fontSize="small" color="info" />;
             default:
-                return <HelpIcon color="action" />;
+                return <HelpIcon fontSize="small" color="action" />;
         }
     };
 
     const columns: GridColDef[] = [
         {
             field: "sendingDateTime",
-            headerName: "Sending Date & Time",
-            width: 180,
-            renderCell: (params) => {
+            headerName: "Sending Time",
+            width: 160,
+            renderCell: (params: any) => {
                 if (!params.value) return (
                     <Box
                         sx={{
@@ -123,16 +133,8 @@ const EmailCampaignReportTable: React.FC<EmailCampaignReportTableProps> = ({
                 );
 
                 const date = new Date(params.value);
-                const formattedDate = date.toLocaleDateString('en-GB', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric'
-                });
-                const formattedTime = date.toLocaleTimeString('en-GB', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false
-                });
+                const formattedDate = formatDateForDisplay(date, "date", userLocale, userTimezone);
+                const formattedTime = formatDateForDisplay(date, "time", userLocale, userTimezone);
 
                 return (
                     <Box
@@ -143,7 +145,7 @@ const EmailCampaignReportTable: React.FC<EmailCampaignReportTableProps> = ({
                             width: "100%",
                         }}
                     >
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2">
                             {`${formattedDate} ${formattedTime}`}
                         </Typography>
                     </Box>
@@ -153,8 +155,8 @@ const EmailCampaignReportTable: React.FC<EmailCampaignReportTableProps> = ({
         {
             field: "accountName",
             headerName: "Account Name",
-            width: 200,
-            renderCell: (params) => (
+            width: 180,
+            renderCell: (params: any) => (
                 <Box
                     sx={{
                         display: "flex",
@@ -163,11 +165,9 @@ const EmailCampaignReportTable: React.FC<EmailCampaignReportTableProps> = ({
                         width: "100%",
                     }}
                 >
-                    <Tooltip title={`${params.value} (Code: ${params.row.customerCode})`}>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            {params.value}
-                        </Typography>
-                    </Tooltip>
+                    <Typography variant="body2" fontWeight="500">
+                        {params.value}
+                    </Typography>
                 </Box>
             ),
         },
@@ -175,62 +175,83 @@ const EmailCampaignReportTable: React.FC<EmailCampaignReportTableProps> = ({
             field: "customerCode",
             headerName: "Customer Code",
             width: 130,
-            renderCell: (params) => (
-                <Typography variant="body2" color="text.secondary">
-                    {params.value}
-                </Typography>
+            renderCell: (params: any) => (
+                <Box
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        height: "100%",
+                        width: "100%",
+                    }}
+                >
+                    <Typography variant="body2" color="text.secondary">
+                        {params.value}
+                    </Typography>
+                </Box>
             ),
         },
         {
             field: "emailType",
-            headerName: "Template Category",
+            headerName: `${channel} Type`,
             width: 150,
-            renderCell: (params) => {
-                const getCategoryColor = (category: string) => {
-                    switch (category) {
-                        case "Automated":
-                            return "primary";
-                        case "Promise_to_pay":
-                            return "success";
-                        case "Dispute":
-                            return "error";
-                        case "Agent":
-                            return "warning";
-                        case "Legal":
-                            return "info";
-                        default:
-                            return "default";
-                    }
-                };
-
-                return (
-                    <Box
-                        sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            height: "100%",
-                            width: "100%",
-                        }}
-                    >
-                        <Chip
-                            label={
-                                params.value === "Promise_to_pay"
-                                    ? "Promise to Pay"
-                                    : params.value
-                            }
-                            size="small"
-                            variant="outlined"
-                            color={getCategoryColor(params.value) as any}
-                        />
-                    </Box>
-                );
-            },
+            renderCell: (params: any) => (
+                <Box
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        height: "100%",
+                        width: "100%",
+                    }}
+                >
+                    <Typography variant="body2">
+                        {params.value}
+                    </Typography>
+                </Box>
+            ),
+        },
+        {
+            field: "recipientName",
+            headerName: "Recipient Name",
+            width: 150,
+            renderCell: (params: any) => (
+                <Box
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        height: "100%",
+                        width: "100%",
+                    }}
+                >
+                    <Typography variant="body2">
+                        {params.value}
+                    </Typography>
+                </Box>
+            ),
+        },
+        {
+            field: "recipientEmail",
+            headerName: isEmailChannel ? "Recipient Email" : "Recipient Phone",
+            width: 200,
+            renderCell: (params: any) => (
+                <Box
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        height: "100%",
+                        width: "100%",
+                    }}
+                >
+                    <Typography variant="body2" color="text.secondary">
+                        {params.value}
+                    </Typography>
+                </Box>
+            ),
         },
         {
             field: "deliveryStatus",
             headerName: "Delivery Status",
             width: 140,
-            renderCell: (params) => (
+            renderCell: (params: any) => (
                 <Box
                     sx={{
                         display: "flex",
@@ -240,133 +261,15 @@ const EmailCampaignReportTable: React.FC<EmailCampaignReportTableProps> = ({
                     }}
                 >
                     <Chip
+                        icon={getStatusIcon(params.value)}
                         label={params.value}
-                        size="small"
                         color={getStatusColor(params.value) as any}
+                        size="small"
                         variant="outlined"
                     />
                 </Box>
             ),
         },
-        // Email-only columns: Times Viewed, Opened Time, Clicked Time
-        ...(isEmailChannel ? [
-            {
-                field: "viewCount",
-                headerName: "Times Viewed",
-                width: 120,
-                type: "number" as const,
-                renderCell: (params: any) => (
-                    <Box
-                        sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            height: "100%",
-                            width: "100%",
-                        }}
-                    >
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            {params.value}
-                        </Typography>
-                    </Box>
-                ),
-            },
-            {
-                field: "openedTime",
-                headerName: "Opened Time",
-                width: 160,
-                renderCell: (params: any) => {
-                    if (!params.value) return (
-                        <Box
-                            sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                height: "100%",
-                                width: "100%",
-                            }}
-                        >
-                            <Typography variant="body2" color="text.secondary">
-                                Not opened
-                            </Typography>
-                        </Box>
-                    );
-
-                    const date = new Date(params.value);
-                    const formattedDate = date.toLocaleDateString('en-GB', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric'
-                    });
-                    const formattedTime = date.toLocaleTimeString('en-GB', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: false
-                    });
-
-                    return (
-                        <Box
-                            sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                height: "100%",
-                                width: "100%",
-                            }}
-                        >
-                            <Typography variant="body2" color="text.secondary">
-                                {`${formattedDate} ${formattedTime}`}
-                            </Typography>
-                        </Box>
-                    );
-                },
-            },
-            {
-                field: "clickedTime",
-                headerName: "Clicked Time",
-                width: 160,
-                renderCell: (params: any) => {
-                    if (!params.value) return (
-                        <Box
-                            sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                height: "100%",
-                                width: "100%",
-                            }}
-                        >
-                            <Typography variant="body2" color="text.secondary">
-                                Not clicked
-                            </Typography>
-                        </Box>
-                    );
-
-                    const date = new Date(params.value);
-                    const formattedDate = date.toLocaleDateString('en-GB', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric'
-                    });
-                    const formattedTime = date.toLocaleTimeString('en-GB', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: false
-                    });
-
-                    return (
-                        <Box
-                            sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                height: "100%",
-                                width: "100%",
-                            }}
-                        >
-                            <Typography variant="body2" color="text.secondary">
-                                {`${formattedDate} ${formattedTime}`}
-                            </Typography>
-                        </Box>
-                    );
-                },
-            },
-        ] : []),
         {
             field: "recipientName",
             headerName: "Recipient Name",

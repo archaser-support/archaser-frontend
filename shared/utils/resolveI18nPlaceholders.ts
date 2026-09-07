@@ -1,4 +1,5 @@
 import type { TFunction } from "i18next";
+import { formatDateForDisplay, getUserDateLocale } from "@/utils/datetimeOperations";
 
 export type I18nTranslateFn = (
     key: string,
@@ -109,9 +110,12 @@ function formatParamValueIfDate(
     }
 
     const isDateName = /^(time|date|dateTime|timestamp|at|timeAt|scheduledAt|followUpTime|paymentDate)$/i.test(name);
-    const looksLikeFormattedDate = /^\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4}/.test(trimmed);
 
-    if ((isDateName || looksLikeFormattedDate) && !isNaN(Date.parse(trimmed))) {
+    if (isDateName && !isNaN(Date.parse(trimmed))) {
+        // If string contains letters (e.g. AM/PM) and is not ISO (Z), it is already formatted for display
+        if (/[a-zA-Z]/.test(trimmed) && !trimmed.endsWith("Z")) {
+            return value;
+        }
         const parsed = new Date(trimmed);
         if (!isNaN(parsed.getTime())) {
             const hasTime = /[0-9]{1,2}:[0-9]{2}/.test(trimmed) || isDateName;
@@ -264,12 +268,7 @@ function parseEmbeddedDate(value: string, dateOnly: boolean): Date | null {
 }
 
 function defaultFormatDate(date: Date, kind: "date" | "datetime"): string {
-    return date.toLocaleString(undefined, {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        ...(kind === "datetime" ? { hour: "2-digit", minute: "2-digit" } : {}),
-    });
+    return formatDateForDisplay(date, kind, getUserDateLocale(null));
 }
 
 /**

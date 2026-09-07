@@ -544,7 +544,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
             setShowNotification(false);
             setNotificationData(null);
         }
-    }, [customer, session?.user?.locale, session?.user?.timezone]);
+    }, [customer, session]);
 
     const extractCustomerName = (customer: Customer) => {
         if (!customer) return t("fields.unknown");
