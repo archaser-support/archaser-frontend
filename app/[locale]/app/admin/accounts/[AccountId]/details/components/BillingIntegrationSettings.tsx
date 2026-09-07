@@ -75,6 +75,7 @@ import {
     mergeSyncRunsPreservingOptimisticRunning,
     previewPassesFromSyncResult,
     PURGE_ENTITY_STATS_KEY,
+    BACKFILL_PROGRESS_RESET_RUN_ID,
     readBackfillProgressSession,
     resolveBackfillProgressRun,
     resolveDisplayBackfillProgressRun,
@@ -922,7 +923,7 @@ const BillingIntegrationSettings = forwardRef<
         },
     });
 
-    const { data: syncRuns = [] } = useQuery({
+    const { data: syncRuns = [], isFetched: syncRunsFetched } = useQuery({
         queryKey: billingConnectorSyncRunsQueryKey(accountId),
         queryFn: async () => {
             const previous = queryClient.getQueryData<SyncRunSummary[]>(
@@ -986,7 +987,7 @@ const BillingIntegrationSettings = forwardRef<
             enabledEntities,
         }).length > 0;
     const progressRunIsLive =
-        Boolean(progressRun) &&
+        progressRun != null &&
         isActiveConnectorSyncRun(progressRun) &&
         !isPlaceholderBackfillProgressRun(progressRun);
     /** Delete switches on (idle/preview), or Start already requested clear-before-import. */
@@ -1020,8 +1021,9 @@ const BillingIntegrationSettings = forwardRef<
         if (heldOrResolved) {
             return heldOrResolved;
         }
-        // Session bound but sync-runs poll briefly missed the execution —
-        // reuse the last live snapshot instead of resetting to Deleting….
+        // Brief sync-runs gap mid-import: reuse the in-memory live snapshot only.
+        // Do not invent a RUNNING pending-backfill from a stale session alone —
+        // that made Record deletion spin on reload when nothing was importing.
         if (
             progressSession?.executionId &&
             !progressSession.dismissed
@@ -1030,9 +1032,6 @@ const BillingIntegrationSettings = forwardRef<
             if (last?.id === progressSession.executionId) {
                 return last;
             }
-            return createPendingBackfillRun({
-                expectPurge: showDeletingProgressStep,
-            });
         }
         // Idle panel with delete switches on — still show the planned step list.
         if (clearBeforeImportPlanned) {
@@ -1057,7 +1056,9 @@ const BillingIntegrationSettings = forwardRef<
             !isPlaceholderBackfillProgressRun(displayProgressRun)
     );
     const displaySyncStates =
-        pendingBackfillReset || progressUiReset
+        pendingBackfillReset ||
+        progressUiReset ||
+        displayProgressRun?.id === BACKFILL_PROGRESS_RESET_RUN_ID
             ? zeroBackfillProgressSyncStates(config?.sync_states)
             : config?.sync_states;
     const deferredArPostIngestPending = hasPendingDeferredArPostIngest(
@@ -1178,6 +1179,42 @@ const BillingIntegrationSettings = forwardRef<
         setProgressSession(next);
         writeBackfillProgressSession(accountId, next);
     }, [accountId, progressResolution.session, progressSession]);
+
+    // Drop orphaned progress sessions once sync-runs has loaded without that
+    // execution (reload after the run finished / aged out of the list).
+    useEffect(() => {
+        if (!progressSession?.executionId || progressSession.dismissed) {
+            return;
+        }
+        if (
+            pendingBackfillReset ||
+            backfillMutation.isPending ||
+            heldProgressRun
+        ) {
+            return;
+        }
+        if (!syncRunsFetched) {
+            return;
+        }
+        const tracked = syncRuns.find(
+            (run) => run.id === progressSession.executionId
+        );
+        if (tracked) {
+            return;
+        }
+        setProgressSession(null);
+        writeBackfillProgressSession(accountId, null);
+        lastLiveProgressRunRef.current = null;
+    }, [
+        accountId,
+        progressSession?.executionId,
+        progressSession?.dismissed,
+        pendingBackfillReset,
+        backfillMutation.isPending,
+        heldProgressRun,
+        syncRunsFetched,
+        syncRuns,
+    ]);
 
     // Single busy poller — replaces stacked refetchInterval + invalidate loops.
     useEffect(() => {
