@@ -52,7 +52,8 @@ interface EmailCampaignReportTableProps {
     data: EmailCampaignData[];
     pagination?: {
         page: number;
-        pageSize: number;
+        pageSize?: number;
+        limit?: number;
         totalRecords: number;
         totalPages: number;
     };
