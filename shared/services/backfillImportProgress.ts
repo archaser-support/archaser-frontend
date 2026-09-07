@@ -651,7 +651,7 @@ function buildDeletingProgressRow(params: {
         params.activeStep != null &&
         params.activeStep !== PURGE_ENTITY_STATS_KEY;
     // Delete switches on (or Start with clear-before-import) but purge has not
-    // reported yet — show a planned Waiting row on idle panels, Running once live.
+    // reported yet — idle/finished panels show Not started; live Start shows Running.
     if (
         params.expectPurge === true &&
         !hasPurgeEvidence &&
@@ -660,7 +660,7 @@ function buildDeletingProgressRow(params: {
         if (params.runFinished) {
             return {
                 entity_type: BACKFILL_DELETING_LABEL,
-                phase: "waiting",
+                phase: "not_started",
                 records_pulled: 0,
                 total_records: null,
                 progress_percent: null,
