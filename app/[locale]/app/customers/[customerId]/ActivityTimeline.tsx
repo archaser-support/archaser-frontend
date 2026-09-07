@@ -310,8 +310,8 @@ const formatActivityTitle = (
             formatDateForDisplay(
                 date,
                 kind,
-                getUserDateLocale(session),
-                kind === "datetime" ? getUserTimezone(session) : undefined
+                getUserDateLocale(session ?? null),
+                kind === "datetime" ? getUserTimezone(session ?? null) : undefined
             ),
     });
 };
