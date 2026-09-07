@@ -148,12 +148,12 @@ type PolicyDetail = {
     max_payment_term?: number | null;
     max_allowed_mep?: number | null;
     reporting_days?: number | null;
-    mep_cutoff_day_of_month?: number | null;
-    mep_substitute_day_of_month?: number | null;
-    reporting_cutoff_day_of_month?: number | null;
-    reporting_substitute_day_of_month?: number | null;
-    payment_term_cutoff_day_of_month?: number | null;
-    payment_term_substitute_day_of_month?: number | null;
+    mep_cutoff_day?: number | null;
+    mep_substitute_extra_days?: number | null;
+    reporting_cutoff_day?: number | null;
+    reporting_substitute_extra_days?: number | null;
+    payment_term_cutoff_day?: number | null;
+    payment_term_substitute_day?: number | null;
     cost_calculation_method?: "ActualSales" | "Limit" | null;
     cost_percent?: string | number | null;
     registration_fee_percent?: string | number | null;
@@ -314,20 +314,20 @@ export default function CreditInsurancePolicyDetailPage() {
     const [maxPaymentTermInput, setMaxPaymentTermInput] = useState("");
     const [maxAllowedMepInput, setMaxAllowedMepInput] = useState("");
     const [reportingDaysInput, setReportingDaysInput] = useState("");
-    const [mepCutoffDayOfMonthInput, setMepCutoffDayOfMonthInput] = useState("");
-    const [mepSubstituteDayOfMonthInput, setMepSubstituteDayOfMonthInput] =
+    const [mepCutoffDayInput, setMepCutoffDayInput] = useState("");
+    const [mepSubstituteExtraDaysInput, setMepSubstituteExtraDaysInput] =
         useState("");
-    const [reportingCutoffDayOfMonthInput, setReportingCutoffDayOfMonthInput] =
+    const [reportingCutoffDayInput, setReportingCutoffDayInput] =
         useState("");
     const [
-        reportingSubstituteDayOfMonthInput,
-        setReportingSubstituteDayOfMonthInput,
+        reportingSubstituteExtraDaysInput,
+        setReportingSubstituteExtraDaysInput,
     ] = useState("");
-    const [paymentTermCutoffDayOfMonthInput, setPaymentTermCutoffDayOfMonthInput] =
+    const [paymentTermCutoffDayInput, setPaymentTermCutoffDayInput] =
         useState("");
     const [
-        paymentTermSubstituteDayOfMonthInput,
-        setPaymentTermSubstituteDayOfMonthInput,
+        paymentTermSubstituteDayInput,
+        setPaymentTermSubstituteDayInput,
     ] = useState("");
     const [insurerNameInput, setInsurerNameInput] = useState("");
     const [costCalculationMethodInput, setCostCalculationMethodInput] = useState<
@@ -602,34 +602,34 @@ export default function CreditInsurancePolicyDetailPage() {
         setReportingDaysInput(
             d.reporting_days != null ? String(d.reporting_days) : ""
         );
-        setMepCutoffDayOfMonthInput(
-            d.mep_cutoff_day_of_month != null
-                ? String(d.mep_cutoff_day_of_month)
+        setMepCutoffDayInput(
+            d.mep_cutoff_day != null
+                ? String(d.mep_cutoff_day)
                 : ""
         );
-        setMepSubstituteDayOfMonthInput(
-            d.mep_substitute_day_of_month != null
-                ? String(d.mep_substitute_day_of_month)
+        setMepSubstituteExtraDaysInput(
+            d.mep_substitute_extra_days != null
+                ? String(d.mep_substitute_extra_days)
                 : ""
         );
-        setReportingCutoffDayOfMonthInput(
-            d.reporting_cutoff_day_of_month != null
-                ? String(d.reporting_cutoff_day_of_month)
+        setReportingCutoffDayInput(
+            d.reporting_cutoff_day != null
+                ? String(d.reporting_cutoff_day)
                 : ""
         );
-        setReportingSubstituteDayOfMonthInput(
-            d.reporting_substitute_day_of_month != null
-                ? String(d.reporting_substitute_day_of_month)
+        setReportingSubstituteExtraDaysInput(
+            d.reporting_substitute_extra_days != null
+                ? String(d.reporting_substitute_extra_days)
                 : ""
         );
-        setPaymentTermCutoffDayOfMonthInput(
-            d.payment_term_cutoff_day_of_month != null
-                ? String(d.payment_term_cutoff_day_of_month)
+        setPaymentTermCutoffDayInput(
+            d.payment_term_cutoff_day != null
+                ? String(d.payment_term_cutoff_day)
                 : ""
         );
-        setPaymentTermSubstituteDayOfMonthInput(
-            d.payment_term_substitute_day_of_month != null
-                ? String(d.payment_term_substitute_day_of_month)
+        setPaymentTermSubstituteDayInput(
+            d.payment_term_substitute_day != null
+                ? String(d.payment_term_substitute_day)
                 : ""
         );
         setCostCalculationMethodInput(
@@ -820,18 +820,19 @@ export default function CreditInsurancePolicyDetailPage() {
                 }
 
                 const monthEndValidation = validateMonthEndCutoffFormFields({
-                    mepCutoffRaw: mepCutoffDayOfMonthInput,
-                    mepSubstituteRaw: mepSubstituteDayOfMonthInput,
-                    reportingCutoffRaw: reportingCutoffDayOfMonthInput,
-                    reportingSubstituteRaw: reportingSubstituteDayOfMonthInput,
-                    paymentTermCutoffRaw: paymentTermCutoffDayOfMonthInput,
-                    paymentTermSubstituteRaw: paymentTermSubstituteDayOfMonthInput,
+                    mepCutoffRaw: mepCutoffDayInput,
+                    mepSubstituteRaw: mepSubstituteExtraDaysInput,
+                    reportingCutoffRaw: reportingCutoffDayInput,
+                    reportingSubstituteRaw: reportingSubstituteExtraDaysInput,
+                    paymentTermCutoffRaw: paymentTermCutoffDayInput,
+                    paymentTermSubstituteRaw: paymentTermSubstituteDayInput,
                 });
                 for (const [field, code] of Object.entries(
                     monthEndValidation.errors
                 )) {
                     errors[field] = monthEndCutoffErrorMessage(
-                        code as MonthEndCutoffValidationErrorCode
+                        code as MonthEndCutoffValidationErrorCode,
+                        field
                     );
                 }
             }
@@ -844,22 +845,22 @@ export default function CreditInsurancePolicyDetailPage() {
             const monthEndFields =
                 policyKindInput === "TopUp"
                     ? {
-                          mep_cutoff_day_of_month: null,
-                          mep_substitute_day_of_month: null,
-                          reporting_cutoff_day_of_month: null,
-                          reporting_substitute_day_of_month: null,
-                          payment_term_cutoff_day_of_month: null,
-                          payment_term_substitute_day_of_month: null,
+                          mep_cutoff_day: null,
+                          mep_substitute_extra_days: null,
+                          reporting_cutoff_day: null,
+                          reporting_substitute_extra_days: null,
+                          payment_term_cutoff_day: null,
+                          payment_term_substitute_day: null,
                       }
                     : validateMonthEndCutoffFormFields({
-                          mepCutoffRaw: mepCutoffDayOfMonthInput,
-                          mepSubstituteRaw: mepSubstituteDayOfMonthInput,
-                          reportingCutoffRaw: reportingCutoffDayOfMonthInput,
+                          mepCutoffRaw: mepCutoffDayInput,
+                          mepSubstituteRaw: mepSubstituteExtraDaysInput,
+                          reportingCutoffRaw: reportingCutoffDayInput,
                           reportingSubstituteRaw:
-                              reportingSubstituteDayOfMonthInput,
-                          paymentTermCutoffRaw: paymentTermCutoffDayOfMonthInput,
+                              reportingSubstituteExtraDaysInput,
+                          paymentTermCutoffRaw: paymentTermCutoffDayInput,
                           paymentTermSubstituteRaw:
-                              paymentTermSubstituteDayOfMonthInput,
+                              paymentTermSubstituteDayInput,
                       }).fields;
             await api.put(`/api/entities/insurance-policies/${policyId}`, {
                 account_id: accountId,
@@ -1077,14 +1078,19 @@ export default function CreditInsurancePolicyDetailPage() {
     }, []);
 
     const monthEndCutoffErrorMessage = useCallback(
-        (code: MonthEndCutoffValidationErrorCode) => {
+        (code: MonthEndCutoffValidationErrorCode, field?: string) => {
             switch (code) {
                 case "invalid_integer":
                     return tCi("credit_insurance.validation.invalid_integer");
                 case "out_of_range":
-                    return tCi(
-                        "credit_insurance.validation.day_of_month_out_of_range"
-                    );
+                    return field === "mep_substitute_extra_days" ||
+                        field === "reporting_substitute_extra_days"
+                        ? tCi(
+                              "credit_insurance.validation.substitute_extra_days_out_of_range"
+                          )
+                        : tCi(
+                              "credit_insurance.validation.day_of_month_out_of_range"
+                          );
                 case "cutoff_requires_substitute":
                     return tCi(
                         "credit_insurance.validation.cutoff_requires_substitute"
@@ -1141,29 +1147,29 @@ export default function CreditInsurancePolicyDetailPage() {
         data?.max_allowed_mep != null ? String(data.max_allowed_mep) : "";
     const initialReportingDays =
         data?.reporting_days != null ? String(data.reporting_days) : "";
-    const initialMepCutoffDayOfMonth =
-        data?.mep_cutoff_day_of_month != null
-            ? String(data.mep_cutoff_day_of_month)
+    const initialMepCutoffDay =
+        data?.mep_cutoff_day != null
+            ? String(data.mep_cutoff_day)
             : "";
-    const initialMepSubstituteDayOfMonth =
-        data?.mep_substitute_day_of_month != null
-            ? String(data.mep_substitute_day_of_month)
+    const initialMepSubstituteExtraDays =
+        data?.mep_substitute_extra_days != null
+            ? String(data.mep_substitute_extra_days)
             : "";
-    const initialReportingCutoffDayOfMonth =
-        data?.reporting_cutoff_day_of_month != null
-            ? String(data.reporting_cutoff_day_of_month)
+    const initialReportingCutoffDay =
+        data?.reporting_cutoff_day != null
+            ? String(data.reporting_cutoff_day)
             : "";
-    const initialReportingSubstituteDayOfMonth =
-        data?.reporting_substitute_day_of_month != null
-            ? String(data.reporting_substitute_day_of_month)
+    const initialReportingSubstituteExtraDays =
+        data?.reporting_substitute_extra_days != null
+            ? String(data.reporting_substitute_extra_days)
             : "";
-    const initialPaymentTermCutoffDayOfMonth =
-        data?.payment_term_cutoff_day_of_month != null
-            ? String(data.payment_term_cutoff_day_of_month)
+    const initialPaymentTermCutoffDay =
+        data?.payment_term_cutoff_day != null
+            ? String(data.payment_term_cutoff_day)
             : "";
-    const initialPaymentTermSubstituteDayOfMonth =
-        data?.payment_term_substitute_day_of_month != null
-            ? String(data.payment_term_substitute_day_of_month)
+    const initialPaymentTermSubstituteDay =
+        data?.payment_term_substitute_day != null
+            ? String(data.payment_term_substitute_day)
             : "";
     const initialCostCalculationMethod =
         data?.cost_calculation_method === "Limit"
@@ -1196,14 +1202,14 @@ export default function CreditInsurancePolicyDetailPage() {
         maxPaymentTermInput !== initialMaxPaymentTerm ||
         maxAllowedMepInput !== initialMaxAllowedMep ||
         reportingDaysInput !== initialReportingDays ||
-        mepCutoffDayOfMonthInput !== initialMepCutoffDayOfMonth ||
-        mepSubstituteDayOfMonthInput !== initialMepSubstituteDayOfMonth ||
-        reportingCutoffDayOfMonthInput !== initialReportingCutoffDayOfMonth ||
-        reportingSubstituteDayOfMonthInput !==
-            initialReportingSubstituteDayOfMonth ||
-        paymentTermCutoffDayOfMonthInput !== initialPaymentTermCutoffDayOfMonth ||
-        paymentTermSubstituteDayOfMonthInput !==
-            initialPaymentTermSubstituteDayOfMonth ||
+        mepCutoffDayInput !== initialMepCutoffDay ||
+        mepSubstituteExtraDaysInput !== initialMepSubstituteExtraDays ||
+        reportingCutoffDayInput !== initialReportingCutoffDay ||
+        reportingSubstituteExtraDaysInput !==
+            initialReportingSubstituteExtraDays ||
+        paymentTermCutoffDayInput !== initialPaymentTermCutoffDay ||
+        paymentTermSubstituteDayInput !==
+            initialPaymentTermSubstituteDay ||
         costCalculationMethodInput !== initialCostCalculationMethod ||
         costPercentInput !== initialCostPercent ||
         registrationFeePercentInput !== initialRegistrationFeePercent;
@@ -2239,29 +2245,29 @@ export default function CreditInsurancePolicyDetailPage() {
                     setDclCustomerSinceMonthsInput={setDclCustomerSinceMonthsInput}
                     maxPaymentTermInput={maxPaymentTermInput}
                     setMaxPaymentTermInput={setMaxPaymentTermInput}
-                    paymentTermCutoffDayOfMonthInput={paymentTermCutoffDayOfMonthInput}
-                    setPaymentTermCutoffDayOfMonthInput={
-                        setPaymentTermCutoffDayOfMonthInput
+                    paymentTermCutoffDayInput={paymentTermCutoffDayInput}
+                    setPaymentTermCutoffDayInput={
+                        setPaymentTermCutoffDayInput
                     }
-                    paymentTermSubstituteDayOfMonthInput={
-                        paymentTermSubstituteDayOfMonthInput
+                    paymentTermSubstituteDayInput={
+                        paymentTermSubstituteDayInput
                     }
-                    setPaymentTermSubstituteDayOfMonthInput={
-                        setPaymentTermSubstituteDayOfMonthInput
+                    setPaymentTermSubstituteDayInput={
+                        setPaymentTermSubstituteDayInput
                     }
                     maxAllowedMepInput={maxAllowedMepInput}
                     setMaxAllowedMepInput={setMaxAllowedMepInput}
-                    mepCutoffDayOfMonthInput={mepCutoffDayOfMonthInput}
-                    setMepCutoffDayOfMonthInput={setMepCutoffDayOfMonthInput}
-                    mepSubstituteDayOfMonthInput={mepSubstituteDayOfMonthInput}
-                    setMepSubstituteDayOfMonthInput={setMepSubstituteDayOfMonthInput}
+                    mepCutoffDayInput={mepCutoffDayInput}
+                    setMepCutoffDayInput={setMepCutoffDayInput}
+                    mepSubstituteExtraDaysInput={mepSubstituteExtraDaysInput}
+                    setMepSubstituteExtraDaysInput={setMepSubstituteExtraDaysInput}
                     reportingDaysInput={reportingDaysInput}
                     setReportingDaysInput={setReportingDaysInput}
-                    reportingCutoffDayOfMonthInput={reportingCutoffDayOfMonthInput}
-                    setReportingCutoffDayOfMonthInput={setReportingCutoffDayOfMonthInput}
-                    reportingSubstituteDayOfMonthInput={reportingSubstituteDayOfMonthInput}
-                    setReportingSubstituteDayOfMonthInput={
-                        setReportingSubstituteDayOfMonthInput
+                    reportingCutoffDayInput={reportingCutoffDayInput}
+                    setReportingCutoffDayInput={setReportingCutoffDayInput}
+                    reportingSubstituteExtraDaysInput={reportingSubstituteExtraDaysInput}
+                    setReportingSubstituteExtraDaysInput={
+                        setReportingSubstituteExtraDaysInput
                     }
                     displayStartDate={displayStartDate}
                     displayEndDate={displayEndDate}
