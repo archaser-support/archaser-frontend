@@ -109,10 +109,14 @@ function formatParamValueIfDate(
     }
 
     const isDateName = /^(time|date|dateTime|timestamp|at|timeAt|scheduledAt|followUpTime|paymentDate)$/i.test(name);
-    if (isDateName && !isNaN(Date.parse(trimmed))) {
+    const looksLikeFormattedDate = /^\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4}/.test(trimmed);
+
+    if ((isDateName || looksLikeFormattedDate) && !isNaN(Date.parse(trimmed))) {
         const parsed = new Date(trimmed);
         if (!isNaN(parsed.getTime())) {
-            return (formatters?.formatDate ?? defaultFormatDate)(parsed, "datetime");
+            const hasTime = /[0-9]{1,2}:[0-9]{2}/.test(trimmed) || isDateName;
+            const kind = hasTime ? "datetime" : "date";
+            return (formatters?.formatDate ?? defaultFormatDate)(parsed, kind);
         }
     }
 
