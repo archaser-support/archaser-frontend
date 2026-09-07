@@ -22,7 +22,7 @@ export const MATURITY_ENTITY_STATS_KEY = "_maturity";
 export const PURGE_ENTITY_STATS_KEY = "_purge";
 
 /** Progress-panel label for clear-before-import deletes. */
-export const BACKFILL_DELETING_LABEL = "Deleting…";
+export const BACKFILL_DELETING_LABEL = "Record deletion";
 
 /** Progress-panel labels for Payment / Invoice pull+import steps. */
 export const BACKFILL_PAYMENT_IMPORT_LABEL = "Payment import";
@@ -112,7 +112,7 @@ const BACKFILL_PROGRESS_STEP_TOOLTIPS: Record<BackfillProgressRowKey, string> =
             "Imports credit insurance policy records when enabled for this connector.",
         // String keys (not computed consts) so Fast Refresh cannot leave a
         // dangling BACKFILL_* identifier after an export is removed.
-        "Deleting…":
+        "Record deletion":
             "Deletes existing Archaser rows for the selected entities before ERP pull and import.",
         "Link payments":
             "Matches deferred payments to invoices, applies close rules, and recalculates invoice paid totals and outstanding balances.",

@@ -6,6 +6,8 @@ import {
     Checkbox,
     CircularProgress,
     FormControlLabel,
+    Radio,
+    RadioGroup,
     Typography,
 } from "@mui/material";
 import type { ConnectorAuthType, ImportType } from "@/types/db";
@@ -28,8 +30,8 @@ import {
     saveBillingConnectorConfig,
     testBillingConnectorConnection,
     type BillingConnectorConfig,
-    type ImportCacheEntityAvailability,
     type ImportCacheEntityType,
+    type ImportCacheRun,
     type PreviewSyncResponse,
     type PullFiltersMap,
     type SyncRunSummary,
@@ -241,20 +243,32 @@ const BillingIntegrationSettings = forwardRef<
         useState(false);
     const [cacheSuggestionDialogOpen, setCacheSuggestionDialogOpen] =
         useState(false);
-    const [cacheSuggestionEntities, setCacheSuggestionEntities] = useState<
-        ImportCacheEntityAvailability[]
+    const [cacheSuggestionRuns, setCacheSuggestionRuns] = useState<
+        ImportCacheRun[]
     >([]);
+    const [cacheSuggestionSelectedExecutionId, setCacheSuggestionSelectedExecutionId] =
+        useState<string | null>(null);
     const [cacheSuggestionSelection, setCacheSuggestionSelection] = useState<
         Partial<Record<ImportCacheEntityType, boolean>>
     >({});
     const [cacheSuggestionMode, setCacheSuggestionMode] = useState<
         "backfill" | "incremental" | null
     >(null);
+    const [cacheSuggestionCacheDay, setCacheSuggestionCacheDay] = useState<
+        string | null
+    >(null);
+    const [cacheSuggestionTimeZone, setCacheSuggestionTimeZone] = useState<
+        string | null
+    >(null);
     const [cacheCheckPending, setCacheCheckPending] = useState(false);
     /** Carried from cache dialog into Start / clear-before confirm. */
-    const pendingUseCachedImportRef = useRef<ImportCacheEntityType[] | undefined>(
-        undefined
-    );
+    const pendingUseCachedImportRef = useRef<
+        | {
+              executionId: string;
+              entities: ImportCacheEntityType[];
+          }
+        | undefined
+    >(undefined);
     const [clearBeforeImportPrefs, setClearBeforeImportPrefs] =
         useState<ClearBeforeImportPrefs>(() =>
             readClearBeforeImportPrefs(accountId)
@@ -313,9 +327,12 @@ const BillingIntegrationSettings = forwardRef<
         setClearBeforeImportCustomerError(null);
         setClearBeforeStartDialogOpen(false);
         setCacheSuggestionDialogOpen(false);
-        setCacheSuggestionEntities([]);
+        setCacheSuggestionRuns([]);
+        setCacheSuggestionSelectedExecutionId(null);
         setCacheSuggestionSelection({});
         setCacheSuggestionMode(null);
+        setCacheSuggestionCacheDay(null);
+        setCacheSuggestionTimeZone(null);
         setCacheCheckPending(false);
         pendingUseCachedImportRef.current = undefined;
     }, [accountId]);
@@ -748,6 +765,7 @@ const BillingIntegrationSettings = forwardRef<
             >;
             customer_id?: number | null;
             use_cached_import?: ImportCacheEntityType[];
+            use_cached_execution_id?: string;
         },
         { expectPurge: boolean }
     >({
@@ -838,6 +856,7 @@ const BillingIntegrationSettings = forwardRef<
     const incrementalMutation = useMutation({
         mutationFn: (options?: {
             use_cached_import?: ImportCacheEntityType[];
+            use_cached_execution_id?: string;
         }) => runBillingConnectorIncrementalSync(accountId, options),
         onSuccess: (result: { status?: string } | undefined) => {
             success(
@@ -1352,11 +1371,18 @@ const BillingIntegrationSettings = forwardRef<
         (actionStage.stage !== "import_running" || actionStage.showStop);
 
     const takePendingUseCachedImport = useCallback(():
-        | ImportCacheEntityType[]
+        | {
+              executionId: string;
+              entities: ImportCacheEntityType[];
+          }
         | undefined => {
         const selected = pendingUseCachedImportRef.current;
         pendingUseCachedImportRef.current = undefined;
-        return selected && selected.length > 0 ? selected : undefined;
+        return selected &&
+            selected.executionId &&
+            selected.entities.length > 0
+            ? selected
+            : undefined;
     }, []);
 
     const proceedBackfillStart = useCallback(
@@ -1366,12 +1392,17 @@ const BillingIntegrationSettings = forwardRef<
             >;
             customer_id?: number | null;
             use_cached_import?: ImportCacheEntityType[];
+            use_cached_execution_id?: string;
         }) => {
-            const useCachedImport =
+            const pending =
                 options && "use_cached_import" in options
                     ? options.use_cached_import &&
-                      options.use_cached_import.length > 0
-                        ? options.use_cached_import
+                      options.use_cached_import.length > 0 &&
+                      options.use_cached_execution_id
+                        ? {
+                              executionId: options.use_cached_execution_id,
+                              entities: options.use_cached_import,
+                          }
                         : undefined
                     : takePendingUseCachedImport();
             if (options && "use_cached_import" in options) {
@@ -1386,8 +1417,11 @@ const BillingIntegrationSettings = forwardRef<
                 options.customer_id > 0
                     ? { customer_id: options.customer_id }
                     : {}),
-                ...(useCachedImport
-                    ? { use_cached_import: useCachedImport }
+                ...(pending
+                    ? {
+                          use_cached_import: pending.entities,
+                          use_cached_execution_id: pending.executionId,
+                      }
                     : {}),
             });
         },
@@ -1395,24 +1429,58 @@ const BillingIntegrationSettings = forwardRef<
     );
 
     const proceedIncrementalStart = useCallback(
-        (options?: { use_cached_import?: ImportCacheEntityType[] }) => {
-            const useCachedImport =
+        (options?: {
+            use_cached_import?: ImportCacheEntityType[];
+            use_cached_execution_id?: string;
+        }) => {
+            const pending =
                 options && "use_cached_import" in options
                     ? options.use_cached_import &&
-                      options.use_cached_import.length > 0
-                        ? options.use_cached_import
+                      options.use_cached_import.length > 0 &&
+                      options.use_cached_execution_id
+                        ? {
+                              executionId: options.use_cached_execution_id,
+                              entities: options.use_cached_import,
+                          }
                         : undefined
                     : takePendingUseCachedImport();
             if (options && "use_cached_import" in options) {
                 pendingUseCachedImportRef.current = undefined;
             }
             incrementalMutation.mutate(
-                useCachedImport
-                    ? { use_cached_import: useCachedImport }
+                pending
+                    ? {
+                          use_cached_import: pending.entities,
+                          use_cached_execution_id: pending.executionId,
+                      }
                     : undefined
             );
         },
         [incrementalMutation, takePendingUseCachedImport]
+    );
+
+    const applyCacheRunSelection = useCallback(
+        (run: ImportCacheRun | undefined) => {
+            if (!run) {
+                setCacheSuggestionSelectedExecutionId(null);
+                setCacheSuggestionSelection({});
+                return;
+            }
+            setCacheSuggestionSelectedExecutionId(run.execution_id);
+            const selection: Partial<
+                Record<ImportCacheEntityType, boolean>
+            > = {};
+            for (const entity of run.entities) {
+                if (
+                    entity.available &&
+                    enabledEntities.includes(entity.import_type)
+                ) {
+                    selection[entity.import_type] = false;
+                }
+            }
+            setCacheSuggestionSelection(selection);
+        },
+        [enabledEntities]
     );
 
     const offerCacheOrStart = useCallback(
@@ -1430,25 +1498,23 @@ const BillingIntegrationSettings = forwardRef<
                         customer_id: args.customerId,
                     }
                 );
-                const available = check.entities.filter(
-                    (entity) =>
-                        entity.available &&
-                        enabledEntities.includes(entity.import_type)
+                const runsWithEntities = (check.runs ?? []).filter((run) =>
+                    run.entities.some(
+                        (entity) =>
+                            entity.available &&
+                            enabledEntities.includes(entity.import_type)
+                    )
                 );
-                if (available.length === 0) {
+                if (runsWithEntities.length === 0) {
                     pendingUseCachedImportRef.current = undefined;
                     args.onNoCache();
                     return;
                 }
-                const selection: Partial<
-                    Record<ImportCacheEntityType, boolean>
-                > = {};
-                for (const entity of available) {
-                    selection[entity.import_type] = false;
-                }
-                setCacheSuggestionEntities(available);
-                setCacheSuggestionSelection(selection);
+                setCacheSuggestionRuns(runsWithEntities);
+                setCacheSuggestionCacheDay(check.cache_day);
+                setCacheSuggestionTimeZone(check.time_zone);
                 setCacheSuggestionMode(args.mode);
+                applyCacheRunSelection(runsWithEntities[0]);
                 setCacheSuggestionDialogOpen(true);
             } catch {
                 // Cache suggestion is optional — backend may not expose
@@ -1459,7 +1525,7 @@ const BillingIntegrationSettings = forwardRef<
                 setCacheCheckPending(false);
             }
         },
-        [accountId, enabledEntities]
+        [accountId, enabledEntities, applyCacheRunSelection]
     );
 
     const handlePrimaryAction = () => {
@@ -1548,18 +1614,37 @@ const BillingIntegrationSettings = forwardRef<
     };
 
     const handleCacheSuggestionConfirm = useCallback(() => {
-        const selected = cacheSuggestionEntities
-            .filter((entity) => cacheSuggestionSelection[entity.import_type])
-            .map((entity) => entity.import_type);
+        const selectedRun = cacheSuggestionRuns.find(
+            (run) => run.execution_id === cacheSuggestionSelectedExecutionId
+        );
+        const selected = selectedRun
+            ? selectedRun.entities
+                  .filter(
+                      (entity) =>
+                          entity.available &&
+                          cacheSuggestionSelection[entity.import_type]
+                  )
+                  .map((entity) => entity.import_type)
+            : [];
         pendingUseCachedImportRef.current =
-            selected.length > 0 ? selected : undefined;
+            selected.length > 0 && selectedRun
+                ? {
+                      executionId: selectedRun.execution_id,
+                      entities: selected,
+                  }
+                : undefined;
         const mode = cacheSuggestionMode;
         setCacheSuggestionDialogOpen(false);
         setCacheSuggestionMode(null);
         if (mode === "incremental") {
-            proceedIncrementalStart({
-                use_cached_import: selected,
-            });
+            proceedIncrementalStart(
+                selected.length > 0 && selectedRun
+                    ? {
+                          use_cached_import: selected,
+                          use_cached_execution_id: selectedRun.execution_id,
+                      }
+                    : { use_cached_import: [] }
+            );
             return;
         }
         if (mode !== "backfill") {
@@ -1581,10 +1666,16 @@ const BillingIntegrationSettings = forwardRef<
         }
         proceedBackfillStart({
             ...(customerId != null ? { customer_id: customerId } : {}),
-            use_cached_import: selected,
+            ...(selected.length > 0 && selectedRun
+                ? {
+                      use_cached_import: selected,
+                      use_cached_execution_id: selectedRun.execution_id,
+                  }
+                : { use_cached_import: [] }),
         });
     }, [
-        cacheSuggestionEntities,
+        cacheSuggestionRuns,
+        cacheSuggestionSelectedExecutionId,
         cacheSuggestionSelection,
         cacheSuggestionMode,
         clearBeforeImportSession,
@@ -1597,47 +1688,122 @@ const BillingIntegrationSettings = forwardRef<
     const handleCacheSuggestionCancel = useCallback(() => {
         setCacheSuggestionDialogOpen(false);
         setCacheSuggestionMode(null);
-        setCacheSuggestionEntities([]);
+        setCacheSuggestionRuns([]);
+        setCacheSuggestionSelectedExecutionId(null);
         setCacheSuggestionSelection({});
+        setCacheSuggestionCacheDay(null);
+        setCacheSuggestionTimeZone(null);
         pendingUseCachedImportRef.current = undefined;
     }, []);
 
+    const selectedCacheRun = useMemo(
+        () =>
+            cacheSuggestionRuns.find(
+                (run) =>
+                    run.execution_id === cacheSuggestionSelectedExecutionId
+            ) ?? null,
+        [cacheSuggestionRuns, cacheSuggestionSelectedExecutionId]
+    );
+
     const cacheSuggestionDescription = useMemo(() => {
-        const cacheDay = cacheSuggestionEntities[0]?.cache_day;
+        const formatRunTime = (iso: string) => {
+            try {
+                return new Date(iso).toLocaleString(undefined, {
+                    timeZone: cacheSuggestionTimeZone ?? undefined,
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                });
+            } catch {
+                return new Date(iso).toLocaleTimeString();
+            }
+        };
+        const formatRunEntityCounts = (run: ImportCacheRun) =>
+            run.entities
+                .filter(
+                    (entity) =>
+                        entity.available &&
+                        enabledEntities.includes(entity.import_type)
+                )
+                .map(
+                    (entity) =>
+                        `${entity.import_type} ${entity.row_count.toLocaleString()}`
+                )
+                .join(" · ");
+
         return (
             <Box display="flex" flexDirection="column" gap={1.5}>
                 <Typography variant="body2">
-                    {cacheDay
-                        ? `Same-day backups (${cacheDay}) are available for this sync. Select entities to load from cache instead of the ERP. Leave all unchecked to fetch from the ERP.`
-                        : "Same-day backups are available for this sync. Select entities to load from cache instead of the ERP. Leave all unchecked to fetch from the ERP."}
+                    {cacheSuggestionCacheDay
+                        ? `Same-day backups (${cacheSuggestionCacheDay}) are available. Pick a run, then select entities to load from that run's cache. Leave all unchecked to fetch from the ERP.`
+                        : "Same-day backups are available. Pick a run, then select entities to load from that run's cache. Leave all unchecked to fetch from the ERP."}
                 </Typography>
-                <Box display="flex" flexDirection="column" gap={0.5}>
-                    {cacheSuggestionEntities.map((entity) => (
+                <RadioGroup
+                    value={cacheSuggestionSelectedExecutionId ?? ""}
+                    onChange={(e) => {
+                        const run = cacheSuggestionRuns.find(
+                            (item) => item.execution_id === e.target.value
+                        );
+                        applyCacheRunSelection(run);
+                    }}
+                >
+                    {cacheSuggestionRuns.map((run) => (
                         <FormControlLabel
-                            key={entity.import_type}
-                            control={
-                                <Checkbox
-                                    checked={Boolean(
-                                        cacheSuggestionSelection[
-                                            entity.import_type
-                                        ]
-                                    )}
-                                    onChange={(e) => {
-                                        setCacheSuggestionSelection((prev) => ({
-                                            ...prev,
-                                            [entity.import_type]:
-                                                e.target.checked,
-                                        }));
-                                    }}
-                                />
-                            }
-                            label={`${entity.import_type} (${entity.row_count.toLocaleString()} rows)`}
+                            key={run.execution_id}
+                            value={run.execution_id}
+                            control={<Radio />}
+                            label={`${formatRunTime(run.created_at)} — ${formatRunEntityCounts(run) || "no entities"}`}
                         />
                     ))}
-                </Box>
+                </RadioGroup>
+                {selectedCacheRun ? (
+                    <Box display="flex" flexDirection="column" gap={0.5}>
+                        {selectedCacheRun.entities
+                            .filter(
+                                (entity) =>
+                                    entity.available &&
+                                    enabledEntities.includes(
+                                        entity.import_type
+                                    )
+                            )
+                            .map((entity) => (
+                                <FormControlLabel
+                                    key={entity.import_type}
+                                    control={
+                                        <Checkbox
+                                            checked={Boolean(
+                                                cacheSuggestionSelection[
+                                                    entity.import_type
+                                                ]
+                                            )}
+                                            onChange={(e) => {
+                                                setCacheSuggestionSelection(
+                                                    (prev) => ({
+                                                        ...prev,
+                                                        [entity.import_type]:
+                                                            e.target.checked,
+                                                    })
+                                                );
+                                            }}
+                                        />
+                                    }
+                                    label={`${entity.import_type} (${entity.row_count.toLocaleString()} rows)`}
+                                />
+                            ))}
+                    </Box>
+                ) : null}
             </Box>
         );
-    }, [cacheSuggestionEntities, cacheSuggestionSelection]);
+    }, [
+        cacheSuggestionRuns,
+        cacheSuggestionSelectedExecutionId,
+        cacheSuggestionSelection,
+        cacheSuggestionCacheDay,
+        cacheSuggestionTimeZone,
+        selectedCacheRun,
+        enabledEntities,
+        applyCacheRunSelection,
+    ]);
 
     const clearBeforeStartConfirmCopy = useMemo(() => {
         const clearBeforeImport = resolveClearBeforeImportPayload({
