@@ -263,7 +263,7 @@ const BillingScheduleSection = memo(function BillingScheduleSection(props: Billi
                                     <FormControl
                                         fullWidth
                                         size="small"
-                                        disabled={!canManage}
+                                        disabled={!canManage || !syncEnabled}
                                     >
                                         <InputLabel id="billing-schedule-preset-label">
                                             Sync Schedule
@@ -300,7 +300,7 @@ const BillingScheduleSection = memo(function BillingScheduleSection(props: Billi
                                                 onSyncCronChange(e.target.value);
                                                 onSchedulePresetChange("custom");
                                             }}
-                                            disabled={!canManage}
+                                            disabled={!canManage || !syncEnabled}
                                         />
                                     </Grid>
                                 ) : null}
@@ -316,7 +316,7 @@ const BillingScheduleSection = memo(function BillingScheduleSection(props: Billi
                                             onChange={(e) =>
                                                 onDailyTimeUtcChange(e.target.value || "03:00")
                                             }
-                                            disabled={!canManage}
+                                            disabled={!canManage || !syncEnabled}
                                             InputLabelProps={{ shrink: true }}
                                         />
                                     </Grid>
@@ -326,7 +326,7 @@ const BillingScheduleSection = memo(function BillingScheduleSection(props: Billi
                                         <FormControl
                                             fullWidth
                                             size="small"
-                                            disabled={!canManage}
+                                            disabled={!canManage || !syncEnabled}
                                         >
                                             <InputLabel id="billing-weekly-day-label">
                                                 Day of Week (UTC)
