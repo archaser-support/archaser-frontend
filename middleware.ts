@@ -9,6 +9,7 @@ import { getSecurityHeaders } from "./utils/securityHeaders";
 import {
     authCookiesAreSecure,
     getCookieName,
+    getCookieNameCandidates,
     sessionSecret,
 } from "./utils/authUtils";
 
@@ -118,11 +119,23 @@ export async function middleware(request: NextRequest) {
 
     // Retrieve the token (session) from the request early to handle root redirects.
     // Name and secret come from the same helpers `authOptions` writes with.
-    const token = await getToken({
+    const isSecure = authCookiesAreSecure(request);
+    let token = await getToken({
         req: request,
         secret: sessionSecret(),
-        cookieName: getCookieName(authCookiesAreSecure()),
+        cookieName: getCookieName(isSecure, "session-token", request),
     });
+    if (!token) {
+        const candidates = getCookieNameCandidates(isSecure, "session-token", request);
+        for (const candidate of candidates) {
+            token = await getToken({
+                req: request,
+                secret: sessionSecret(),
+                cookieName: candidate,
+            });
+            if (token) break;
+        }
+    }
 
     let response: NextResponse;
 
