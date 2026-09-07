@@ -521,7 +521,7 @@ describe("backfillImportProgress", () => {
     it("maps active_step registry keys to row labels", () => {
         expect(resolveRowLabelForActiveStep("Payment")).toBe("Payment");
         expect(resolveRowLabelForActiveStep("_maturity")).toBe("Link payments");
-        expect(resolveRowLabelForActiveStep("_purge")).toBe("Deleting…");
+        expect(resolveRowLabelForActiveStep("_purge")).toBe("Record deletion");
     });
 
     it("marks Payment Done when sync_state frontier moved to Invoice but only Payment has live stats", () => {
