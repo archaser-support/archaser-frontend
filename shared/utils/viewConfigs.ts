@@ -32,6 +32,11 @@ export interface ViewContextConfig {
     clientSortFields?: readonly string[];
     /** Custom field mappings for data transformation */
     fieldMappings?: Record<string, string | readonly string[]>;
+    /**
+     * Invoice/customer field names to omit from this context's grid columns
+     * (reports/exports in other contexts keep them).
+     */
+    excludedFieldNames?: readonly string[];
 }
 
 /**
@@ -113,6 +118,13 @@ export const VIEW_CONFIGS: Record<string, ViewContextConfig> = {
             customer: (id: number) => AppUrls.Customer_DETAILS(id),
             invoice: (id: number) => `${AppUrls.CUSTOMERS}/invoices/${id}`,
         },
+        /** Capacity gap is reports/exports + debug only — not a primary unpaid column. */
+        excludedFieldNames: [
+            "in_capacity_gap",
+            "capacity_gap_amount",
+            "capacity_gap_amount_limit",
+            "capacity_gap_amount_date",
+        ],
         currencyColumns: {
             customer_amount: {
                 amountField: "customer_amount_value",

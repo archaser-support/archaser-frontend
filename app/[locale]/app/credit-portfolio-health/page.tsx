@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { parseDashboardBusinessUnitIdFromUrl } from "@/shared/dashboard/dashboardBusinessUnitParams";
 import {
     clampPortfolioHealthRangeEnd,
+    countInclusiveCalendarDays,
     defaultPortfolioHealthDateRange,
 } from "@/shared/creditInsurance/portfolioHealthDateRange";
 import type {
@@ -162,6 +163,10 @@ export default function CreditPortfolioHealthPage() {
         fromYmd,
         toYmd,
         toYmdLocal(new Date())
+    );
+    const generateDaysInRange = countInclusiveCalendarDays(
+        fromYmd,
+        requestToYmd
     );
 
     const replacePortfolioHealthUrl = useCallback(
@@ -509,6 +514,26 @@ export default function CreditPortfolioHealthPage() {
         },
     });
 
+    const staleResumeAttemptedRef = useRef(false);
+    useEffect(() => {
+        if (!backfillJob) {
+            return;
+        }
+        if (backfillJob.status !== "running") {
+            staleResumeAttemptedRef.current = false;
+            return;
+        }
+        const updatedAtMs = backfillJob.updatedAt
+            ? Date.parse(backfillJob.updatedAt)
+            : 0;
+        const isStaleRunning =
+            updatedAtMs > 0 && Date.now() - updatedAtMs > 45_000;
+        if (isStaleRunning && !staleResumeAttemptedRef.current) {
+            staleResumeAttemptedRef.current = true;
+            retryMutation.mutate();
+        }
+    }, [backfillJob, retryMutation]);
+
     return (
         <CreditPortfolioHealthScreen
             policies={policies}
@@ -535,6 +560,7 @@ export default function CreditPortfolioHealthPage() {
                         : new Error(String(error))
                     : null
             }
+            generateDaysInRange={generateDaysInRange}
             backfillJob={backfillJob}
             onGenerateSnapshots={() => generateMutation.mutate()}
             onStopGenerate={() => stopMutation.mutate()}
