@@ -125,6 +125,15 @@
     border-top: 1px solid #e4e8f0;
 }
 
+.tabsRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+}
+
 .tabs {
     display: flex;
     flex-wrap: wrap;
@@ -139,6 +148,48 @@
     background: #ffffff;
     box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04),
         0 1px 3px rgba(16, 24, 40, 0.06);
+}
+
+.daysMeta {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-inline-start: auto;
+    padding: 6px 12px;
+    border-radius: 12px;
+    border: 1px solid #e4e8f0;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    color: #64748b;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.daysMetaCopy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    min-width: 0;
+}
+
+.daysMetaLabel {
+    font-size: 11px;
+    font-weight: 500;
+    color: #94a3b8;
+    letter-spacing: 0.01em;
+}
+
+.daysMetaRatio {
+    font-variant-numeric: tabular-nums;
+    color: #101828;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.daysMetaRatioMuted {
+    color: #64748b;
+    font-weight: 500;
 }
 
 .tabBtn {
