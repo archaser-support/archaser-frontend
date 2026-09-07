@@ -107,18 +107,24 @@
             "max_payment_term": "Max Payment Term (Days)",
             "max_allowed_mep": "Max Allowed MEP (Days)",
             "reporting_days": "Reporting Days",
-            "mep_cutoff_day_of_month": "MEP Cutoff Day of Month",
-            "mep_substitute_day_of_month": "MEP Substitute Day of Month",
-            "reporting_cutoff_day_of_month": "Reporting Cutoff Day of Month",
-            "reporting_substitute_day_of_month": "Reporting Substitute Day of Month",
-            "payment_term_cutoff_day_of_month": "Payment Term Cutoff Day of Month",
-            "payment_term_substitute_day_of_month": "Payment Term Substitute Day of Month",
+            "mep_cutoff_day": "MEP Cutoff Day",
+            "mep_substitute_extra_days": "MEP Extra Days",
+            "reporting_cutoff_day": "Reporting Cutoff Day",
+            "reporting_substitute_extra_days": "Reporting Extra Days",
+            "payment_term_cutoff_day": "Payment Term Cutoff Day of Month",
+            "payment_term_substitute_day": "Payment Term Substitute Day of Month",
             "insurer_name": "Insurer Name",
             "policy_kind": "Policy Type",
             "policy_kind_primary": "Primary",
             "policy_kind_top_up": "Top-Up",
             "parent_insurance_policy": "Parent Policy",
             "allow_concurrent_top_ups": "Allow Concurrent Top-Ups"
+        },
+        "tooltips": {
+            "mep_cutoff_day": "Invoice issue day on/after this day uses MEP extra days.",
+            "mep_substitute_extra_days": "Added to due date + max allowed MEP when cutoff applies.",
+            "reporting_cutoff_day": "Invoice issue day on/after this day uses reporting extra days.",
+            "reporting_substitute_extra_days": "Added to due date + reporting days when cutoff applies."
         },
         "status": {
             "active": "Active",
@@ -142,8 +148,9 @@
             "invalid_number": "Enter a valid number",
             "invalid_integer": "Enter a valid whole number",
             "day_of_month_out_of_range": "Enter a day between 1 and 31",
-            "cutoff_requires_substitute": "Substitute day of month is required when cutoff day of month is set",
-            "substitute_requires_cutoff": "Cutoff day of month is required when substitute day of month is set",
+            "substitute_extra_days_out_of_range": "Enter a number of days between 1 and 365",
+            "cutoff_requires_substitute": "Substitute is required when cutoff is set",
+            "substitute_requires_cutoff": "Cutoff is required when substitute is set",
             "max_dcl_lte_max_total_cover": "Max DCL/SDL must be less than or equal to Max Total Cover",
             "named_customer_number_exists": "Another row already uses this customer number"
         }
