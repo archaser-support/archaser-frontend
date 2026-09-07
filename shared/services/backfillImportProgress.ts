@@ -24,6 +24,10 @@ export const PURGE_ENTITY_STATS_KEY = "_purge";
 /** Progress-panel label for clear-before-import deletes. */
 export const BACKFILL_DELETING_LABEL = "Deleting…";
 
+/** Progress-panel labels for Payment / Invoice pull+import steps. */
+export const BACKFILL_PAYMENT_IMPORT_LABEL = "Payment import";
+export const BACKFILL_INVOICE_IMPORT_LABEL = "Invoice import";
+
 /**
  * Tail steps after entity ingest. They run while the sync is still RUNNING, so
  * without their own rows the panel froze on the last entity and gave no reason
@@ -74,18 +78,33 @@ export type BackfillTailStepLabel =
     (typeof BACKFILL_TAIL_STEPS)[number]["label"];
 
 export type BackfillProgressRowKey =
-    | ImportType
+    | Exclude<ImportType, "Payment" | "Invoice">
+    | typeof BACKFILL_PAYMENT_IMPORT_LABEL
+    | typeof BACKFILL_INVOICE_IMPORT_LABEL
     | typeof BACKFILL_LINK_PAYMENTS_LABEL
     | typeof BACKFILL_DELETING_LABEL
     | BackfillTailStepLabel;
+
+/** Map connector entity types to progress-row display labels. */
+export function progressRowLabelForEntity(
+    entity: ImportType
+): BackfillProgressRowKey {
+    if (entity === "Payment") {
+        return BACKFILL_PAYMENT_IMPORT_LABEL;
+    }
+    if (entity === "Invoice") {
+        return BACKFILL_INVOICE_IMPORT_LABEL;
+    }
+    return entity;
+}
 
 const BACKFILL_PROGRESS_STEP_TOOLTIPS: Record<BackfillProgressRowKey, string> =
     {
         Customer:
             "Pulls customer master records from the ERP and creates or updates them in Archaser.",
-        Payment:
+        "Payment import":
             "Pulls payment and receipt lines from the ERP. Counter is imported / pulled (DB writes vs ERP rows).",
-        Invoice:
+        "Invoice import":
             "Pulls invoice lines from the ERP. Counter is imported / pulled (DB writes vs ERP rows).",
         Contact:
             "Pulls customer contact people from the ERP and links them to customers.",
@@ -151,8 +170,8 @@ export const ACTIVE_STEP_TO_ROW_LABEL: Record<string, BackfillProgressRowKey> =
     {
         [PURGE_ENTITY_STATS_KEY]: BACKFILL_DELETING_LABEL,
         Customer: "Customer",
-        Payment: "Payment",
-        Invoice: "Invoice",
+        Payment: BACKFILL_PAYMENT_IMPORT_LABEL,
+        Invoice: BACKFILL_INVOICE_IMPORT_LABEL,
         Contact: "Contact",
         [MATURITY_ENTITY_STATS_KEY]: BACKFILL_LINK_PAYMENTS_LABEL,
         [PENDING_CLOSES_ENTITY_STATS_KEY]: BACKFILL_PENDING_CLOSES_LABEL,
@@ -219,15 +238,9 @@ export function applyExplicitActiveStepToRows(
             if (row.phase === "queued") {
                 return row;
             }
-            // Keep waiting until entity_stats for this step arrive. Promoting an
-            // empty waiting row to running shows "0 processed" + indeterminate bar.
-            if (
-                (row.phase === "waiting" || row.phase === "not_started") &&
-                row.total_records == null &&
-                row.records_pulled <= 0
-            ) {
-                return row;
-            }
+            // Active step from the backend: show Running even at 0 pulled so
+            // long ERP waits (column sample / first page) are not mistaken for
+            // a stuck Waiting step.
             return {
                 ...row,
                 phase: "running",
@@ -255,6 +268,8 @@ export function resolveBackfillSubtitleFromActiveStep(
     const label = resolveRowLabelForActiveStep(activeStep);
     if (
         label === BACKFILL_DELETING_LABEL ||
+        label === BACKFILL_PAYMENT_IMPORT_LABEL ||
+        label === BACKFILL_INVOICE_IMPORT_LABEL ||
         label === BACKFILL_LINK_PAYMENTS_LABEL ||
         label === BACKFILL_AR_REPLAY_LABEL ||
         BACKFILL_TAIL_STEPS.some((step) => step.label === label) ||
@@ -518,7 +533,9 @@ function formatDeletedCountsDetail(
         if (deleted == null) {
             continue;
         }
-        parts.push(`${entity} ${deleted.toLocaleString()}`);
+        parts.push(
+            `${progressRowLabelForEntity(entity)} ${deleted.toLocaleString()}`
+        );
     }
     return parts.length > 0 ? parts.join(" · ") : undefined;
 }
@@ -542,6 +559,8 @@ function buildDeletingProgressRow(params: {
     runFinished: boolean;
     /** Clear-before-import was requested; treat as running until purge reports done. */
     expectPurge?: boolean;
+    /** Orchestrator active_step — when past `_purge`, do not keep Deleting running. */
+    activeStep?: string | null;
 }): EntityProgressRow {
     const purge = readPurgeStats(params.entityStats);
     const deletedTotal = Math.max(
@@ -556,10 +575,50 @@ function buildDeletingProgressRow(params: {
               ? purge.pulled
               : null;
     const detail = formatDeletedCountsDetail(params.entityStats);
+    const hasPurgeEvidence =
+        purge?.status === "running" ||
+        purge?.status === "done" ||
+        deletedTotal > 0;
+    const orchestratorPastPurge =
+        params.activeStep != null &&
+        params.activeStep !== PURGE_ENTITY_STATS_KEY;
+    // Delete switches on (or Start with clear-before-import) but purge has not
+    // reported yet — show a planned Waiting row on idle panels, Running once live.
+    if (
+        params.expectPurge === true &&
+        !hasPurgeEvidence &&
+        !orchestratorPastPurge
+    ) {
+        if (params.runFinished) {
+            return {
+                entity_type: BACKFILL_DELETING_LABEL,
+                phase: "waiting",
+                records_pulled: 0,
+                total_records: null,
+                progress_percent: null,
+                last_error: null,
+                deleted: 0,
+                success: 0,
+            };
+        }
+        return {
+            entity_type: BACKFILL_DELETING_LABEL,
+            phase: "running",
+            records_pulled: 0,
+            total_records: null,
+            progress_percent: null,
+            last_error: null,
+            deleted: 0,
+            success: 0,
+        };
+    }
     const running =
         !params.runFinished &&
+        !orchestratorPastPurge &&
         (purge?.status === "running" ||
-            (params.expectPurge === true && purge?.status !== "done"));
+            (params.expectPurge === true &&
+                purge?.status !== "done" &&
+                !hasPurgeEvidence));
     const percent =
         total != null && total > 0
             ? clampPercent(deletedTotal, total)
@@ -1022,7 +1081,9 @@ function insertLinkPaymentsRow(
     rows: EntityProgressRow[],
     linkRow: EntityProgressRow
 ): EntityProgressRow[] {
-    const invoiceIndex = rows.findIndex((row) => row.entity_type === "Invoice");
+    const invoiceIndex = rows.findIndex(
+        (row) => row.entity_type === BACKFILL_INVOICE_IMPORT_LABEL
+    );
     if (invoiceIndex < 0) {
         return [...rows, linkRow];
     }
@@ -1177,9 +1238,17 @@ export function buildRunningEntityProgressRows(params: {
     const maturity = readMaturityStats(stats);
     const purge = readPurgeStats(stats);
     const expectPurge = params.expectPurge === true;
+    const explicitStep = params.activeStep ?? null;
+    // expectPurge only covers the gap before the first purge patch. Once the
+    // orchestrator leaves `_purge` (or reports done), do not pin every entity
+    // on Waiting — that made Deleting stick until a full page refresh.
+    const purgeFinished =
+        purge?.status === "done" ||
+        (explicitStep != null && explicitStep !== PURGE_ENTITY_STATS_KEY);
     const purgeRunning =
-        purge?.status === "running" ||
-        (expectPurge && purge?.status !== "done");
+        !purgeFinished &&
+        (purge?.status === "running" ||
+            (expectPurge && purge?.status !== "done"));
     const runHasProgress = Object.entries(stats).some(
         ([key, entityStats]) =>
             key !== MATURITY_ENTITY_STATS_KEY &&
@@ -1345,7 +1414,7 @@ export function buildRunningEntityProgressRows(params: {
         // Purge phase: keep import rows Waiting until deletes finish.
         if (purgeRunning) {
             return {
-                entity_type: entity,
+                entity_type: progressRowLabelForEntity(entity),
                 phase: "waiting" as const,
                 records_pulled: 0,
                 total_records: null,
@@ -1358,7 +1427,7 @@ export function buildRunningEntityProgressRows(params: {
         // so stale sync_state Done counts/totals do not flash back.
         if (!useLiveOrCheckpoint) {
             return {
-                entity_type: entity,
+                entity_type: progressRowLabelForEntity(entity),
                 phase: isActive ? ("running" as const) : ("waiting" as const),
                 records_pulled: 0,
                 total_records: null,
@@ -1402,7 +1471,7 @@ export function buildRunningEntityProgressRows(params: {
                 true
             );
             return {
-                entity_type: entity,
+                entity_type: progressRowLabelForEntity(entity),
                 phase: "done" as const,
                 records_pulled: pulled,
                 total_records: total,
@@ -1436,7 +1505,7 @@ export function buildRunningEntityProgressRows(params: {
                   null
                 : null;
             return {
-                entity_type: entity,
+                entity_type: progressRowLabelForEntity(entity),
                 phase: error ? ("failed" as const) : ("running" as const),
                 records_pulled: pulled,
                 total_records: total,
@@ -1458,7 +1527,7 @@ export function buildRunningEntityProgressRows(params: {
         // Waiting entities: clear counters (same as Link payments waiting).
         // Ignore stale backfill_completed from a previous run.
         return {
-            entity_type: entity,
+            entity_type: progressRowLabelForEntity(entity),
             phase: "waiting" as const,
             records_pulled: 0,
             total_records: null,
@@ -1486,6 +1555,7 @@ export function buildRunningEntityProgressRows(params: {
                       entityStats: stats,
                       runFinished: false,
                       expectPurge,
+                      activeStep: params.activeStep,
                   })
               )
             : withLinkRow,
@@ -1581,6 +1651,11 @@ export function buildFinishedEntityProgressRows(params: {
     enabledEntities: ImportType[];
     syncStates: ConnectorSyncStatePublic[] | undefined;
     run: SyncRunSummary;
+    /**
+     * Delete-before-import switches are on (or last Start requested purge) —
+     * include Deleting… even when this finished run has no purge stats yet.
+     */
+    expectPurge?: boolean;
 }): EntityProgressRow[] {
     const ordered = orderEnabledBackfillEntities(params.enabledEntities);
     const byType = new Map(
@@ -1606,7 +1681,7 @@ export function buildFinishedEntityProgressRows(params: {
 
         if (!meaningful && !state?.backfill_completed && pulled === 0) {
             return {
-                entity_type: entity,
+                entity_type: progressRowLabelForEntity(entity),
                 phase: "not_started" as const,
                 records_pulled: 0,
                 total_records: total,
@@ -1623,7 +1698,7 @@ export function buildFinishedEntityProgressRows(params: {
                   : "not_started";
 
         return {
-            entity_type: entity,
+            entity_type: progressRowLabelForEntity(entity),
             phase: resolvedPhase,
             records_pulled: pulled,
             total_records: total,
@@ -1647,7 +1722,9 @@ export function buildFinishedEntityProgressRows(params: {
         };
     });
 
-    const invoiceRow = entityRows.find((row) => row.entity_type === "Invoice");
+    const invoiceRow = entityRows.find(
+        (row) => row.entity_type === BACKFILL_INVOICE_IMPORT_LABEL
+    );
     const invoiceCompletedInRun =
         invoiceRow?.phase === "done" ||
         Boolean(byType.get("Invoice")?.backfill_completed);
@@ -1662,13 +1739,15 @@ export function buildFinishedEntityProgressRows(params: {
           )
         : entityRows;
 
+    const expectPurge = params.expectPurge === true;
     return appendTailStepRows({
-        rows: shouldShowPurgeProgressRow(stats)
+        rows: shouldShowPurgeProgressRow(stats, expectPurge)
             ? prependDeletingRow(
                   withLinkRow,
                   buildDeletingProgressRow({
                       entityStats: stats,
                       runFinished: true,
+                      expectPurge,
                   })
               )
             : withLinkRow,

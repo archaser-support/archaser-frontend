@@ -63,6 +63,7 @@ import {
     findRunningBackfillRun,
     isPlaceholderBackfillProgressRun,
     previewPassesFromSyncResult,
+    PURGE_ENTITY_STATS_KEY,
     readBackfillProgressSession,
     resolveBackfillProgressRun,
     writeBackfillProgressSession,
@@ -268,6 +269,8 @@ const BillingIntegrationSettings = forwardRef<
     >({});
     const entityTabsRef = useRef<HTMLDivElement | null>(null);
     const entityTabFocusPendingRef = useRef(true);
+    /** Keep last live progress run so a brief sync-runs gap does not reset to Deleting. */
+    const lastLiveProgressRunRef = useRef<SyncRunSummary | null>(null);
 
     useLayoutEffect(() => {
         skipClearBeforeImportPersistRef.current = true;
@@ -717,7 +720,10 @@ const BillingIntegrationSettings = forwardRef<
             setProgressUiReset(false);
             setProgressSession(null);
             writeBackfillProgressSession(accountId, null);
+            lastLiveProgressRunRef.current = null;
             setMappingExpanded(false);
+            // Keep the progress accordion open so entity steps stay visible.
+            setProgressExpanded(true);
             return { expectPurge };
         },
         onSuccess: (result, _variables, context) => {
@@ -760,10 +766,17 @@ const BillingIntegrationSettings = forwardRef<
                 };
                 setProgressSession(session);
                 writeBackfillProgressSession(accountId, session);
+                // Keep pendingBackfillReset until findRunningBackfillRun sees
+                // this execution — clearing here lets a sync-runs refetch hide
+                // the step list until a full page reload.
+            } else {
                 setPendingBackfillReset(false);
             }
             void invalidateBillingConnectorQueries(queryClient, accountId, {
                 history: true,
+                // Preserve the seeded RUNNING run; the busy poller refreshes
+                // sync-runs once pendingBackfillReset / syncInProgress is set.
+                syncRuns: false,
             });
         },
         onError: (err: unknown) => {
@@ -863,6 +876,14 @@ const BillingIntegrationSettings = forwardRef<
         queryKey: billingConnectorSyncRunsQueryKey(accountId),
         queryFn: () => fetchBillingConnectorSyncRuns(accountId),
         enabled: accountId > 0 && Boolean(config?.has_credentials),
+        refetchInterval: (query) => {
+            const runs = query.state.data ?? [];
+            const busy =
+                pendingBackfillReset ||
+                backfillMutation.isPending ||
+                runs.some(isActiveConnectorSyncRun);
+            return busy ? BILLING_CONNECTOR_BUSY_POLL_MS : false;
+        },
     });
 
     const {
@@ -893,23 +914,70 @@ const BillingIntegrationSettings = forwardRef<
         session: progressSession,
     });
     const progressRun = progressResolution.run;
+    if (
+        progressRun &&
+        !isPlaceholderBackfillProgressRun(progressRun) &&
+        progressRun.id
+    ) {
+        lastLiveProgressRunRef.current = progressRun;
+    }
+    const clearBeforeImportPlanned =
+        resolveClearBeforeImportPayload({
+            session: clearBeforeImportSession,
+            enabledEntities,
+        }).length > 0;
+    const progressRunIsLive =
+        Boolean(progressRun) &&
+        isActiveConnectorSyncRun(progressRun) &&
+        !isPlaceholderBackfillProgressRun(progressRun);
+    /** Delete switches on (idle/preview), or Start already requested clear-before-import. */
+    const showDeletingProgressStep =
+        expectDeletingStep ||
+        (clearBeforeImportPlanned && !progressRunIsLive);
     const displayProgressRun = useMemo(() => {
         if (pendingBackfillReset) {
             return (
                 findRunningBackfillRun(syncRuns) ??
-                createPendingBackfillRun({ expectPurge: expectDeletingStep })
+                lastLiveProgressRunRef.current ??
+                createPendingBackfillRun({
+                    expectPurge: showDeletingProgressStep,
+                })
             );
         }
         if (progressUiReset) {
             return createResetBackfillProgressRun();
         }
-        return progressRun;
+        if (progressRun) {
+            return progressRun;
+        }
+        // Session bound but sync-runs poll briefly missed the execution —
+        // reuse the last live snapshot instead of resetting to Deleting….
+        if (
+            progressSession?.executionId &&
+            !progressSession.dismissed
+        ) {
+            const last = lastLiveProgressRunRef.current;
+            if (last?.id === progressSession.executionId) {
+                return last;
+            }
+            return createPendingBackfillRun({
+                expectPurge: showDeletingProgressStep,
+            });
+        }
+        // Idle panel with delete switches on — still show the planned step list.
+        if (clearBeforeImportPlanned) {
+            return createResetBackfillProgressRun();
+        }
+        return null;
     }, [
         pendingBackfillReset,
         progressUiReset,
-        expectDeletingStep,
+        showDeletingProgressStep,
+        clearBeforeImportPlanned,
         syncRuns,
         progressRun,
+        progressSession?.executionId,
+        progressSession?.dismissed,
     ]);
     const displayProgressRunActive = Boolean(
         displayProgressRun &&
@@ -975,10 +1043,23 @@ const BillingIntegrationSettings = forwardRef<
         if (!expectDeletingStep) {
             return;
         }
+        const running = findRunningBackfillRun(syncRuns);
+        const purgeStatus = running?.entity_stats?.[PURGE_ENTITY_STATS_KEY]
+            ?.status;
+        const activeStep = running?.active_step;
+        if (
+            purgeStatus === "done" ||
+            (typeof activeStep === "string" &&
+                activeStep.length > 0 &&
+                activeStep !== PURGE_ENTITY_STATS_KEY)
+        ) {
+            setExpectDeletingStep(false);
+            return;
+        }
         if (
             !pendingBackfillReset &&
             !backfillMutation.isPending &&
-            !findRunningBackfillRun(syncRuns)
+            !running
         ) {
             setExpectDeletingStep(false);
         }
@@ -1663,7 +1744,7 @@ const BillingIntegrationSettings = forwardRef<
                         displayProgressRun={displayProgressRun}
                         enabledEntities={enabledEntities}
                         displaySyncStates={displaySyncStates}
-                        expectDeletingStep={expectDeletingStep}
+                        expectDeletingStep={showDeletingProgressStep}
                         pendingArPostIngestCustomers={
                             progressUiReset || pendingBackfillReset
                                 ? 0

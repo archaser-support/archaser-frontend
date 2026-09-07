@@ -35,7 +35,9 @@ import {
     estimateRemainingSeconds,
     formatEstimatedRemaining,
     BACKFILL_DELETING_LABEL,
+    BACKFILL_INVOICE_IMPORT_LABEL,
     BACKFILL_LINK_PAYMENTS_LABEL,
+    BACKFILL_PAYMENT_IMPORT_LABEL,
     BACKFILL_TAIL_STEPS,
     getBackfillProgressStepTooltip,
     type EntityProgressPhase,
@@ -133,7 +135,10 @@ function PhaseStatusIcon({ phase }: { phase: EntityProgressPhase }) {
 }
 
 function isInvoiceOrPaymentRow(row: EntityProgressRow): boolean {
-    return row.entity_type === "Invoice" || row.entity_type === "Payment";
+    return (
+        row.entity_type === BACKFILL_INVOICE_IMPORT_LABEL ||
+        row.entity_type === BACKFILL_PAYMENT_IMPORT_LABEL
+    );
 }
 
 function formatFailedSkippedSuffix(
@@ -184,10 +189,8 @@ function formatCounts(row: EntityProgressRow, finished: boolean): string {
         if (row.detail) {
             return row.detail;
         }
-        if ((row.deleted ?? row.records_pulled) > 0) {
-            return `${(row.deleted ?? row.records_pulled).toLocaleString()} deleted`;
-        }
-        return row.phase === "running" ? "Deleting…" : "0 deleted";
+        const deleted = row.deleted ?? row.records_pulled ?? 0;
+        return `${deleted.toLocaleString()} deleted`;
     }
 
     // Invoice/Payment: imported (DB writes) / pulled (ERP rows). First number matters.
@@ -247,8 +250,9 @@ interface BackfillImportProgressProps {
     enabledEntities: ImportType[];
     syncStates: ConnectorSyncStatePublic[] | undefined;
     /**
-     * Start requested clear-before-import — show Deleting… before the first
-     * purge progress patch arrives (avoids the list jumping a second later).
+     * Clear-before-import is planned (delete switches on) or Start already
+     * requested purge — show Deleting… in the step list (waiting/running)
+     * before the first purge progress patch arrives.
      */
     expectDeletingStep?: boolean;
     /** Customers still on the worker AR post-ingest queue (connector config). */
@@ -300,6 +304,7 @@ export default function BackfillImportProgress({
                   enabledEntities,
                   syncStates,
                   run,
+                  expectPurge: expectDeletingStep,
               });
         return enrichPostIngestDrainProgressRow(
             baseRows,
