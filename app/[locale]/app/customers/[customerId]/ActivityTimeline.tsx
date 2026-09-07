@@ -294,7 +294,8 @@ const withResolvedActor = (
 
 const formatActivityTitle = (
     detail: TimelineDetail,
-    t: (_key: string, _params?: Record<string, unknown>) => string
+    t: (_key: string, _params?: Record<string, unknown>) => string,
+    session?: Session | null
 ): string => {
     const params = withResolvedActor(parseTitleParams(detail.title_params));
     if (!detail.title) {
@@ -304,7 +305,15 @@ const formatActivityTitle = (
             ? t("fields.activity_call_activity", { ns: "activities" })
             : "";
     }
-    return translateStoredI18nKey(String(detail.title), t, params);
+    return translateStoredI18nKey(String(detail.title), t, params, {
+        formatDate: (date, kind) =>
+            formatDateForDisplay(
+                date,
+                kind,
+                getUserDateLocale(session),
+                kind === "datetime" ? getUserTimezone(session) : undefined
+            ),
+    });
 };
 
 // Function to detect if an activity is failed
@@ -846,6 +855,10 @@ const CollapsibleDetail = memo(
             }
         }, [detail.time, session]);
 
+        const formattedTitle = useMemo(() => {
+            return formatActivityTitle(detail, t, session);
+        }, [detail, t, session]);
+
         const translatedContent = useMemo(() => {
             if (!detail.description) return "";
             return resolveI18nPlaceholders(
@@ -969,16 +982,16 @@ const CollapsibleDetail = memo(
 
                             }}
                         >
-                            {formatActivityTitle(detail, t).includes("<b>") ? (
+                            {formattedTitle.includes("<b>") ? (
                                 <span
                                     dangerouslySetInnerHTML={{
                                         __html: sanitizeActivityTitle(
-                                            formatActivityTitle(detail, t)
+                                            formattedTitle
                                         )
                                     }}
                                 />
                             ) : (
-                                formatActivityTitle(detail, t)
+                                formattedTitle
                             )}
                         </Typography>
 
