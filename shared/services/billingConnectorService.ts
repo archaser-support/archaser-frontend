@@ -432,15 +432,19 @@ export type ImportCacheEntityType = Extract<
     "Customer" | "Contact" | "Invoice" | "Payment"
 >;
 
-export interface ImportCacheEntityAvailability {
+export interface ImportCacheRunEntity {
     import_type: ImportCacheEntityType;
+    row_count: number;
     available: boolean;
+}
+
+export interface ImportCacheRun {
+    execution_id: string;
+    created_at: string;
     sync_mode: "BACKFILL" | "INCREMENTAL";
     cache_day: string;
     customer_scope: string;
-    row_count: number;
-    execution_id: string | null;
-    created_at: string | null;
+    entities: ImportCacheRunEntity[];
 }
 
 export interface ImportCacheCheckResponse {
@@ -448,7 +452,7 @@ export interface ImportCacheCheckResponse {
     cache_day: string;
     customer_scope: string;
     time_zone: string;
-    entities: ImportCacheEntityAvailability[];
+    runs: ImportCacheRun[];
 }
 
 /** Same-day Mongo import-cache availability for manual Start suggestion. */
@@ -484,6 +488,7 @@ export async function runBillingConnectorBackfill(
         >;
         customer_id?: number | null;
         use_cached_import?: ImportCacheEntityType[];
+        use_cached_execution_id?: string;
     }
 ) {
     const body: Record<string, unknown> = {};
@@ -497,8 +502,13 @@ export async function runBillingConnectorBackfill(
     ) {
         body.customer_id = Math.trunc(options.customer_id);
     }
-    if (options?.use_cached_import && options.use_cached_import.length > 0) {
+    if (
+        options?.use_cached_import &&
+        options.use_cached_import.length > 0 &&
+        options.use_cached_execution_id
+    ) {
         body.use_cached_import = options.use_cached_import;
+        body.use_cached_execution_id = options.use_cached_execution_id;
     }
     const response = await api.post(`${basePath(accountId)}/sync`, body, {
         params: { mode: "backfill" },
@@ -546,11 +556,17 @@ export async function runBillingConnectorIncrementalSync(
     accountId: number,
     options?: {
         use_cached_import?: ImportCacheEntityType[];
+        use_cached_execution_id?: string;
     }
 ) {
     const body: Record<string, unknown> = {};
-    if (options?.use_cached_import && options.use_cached_import.length > 0) {
+    if (
+        options?.use_cached_import &&
+        options.use_cached_import.length > 0 &&
+        options.use_cached_execution_id
+    ) {
         body.use_cached_import = options.use_cached_import;
+        body.use_cached_execution_id = options.use_cached_execution_id;
     }
     const response = await api.post(`${basePath(accountId)}/sync`, body, {
         params: { mode: "incremental" },
