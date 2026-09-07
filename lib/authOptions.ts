@@ -161,6 +161,28 @@ export const authOptions: NextAuthOptions = {
         },
     },
     callbacks: {
+        async redirect({ url, baseUrl }) {
+            const configuredBase =
+                process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL;
+            const effectiveBase = configuredBase
+                ? configuredBase.replace(/\/$/, "")
+                : baseUrl;
+            if (url.startsWith("/")) {
+                return `${effectiveBase}${url}`;
+            }
+            try {
+                const targetOrigin = new URL(url).origin;
+                if (
+                    targetOrigin === new URL(effectiveBase).origin ||
+                    targetOrigin === new URL(baseUrl).origin
+                ) {
+                    return url;
+                }
+            } catch {
+                // Ignore parse errors
+            }
+            return effectiveBase;
+        },
         async jwt({ token, user, trigger, session }) {
             if (user) {
                 const u = user as NestBridgeUser;
