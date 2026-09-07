@@ -1,6 +1,13 @@
 "use client";
 
-import { Alert, Box, CircularProgress, Typography } from "@mui/material";
+import {
+    Alert,
+    Box,
+    Checkbox,
+    CircularProgress,
+    FormControlLabel,
+    Typography,
+} from "@mui/material";
 import type { ConnectorAuthType, ImportType } from "@/types/db";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, forwardRef, type ReactNode } from "react";
@@ -8,6 +15,7 @@ import { useTranslation } from "react-i18next";
 
 import {
     fetchBillingConnectorConfig,
+    fetchBillingConnectorImportCacheCheck,
     fetchBillingConnectorSyncHistory,
     fetchBillingConnectorSyncRuns,
     cancelBillingConnectorSync,
@@ -20,6 +28,8 @@ import {
     saveBillingConnectorConfig,
     testBillingConnectorConnection,
     type BillingConnectorConfig,
+    type ImportCacheEntityAvailability,
+    type ImportCacheEntityType,
     type PreviewSyncResponse,
     type PullFiltersMap,
     type SyncRunSummary,
@@ -58,13 +68,14 @@ import {
 import {
     canStartFirstBackfill,
     createPendingBackfillRun,
-    createResetBackfillProgressRun,
     entitiesMissingPreview,
     findRunningBackfillRun,
     isPlaceholderBackfillProgressRun,
+    mergeSyncRunsPreservingOptimisticRunning,
     previewPassesFromSyncResult,
     readBackfillProgressSession,
     resolveBackfillProgressRun,
+    resolveDisplayBackfillProgressRun,
     writeBackfillProgressSession,
     zeroBackfillProgressSyncStates,
     type BackfillProgressSession,
@@ -225,6 +236,22 @@ const BillingIntegrationSettings = forwardRef<
     const [resetDialogOpen, setResetDialogOpen] = useState(false);
     const [clearBeforeStartDialogOpen, setClearBeforeStartDialogOpen] =
         useState(false);
+    const [cacheSuggestionDialogOpen, setCacheSuggestionDialogOpen] =
+        useState(false);
+    const [cacheSuggestionEntities, setCacheSuggestionEntities] = useState<
+        ImportCacheEntityAvailability[]
+    >([]);
+    const [cacheSuggestionSelection, setCacheSuggestionSelection] = useState<
+        Partial<Record<ImportCacheEntityType, boolean>>
+    >({});
+    const [cacheSuggestionMode, setCacheSuggestionMode] = useState<
+        "backfill" | "incremental" | null
+    >(null);
+    const [cacheCheckPending, setCacheCheckPending] = useState(false);
+    /** Carried from cache dialog into Start / clear-before confirm. */
+    const pendingUseCachedImportRef = useRef<ImportCacheEntityType[] | undefined>(
+        undefined
+    );
     const [clearBeforeImportPrefs, setClearBeforeImportPrefs] =
         useState<ClearBeforeImportPrefs>(() =>
             readClearBeforeImportPrefs(accountId)
@@ -253,6 +280,12 @@ const BillingIntegrationSettings = forwardRef<
         );
     /** Clears progress counters immediately on Start, before the new run polls in. */
     const [pendingBackfillReset, setPendingBackfillReset] = useState(false);
+    /**
+     * Optimistic RUNNING row held in React state so progress steps survive a
+     * sync-runs refetch that briefly omits the seeded execution.
+     */
+    const [heldProgressRun, setHeldProgressRun] =
+        useState<SyncRunSummary | null>(null);
     /** Clears progress bars/counters after Run Preview until the next real import. */
     const [progressUiReset, setProgressUiReset] = useState(false);
     /** Start requested clear-before-import — keep Deleting… visible before purge stats arrive. */
@@ -274,6 +307,12 @@ const BillingIntegrationSettings = forwardRef<
         setClearBeforeImportPrefs(readClearBeforeImportPrefs(accountId));
         setClearBeforeImportCustomerError(null);
         setClearBeforeStartDialogOpen(false);
+        setCacheSuggestionDialogOpen(false);
+        setCacheSuggestionEntities([]);
+        setCacheSuggestionSelection({});
+        setCacheSuggestionMode(null);
+        setCacheCheckPending(false);
+        pendingUseCachedImportRef.current = undefined;
     }, [accountId]);
 
     useEffect(() => {
@@ -703,6 +742,7 @@ const BillingIntegrationSettings = forwardRef<
                 "Customer" | "Contact" | "Invoice" | "Payment"
             >;
             customer_id?: number | null;
+            use_cached_import?: ImportCacheEntityType[];
         },
         { expectPurge: boolean }
     >({
@@ -715,9 +755,13 @@ const BillingIntegrationSettings = forwardRef<
             setExpectDeletingStep(expectPurge);
             setPendingBackfillReset(true);
             setProgressUiReset(false);
+            setHeldProgressRun(
+                createPendingBackfillRun({ expectPurge })
+            );
             setProgressSession(null);
             writeBackfillProgressSession(accountId, null);
             setMappingExpanded(false);
+            setProgressExpanded(true);
             return { expectPurge };
         },
         onSuccess: (result, _variables, context) => {
@@ -744,6 +788,7 @@ const BillingIntegrationSettings = forwardRef<
                     if (result.trigger) {
                         seeded.trigger = result.trigger;
                     }
+                    setHeldProgressRun(seeded);
                     queryClient.setQueryData<SyncRunSummary[]>(
                         billingConnectorSyncRunsQueryKey(accountId),
                         (runs) => {
@@ -760,21 +805,29 @@ const BillingIntegrationSettings = forwardRef<
                 };
                 setProgressSession(session);
                 writeBackfillProgressSession(accountId, session);
-                setPendingBackfillReset(false);
+                // Keep pendingBackfillReset until sync-runs shows this live
+                // RUNNING row — clearing here raced config refresh (Resume) and
+                // empty progress until a full page reload.
             }
+            // Do not invalidate syncRuns here — preserve the seeded RUNNING row
+            // until the busy poller fetches live progress.
             void invalidateBillingConnectorQueries(queryClient, accountId, {
+                syncRuns: false,
                 history: true,
             });
         },
         onError: (err: unknown) => {
             setPendingBackfillReset(false);
+            setHeldProgressRun(null);
             setExpectDeletingStep(false);
             showError(axiosErrorMessage(err) ?? "Backfill sync failed");
         },
     });
 
     const incrementalMutation = useMutation({
-        mutationFn: () => runBillingConnectorIncrementalSync(accountId),
+        mutationFn: (options?: {
+            use_cached_import?: ImportCacheEntityType[];
+        }) => runBillingConnectorIncrementalSync(accountId, options),
         onSuccess: (result: { status?: string } | undefined) => {
             success(
                 result?.status === "RUNNING"
@@ -861,7 +914,16 @@ const BillingIntegrationSettings = forwardRef<
 
     const { data: syncRuns = [] } = useQuery({
         queryKey: billingConnectorSyncRunsQueryKey(accountId),
-        queryFn: () => fetchBillingConnectorSyncRuns(accountId),
+        queryFn: async () => {
+            const previous = queryClient.getQueryData<SyncRunSummary[]>(
+                billingConnectorSyncRunsQueryKey(accountId)
+            );
+            const fetched = await fetchBillingConnectorSyncRuns(accountId);
+            return mergeSyncRunsPreservingOptimisticRunning(
+                fetched,
+                previous
+            );
+        },
         enabled: accountId > 0 && Boolean(config?.has_credentials),
     });
 
@@ -893,24 +955,25 @@ const BillingIntegrationSettings = forwardRef<
         session: progressSession,
     });
     const progressRun = progressResolution.run;
-    const displayProgressRun = useMemo(() => {
-        if (pendingBackfillReset) {
-            return (
-                findRunningBackfillRun(syncRuns) ??
-                createPendingBackfillRun({ expectPurge: expectDeletingStep })
-            );
-        }
-        if (progressUiReset) {
-            return createResetBackfillProgressRun();
-        }
-        return progressRun;
-    }, [
-        pendingBackfillReset,
-        progressUiReset,
-        expectDeletingStep,
-        syncRuns,
-        progressRun,
-    ]);
+    const displayProgressRun = useMemo(
+        () =>
+            resolveDisplayBackfillProgressRun({
+                syncRuns,
+                progressRun,
+                heldProgressRun,
+                pendingBackfillReset,
+                progressUiReset,
+                expectDeletingStep,
+            }),
+        [
+            syncRuns,
+            progressRun,
+            heldProgressRun,
+            pendingBackfillReset,
+            progressUiReset,
+            expectDeletingStep,
+        ]
+    );
     const displayProgressRunActive = Boolean(
         displayProgressRun &&
             isActiveConnectorSyncRun(displayProgressRun) &&
@@ -928,6 +991,9 @@ const BillingIntegrationSettings = forwardRef<
         backfillMutation.isPending ||
         incrementalMutation.isPending ||
         Boolean(progressRun && isActiveConnectorSyncRun(progressRun)) ||
+        Boolean(
+            heldProgressRun && heldProgressRun.status === "RUNNING"
+        ) ||
         pendingBackfillReset;
     const progressRunStopping =
         displayProgressRun?.status === "TIMEOUT" &&
@@ -955,21 +1021,43 @@ const BillingIntegrationSettings = forwardRef<
     }, [progressUiReset, pendingBackfillReset, syncRuns]);
 
     useEffect(() => {
+        if (!heldProgressRun) {
+            return;
+        }
+        const live = syncRuns.find((run) => run.id === heldProgressRun.id);
+        if (!live || isPlaceholderBackfillProgressRun(live)) {
+            return;
+        }
+        // Drop the hold only after the execution leaves RUNNING (or never was).
+        if (live.status !== "RUNNING") {
+            setHeldProgressRun(null);
+        }
+    }, [syncRuns, heldProgressRun]);
+
+    useEffect(() => {
         if (!pendingBackfillReset) {
             return;
         }
-        // Keep the zeroed chips/counters until Start finishes and a real run exists.
+        // Keep Stop/running + progress steps until Start finishes and a live
+        // (non-placeholder) RUNNING backfill appears in sync-runs.
         if (backfillMutation.isPending) {
             return;
         }
         const running = findRunningBackfillRun(syncRuns);
-        if (running && running.id !== "pending-backfill") {
+        if (
+            running &&
+            !isPlaceholderBackfillProgressRun(running) &&
+            (!progressSession?.executionId ||
+                running.id === progressSession.executionId)
+        ) {
             setPendingBackfillReset(false);
         }
-        // Do not clear on !syncInProgress alone — sync-runs can still be stale
-        // right after Start accepts, which used to drop the poller and hide bars
-        // until a full page refresh.
-    }, [pendingBackfillReset, syncRuns, backfillMutation.isPending]);
+    }, [
+        pendingBackfillReset,
+        syncRuns,
+        backfillMutation.isPending,
+        progressSession?.executionId,
+    ]);
 
     useEffect(() => {
         if (!expectDeletingStep) {
@@ -1042,8 +1130,10 @@ const BillingIntegrationSettings = forwardRef<
             ),
         [enabledEntities]
     );
-    const selectedMappingEntityTab =
-        mappingEntityTab ?? firstEnabledEntityTabIndex(enabledEntities);
+    const selectedMappingEntityTab = Math.min(
+        mappingEntityTab ?? firstEnabledEntityTabIndex(enabledEntities),
+        Math.max(0, ENTITY_OPTIONS.length - 1)
+    );
 
     const previewGateParams = {
         enabledEntities: entitiesForMapping,
@@ -1134,6 +1224,117 @@ const BillingIntegrationSettings = forwardRef<
         actionStage &&
         (actionStage.stage !== "import_running" || actionStage.showStop);
 
+    const takePendingUseCachedImport = useCallback(():
+        | ImportCacheEntityType[]
+        | undefined => {
+        const selected = pendingUseCachedImportRef.current;
+        pendingUseCachedImportRef.current = undefined;
+        return selected && selected.length > 0 ? selected : undefined;
+    }, []);
+
+    const proceedBackfillStart = useCallback(
+        (options?: {
+            clear_before_import?: Array<
+                "Customer" | "Contact" | "Invoice" | "Payment"
+            >;
+            customer_id?: number | null;
+            use_cached_import?: ImportCacheEntityType[];
+        }) => {
+            const useCachedImport =
+                options && "use_cached_import" in options
+                    ? options.use_cached_import &&
+                      options.use_cached_import.length > 0
+                        ? options.use_cached_import
+                        : undefined
+                    : takePendingUseCachedImport();
+            if (options && "use_cached_import" in options) {
+                pendingUseCachedImportRef.current = undefined;
+            }
+            backfillMutation.mutate({
+                ...(options?.clear_before_import &&
+                options.clear_before_import.length > 0
+                    ? { clear_before_import: options.clear_before_import }
+                    : {}),
+                ...(typeof options?.customer_id === "number" &&
+                options.customer_id > 0
+                    ? { customer_id: options.customer_id }
+                    : {}),
+                ...(useCachedImport
+                    ? { use_cached_import: useCachedImport }
+                    : {}),
+            });
+        },
+        [backfillMutation, takePendingUseCachedImport]
+    );
+
+    const proceedIncrementalStart = useCallback(
+        (options?: { use_cached_import?: ImportCacheEntityType[] }) => {
+            const useCachedImport =
+                options && "use_cached_import" in options
+                    ? options.use_cached_import &&
+                      options.use_cached_import.length > 0
+                        ? options.use_cached_import
+                        : undefined
+                    : takePendingUseCachedImport();
+            if (options && "use_cached_import" in options) {
+                pendingUseCachedImportRef.current = undefined;
+            }
+            incrementalMutation.mutate(
+                useCachedImport
+                    ? { use_cached_import: useCachedImport }
+                    : undefined
+            );
+        },
+        [incrementalMutation, takePendingUseCachedImport]
+    );
+
+    const offerCacheOrStart = useCallback(
+        async (args: {
+            mode: "backfill" | "incremental";
+            customerId?: number | null;
+            onNoCache: () => void;
+        }) => {
+            setCacheCheckPending(true);
+            try {
+                const check = await fetchBillingConnectorImportCacheCheck(
+                    accountId,
+                    {
+                        mode: args.mode,
+                        customer_id: args.customerId,
+                    }
+                );
+                const available = check.entities.filter(
+                    (entity) =>
+                        entity.available &&
+                        enabledEntities.includes(entity.import_type)
+                );
+                if (available.length === 0) {
+                    pendingUseCachedImportRef.current = undefined;
+                    args.onNoCache();
+                    return;
+                }
+                const selection: Partial<
+                    Record<ImportCacheEntityType, boolean>
+                > = {};
+                for (const entity of available) {
+                    selection[entity.import_type] = false;
+                }
+                setCacheSuggestionEntities(available);
+                setCacheSuggestionSelection(selection);
+                setCacheSuggestionMode(args.mode);
+                setCacheSuggestionDialogOpen(true);
+            } catch (err) {
+                showError(
+                    axiosErrorMessage(err) ??
+                        "Failed to check import cache availability"
+                );
+            } finally {
+                setCacheCheckPending(false);
+            }
+        },
+        [accountId, enabledEntities, showError]
+    );
+
     const handlePrimaryAction = () => {
         if (!actionStage) {
             return;
@@ -1181,25 +1382,35 @@ const BillingIntegrationSettings = forwardRef<
                             }
                         }
                     }
-                    if (
-                        shouldConfirmStartBackfillClear({
-                            clearBeforeImport,
-                            customerId,
-                        })
-                    ) {
-                        setClearBeforeStartDialogOpen(true);
-                        return;
-                    }
-                    backfillMutation.mutate({});
+                    const continueStart = () => {
+                        if (
+                            shouldConfirmStartBackfillClear({
+                                clearBeforeImport,
+                                customerId,
+                            })
+                        ) {
+                            setClearBeforeStartDialogOpen(true);
+                            return;
+                        }
+                        proceedBackfillStart();
+                    };
+                    await offerCacheOrStart({
+                        mode: "backfill",
+                        customerId,
+                        onNoCache: continueStart,
+                    });
                 })();
                 break;
             }
             case "resume_backfill":
-                // Resume never sends clear_before_import or customer_id.
+                // Resume never sends clear_before_import, customer_id, or cache.
                 backfillMutation.mutate({});
                 break;
             case "incremental":
-                incrementalMutation.mutate();
+                void offerCacheOrStart({
+                    mode: "incremental",
+                    onNoCache: () => proceedIncrementalStart(),
+                });
                 break;
             case "stop":
                 cancelSyncMutation.mutate();
@@ -1208,6 +1419,98 @@ const BillingIntegrationSettings = forwardRef<
                 break;
         }
     };
+
+    const handleCacheSuggestionConfirm = useCallback(() => {
+        const selected = cacheSuggestionEntities
+            .filter((entity) => cacheSuggestionSelection[entity.import_type])
+            .map((entity) => entity.import_type);
+        pendingUseCachedImportRef.current =
+            selected.length > 0 ? selected : undefined;
+        const mode = cacheSuggestionMode;
+        setCacheSuggestionDialogOpen(false);
+        setCacheSuggestionMode(null);
+        if (mode === "incremental") {
+            proceedIncrementalStart({
+                use_cached_import: selected,
+            });
+            return;
+        }
+        if (mode !== "backfill") {
+            return;
+        }
+        const clearBeforeImport = resolveClearBeforeImportPayload({
+            session: clearBeforeImportSession,
+            enabledEntities,
+        });
+        const customerId = clearBeforeImportCustomerId;
+        if (
+            shouldConfirmStartBackfillClear({
+                clearBeforeImport,
+                customerId,
+            })
+        ) {
+            setClearBeforeStartDialogOpen(true);
+            return;
+        }
+        proceedBackfillStart({
+            ...(customerId != null ? { customer_id: customerId } : {}),
+            use_cached_import: selected,
+        });
+    }, [
+        cacheSuggestionEntities,
+        cacheSuggestionSelection,
+        cacheSuggestionMode,
+        clearBeforeImportSession,
+        clearBeforeImportCustomerId,
+        enabledEntities,
+        proceedBackfillStart,
+        proceedIncrementalStart,
+    ]);
+
+    const handleCacheSuggestionCancel = useCallback(() => {
+        setCacheSuggestionDialogOpen(false);
+        setCacheSuggestionMode(null);
+        setCacheSuggestionEntities([]);
+        setCacheSuggestionSelection({});
+        pendingUseCachedImportRef.current = undefined;
+    }, []);
+
+    const cacheSuggestionDescription = useMemo(() => {
+        const cacheDay = cacheSuggestionEntities[0]?.cache_day;
+        return (
+            <Box display="flex" flexDirection="column" gap={1.5}>
+                <Typography variant="body2">
+                    {cacheDay
+                        ? `Same-day backups (${cacheDay}) are available for this sync. Select entities to load from cache instead of the ERP. Leave all unchecked to fetch from the ERP.`
+                        : "Same-day backups are available for this sync. Select entities to load from cache instead of the ERP. Leave all unchecked to fetch from the ERP."}
+                </Typography>
+                <Box display="flex" flexDirection="column" gap={0.5}>
+                    {cacheSuggestionEntities.map((entity) => (
+                        <FormControlLabel
+                            key={entity.import_type}
+                            control={
+                                <Checkbox
+                                    checked={Boolean(
+                                        cacheSuggestionSelection[
+                                            entity.import_type
+                                        ]
+                                    )}
+                                    onChange={(e) => {
+                                        setCacheSuggestionSelection((prev) => ({
+                                            ...prev,
+                                            [entity.import_type]:
+                                                e.target.checked,
+                                        }));
+                                    }}
+                                />
+                            }
+                            label={`${entity.import_type} (${entity.row_count.toLocaleString()} rows)`}
+                        />
+                    ))}
+                </Box>
+            </Box>
+        );
+    }, [cacheSuggestionEntities, cacheSuggestionSelection]);
 
     const clearBeforeStartConfirmCopy = useMemo(() => {
         const clearBeforeImport = resolveClearBeforeImportPayload({
@@ -1242,6 +1545,7 @@ const BillingIntegrationSettings = forwardRef<
 
     const primaryPending =
         clearBeforeCustomerValidating ||
+        cacheCheckPending ||
         (actionStage?.primaryAction === "preview" &&
             previewMutation.isPending) ||
         (actionStage?.primaryAction === "incremental" &&
@@ -1303,6 +1607,13 @@ const BillingIntegrationSettings = forwardRef<
             actionStage.primaryAction === "start_backfill"
         ) {
             return "Validating customer…";
+        }
+        if (
+            cacheCheckPending &&
+            (actionStage.primaryAction === "start_backfill" ||
+                actionStage.primaryAction === "incremental")
+        ) {
+            return "Checking import cache…";
         }
         switch (actionStage.primaryAction) {
             case "preview":
@@ -1720,7 +2031,10 @@ const BillingIntegrationSettings = forwardRef<
             />
             <DeleteDialog
                 isOpen={clearBeforeStartDialogOpen}
-                onClose={() => setClearBeforeStartDialogOpen(false)}
+                onClose={() => {
+                    setClearBeforeStartDialogOpen(false);
+                    pendingUseCachedImportRef.current = undefined;
+                }}
                 onConfirm={() => {
                     const clearBeforeImport = resolveClearBeforeImportPayload({
                         session: clearBeforeImportSession,
@@ -1728,7 +2042,7 @@ const BillingIntegrationSettings = forwardRef<
                     });
                     const customerId = clearBeforeImportCustomerId;
                     setClearBeforeStartDialogOpen(false);
-                    backfillMutation.mutate({
+                    proceedBackfillStart({
                         clear_before_import: clearBeforeImport,
                         ...(customerId != null
                             ? { customer_id: customerId }
@@ -1741,6 +2055,21 @@ const BillingIntegrationSettings = forwardRef<
                 cancelLabel="Cancel"
                 isLoading={backfillMutation.isPending}
                 type="warning"
+                maxWidth="sm"
+                locale={i18n.language}
+            />
+            <DeleteDialog
+                isOpen={cacheSuggestionDialogOpen}
+                onClose={handleCacheSuggestionCancel}
+                onConfirm={handleCacheSuggestionConfirm}
+                title="Use today's import backup?"
+                description={cacheSuggestionDescription}
+                confirmLabel="Continue"
+                cancelLabel="Cancel"
+                isLoading={
+                    backfillMutation.isPending || incrementalMutation.isPending
+                }
+                type="info"
                 maxWidth="sm"
                 locale={i18n.language}
             />
