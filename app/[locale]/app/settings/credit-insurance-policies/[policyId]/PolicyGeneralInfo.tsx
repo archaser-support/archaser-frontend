@@ -28,6 +28,7 @@ import { useTranslation } from "react-i18next";
 import { CreditInsuranceReadonlyField } from "@/app/[locale]/app/customers/[customerId]/CustomerGeneralInfo";
 import { CurrencySelect } from "@/components/LocationSelects";
 import { shouldNotifyPolicyEligibleForActivation } from "@/shared/creditInsurance/insurancePolicyLifecycle";
+import { MonthEndFieldLabelWithTooltip } from "@/shared/creditInsurance/MonthEndFieldLabelWithTooltip";
 import { getDatePickerFormat } from "@/utils/datetimeOperations";
 
 export type PolicyGeneralInfoPolicyData = {
@@ -99,22 +100,22 @@ export interface PolicyGeneralInfoProps {
     setDclCustomerSinceMonthsInput: (value: string) => void;
     maxPaymentTermInput: string;
     setMaxPaymentTermInput: (value: string) => void;
-    paymentTermCutoffDayOfMonthInput: string;
-    setPaymentTermCutoffDayOfMonthInput: (value: string) => void;
-    paymentTermSubstituteDayOfMonthInput: string;
-    setPaymentTermSubstituteDayOfMonthInput: (value: string) => void;
+    paymentTermCutoffDayInput: string;
+    setPaymentTermCutoffDayInput: (value: string) => void;
+    paymentTermSubstituteDayInput: string;
+    setPaymentTermSubstituteDayInput: (value: string) => void;
     maxAllowedMepInput: string;
     setMaxAllowedMepInput: (value: string) => void;
-    mepCutoffDayOfMonthInput: string;
-    setMepCutoffDayOfMonthInput: (value: string) => void;
-    mepSubstituteDayOfMonthInput: string;
-    setMepSubstituteDayOfMonthInput: (value: string) => void;
+    mepCutoffDayInput: string;
+    setMepCutoffDayInput: (value: string) => void;
+    mepSubstituteExtraDaysInput: string;
+    setMepSubstituteExtraDaysInput: (value: string) => void;
     reportingDaysInput: string;
     setReportingDaysInput: (value: string) => void;
-    reportingCutoffDayOfMonthInput: string;
-    setReportingCutoffDayOfMonthInput: (value: string) => void;
-    reportingSubstituteDayOfMonthInput: string;
-    setReportingSubstituteDayOfMonthInput: (value: string) => void;
+    reportingCutoffDayInput: string;
+    setReportingCutoffDayInput: (value: string) => void;
+    reportingSubstituteExtraDaysInput: string;
+    setReportingSubstituteExtraDaysInput: (value: string) => void;
     displayStartDate: string;
     displayEndDate: string;
     clearPolicyFormError: (key: string) => void;
@@ -183,22 +184,22 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
         setDclCustomerSinceMonthsInput,
         maxPaymentTermInput,
         setMaxPaymentTermInput,
-        paymentTermCutoffDayOfMonthInput,
-        setPaymentTermCutoffDayOfMonthInput,
-        paymentTermSubstituteDayOfMonthInput,
-        setPaymentTermSubstituteDayOfMonthInput,
+        paymentTermCutoffDayInput,
+        setPaymentTermCutoffDayInput,
+        paymentTermSubstituteDayInput,
+        setPaymentTermSubstituteDayInput,
         maxAllowedMepInput,
         setMaxAllowedMepInput,
-        mepCutoffDayOfMonthInput,
-        setMepCutoffDayOfMonthInput,
-        mepSubstituteDayOfMonthInput,
-        setMepSubstituteDayOfMonthInput,
+        mepCutoffDayInput,
+        setMepCutoffDayInput,
+        mepSubstituteExtraDaysInput,
+        setMepSubstituteExtraDaysInput,
         reportingDaysInput,
         setReportingDaysInput,
-        reportingCutoffDayOfMonthInput,
-        setReportingCutoffDayOfMonthInput,
-        reportingSubstituteDayOfMonthInput,
-        setReportingSubstituteDayOfMonthInput,
+        reportingCutoffDayInput,
+        setReportingCutoffDayInput,
+        reportingSubstituteExtraDaysInput,
+        setReportingSubstituteExtraDaysInput,
         displayStartDate,
         displayEndDate,
         clearPolicyFormError,
@@ -216,6 +217,37 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
     const theme = useTheme();
     const { i18n } = useTranslation();
     const isRTL = i18n.language === "he";
+
+    const mepCutoffDayLabel = (
+        <MonthEndFieldLabelWithTooltip
+            label={tCi("credit_insurance.fields.mep_cutoff_day")}
+            tooltip={tCi("credit_insurance.tooltips.mep_cutoff_day")}
+            isRtl={isRTL}
+        />
+    );
+    const mepSubstituteExtraDaysLabel = (
+        <MonthEndFieldLabelWithTooltip
+            label={tCi("credit_insurance.fields.mep_substitute_extra_days")}
+            tooltip={tCi("credit_insurance.tooltips.mep_substitute_extra_days")}
+            isRtl={isRTL}
+        />
+    );
+    const reportingCutoffDayLabel = (
+        <MonthEndFieldLabelWithTooltip
+            label={tCi("credit_insurance.fields.reporting_cutoff_day")}
+            tooltip={tCi("credit_insurance.tooltips.reporting_cutoff_day")}
+            isRtl={isRTL}
+        />
+    );
+    const reportingSubstituteExtraDaysLabel = (
+        <MonthEndFieldLabelWithTooltip
+            label={tCi("credit_insurance.fields.reporting_substitute_extra_days")}
+            tooltip={tCi(
+                "credit_insurance.tooltips.reporting_substitute_extra_days"
+            )}
+            isRtl={isRTL}
+        />
+    );
 
     const sectionHeaders = useMemo(() => {
         const base = {
@@ -849,34 +881,34 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         <TextField
                                             {...modalTextFieldProps}
                                             label={tCi(
-                                                "credit_insurance.fields.payment_term_cutoff_day_of_month"
+                                                "credit_insurance.fields.payment_term_cutoff_day"
                                             )}
-                                            value={paymentTermCutoffDayOfMonthInput}
+                                            value={paymentTermCutoffDayInput}
                                             onChange={(e) => {
                                                 const nextCutoff = sanitizeIntegerInput(
                                                     e.target.value
                                                 );
-                                                setPaymentTermCutoffDayOfMonthInput(
+                                                setPaymentTermCutoffDayInput(
                                                     nextCutoff
                                                 );
                                                 if (!nextCutoff.trim()) {
-                                                    setPaymentTermSubstituteDayOfMonthInput("");
+                                                    setPaymentTermSubstituteDayInput("");
                                                     clearPolicyFormError(
-                                                        "payment_term_substitute_day_of_month"
+                                                        "payment_term_substitute_day"
                                                     );
                                                 }
                                                 clearPolicyFormError(
-                                                    "payment_term_cutoff_day_of_month"
+                                                    "payment_term_cutoff_day"
                                                 );
                                             }}
                                             size="small"
                                             fullWidth
                                             inputMode="numeric"
                                             error={
-                                                !!policyFormErrors.payment_term_cutoff_day_of_month
+                                                !!policyFormErrors.payment_term_cutoff_day
                                             }
                                             helperText={
-                                                policyFormErrors.payment_term_cutoff_day_of_month
+                                                policyFormErrors.payment_term_cutoff_day
                                             }
                                             disabled={policyFormDisabled}
                                             sx={editFieldSx}
@@ -884,28 +916,28 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         <TextField
                                             {...modalTextFieldProps}
                                             required={Boolean(
-                                                paymentTermCutoffDayOfMonthInput.trim()
+                                                paymentTermCutoffDayInput.trim()
                                             )}
                                             label={tCi(
-                                                "credit_insurance.fields.payment_term_substitute_day_of_month"
+                                                "credit_insurance.fields.payment_term_substitute_day"
                                             )}
-                                            value={paymentTermSubstituteDayOfMonthInput}
+                                            value={paymentTermSubstituteDayInput}
                                             onChange={(e) => {
-                                                setPaymentTermSubstituteDayOfMonthInput(
+                                                setPaymentTermSubstituteDayInput(
                                                     sanitizeIntegerInput(e.target.value)
                                                 );
                                                 clearPolicyFormError(
-                                                    "payment_term_substitute_day_of_month"
+                                                    "payment_term_substitute_day"
                                                 );
                                             }}
                                             size="small"
                                             fullWidth
                                             inputMode="numeric"
                                             error={
-                                                !!policyFormErrors.payment_term_substitute_day_of_month
+                                                !!policyFormErrors.payment_term_substitute_day
                                             }
                                             helperText={
-                                                policyFormErrors.payment_term_substitute_day_of_month
+                                                policyFormErrors.payment_term_substitute_day
                                             }
                                             disabled={policyFormDisabled}
                                             sx={editFieldSx}
@@ -939,33 +971,31 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         />
                                         <TextField
                                             {...modalTextFieldProps}
-                                            label={tCi(
-                                                "credit_insurance.fields.mep_cutoff_day_of_month"
-                                            )}
-                                            value={mepCutoffDayOfMonthInput}
+                                            label={mepCutoffDayLabel}
+                                            value={mepCutoffDayInput}
                                             onChange={(e) => {
                                                 const nextCutoff = sanitizeIntegerInput(
                                                     e.target.value
                                                 );
-                                                setMepCutoffDayOfMonthInput(nextCutoff);
+                                                setMepCutoffDayInput(nextCutoff);
                                                 if (!nextCutoff.trim()) {
-                                                    setMepSubstituteDayOfMonthInput("");
+                                                    setMepSubstituteExtraDaysInput("");
                                                     clearPolicyFormError(
-                                                        "mep_substitute_day_of_month"
+                                                        "mep_substitute_extra_days"
                                                     );
                                                 }
                                                 clearPolicyFormError(
-                                                    "mep_cutoff_day_of_month"
+                                                    "mep_cutoff_day"
                                                 );
                                             }}
                                             size="small"
                                             fullWidth
                                             inputMode="numeric"
                                             error={
-                                                !!policyFormErrors.mep_cutoff_day_of_month
+                                                !!policyFormErrors.mep_cutoff_day
                                             }
                                             helperText={
-                                                policyFormErrors.mep_cutoff_day_of_month
+                                                policyFormErrors.mep_cutoff_day
                                             }
                                             disabled={policyFormDisabled}
                                             sx={editFieldSx}
@@ -973,28 +1003,26 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         <TextField
                                             {...modalTextFieldProps}
                                             required={Boolean(
-                                                mepCutoffDayOfMonthInput.trim()
+                                                mepCutoffDayInput.trim()
                                             )}
-                                            label={tCi(
-                                                "credit_insurance.fields.mep_substitute_day_of_month"
-                                            )}
-                                            value={mepSubstituteDayOfMonthInput}
+                                            label={mepSubstituteExtraDaysLabel}
+                                            value={mepSubstituteExtraDaysInput}
                                             onChange={(e) => {
-                                                setMepSubstituteDayOfMonthInput(
+                                                setMepSubstituteExtraDaysInput(
                                                     sanitizeIntegerInput(e.target.value)
                                                 );
                                                 clearPolicyFormError(
-                                                    "mep_substitute_day_of_month"
+                                                    "mep_substitute_extra_days"
                                                 );
                                             }}
                                             size="small"
                                             fullWidth
                                             inputMode="numeric"
                                             error={
-                                                !!policyFormErrors.mep_substitute_day_of_month
+                                                !!policyFormErrors.mep_substitute_extra_days
                                             }
                                             helperText={
-                                                policyFormErrors.mep_substitute_day_of_month
+                                                policyFormErrors.mep_substitute_extra_days
                                             }
                                             disabled={policyFormDisabled}
                                             sx={editFieldSx}
@@ -1028,35 +1056,33 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         />
                                         <TextField
                                             {...modalTextFieldProps}
-                                            label={tCi(
-                                                "credit_insurance.fields.reporting_cutoff_day_of_month"
-                                            )}
-                                            value={reportingCutoffDayOfMonthInput}
+                                            label={reportingCutoffDayLabel}
+                                            value={reportingCutoffDayInput}
                                             onChange={(e) => {
                                                 const nextCutoff = sanitizeIntegerInput(
                                                     e.target.value
                                                 );
-                                                setReportingCutoffDayOfMonthInput(
+                                                setReportingCutoffDayInput(
                                                     nextCutoff
                                                 );
                                                 if (!nextCutoff.trim()) {
-                                                    setReportingSubstituteDayOfMonthInput("");
+                                                    setReportingSubstituteExtraDaysInput("");
                                                     clearPolicyFormError(
-                                                        "reporting_substitute_day_of_month"
+                                                        "reporting_substitute_extra_days"
                                                     );
                                                 }
                                                 clearPolicyFormError(
-                                                    "reporting_cutoff_day_of_month"
+                                                    "reporting_cutoff_day"
                                                 );
                                             }}
                                             size="small"
                                             fullWidth
                                             inputMode="numeric"
                                             error={
-                                                !!policyFormErrors.reporting_cutoff_day_of_month
+                                                !!policyFormErrors.reporting_cutoff_day
                                             }
                                             helperText={
-                                                policyFormErrors.reporting_cutoff_day_of_month
+                                                policyFormErrors.reporting_cutoff_day
                                             }
                                             disabled={policyFormDisabled}
                                             sx={editFieldSx}
@@ -1064,28 +1090,26 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         <TextField
                                             {...modalTextFieldProps}
                                             required={Boolean(
-                                                reportingCutoffDayOfMonthInput.trim()
+                                                reportingCutoffDayInput.trim()
                                             )}
-                                            label={tCi(
-                                                "credit_insurance.fields.reporting_substitute_day_of_month"
-                                            )}
-                                            value={reportingSubstituteDayOfMonthInput}
+                                            label={reportingSubstituteExtraDaysLabel}
+                                            value={reportingSubstituteExtraDaysInput}
                                             onChange={(e) => {
-                                                setReportingSubstituteDayOfMonthInput(
+                                                setReportingSubstituteExtraDaysInput(
                                                     sanitizeIntegerInput(e.target.value)
                                                 );
                                                 clearPolicyFormError(
-                                                    "reporting_substitute_day_of_month"
+                                                    "reporting_substitute_extra_days"
                                                 );
                                             }}
                                             size="small"
                                             fullWidth
                                             inputMode="numeric"
                                             error={
-                                                !!policyFormErrors.reporting_substitute_day_of_month
+                                                !!policyFormErrors.reporting_substitute_extra_days
                                             }
                                             helperText={
-                                                policyFormErrors.reporting_substitute_day_of_month
+                                                policyFormErrors.reporting_substitute_extra_days
                                             }
                                             disabled={policyFormDisabled}
                                             sx={editFieldSx}
@@ -1242,15 +1266,15 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                     />
                                     <CreditInsuranceReadonlyField
                                         label={tCi(
-                                            "credit_insurance.fields.payment_term_cutoff_day_of_month"
+                                            "credit_insurance.fields.payment_term_cutoff_day"
                                         )}
-                                        value={paymentTermCutoffDayOfMonthInput}
+                                        value={paymentTermCutoffDayInput}
                                     />
                                     <CreditInsuranceReadonlyField
                                         label={tCi(
-                                            "credit_insurance.fields.payment_term_substitute_day_of_month"
+                                            "credit_insurance.fields.payment_term_substitute_day"
                                         )}
-                                        value={paymentTermSubstituteDayOfMonthInput}
+                                        value={paymentTermSubstituteDayInput}
                                     />
                                     <Box sx={sectionHeaders.standard}>
                                         <Typography
@@ -1265,16 +1289,12 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         value={maxAllowedMepInput}
                                     />
                                     <CreditInsuranceReadonlyField
-                                        label={tCi(
-                                            "credit_insurance.fields.mep_cutoff_day_of_month"
-                                        )}
-                                        value={mepCutoffDayOfMonthInput}
+                                        label={mepCutoffDayLabel}
+                                        value={mepCutoffDayInput}
                                     />
                                     <CreditInsuranceReadonlyField
-                                        label={tCi(
-                                            "credit_insurance.fields.mep_substitute_day_of_month"
-                                        )}
-                                        value={mepSubstituteDayOfMonthInput}
+                                        label={mepSubstituteExtraDaysLabel}
+                                        value={mepSubstituteExtraDaysInput}
                                     />
                                     <Box sx={sectionHeaders.standard}>
                                         <Typography
@@ -1289,16 +1309,12 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         value={reportingDaysInput}
                                     />
                                     <CreditInsuranceReadonlyField
-                                        label={tCi(
-                                            "credit_insurance.fields.reporting_cutoff_day_of_month"
-                                        )}
-                                        value={reportingCutoffDayOfMonthInput}
+                                        label={reportingCutoffDayLabel}
+                                        value={reportingCutoffDayInput}
                                     />
                                     <CreditInsuranceReadonlyField
-                                        label={tCi(
-                                            "credit_insurance.fields.reporting_substitute_day_of_month"
-                                        )}
-                                        value={reportingSubstituteDayOfMonthInput}
+                                        label={reportingSubstituteExtraDaysLabel}
+                                        value={reportingSubstituteExtraDaysInput}
                                     />
                                 </>
                             )}

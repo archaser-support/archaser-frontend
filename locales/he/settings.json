@@ -107,18 +107,24 @@
             "max_payment_term": "תקופת תשלום מקסימלית (ימים)",
             "max_allowed_mep": "MEP מרבי (ימים)",
             "reporting_days": "ימי דיווח",
-            "mep_cutoff_day_of_month": "יום חיתוך MEP בחודש",
-            "mep_substitute_day_of_month": "יום MEP חלופי בחודש",
-            "reporting_cutoff_day_of_month": "יום חיתוך דיווח בחודש",
-            "reporting_substitute_day_of_month": "יום דיווח חלופי בחודש",
-            "payment_term_cutoff_day_of_month": "יום חיתוך תנאי תשלום בחודש",
-            "payment_term_substitute_day_of_month": "יום תנאי תשלום חלופי בחודש",
+            "mep_cutoff_day": "יום חיתוך MEP",
+            "mep_substitute_extra_days": "ימי MEP נוספים",
+            "reporting_cutoff_day": "יום חיתוך דיווח",
+            "reporting_substitute_extra_days": "ימי דיווח נוספים",
+            "payment_term_cutoff_day": "יום חיתוך תנאי תשלום בחודש",
+            "payment_term_substitute_day": "יום תנאי תשלום חלופי בחודש",
             "insurer_name": "שם המבטח",
             "policy_kind": "סוג פוליסה",
             "policy_kind_primary": "ראשית",
             "policy_kind_top_up": "השלמה",
             "parent_insurance_policy": "פוליסת אם",
             "allow_concurrent_top_ups": "אפשר השלמות מקבילות"
+        },
+        "tooltips": {
+            "mep_cutoff_day": "יום הנפקת החשבונית ביום זה או אחריו משתמש בימי MEP הנוספים.",
+            "mep_substitute_extra_days": "מתווספים לתאריך הפירעון + ימי MEP המרביים כאשר חל חיתוך.",
+            "reporting_cutoff_day": "יום הנפקת החשבונית ביום זה או אחריו משתמש בימי הדיווח הנוספים.",
+            "reporting_substitute_extra_days": "מתווספים לתאריך הפירעון + ימי דיווח כאשר חל חיתוך."
         },
         "status": {
             "active": "פעיל",
@@ -142,8 +148,9 @@
             "invalid_number": "הזן מספר תקין",
             "invalid_integer": "הזן מספר שלם תקין",
             "day_of_month_out_of_range": "הזן יום בין 1 ל-31",
-            "cutoff_requires_substitute": "יום חלופי בחודש הוא שדה חובה כאשר מוגדר יום חיתוך בחודש",
-            "substitute_requires_cutoff": "יום חיתוך בחודש הוא שדה חובה כאשר מוגדר יום חלופי בחודש",
+            "substitute_extra_days_out_of_range": "הזן מספר ימים בין 1 ל-365",
+            "cutoff_requires_substitute": "שדה חלופי הוא חובה כאשר מוגדר יום חיתוך",
+            "substitute_requires_cutoff": "יום חיתוך הוא שדה חובה כאשר מוגדר ערך חלופי",
             "max_dcl_lte_max_total_cover": "DCL/SDL מרבי חייב להיות קטן או שווה לכיסוי הכולל המרבי",
             "named_customer_number_exists": "שורה אחרת כבר משתמשת במספר לקוח זה"
         }
