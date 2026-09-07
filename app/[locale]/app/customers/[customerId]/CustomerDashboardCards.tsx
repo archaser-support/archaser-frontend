@@ -736,6 +736,10 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                         locale
                                     )
                             }
+                            tooltip={t(
+                                "tooltips.customer_credit_metric_health_index",
+                                { ns: "dashboard" }
+                            )}
                         />
                         <CreditMetricCard
                             icon={<WarningAmberIcon />}
@@ -749,6 +753,10 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                         creditKpis.atRiskExposureSecondary
                                     )
                             }
+                            tooltip={t(
+                                "tooltips.customer_credit_metric_at_risk_exposure",
+                                { ns: "dashboard" }
+                            )}
                         />
                         <CreditMetricCard
                             icon={<TrendingUpIcon />}
@@ -759,6 +767,10 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                     ? t("messages.loading", { ns: "common" })
                                     : formatUsagePct(creditKpis.policyUsagePct)
                             }
+                            tooltip={t(
+                                "tooltips.customer_credit_metric_policy_usage",
+                                { ns: "dashboard" }
+                            )}
                         />
                         <CreditMetricCard
                             icon={<PolicyIcon />}
@@ -769,6 +781,10 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                     ? t("messages.loading", { ns: "common" })
                                     : String(creditKpis.activePolicyCount)
                             }
+                            tooltip={t(
+                                "tooltips.customer_credit_metric_active_policies",
+                                { ns: "dashboard" }
+                            )}
                         />
                         <CreditMetricCard
                             icon={<GavelIcon />}
@@ -782,6 +798,10 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                         creditKpis.termsBreachOutstandingSecondary
                                     )
                             }
+                            tooltip={t(
+                                "tooltips.customer_credit_metric_terms_breach",
+                                { ns: "dashboard" }
+                            )}
                         />
                         <CreditMetricCard
                             icon={<AttachMoneyIcon />}
@@ -797,6 +817,10 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                         secondaryCurrency
                                     )
                             }
+                            tooltip={t(
+                                "tooltips.customer_credit_metric_capacity_gap",
+                                { ns: "dashboard" }
+                            )}
                         />
                         {showDailyInsuranceCostChange && (
                             <CreditMetricCard
@@ -871,9 +895,17 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                 zeroLineSubtitle={creditInsuranceLabels.zeroLineSubtitle}
                                 noBreachesLabel={creditInsuranceLabels.noBreaches}
                                 riskExposureTitle={creditInsuranceLabels.riskExposureChart}
+                                riskExposureTooltip={t(
+                                    "tooltips.customer_credit_risk_exposure_chart",
+                                    { ns: "dashboard" }
+                                )}
                                 termsBreachReasonTitle={
                                     creditInsuranceLabels.termsBreachReasonChart
                                 }
+                                termsBreachReasonTooltip={t(
+                                    "tooltips.customer_credit_terms_breach_chart",
+                                    { ns: "dashboard" }
+                                )}
                                 termsBreachSupplementaryLine={
                                     termsBreachSupplementaryLine
                                 }
@@ -885,6 +917,10 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                     isRtl={isRtl}
                                     locale={locale}
                                     title={creditInsuranceLabels.dailyCostChangeChartTitle}
+                                    titleTooltip={t(
+                                        "tooltips.customer_credit_daily_cost_change_chart",
+                                        { ns: "dashboard" }
+                                    )}
                                     emptyLabel={creditInsuranceLabels.dailyCostChangeChartEmpty}
                                     policySeriesLabel={
                                         creditInsuranceLabels.dailyCostChangeChartPolicySeries

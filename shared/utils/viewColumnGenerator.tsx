@@ -22,7 +22,7 @@ import {
     getFieldOutputKey,
     getLegacyFieldOutputKey,
 } from "@/utils/reportTableUtils";
-import { LinkHandler } from "./viewConfigs";
+import { LinkHandler, getViewConfig } from "./viewConfigs";
 import {
     getFieldLabel,
     isAmountField,
@@ -548,12 +548,23 @@ export function generateViewColumns(
 
     // Pre-filter viewConfig.fields to exclude any synthetic _formatted fields
     // These may have been saved in old report configs and must be ignored
+    const excludedFieldNames = new Set(
+        (getViewConfig(context)?.excludedFieldNames ?? []).map((name) =>
+            name.trim().toLowerCase()
+        )
+    );
     const cleanedFields = (viewConfig.fields || []).filter((f: any) => {
         const key = getFieldOutputKey(f);
+        const fieldName = String(f?.name ?? f?.field ?? key)
+            .split(".")
+            .pop()
+            ?.trim()
+            .toLowerCase();
         return (
             !key.endsWith("_formatted") &&
             !key.startsWith("___formatted_") &&
-            !key.startsWith("__formatted_")
+            !key.startsWith("__formatted_") &&
+            !(fieldName && excludedFieldNames.has(fieldName))
         );
     });
 
