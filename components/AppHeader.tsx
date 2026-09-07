@@ -26,7 +26,7 @@ import {
     generatePastelAvatarUrl,
     getPastelColorForUser,
 } from "@/utils/avatarUtils";
-import { formatDateForDisplay } from "@/utils/datetimeOperations";
+import { formatDateForDisplay, getUserDateLocale, getUserTimezone } from "@/utils/datetimeOperations";
 
 import GlobalSearch from "./GlobalSearch";
 import NotificationCenter from "./NotificationCenter";
@@ -580,7 +580,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                     {/* Last Sync Status - Compact Indicator */}
                     {!lastSyncLoading && (
                         <Tooltip
-                            title={`${lastSyncDate ? formatDateForDisplay(lastSyncDate, "datetime", session?.user?.locale, session?.user?.timezone) : tCommon("messages.sync_status_never_synced", "Never synced")} — ${tCommon("messages.sync_status_erp_scheduled_only", "Reflects completed ERP billing sync, scheduled or manual; file import is excluded")}. ${tCommon("messages.sync_status_click_to_refresh")}`}
+                            title={`${lastSyncDate ? formatDateForDisplay(lastSyncDate, "datetime", getUserDateLocale(session), getUserTimezone(session)) : tCommon("messages.sync_status_never_synced", "Never synced")} — ${tCommon("messages.sync_status_erp_scheduled_only", "Reflects completed ERP billing sync, scheduled or manual; file import is excluded")}. ${tCommon("messages.sync_status_click_to_refresh")}`}
                             arrow
                         >
                             <Box

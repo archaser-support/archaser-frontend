@@ -273,7 +273,7 @@ const InvoicesWithoutCustomerList: React.FC = () => {
                 status: invoice.status || "Unknown",
                 raw: invoice,
             })),
-        [invoices, selectedRows, session?.user?.locale, session?.user?.timezone]
+        [invoices, selectedRows, session]
     );
 
     // Export handler for invoices without customer
@@ -324,7 +324,7 @@ const InvoicesWithoutCustomerList: React.FC = () => {
                 throw _error;
             }
         },
-        [invoices, session?.user?.locale, session?.user?.timezone]
+        [invoices, session]
     );
 
     const columns: GridColDef[] = useMemo(

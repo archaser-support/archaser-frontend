@@ -242,7 +242,7 @@ const PromiseToPayList: React.FC<PromiseToPayListProps> = ({
                     amount_overdue_formatted: formatCurrencyWithRTLSupport(
                         amount,
                         currency,
-                        session?.user?.locale || "en-US",
+                        getUserDateLocale(session),
                         i18n.language
                     ),
                     days_past_due: daysPastDue,

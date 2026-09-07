@@ -72,6 +72,7 @@ import AppUrls from "@/utils/appUrls";
 import { formatCallOutcome } from "@/utils/callFormatters";
 import {
     formatDateForDisplay,
+    getUserDateLocale,
     getCurrentTimeForCountry,
     getCountryTimezone,
 } from "@/utils/datetimeOperations";
@@ -617,7 +618,7 @@ const AgentList: React.FC<AgentListProps> = ({
                         return formatDateForDisplay(
                             new Date(lastCall),
                             "datetime",
-                            session?.user?.locale,
+                            getUserDateLocale(session),
                             session?.user?.timezone
                         );
                     } catch (_error) {
@@ -633,7 +634,7 @@ const AgentList: React.FC<AgentListProps> = ({
                         return formatDateForDisplay(
                             new Date(followUpTime),
                             "datetime",
-                            session?.user?.locale,
+                            getUserDateLocale(session),
                             session?.user?.timezone
                         );
                     } catch (_error) {
@@ -656,7 +657,7 @@ const AgentList: React.FC<AgentListProps> = ({
                     amount_formatted: formatCurrencyWithRTLSupport(
                         agent?.total_outstanding_amount ?? 0,
                         agent?.currency || "",
-                        session?.user?.locale || "en-US",
+                        getUserDateLocale(session),
                         i18n.language
                     ),
                     days_past_due: normalizedDaysPastDue,
@@ -810,7 +811,7 @@ const AgentList: React.FC<AgentListProps> = ({
                     ? formatDateForDisplay(
                         agent.last_call,
                         "datetime",
-                        session?.user?.locale,
+                        getUserDateLocale(session),
                         session?.user?.timezone
                     )
                     : null;
@@ -825,7 +826,7 @@ const AgentList: React.FC<AgentListProps> = ({
                     ? formatDateForDisplay(
                         agent.follow_up_time,
                         "datetime",
-                        session?.user?.locale,
+                        getUserDateLocale(session),
                         session?.user?.timezone
                     )
                     : null;
