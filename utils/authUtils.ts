@@ -10,9 +10,11 @@ import { serializeBigInt } from "@/utils/serializeBigInt";
 /** Checked against SERVICE_NAME, which is set per deployment (e.g. archaser-staging). */
 const ENVIRONMENT_LABELS = ["staging", "dev", "preprod", "production"] as const;
 
-function hostnameOf(url: string): string {
+function hostnameOf(url: string | null | undefined): string {
+    if (!url) return "";
     try {
-        return new URL(url).hostname;
+        const fullUrl = url.includes("://") ? url : `https://${url}`;
+        return new URL(fullUrl).hostname;
     } catch {
         return "";
     }
@@ -120,12 +122,36 @@ export const sessionSecret = (): string | undefined =>
  * Whether auth cookies carry the `__Secure-` prefix and the `secure` attribute.
  * `authOptions` and every reader must agree on this, so it is derived here once.
  */
-export const authCookiesAreSecure = (): boolean => {
+type RequestContext = NextRequest | NextApiRequest | Request | string | null | undefined;
+
+export const authCookiesAreSecure = (
+    reqOrHost?: RequestContext
+): boolean => {
+    if (process.env.NODE_ENV !== "production") {
+        return false;
+    }
+    if (reqOrHost) {
+        if (typeof reqOrHost === "string") {
+            if (reqOrHost.startsWith("https://")) return true;
+            if (reqOrHost.startsWith("http://")) return false;
+        } else if ("headers" in reqOrHost && reqOrHost.headers) {
+            const headers = reqOrHost.headers;
+            const proto = typeof headers.get === "function"
+                ? headers.get("x-forwarded-proto")
+                : (headers as Record<string, string | string[] | undefined>)["x-forwarded-proto"];
+            const protoStr = Array.isArray(proto) ? proto[0] : proto;
+            const nextUrlProto = (reqOrHost as NextRequest).nextUrl?.protocol;
+            if (protoStr || nextUrlProto) {
+                return (protoStr || nextUrlProto || "").includes("https");
+            }
+        }
+    }
     const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || "";
-    return (
-        process.env.NODE_ENV === "production" && baseUrl.startsWith("https://")
-    );
+    if (baseUrl.startsWith("http://")) {
+        return false;
+    }
+    return true;
 };
 
 /**
@@ -135,53 +161,160 @@ export const authCookiesAreSecure = (): boolean => {
  * to succeed and then bounce straight back to /login, so this is the single
  * source of truth for the name.
  */
-export const getCookieName = (isSecure: boolean, name: string = "session-token") => {
-    // Standard NextAuth cookie names: session-token, csrf-token, callback-url, state, pkce.code_verifier, nonce
-    // Maps internal NextAuth cookie keys to their base names
+export const getCookieName = (
+    isSecure: boolean,
+    name: string = "session-token",
+    reqOrHost?: RequestContext
+) => {
     const cookieMap: Record<string, string> = {
         "session-token": "session-token",
         "csrf-token": "csrf-token",
         "callback-url": "callback-url",
         "state": "state",
         "pkce.code_verifier": "pkce.code_verifier",
-        "pkceCodeVerifier": "pkce.code_verifier", // JS property name in NextAuth config
-        "nonce": "nonce"
+        "pkceCodeVerifier": "pkce.code_verifier",
+        "nonce": "nonce",
     };
 
     const targetName = cookieMap[name] || name;
-
     const baseName = `next-auth.${targetName}`;
     const prefix = isSecure ? "__Secure-" : "";
     const serviceName = process.env.SERVICE_NAME || "";
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || "";
+    const baseUrl =
+        process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || "";
 
-    // Non-production deployments get their own cookie name so a cookie issued
-    // by another environment cannot reach them and fail decryption.
+    let requestHost = "";
+    if (reqOrHost) {
+        if (typeof reqOrHost === "string") {
+            requestHost = hostnameOf(reqOrHost);
+        } else if ("headers" in reqOrHost && reqOrHost.headers) {
+            const headers = reqOrHost.headers;
+            const hostHeader = typeof headers.get === "function"
+                ? headers.get("host")
+                : (headers as Record<string, string | string[] | undefined>)["host"];
+            const hostStr = Array.isArray(hostHeader) ? hostHeader[0] : hostHeader;
+            requestHost =
+                hostStr ||
+                (reqOrHost as NextRequest).nextUrl?.hostname ||
+                "";
+        }
+    }
+
     const envLabel =
         ENVIRONMENT_LABELS.find((label) => serviceName.includes(label)) ??
+        getEnvironmentLabel(requestHost) ??
         getEnvironmentLabel(hostnameOf(baseUrl));
     const suffix = envLabel ? `.${envLabel}` : "";
-    const result = `${prefix}${baseName}${suffix}`;
+    return `${prefix}${baseName}${suffix}`;
+};
 
-    return result;
+/**
+ * Returns candidate cookie names to handle potential writer/reader deployment mismatches.
+ */
+export const getCookieNameCandidates = (
+    isSecure: boolean,
+    name: string = "session-token",
+    reqOrHost?: RequestContext
+): string[] => {
+    const primary = getCookieName(isSecure, name, reqOrHost);
+    const candidates: string[] = [primary];
+
+    const baseTarget = name === "session-token" ? "session-token" : name;
+    let hostLabel: string | null = null;
+    if (reqOrHost) {
+        let hostStr = "";
+        if (typeof reqOrHost === "string") {
+            hostStr = reqOrHost;
+        } else if ("headers" in reqOrHost && reqOrHost.headers) {
+            const headers = reqOrHost.headers;
+            const hostHeader = typeof headers.get === "function"
+                ? headers.get("host")
+                : (headers as Record<string, string | string[] | undefined>)["host"];
+            hostStr = (Array.isArray(hostHeader) ? hostHeader[0] : hostHeader) || (reqOrHost as NextRequest).nextUrl?.hostname || "";
+        }
+        if (hostStr) {
+            hostLabel = getEnvironmentLabel(hostnameOf(hostStr));
+        }
+    }
+
+    const prefixes = isSecure ? ["__Secure-", ""] : ["", "__Secure-"];
+    const suffixes = new Set<string>();
+
+    const serviceName = process.env.SERVICE_NAME || "";
+    const envLabel = ENVIRONMENT_LABELS.find((label) =>
+        serviceName.includes(label)
+    );
+    if (envLabel) suffixes.add(`.${envLabel}`);
+    if (hostLabel) suffixes.add(`.${hostLabel}`);
+
+    const baseUrl =
+        process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || "";
+    const urlLabel = getEnvironmentLabel(hostnameOf(baseUrl));
+    if (urlLabel) suffixes.add(`.${urlLabel}`);
+
+    suffixes.add(""); // Standard fallback with no suffix
+
+    for (const p of prefixes) {
+        for (const s of suffixes) {
+            const cand = `${p}next-auth.${baseTarget}${s}`;
+            if (!candidates.includes(cand)) {
+                candidates.push(cand);
+            }
+        }
+    }
+
+    return candidates;
 };
 
 const extractToken = async (request: NextApiRequest | NextRequest) => {
-    const token = await getToken({
+    const isSecure = authCookiesAreSecure(request);
+    let token = await getToken({
         req: request,
         secret: sessionSecret(),
-        cookieName: getCookieName(authCookiesAreSecure()),
+        cookieName: getCookieName(isSecure, "session-token", request),
     });
+    if (!token) {
+        const candidates = getCookieNameCandidates(
+            isSecure,
+            "session-token",
+            request
+        );
+        for (const candidate of candidates) {
+            token = await getToken({
+                req: request,
+                secret: sessionSecret(),
+                cookieName: candidate,
+            });
+            if (token) break;
+        }
+    }
     return token;
 };
 
 // Helper: Get user from token (legacy function - use getAccountId/getUserId instead)
 export async function getUser(request: Request): Promise<Token> {
-    const token = (await getToken({
+    const isSecure = authCookiesAreSecure(request);
+    let token = (await getToken({
         req: request as any,
         secret: sessionSecret(),
-        cookieName: getCookieName(authCookiesAreSecure()),
+        cookieName: getCookieName(isSecure, "session-token", request),
     })) as Token | null;
+
+    if (!token) {
+        const candidates = getCookieNameCandidates(
+            isSecure,
+            "session-token",
+            request
+        );
+        for (const candidate of candidates) {
+            token = (await getToken({
+                req: request as any,
+                secret: sessionSecret(),
+                cookieName: candidate,
+            })) as Token | null;
+            if (token) break;
+        }
+    }
 
     if (!token?.account_id) {
         throw new Error("Account ID not found in token");

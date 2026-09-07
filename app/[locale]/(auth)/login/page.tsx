@@ -464,6 +464,7 @@ function LoginPageContent() {
         }
 
         if (pending) {
+            sessionStorage.removeItem(PENDING_LOGIN_REDIRECT_KEY);
             window.location.replace(pending);
             return;
         }
