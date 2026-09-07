@@ -68,6 +68,7 @@ import {
 import {
     canStartFirstBackfill,
     createPendingBackfillRun,
+    createResetBackfillProgressRun,
     entitiesMissingPreview,
     findRunningBackfillRun,
     isPlaceholderBackfillProgressRun,
@@ -1412,16 +1413,16 @@ const BillingIntegrationSettings = forwardRef<
                 setCacheSuggestionSelection(selection);
                 setCacheSuggestionMode(args.mode);
                 setCacheSuggestionDialogOpen(true);
-            } catch (err) {
-                showError(
-                    axiosErrorMessage(err) ??
-                        "Failed to check import cache availability"
-                );
+            } catch {
+                // Cache suggestion is optional — backend may not expose
+                // /sync/cache-check yet. Proceed with a normal ERP pull.
+                pendingUseCachedImportRef.current = undefined;
+                args.onNoCache();
             } finally {
                 setCacheCheckPending(false);
             }
         },
-        [accountId, enabledEntities, showError]
+        [accountId, enabledEntities]
     );
 
     const handlePrimaryAction = () => {
