@@ -83,7 +83,7 @@ export function PortfolioHealthDailyChart({
     });
 
     return (
-        <IslandCard accent="jade" className={layout.cardPad}>
+        <IslandCard accent="teal" className={layout.cardPad}>
             <Eyebrow
                 icon={Activity}
                 help={t("credit_portfolio_health.daily_health_chart_help", {
@@ -152,12 +152,12 @@ export function PortfolioHealthDailyChart({
                             />
                             <ReferenceLine
                                 y={averageHealthPct}
-                                stroke={CPH.copper}
+                                stroke={CPH.violet}
                                 strokeDasharray="6 4"
                                 strokeWidth={1.5}
                                 label={{
                                     value: avgLabel,
-                                    fill: CPH.copper,
+                                    fill: CPH.violetText,
                                     fontSize: 11,
                                     position: "insideTopRight",
                                 }}
@@ -172,7 +172,7 @@ export function PortfolioHealthDailyChart({
                                         defaultValue: "Avg. health",
                                     }
                                 )}
-                                stroke={CPH.jade}
+                                stroke={CPH.teal}
                                 strokeWidth={2.5}
                                 dot={false}
                                 connectNulls={false}

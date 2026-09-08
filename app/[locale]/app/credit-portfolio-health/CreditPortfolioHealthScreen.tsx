@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import { CalendarDays } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import PageHeader from "@/components/PageHeader";
 import DateRangePicker from "@/app/[locale]/app/operation-dashboard/(cards)/DateRangePicker";
@@ -41,8 +41,10 @@ import {
     PillTabs,
     type PortfolioHealthTabId,
 } from "./PillTabs";
+import { PortfolioHealthIntroOverlay } from "./PortfolioHealthIntroOverlay";
 import { PortfolioHealthSectionView } from "./PortfolioHealthSectionView";
 import { UtilizationSectionView } from "./UtilizationSectionView";
+import { usePortfolioHealthIntro } from "./usePortfolioHealthIntro";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
 export type CreditPortfolioHealthScreenProps = {
@@ -127,6 +129,8 @@ export function CreditPortfolioHealthScreen({
         useState(false);
     const isLargeGenerateRange =
         generateDaysInRange > PORTFOLIO_HEALTH_LARGE_RANGE_DAYS;
+    const titleClickCountRef = useRef(0);
+    const titleClickResetTimerRef = useRef<number | null>(null);
 
     useEffect(() => {
         if (!isLargeGenerateRange) {
@@ -143,6 +147,57 @@ export function CreditPortfolioHealthScreen({
         defaultValue:
             "Period analytics for portfolio health, coverage, utilization, and cost.",
     });
+
+    const introStatusLines = useMemo(
+        () => [
+            t("credit_portfolio_health.intro_status_health", {
+                ...ns,
+                defaultValue: "Loading portfolio health…",
+            }),
+            t("credit_portfolio_health.intro_status_utilisation", {
+                ...ns,
+                defaultValue: "Loading utilisation…",
+            }),
+            t("credit_portfolio_health.intro_status_coverage", {
+                ...ns,
+                defaultValue: "Loading coverage…",
+            }),
+            t("credit_portfolio_health.intro_status_costs", {
+                ...ns,
+                defaultValue: "Loading costs…",
+            }),
+        ],
+        [t, i18n.language]
+    );
+
+    const intro = usePortfolioHealthIntro({
+        prefersReducedMotion,
+        statusLines: introStatusLines,
+    });
+
+    const handlePageTitleClick = useCallback(() => {
+        if (titleClickResetTimerRef.current != null) {
+            window.clearTimeout(titleClickResetTimerRef.current);
+        }
+        titleClickCountRef.current += 1;
+        if (titleClickCountRef.current >= 5) {
+            titleClickCountRef.current = 0;
+            intro.replay();
+            return;
+        }
+        titleClickResetTimerRef.current = window.setTimeout(() => {
+            titleClickCountRef.current = 0;
+            titleClickResetTimerRef.current = null;
+        }, 2000);
+    }, [intro.replay]);
+
+    useEffect(() => {
+        return () => {
+            if (titleClickResetTimerRef.current != null) {
+                window.clearTimeout(titleClickResetTimerRef.current);
+            }
+        };
+    }, []);
 
     const tabLabels = {
         health: t("credit_portfolio_health.tab_health", {
@@ -166,6 +221,7 @@ export function CreditPortfolioHealthScreen({
     const dashboardShellSx = {
         display: "flex",
         flexDirection: "column",
+        position: "relative",
         minHeight: "100vh",
         m: 0,
         p: 0,
@@ -262,9 +318,38 @@ export function CreditPortfolioHealthScreen({
         <>
             <Seo title={pageTitle} />
             <Box sx={dashboardShellSx} className={spaceGrotesk.variable}>
+                {intro.isOverlayVisible ? (
+                    <PortfolioHealthIntroOverlay
+                        progress={intro.progress}
+                        statusLine={intro.statusLine}
+                        isFading={intro.isFading}
+                        isRtl={isRtl}
+                    />
+                ) : null}
                 <Box sx={stickyHeaderSx}>
                     <PageHeader
-                        title={pageTitle}
+                        title={
+                            <Typography
+                                variant={
+                                    isRtl
+                                        ? "hebrewTitle"
+                                        : "listPageHeaderTitle"
+                                }
+                                onClick={handlePageTitleClick}
+                                sx={{
+                                    color: theme.palette.text.primary,
+                                    mb: pageDescription ? "2px" : 0,
+                                    cursor: "default",
+                                    userSelect: "none",
+                                    ...(!isRtl && {
+                                        textAlign: "left",
+                                        direction: "ltr",
+                                    }),
+                                }}
+                            >
+                                {pageTitle}
+                            </Typography>
+                        }
                         description={pageDescription}
                         sticky={false}
                     />
