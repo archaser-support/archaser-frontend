@@ -266,7 +266,7 @@
         "field_formula_required": "נדרש שם נוסחה",
         "object": "אובייקט",
         "expression": "ביטוי",
-        "expression_hint": "השתמש ב־[Table.field], מספרים, + - * / וסוגריים. שיעור דמי ביטוח ודמי רישום הם אחוזים אוטומטית (אין לחלק ב־100).",
+        "expression_hint": "השתמש ב־[Table.field], מספרים, + - * / וסוגריים. דמי רישום (מהפרמיה): [Invoice.amount] * [Customer.cost_percent] * [Customer.registration_fee_percent]. שיעור דמי ביטוח ודמי רישום הם אחוזים אוטומטית (אין לחלק ב־100).",
         "insert": "הוסף",
         "insert_field": "הוסף שדה",
         "formulas_object": "נוסחאות",

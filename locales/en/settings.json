@@ -142,7 +142,7 @@
             "payment_term_substitute_day": "Day of month used for the payment-term due date when cutoff applies (next month).",
             "policy_kind": "Primary is the main policy; Top-Up extends cover under a parent Primary.",
             "policy_number": "Unique identifier for this insurance policy.",
-            "registration_fee_percent": "Insurance registration fee rate as a percentage (0–100).",
+            "registration_fee_percent": "Percent of the insurance premium (fee from Insurance Fee Rate × calculation base), 0–100. Not a percent of sales or limit alone.",
             "reporting_cutoff_day": "Invoice issue day on/after this day uses reporting extra days.",
             "reporting_days": "Days after due date allowed for overdue reporting.",
             "reporting_substitute_extra_days": "Added to due date + reporting days when cutoff applies.",

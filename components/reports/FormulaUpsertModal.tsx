@@ -401,7 +401,7 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
                 })
               : t("formulas.expression_hint", {
                     defaultValue:
-                        "Use [Table.field], numbers, + - * / and parentheses. Insurance Fee Rate and Registration Fee are percentages automatically (do not divide by 100).",
+                        "Use [Table.field], numbers, + - * / and parentheses. Registration fee (of premium): [Invoice.amount] * [Customer.cost_percent] * [Customer.registration_fee_percent]. Insurance Fee Rate and Registration Fee are percentages automatically (do not divide by 100).",
                 });
 
     const redundantPercentDivisionWarning = useMemo(() => {

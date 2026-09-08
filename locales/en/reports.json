@@ -266,7 +266,7 @@
         "field_formula_required": "Formula name is required",
         "object": "Object",
         "expression": "Expression",
-        "expression_hint": "Use [Table.field], numbers, + - * / and parentheses. Insurance Fee Rate and Registration Fee are percentages automatically (do not divide by 100).",
+        "expression_hint": "Use [Table.field], numbers, + - * / and parentheses. Registration fee (of premium): [Invoice.amount] * [Customer.cost_percent] * [Customer.registration_fee_percent]. Insurance Fee Rate and Registration Fee are percentages automatically (do not divide by 100).",
         "insert": "Insert",
         "insert_field": "Insert field",
         "formulas_object": "Formulas",
