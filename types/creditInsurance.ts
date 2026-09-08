@@ -11,11 +11,14 @@ export const NO_COVERAGE_REASON_KEYS = [
     "pending_review",
     "credit_hold",
     "insurer_declined",
-    "other",
     "no_linked_policy",
 ] as const;
 
-export type NoCoverageReasonKey = (typeof NO_COVERAGE_REASON_KEYS)[number];
+export type CanonicalNoCoverageReasonKey =
+    (typeof NO_COVERAGE_REASON_KEYS)[number];
+
+/** Canonical slug, or raw policy_exclusion_reason text from the API. */
+export type NoCoverageReasonKey = CanonicalNoCoverageReasonKey | string;
 
 export const UTILIZATION_DISTRIBUTION_BIN_KEYS = [
     "0_20",
@@ -274,15 +277,15 @@ export type PortfolioNoCoverageDailyPoint = {
     uncoveredAmount: number;
     approvedTotalReceivables: number;
     approvedTermsBreachAmount: number;
-    amountByReason: Partial<Record<NoCoverageReasonKey, number>>;
-    customerCountByReason: Partial<Record<NoCoverageReasonKey, number>>;
+    amountByReason: Partial<Record<string, number>>;
+    customerCountByReason: Partial<Record<string, number>>;
     breachAmountByReason: Partial<
         Record<TermsBreachByReasonSnapshotKey | string, number>
     >;
 };
 
 export type PortfolioNoCoverageReasonItem = {
-    reason: NoCoverageReasonKey;
+    reason: string;
     averageAmount: number;
     averageCustomerCount: number;
 };
