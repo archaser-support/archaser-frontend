@@ -30,6 +30,7 @@ export type PortfolioHealthSectionViewProps = {
     section: PortfolioHealthSection;
     fromYmd: string;
     toYmd: string;
+    accountCurrency: string;
 };
 
 function formatYmdForDisplay(
@@ -51,6 +52,7 @@ export function PortfolioHealthSectionView({
     section,
     fromYmd,
     toYmd,
+    accountCurrency,
 }: PortfolioHealthSectionViewProps) {
     const { t, i18n } = useTranslation(["dashboard"]);
     const { data: session } = useSession();
@@ -236,6 +238,7 @@ export function PortfolioHealthSectionView({
                     monthly={section.monthlyA}
                     fromYmd={fromYmd}
                     toYmd={toYmd}
+                    accountCurrency={accountCurrency}
                 />
             </div>
         </div>
