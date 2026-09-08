@@ -1,6 +1,6 @@
 # 02 — Utilization + monthly charts
 
-**Status:** ready-for-agent
+**Status:** done
 **Priority:** normal
 **Blocked by:** [01-shared-trim-daily-health](01-shared-trim-daily-health.md)
 **User stories:** 2, 3, 4, 8
