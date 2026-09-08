@@ -2,7 +2,9 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 
+import { SPACE_GROTESK_FONT_FAMILY } from "./fontTokens";
 import styles from "./portfolioHealthIntro.module.css";
+import { useIntroPercentChase } from "./useIntroPercentChase";
 
 export type PortfolioHealthIntroOverlayProps = {
     progress: number;
@@ -20,7 +22,7 @@ function measureVisibleOverlayHeight(overlay: HTMLElement): number {
 }
 
 /**
- * Presentational cinematic intro: light overlay + teal progress bar.
+ * Presentational cinematic intro: large % counter + teal progress bar.
  * No dismiss controls (click/Escape) — full beat always completes once started.
  *
  * Progress UI is sticky-centered to the *visible* viewport band: the overlay
@@ -34,6 +36,7 @@ export function PortfolioHealthIntroOverlay({
     isRtl = false,
 }: PortfolioHealthIntroOverlayProps) {
     const clamped = Math.max(0, Math.min(100, progress));
+    const percent = useIntroPercentChase(clamped);
     const overlayRef = useRef<HTMLDivElement>(null);
     const [visibleHeightPx, setVisibleHeightPx] = useState<number | null>(null);
 
@@ -78,6 +81,13 @@ export function PortfolioHealthIntroOverlay({
                 }
             >
                 <div className={styles.center}>
+                    <p
+                        className={styles.percent}
+                        style={{ fontFamily: SPACE_GROTESK_FONT_FAMILY }}
+                        aria-hidden="true"
+                    >
+                        {percent}%
+                    </p>
                     <div
                         className={`${styles.track}${isRtl ? ` ${styles.trackRtl}` : ""}`}
                         dir={isRtl ? "rtl" : "ltr"}

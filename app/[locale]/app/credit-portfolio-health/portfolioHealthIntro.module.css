@@ -40,6 +40,17 @@
     width: min(560px, 100%);
 }
 
+.percent {
+    margin: 0;
+    text-align: center;
+    font-size: 44px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    color: #0f766e; /* CPH.teal */
+    font-variant-numeric: tabular-nums;
+}
+
 .track {
     position: relative;
     display: flex;
