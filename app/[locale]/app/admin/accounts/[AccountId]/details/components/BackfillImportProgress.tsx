@@ -31,15 +31,18 @@ import {
     buildBackfillProgressHeader,
     buildFinishedEntityProgressRows,
     buildRunningEntityProgressRows,
+    buildSeedingEntityProgressRows,
     enrichPostIngestDrainProgressRow,
     estimateRemainingSeconds,
     formatEstimatedRemaining,
+    isPlaceholderBackfillProgressRun,
     BACKFILL_DELETING_LABEL,
     BACKFILL_INVOICE_IMPORT_LABEL,
     BACKFILL_LINK_PAYMENTS_LABEL,
     BACKFILL_PAYMENT_IMPORT_LABEL,
     BACKFILL_TAIL_STEPS,
     getBackfillProgressStepTooltip,
+    type BackfillProgressSessionPhase,
     type EntityProgressPhase,
     type EntityProgressRow,
     type ProgressRateSample,
@@ -250,11 +253,12 @@ interface BackfillImportProgressProps {
     enabledEntities: ImportType[];
     syncStates: ConnectorSyncStatePublic[] | undefined;
     /**
-     * Clear-before-import is planned (delete switches on) or Start already
-     * requested purge — show Deleting… in the step list (waiting/running)
-     * before the first purge progress patch arrives.
+     * Clear-before-import was requested on Start — show Record deletion in the
+     * planned seeding list only. After bind, callers must pass false (D5).
      */
     expectDeletingStep?: boolean;
+    /** Session phase — seeding paints planned zeros without a SyncRunSummary. */
+    sessionPhase?: BackfillProgressSessionPhase | null;
     /** Customers still on the worker AR post-ingest queue (connector config). */
     pendingArPostIngestCustomers?: number;
     expanded: boolean;
@@ -267,6 +271,7 @@ export default function BackfillImportProgress({
     enabledEntities,
     syncStates,
     expectDeletingStep = false,
+    sessionPhase = null,
     pendingArPostIngestCustomers,
     expanded,
     onExpandedChange,
@@ -276,44 +281,61 @@ export default function BackfillImportProgress({
     const { t } = useTranslation(["import"]);
     const pillRadiusPx = `${theme.appButton.sizeMedium.borderRadius}px`;
 
-    const isRunning = run?.status === "RUNNING";
-    const deferredDrainInProgress = (pendingArPostIngestCustomers ?? 0) > 0;
-    const showLiveProgress = isRunning || deferredDrainInProgress;
+    const isSeeding = sessionPhase === "seeding";
+    const isDeferredDrain = sessionPhase === "deferred_drain";
+    const isPlaceholderRun = isPlaceholderBackfillProgressRun(run);
+    // Deferred drain binds a finished run — never paint full-pipeline Running (D7).
+    const isRunning = Boolean(
+        run?.status === "RUNNING" && !isPlaceholderRun && !isDeferredDrain
+    );
+    const showLiveProgress = isRunning || isDeferredDrain;
     const isStopping =
         run?.status === "TIMEOUT" &&
         run.error_type === "cancelled" &&
         !run.completed_at;
-    const collapseLocked = showLiveProgress || isStopping;
+    const collapseLocked = showLiveProgress || isStopping || isSeeding;
     const effectiveExpanded = collapseLocked || expanded;
 
     const rows = useMemo(() => {
-        if (!run) {
+        if (isSeeding || isPlaceholderRun || !run) {
+            if (isSeeding || expectDeletingStep) {
+                return buildSeedingEntityProgressRows({
+                    enabledEntities,
+                    expectPurge: expectDeletingStep,
+                });
+            }
             return [];
         }
-        const baseRows = isRunning
-            ? buildRunningEntityProgressRows({
-                  enabledEntities,
-                  syncStates,
-                  entityStats: run.entity_stats,
-                  activeStep: run.active_step,
-                  runStartedAt: run.started_at,
-                  runId: run.id,
-                  expectPurge: expectDeletingStep,
-              })
-            : buildFinishedEntityProgressRows({
-                  enabledEntities,
-                  syncStates,
-                  run,
-                  expectPurge: expectDeletingStep,
-              });
+        const baseRows =
+            isRunning && !isDeferredDrain
+                ? buildRunningEntityProgressRows({
+                      enabledEntities,
+                      syncStates,
+                      entityStats: run.entity_stats,
+                      activeStep: run.active_step,
+                      runStartedAt: run.started_at,
+                      runId: run.id,
+                      // D5 — never keep expect-purge after bind to a live run.
+                      expectPurge: false,
+                  })
+                : buildFinishedEntityProgressRows({
+                      enabledEntities,
+                      syncStates,
+                      run,
+                      expectPurge: expectDeletingStep,
+                  });
         return enrichPostIngestDrainProgressRow(
             baseRows,
-            pendingArPostIngestCustomers
+            pendingArPostIngestCustomers,
+            { forceDeferredDrain: isDeferredDrain }
         );
     }, [
         enabledEntities,
         expectDeletingStep,
+        isDeferredDrain,
+        isPlaceholderRun,
         isRunning,
+        isSeeding,
         pendingArPostIngestCustomers,
         run,
         syncStates,
@@ -381,7 +403,19 @@ export default function BackfillImportProgress({
     }, [isRunning, rows, rateSamplesVersion]);
 
     const header = useMemo(() => {
-        if (!run) {
+        if (isSeeding) {
+            return {
+                title: "Backfill progress",
+                subtitle: "Actions are disabled until this finishes",
+            };
+        }
+        if (isDeferredDrain) {
+            return {
+                title: "Backfill progress",
+                subtitle: "Finishing AR & insurance on worker",
+            };
+        }
+        if (!run || isPlaceholderRun) {
             return {
                 title: "Backfill progress",
                 subtitle:
@@ -389,7 +423,7 @@ export default function BackfillImportProgress({
             };
         }
         return buildBackfillProgressHeader({ run, rows });
-    }, [run, rows]);
+    }, [isDeferredDrain, isPlaceholderRun, isSeeding, run, rows]);
 
     const {
         accordionSx: billingAccordionSx,
