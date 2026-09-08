@@ -142,6 +142,20 @@ export function CreateInsurancePolicyModal({
             isRtl={isRTL}
         />
     );
+    const costPercentLabel = (
+        <MonthEndFieldLabelWithTooltip
+            label={tCi("credit_insurance.fields.cost_percent")}
+            tooltip={tCi("credit_insurance.tooltips.cost_percent")}
+            isRtl={isRTL}
+        />
+    );
+    const registrationFeePercentLabel = (
+        <MonthEndFieldLabelWithTooltip
+            label={tCi("credit_insurance.fields.registration_fee_percent")}
+            tooltip={tCi("credit_insurance.tooltips.registration_fee_percent")}
+            isRtl={isRTL}
+        />
+    );
 
     const [policyNumber, setPolicyNumber] = useState("");
     const [startDate, setStartDate] = useState("");
@@ -1161,7 +1175,7 @@ export function CreateInsurancePolicyModal({
                                         </TextField>
                                         <TextField
                                             {...textFieldRtlProps}
-                                            label={tCi("credit_insurance.fields.cost_percent")}
+                                            label={costPercentLabel}
                                             value={costPercent}
                                             onChange={(e) => {
                                                 setCostPercent(e.target.value);
@@ -1178,9 +1192,7 @@ export function CreateInsurancePolicyModal({
                                         />
                                         <TextField
                                             {...textFieldRtlProps}
-                                            label={tCi(
-                                                "credit_insurance.fields.registration_fee_percent"
-                                            )}
+                                            label={registrationFeePercentLabel}
                                             value={registrationFeePercent}
                                             onChange={(e) => {
                                                 setRegistrationFeePercent(

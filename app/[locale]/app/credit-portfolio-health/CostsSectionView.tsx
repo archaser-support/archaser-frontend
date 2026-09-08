@@ -41,6 +41,15 @@ export type CostsSectionViewProps = {
     toYmd: string;
 };
 
+type MonthlyCostChartRow = {
+    label: string;
+    cost: number | null;
+    insuranceCost: number | null;
+    registrationFeeCost: number | null;
+    topUpCost: number | null;
+    totalCost: number | null;
+};
+
 function formatMonthLabel(month: string, language: string): string {
     const [y, m] = month.split("-").map(Number);
     if (!y || !m) {
@@ -72,9 +81,13 @@ export function CostsSectionView({
                 fromYmd,
                 toYmd,
                 (point) => point.month
-            ).map(({ month, point }) => ({
+            ).map(({ month, point }): MonthlyCostChartRow => ({
                 label: formatMonthLabel(month, language),
                 cost: point?.totalCost ?? null,
+                insuranceCost: point?.insuranceCost ?? null,
+                registrationFeeCost: point?.registrationFeeCost ?? null,
+                topUpCost: point?.topUpCost ?? null,
+                totalCost: point?.totalCost ?? null,
             })),
         [section.monthly, fromYmd, toYmd, language]
     );
@@ -92,7 +105,7 @@ export function CostsSectionView({
                     help={t("credit_portfolio_health.kpi_period_cost_help", {
                         ...ns,
                         defaultValue:
-                            "Issued sales × cost % (Actual Sales) + annualized limit cost (Limit) + amortized top-ups over the selected range.",
+                            "Issued sales × cost % (Actual Sales) + annualized limit cost (Limit), plus registration as a percent of that insurance premium, plus amortized top-ups over the selected range.",
                     })}
                 >
                     {t("credit_portfolio_health.kpi_period_cost", {
@@ -218,7 +231,7 @@ export function CostsSectionView({
                             {
                                 ...ns,
                                 defaultValue:
-                                    "Same as period Policy cost, scoped to each calendar month (issued sales, annualized limit days, and amortized top-ups).",
+                                    "Same as period Policy cost, scoped to each calendar month (issued sales, annualized limit days, registration as a percent of the insurance premium, and amortized top-ups).",
                             }
                         )}
                     >
@@ -259,35 +272,102 @@ export function CostsSectionView({
                                 />
                                 <Tooltip
                                     cursor={{ fill: CPH.surfaceMuted }}
-                                    content={(props) => (
-                                        <ChartTooltip
-                                            active={props.active}
-                                            label={
-                                                typeof props.label ===
-                                                    "string" ||
-                                                typeof props.label === "number"
-                                                    ? String(props.label)
-                                                    : undefined
-                                            }
-                                            payload={props.payload as
+                                    content={(props) => {
+                                        const row = (
+                                            props.payload as
                                                 | Array<{
-                                                      name?: string;
-                                                      value?: number | string;
-                                                      color?: string;
-                                                      dataKey?:
-                                                          | string
-                                                          | number;
+                                                      payload?: MonthlyCostChartRow;
                                                   }>
-                                                | undefined}
-                                            formatValue={(v) =>
-                                                formatPortfolioMoney(
-                                                    v,
-                                                    currency,
-                                                    language
-                                                )
-                                            }
-                                        />
-                                    )}
+                                                | undefined
+                                        )?.[0]?.payload;
+                                        if (
+                                            row == null ||
+                                            row.totalCost == null
+                                        ) {
+                                            return null;
+                                        }
+                                        return (
+                                            <ChartTooltip
+                                                active={props.active}
+                                                label={
+                                                    typeof props.label ===
+                                                        "string" ||
+                                                    typeof props.label ===
+                                                        "number"
+                                                        ? String(props.label)
+                                                        : undefined
+                                                }
+                                                items={[
+                                                    {
+                                                        name: t(
+                                                            "credit_portfolio_health.chart_monthly_cost_insurance",
+                                                            {
+                                                                ...ns,
+                                                                defaultValue:
+                                                                    "Insurance fee",
+                                                            }
+                                                        ),
+                                                        value:
+                                                            row.insuranceCost ??
+                                                            0,
+                                                        color: CPH.teal,
+                                                        dataKey:
+                                                            "insuranceCost",
+                                                    },
+                                                    {
+                                                        name: t(
+                                                            "credit_portfolio_health.chart_monthly_cost_registration",
+                                                            {
+                                                                ...ns,
+                                                                defaultValue:
+                                                                    "Registration fee",
+                                                            }
+                                                        ),
+                                                        value:
+                                                            row.registrationFeeCost ??
+                                                            0,
+                                                        color: CPH.teal,
+                                                        dataKey:
+                                                            "registrationFeeCost",
+                                                    },
+                                                    {
+                                                        name: t(
+                                                            "credit_portfolio_health.chart_monthly_cost_top_ups",
+                                                            {
+                                                                ...ns,
+                                                                defaultValue:
+                                                                    "Top-ups",
+                                                            }
+                                                        ),
+                                                        value:
+                                                            row.topUpCost ?? 0,
+                                                        color: CPH.teal,
+                                                        dataKey: "topUpCost",
+                                                    },
+                                                    {
+                                                        name: t(
+                                                            "credit_portfolio_health.chart_monthly_cost_total",
+                                                            {
+                                                                ...ns,
+                                                                defaultValue:
+                                                                    "Total",
+                                                            }
+                                                        ),
+                                                        value: row.totalCost,
+                                                        color: CPH.teal,
+                                                        dataKey: "totalCost",
+                                                    },
+                                                ]}
+                                                formatValue={(v) =>
+                                                    formatPortfolioMoney(
+                                                        v,
+                                                        currency,
+                                                        language
+                                                    )
+                                                }
+                                            />
+                                        );
+                                    }}
                                 />
                                 <Bar
                                     dataKey="cost"

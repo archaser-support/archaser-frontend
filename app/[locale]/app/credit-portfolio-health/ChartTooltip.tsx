@@ -13,6 +13,11 @@ export type ChartTooltipProps = {
     active?: boolean;
     label?: string;
     payload?: TooltipPayloadItem[];
+    /**
+     * When set, render these rows instead of deriving from Recharts payload
+     * (e.g. cost breakdown while the bar still uses a single series).
+     */
+    items?: TooltipPayloadItem[];
     formatValue?: (value: number, name?: string) => string;
 };
 
@@ -20,9 +25,10 @@ export function ChartTooltip({
     active,
     label,
     payload,
+    items: explicitItems,
     formatValue,
 }: ChartTooltipProps) {
-    const items = (payload ?? []).filter(
+    const items = (explicitItems ?? payload ?? []).filter(
         (entry) => entry.value != null && entry.value !== ""
     );
     if (!active || items.length === 0) {
