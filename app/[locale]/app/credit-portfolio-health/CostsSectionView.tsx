@@ -274,8 +274,8 @@ export function CostsSectionView({
                                     cursor={{ fill: CPH.surfaceMuted }}
                                     content={(props) => {
                                         const row = (
-                                            props.payload as
-                                                | Array<{
+                                            props.payload as unknown as
+                                                | ReadonlyArray<{
                                                       payload?: MonthlyCostChartRow;
                                                   }>
                                                 | undefined
