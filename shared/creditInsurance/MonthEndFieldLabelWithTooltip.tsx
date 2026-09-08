@@ -10,7 +10,7 @@ type MonthEndFieldLabelWithTooltipProps = {
     isRtl: boolean;
 };
 
-/** Label plus info-icon tooltip for MEP/Reporting month-end fields. */
+/** Label plus info-icon tooltip for credit-insurance policy fields. */
 export function MonthEndFieldLabelWithTooltip({
     label,
     tooltip,

@@ -2,7 +2,6 @@
  * Response shapes for the Nest credit-insurance endpoints consumed by the
  * dashboard, portfolio health and customer trend screens.
  */
-import type { cost_calculation_method } from "@/types/db";
 
 export const PORTFOLIO_HEALTH_BELOW_THRESHOLD_PCT = 85;
 export const INSURER_DECLINED_REASON = "Insurer declined";
@@ -299,6 +298,8 @@ export type PortfolioNoCoverageSection = {
     mainViolationReason: string | null;
     mainViolationReasonSharePct: number;
     totalBreachAmount: number;
+    /** ISO currency code from the account (e.g. ILS, USD). */
+    accountCurrency: string;
 };
 
 export type PortfolioUtilizationDailyPoint = {
@@ -326,8 +327,12 @@ export type PortfolioUtilizationDailyPoint = {
 export type PortfolioUtilizationTopCustomer = {
     customerId: number;
     customerName: string;
+    /** Mean daily usage_amount over available snapshot days in the range. */
     usageAmount: number;
-    /** Coverage/utilization % vs effective limit; null when limit ≤ 0. */
+    /**
+     * Mean daily effective utilization % over days with a positive effective
+     * limit; null when no such day exists.
+     */
     utilizationPct: number | null;
 };
 
@@ -374,7 +379,7 @@ export type PortfolioUtilizationSection = {
     accountCurrency: string;
     /** Daily portfolio / DCL / Named utilization for the Utilization chart. */
     daily: PortfolioUtilizationDailyPoint[];
-    /** Snapshot day used for top customers and distribution; null when none. */
+    /** Snapshot day kept for API compatibility; distribution/top customers use the full range. */
     asOfDate: string | null;
 };
 
@@ -386,6 +391,13 @@ export type PortfolioCostDailyPoint = {
 
 export type PortfolioCostMonthlyPoint = {
     month: string;
+    /** Insurance premium for the month (Actual Sales + Limit day-slices). */
+    insuranceCost: number;
+    /** Registration markup on insurance premiums (not top-ups). */
+    registrationFeeCost: number;
+    /** Amortized top-up premiums for the month. */
+    topUpCost: number;
+    /** insuranceCost + registrationFeeCost + topUpCost. */
     totalCost: number;
 };
 
@@ -473,40 +485,6 @@ export type CustomerPolicyUsageTrendResponse = {
     snapshotDate: string | null;
     hasTopUpPolicies: boolean;
     topCustomers: CustomerPolicyTrendTopRow[];
-};
-
-export type CustomerPolicyDailyCostChangeFields = {
-    policyDailyCostChange: number | null;
-    policyCostCurrency: string | null;
-    topUpDailyCostChange: number | null;
-    topUpCostCurrency: string | null;
-    totalDailyCostChange: number | null;
-    costCalculationMethod: cost_calculation_method | null;
-    costPercent: number | null;
-};
-
-export type CustomerPolicyDailyCostKpiMetadata = {
-    priorSnapshotDate: string | null;
-    gapFillDaysApplied?: number;
-};
-
-export type CustomerPolicyCustomerTrendPoint = {
-    snapshotDate: string;
-    usageAmount: number;
-    approvedLimit: number | null;
-    usagePct: number | null;
-} & CustomerPolicyDailyCostChangeFields;
-
-export type CustomerPolicyCustomerTrendLatestPoint =
-    CustomerPolicyCustomerTrendPoint & CustomerPolicyDailyCostKpiMetadata;
-
-export type CustomerPolicyCustomerTrendResponse = {
-    customerId: number;
-    policyId: number | null;
-    fromDate: string | null;
-    toDate: string | null;
-    latest: CustomerPolicyCustomerTrendLatestPoint | null;
-    series: CustomerPolicyCustomerTrendPoint[];
 };
 
 export type RiskExposurePolicySeries = {

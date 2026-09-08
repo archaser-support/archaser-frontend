@@ -29,8 +29,7 @@ import { useParams, useRouter } from "next/navigation";
 
 import type { PortfolioUtilizationSection, UtilizationDistributionBinKey } from "@/types/creditInsurance";
 import { appendDashboardBusinessUnitId } from "@/shared/dashboard/dashboardBusinessUnitParams";
-import { formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
-
+import { formatPortfolioMoney } from "./formatPortfolioMoney";
 import { BigNumber } from "./BigNumber";
 import { ChartTooltip } from "./ChartTooltip";
 import { Eyebrow } from "./Eyebrow";
@@ -150,19 +149,6 @@ function truncateChartLabel(
     return rtl ? `…${truncated}` : `${truncated}…`;
 }
 
-function formatAsOfYmd(ymd: string, language: string): string {
-    const date = new Date(`${ymd}T12:00:00.000Z`);
-    if (Number.isNaN(date.getTime())) {
-        return ymd;
-    }
-    const locale = language.startsWith("he") ? "he-IL" : "en-US";
-    return date.toLocaleDateString(locale, {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-    });
-}
-
 type DistributionChartRow = {
     bin: UtilizationDistributionBinKey;
     label: string;
@@ -203,10 +189,9 @@ function DistributionTooltip({
     }
     const locale = language.startsWith("he") ? "he-IL" : "en-US";
     const customerLine = `${row.customerCount.toLocaleString(locale)} (${formatPct(row.customerPct, language)})`;
-    const usageLine = `${formatCurrencyWithRTLSupport(
+    const usageLine = `${formatPortfolioMoney(
         row.usageAmount,
         currency,
-        locale,
         language
     )} (${formatPct(row.usagePct, language)})`;
 
@@ -328,15 +313,6 @@ export function UtilizationSectionView({
                   days: section.peakUtilizationStreakDays,
               });
 
-    const asOfLabel =
-        section.asOfDate != null
-            ? t("credit_portfolio_health.as_of_date", {
-                  ...ns,
-                  defaultValue: "As of {{date}}",
-                  date: formatAsOfYmd(section.asOfDate, language),
-              })
-            : null;
-
     const topCustomersChartData = useMemo(
         () =>
             section.topCustomers.map((item) => ({
@@ -377,13 +353,11 @@ export function UtilizationSectionView({
     const currency = section.accountCurrency || "USD";
 
     const openUtilizationBinReport = (bin: UtilizationDistributionBinKey) => {
-        if (section.asOfDate == null) {
-            return;
-        }
         const sp = new URLSearchParams({
             type: "utilization_bin",
             bin,
-            asOf: section.asOfDate,
+            from: fromYmd,
+            to: toYmd,
         });
         if (policyId != null) {
             sp.set("policyId", String(policyId));
@@ -762,7 +736,7 @@ export function UtilizationSectionView({
                             ...ns,
                             count: section.distributionCustomerCount,
                             defaultValue:
-                                "As of range end among {{count}} approved customers with a positive effective limit. Grouped bars: share of customers and share of usage. Exclusive bins; each series sums to ~100%.",
+                                "Among {{count}} approved customers with a positive effective limit on at least one day in the range. Binned by mean daily effective utilization %. Grouped bars: share of customers and share of mean usage. Exclusive bins; each series sums to ~100%.",
                         })}
                     >
                         {t("credit_portfolio_health.distribution_title", {
@@ -770,14 +744,6 @@ export function UtilizationSectionView({
                             defaultValue: "Utilization distribution",
                         })}
                     </Eyebrow>
-                    {asOfLabel ? (
-                        <p
-                            className="m-0 mb-2 text-xs"
-                            style={{ color: CPH.slate }}
-                        >
-                            {asOfLabel}
-                        </p>
-                    ) : null}
                     <div style={{ width: "100%", height: distChartHeight }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart
@@ -952,7 +918,7 @@ export function UtilizationSectionView({
                         help={t("credit_portfolio_health.top_customers_help", {
                             ...ns,
                             defaultValue:
-                                "As of the range end date. Bars show effective coverage/utilization %.",
+                                "Top 10 by mean daily usage in the range. Bars show mean daily effective utilization %.",
                         })}
                     >
                         {t("credit_portfolio_health.top_customers_title", {
@@ -960,14 +926,6 @@ export function UtilizationSectionView({
                             defaultValue: "Coverage — 10 largest customers",
                         })}
                     </Eyebrow>
-                    {asOfLabel ? (
-                        <p
-                            className="m-0 mb-2 text-xs"
-                            style={{ color: CPH.slate }}
-                        >
-                            {asOfLabel}
-                        </p>
-                    ) : null}
                     <div
                         style={{
                             width: "100%",
@@ -1030,7 +988,7 @@ export function UtilizationSectionView({
                                         "credit_portfolio_health.chart_utilization_pct",
                                         {
                                             ...ns,
-                                            defaultValue: "Coverage",
+                                            defaultValue: "Avg. utilization",
                                         }
                                     )}
                                     fill={CPH.teal}

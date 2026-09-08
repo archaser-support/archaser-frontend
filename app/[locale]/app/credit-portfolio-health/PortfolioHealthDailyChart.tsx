@@ -27,6 +27,8 @@ import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 export type PortfolioHealthDailyChartProps = {
     daily: PortfolioHealthDailyPoint[];
     averageHealthPct: number;
+    /** Health cut-off drawn as a critical reference line (slider-driven). */
+    belowThresholdPct: number;
     fromYmd: string;
     toYmd: string;
 };
@@ -54,6 +56,7 @@ function formatPct(value: number, language: string): string {
 export function PortfolioHealthDailyChart({
     daily,
     averageHealthPct,
+    belowThresholdPct,
     fromYmd,
     toYmd,
 }: PortfolioHealthDailyChartProps) {
@@ -81,6 +84,11 @@ export function PortfolioHealthDailyChart({
         ...ns,
         defaultValue: "Period avg. health",
     });
+    const thresholdLabel = t("credit_portfolio_health.chart_threshold_ref", {
+        ...ns,
+        defaultValue: "Threshold {{pct}}%",
+        pct: belowThresholdPct,
+    });
 
     return (
         <IslandCard accent="teal" className={layout.cardPad}>
@@ -89,7 +97,8 @@ export function PortfolioHealthDailyChart({
                 help={t("credit_portfolio_health.daily_health_chart_help", {
                     ...ns,
                     defaultValue:
-                        "Daily portfolio health (compliant AR ÷ total open AR × 100). The reference line is the period average over available days.",
+                        "Daily portfolio health (compliant AR ÷ total open AR × 100). Violet line: period average. Red line: below-threshold cut-off ({{pct}}%).",
+                    pct: belowThresholdPct,
                 })}
             >
                 {t("credit_portfolio_health.daily_health_chart_title", {
@@ -149,6 +158,18 @@ export function PortfolioHealthDailyChart({
                                         }
                                     />
                                 }
+                            />
+                            <ReferenceLine
+                                y={belowThresholdPct}
+                                stroke={CPH.critical}
+                                strokeDasharray="6 4"
+                                strokeWidth={1.5}
+                                label={{
+                                    value: thresholdLabel,
+                                    fill: CPH.criticalText,
+                                    fontSize: 11,
+                                    position: "insideTopLeft",
+                                }}
                             />
                             <ReferenceLine
                                 y={averageHealthPct}
