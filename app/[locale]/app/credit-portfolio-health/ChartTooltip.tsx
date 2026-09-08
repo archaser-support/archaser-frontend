@@ -12,12 +12,12 @@ type TooltipPayloadItem = {
 export type ChartTooltipProps = {
     active?: boolean;
     label?: string;
-    payload?: TooltipPayloadItem[];
+    payload?: ReadonlyArray<TooltipPayloadItem>;
     /**
      * When set, render these rows instead of deriving from Recharts payload
      * (e.g. cost breakdown while the bar still uses a single series).
      */
-    items?: TooltipPayloadItem[];
+    items?: ReadonlyArray<TooltipPayloadItem>;
     formatValue?: (value: number, name?: string) => string;
 };
 
