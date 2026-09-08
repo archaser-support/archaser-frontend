@@ -19,6 +19,10 @@ import { padSeriesByUtcMonth } from "@/shared/creditInsurance/portfolioHealthDat
 
 import { ChartTooltip } from "./ChartTooltip";
 import { Eyebrow } from "./Eyebrow";
+import {
+    formatPortfolioAxisMoney,
+    formatPortfolioMoney,
+} from "./formatPortfolioMoney";
 import { IslandCard } from "./IslandCard";
 import { CPH } from "./designTokens";
 import layout from "./islandLayout.module.css";
@@ -28,6 +32,7 @@ export type PortfolioHealthMonthlyChartProps = {
     monthly: PortfolioHealthMonthlyPoint[];
     fromYmd: string;
     toYmd: string;
+    accountCurrency: string;
 };
 
 function formatMonthLabel(month: string, language: string): string {
@@ -42,29 +47,18 @@ function formatMonthLabel(month: string, language: string): string {
     });
 }
 
-function formatAmount(value: number, language: string): string {
-    const locale = language.startsWith("he") ? "he-IL" : "en-US";
-    return value.toLocaleString(locale, { maximumFractionDigits: 0 });
-}
-
-function formatAxisAmount(value: number, language: string): string {
-    const locale = language.startsWith("he") ? "he-IL" : "en-US";
-    return value.toLocaleString(locale, {
-        notation: "compact",
-        maximumFractionDigits: 1,
-    });
-}
-
 export function PortfolioHealthMonthlyChart({
     monthly,
     fromYmd,
     toYmd,
+    accountCurrency,
 }: PortfolioHealthMonthlyChartProps) {
     const { i18n, t } = useTranslation(["dashboard"]);
     const language = i18n.language;
     const ns = { ns: "dashboard" as const };
     const prefersReducedMotion = usePrefersReducedMotion();
     const animDuration = prefersReducedMotion ? 0 : 1200;
+    const currency = accountCurrency || "USD";
 
     const data = useMemo(
         () =>
@@ -132,7 +126,7 @@ export function PortfolioHealthMonthlyChart({
                     <ResponsiveContainer width="100%" height="100%">
                         <ComposedChart
                             data={data}
-                            margin={{ top: 10, right: 12, left: 4, bottom: 8 }}
+                            margin={{ top: 10, right: 12, left: 8, bottom: 8 }}
                         >
                             <CartesianGrid
                                 strokeDasharray="3 6"
@@ -146,22 +140,45 @@ export function PortfolioHealthMonthlyChart({
                                 tickLine={false}
                             />
                             <YAxis
-                                tick={{ fill: CPH.slate, fontSize: 12 }}
+                                tick={{ fill: CPH.slate, fontSize: 11 }}
                                 axisLine={false}
                                 tickLine={false}
-                                width={52}
+                                width={84}
                                 tickFormatter={(v: number) =>
-                                    formatAxisAmount(v, language)
+                                    formatPortfolioAxisMoney(
+                                        v,
+                                        currency,
+                                        language
+                                    )
                                 }
                             />
                             <Tooltip
-                                content={
+                                content={(props) => (
                                     <ChartTooltip
+                                        active={props.active}
+                                        label={
+                                            typeof props.label === "string" ||
+                                            typeof props.label === "number"
+                                                ? String(props.label)
+                                                : undefined
+                                        }
+                                        payload={props.payload as
+                                            | Array<{
+                                                  name?: string;
+                                                  value?: number | string;
+                                                  color?: string;
+                                                  dataKey?: string | number;
+                                              }>
+                                            | undefined}
                                         formatValue={(v) =>
-                                            formatAmount(v, language)
+                                            formatPortfolioMoney(
+                                                v,
+                                                currency,
+                                                language
+                                            )
                                         }
                                     />
-                                }
+                                )}
                             />
                             <Legend
                                 verticalAlign="bottom"

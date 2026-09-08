@@ -19,6 +19,11 @@ import type { NoCoverageReasonKey, PortfolioNoCoverageSection } from "@/types/cr
 import { BigNumber } from "./BigNumber";
 import { ChartTooltip } from "./ChartTooltip";
 import { Eyebrow } from "./Eyebrow";
+import {
+    formatPortfolioAxisMoney,
+    formatPortfolioMoney,
+    portfolioMoneyAffixes,
+} from "./formatPortfolioMoney";
 import { IslandCard } from "./IslandCard";
 import { CPH } from "./designTokens";
 import layout from "./islandLayout.module.css";
@@ -79,17 +84,14 @@ const BREACH_REASON_LABEL_KEYS: Record<
     },
 };
 
-function formatAmount(value: number, language: string): string {
-    const locale = language.startsWith("he") ? "he-IL" : "en-US";
-    return value.toLocaleString(locale, { maximumFractionDigits: 0 });
-}
-
 export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
     const { t, i18n } = useTranslation(["dashboard"]);
     const language = i18n.language;
     const ns = { ns: "dashboard" as const };
     const prefersReducedMotion = usePrefersReducedMotion();
     const animDuration = prefersReducedMotion ? 0 : 1100;
+    const currency = section.accountCurrency || "USD";
+    const moneyAffixes = portfolioMoneyAffixes(currency, language);
 
     const reasonsWithSignal = section.reasons.filter(
         (item) => item.averageAmount > 0 || item.averageCustomerCount > 0
@@ -183,7 +185,8 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                     <BigNumber
                         value={section.averageUncoveredAmount}
                         decimals={0}
-                        suffix=""
+                        prefix={moneyAffixes.prefix}
+                        suffix={moneyAffixes.suffix}
                         label={t(
                             "credit_portfolio_health.kpi_uncovered_amount",
                             {
@@ -230,7 +233,7 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                             <BarChart
                                 layout="vertical"
                                 data={reasonsChartData}
-                                margin={{ left: 10, right: 20, top: 4, bottom: 4 }}
+                                margin={{ left: 10, right: 28, top: 4, bottom: 8 }}
                             >
                                 <CartesianGrid
                                     strokeDasharray="3 6"
@@ -242,8 +245,13 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                                     tick={{ fill: CPH.slate, fontSize: 11 }}
                                     axisLine={false}
                                     tickLine={false}
+                                    height={36}
                                     tickFormatter={(v: number) =>
-                                        formatAmount(v, language)
+                                        formatPortfolioAxisMoney(
+                                            v,
+                                            currency,
+                                            language
+                                        )
                                     }
                                 />
                                 <YAxis
@@ -256,13 +264,35 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                                 />
                                 <Tooltip
                                     cursor={{ fill: CPH.surfaceMuted }}
-                                    content={
+                                    content={(props) => (
                                         <ChartTooltip
+                                            active={props.active}
+                                            label={
+                                                typeof props.label ===
+                                                    "string" ||
+                                                typeof props.label === "number"
+                                                    ? String(props.label)
+                                                    : undefined
+                                            }
+                                            payload={props.payload as
+                                                | Array<{
+                                                      name?: string;
+                                                      value?: number | string;
+                                                      color?: string;
+                                                      dataKey?:
+                                                          | string
+                                                          | number;
+                                                  }>
+                                                | undefined}
                                             formatValue={(v) =>
-                                                formatAmount(v, language)
+                                                formatPortfolioMoney(
+                                                    v,
+                                                    currency,
+                                                    language
+                                                )
                                             }
                                         />
-                                    }
+                                    )}
                                 />
                                 <Bar
                                     dataKey="amount"

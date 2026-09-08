@@ -21,10 +21,13 @@ import {
 
 import type { PortfolioCostsSection } from "@/types/creditInsurance";
 import { padSeriesByUtcMonth } from "@/shared/creditInsurance/portfolioHealthDateRange";
-import { formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
 
 import { ChartTooltip } from "./ChartTooltip";
 import { Eyebrow } from "./Eyebrow";
+import {
+    formatPortfolioAxisMoney,
+    formatPortfolioMoney,
+} from "./formatPortfolioMoney";
 import { IslandCard } from "./IslandCard";
 import { StatNumber } from "./StatNumber";
 import { CPH } from "./designTokens";
@@ -37,20 +40,6 @@ export type CostsSectionViewProps = {
     fromYmd: string;
     toYmd: string;
 };
-
-function formatMoney(
-    amount: number,
-    currencyCode: string,
-    language: string
-): string {
-    const locale = language.startsWith("he") ? "he-IL" : "en-US";
-    return formatCurrencyWithRTLSupport(
-        amount,
-        currencyCode,
-        locale,
-        language.startsWith("he") ? "he" : language
-    );
-}
 
 function formatMonthLabel(month: string, language: string): string {
     const [y, m] = month.split("-").map(Number);
@@ -118,7 +107,7 @@ export function CostsSectionView({
                         fontFamily: SPACE_GROTESK_FONT_FAMILY,
                     }}
                 >
-                    {formatMoney(section.periodCost, currency, language)}
+                    {formatPortfolioMoney(section.periodCost, currency, language)}
                 </div>
                 <div className="mt-1 text-sm" style={{ color: CPH.slate }}>
                     {t("credit_portfolio_health.kpi_period_cost_label", {
@@ -158,7 +147,7 @@ export function CostsSectionView({
                                 fontFamily: SPACE_GROTESK_FONT_FAMILY,
                             }}
                         >
-                            {formatMoney(
+                            {formatPortfolioMoney(
                                 section.effectiveCost,
                                 currency,
                                 language
@@ -242,7 +231,7 @@ export function CostsSectionView({
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart
                                 data={monthlyChartData}
-                                margin={{ top: 10, left: -10, right: 10 }}
+                                margin={{ top: 10, left: 8, right: 10 }}
                             >
                                 <CartesianGrid
                                     strokeDasharray="3 6"
@@ -256,35 +245,49 @@ export function CostsSectionView({
                                     tickLine={false}
                                 />
                                 <YAxis
-                                    tick={{ fill: CPH.slate, fontSize: 12 }}
+                                    tick={{ fill: CPH.slate, fontSize: 11 }}
                                     axisLine={false}
                                     tickLine={false}
-                                    width={64}
-                                    tickFormatter={(v: number) => {
-                                        const locale = language.startsWith(
-                                            "he"
+                                    width={84}
+                                    tickFormatter={(v: number) =>
+                                        formatPortfolioAxisMoney(
+                                            v,
+                                            currency,
+                                            language
                                         )
-                                            ? "he-IL"
-                                            : "en-US";
-                                        return v.toLocaleString(locale, {
-                                            maximumFractionDigits: 0,
-                                            notation: "compact",
-                                        });
-                                    }}
+                                    }
                                 />
                                 <Tooltip
                                     cursor={{ fill: CPH.surfaceMuted }}
-                                    content={
+                                    content={(props) => (
                                         <ChartTooltip
+                                            active={props.active}
+                                            label={
+                                                typeof props.label ===
+                                                    "string" ||
+                                                typeof props.label === "number"
+                                                    ? String(props.label)
+                                                    : undefined
+                                            }
+                                            payload={props.payload as
+                                                | Array<{
+                                                      name?: string;
+                                                      value?: number | string;
+                                                      color?: string;
+                                                      dataKey?:
+                                                          | string
+                                                          | number;
+                                                  }>
+                                                | undefined}
                                             formatValue={(v) =>
-                                                formatMoney(
+                                                formatPortfolioMoney(
                                                     v,
                                                     currency,
                                                     language
                                                 )
                                             }
                                         />
-                                    }
+                                    )}
                                 />
                                 <Bar
                                     dataKey="cost"
@@ -391,7 +394,7 @@ export function CostsSectionView({
                             fontFamily: SPACE_GROTESK_FONT_FAMILY,
                         }}
                     >
-                        {formatMoney(
+                        {formatPortfolioMoney(
                             section.approvedAverageAr,
                             currency,
                             language
@@ -493,7 +496,7 @@ export function CostsSectionView({
                             fontFamily: SPACE_GROTESK_FONT_FAMILY,
                         }}
                     >
-                        {formatMoney(
+                        {formatPortfolioMoney(
                             section.selfUnderwrittenAverageAr,
                             currency,
                             language

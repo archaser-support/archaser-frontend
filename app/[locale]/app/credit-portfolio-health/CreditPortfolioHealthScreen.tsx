@@ -11,6 +11,7 @@ import {
     Typography,
     useTheme,
 } from "@mui/material";
+import { useSession } from "next-auth/react";
 import { CalendarDays } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -122,10 +123,24 @@ export function CreditPortfolioHealthScreen({
     generateDaysInRange,
 }: CreditPortfolioHealthScreenProps) {
     const { t, i18n } = useTranslation(["dashboard"]);
+    const { data: session } = useSession();
     const theme = useTheme();
     const isRtl = i18n.language === "he" || i18n.language.startsWith("he-");
     const prefersReducedMotion = usePrefersReducedMotion();
     const ns = { ns: "dashboard" as const };
+    const accountCurrency = useMemo(() => {
+        const fromApi =
+            data?.noCoverage?.accountCurrency ||
+            data?.utilization?.accountCurrency ||
+            data?.costs?.accountCurrency;
+        const fromSession = session?.user?.currency;
+        return (fromApi || fromSession || "USD").trim().toUpperCase() || "USD";
+    }, [
+        data?.noCoverage?.accountCurrency,
+        data?.utilization?.accountCurrency,
+        data?.costs?.accountCurrency,
+        session?.user?.currency,
+    ]);
     const [confirmingLargeGenerate, setConfirmingLargeGenerate] =
         useState(false);
     const isLargeGenerateRange =
@@ -760,6 +775,7 @@ export function CreditPortfolioHealthScreen({
                                                 section={data.portfolioHealth}
                                                 fromYmd={data.from}
                                                 toYmd={data.to}
+                                                accountCurrency={accountCurrency}
                                             />
                                         ) : (
                                             <p

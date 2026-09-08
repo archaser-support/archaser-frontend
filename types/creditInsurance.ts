@@ -299,6 +299,8 @@ export type PortfolioNoCoverageSection = {
     mainViolationReason: string | null;
     mainViolationReasonSharePct: number;
     totalBreachAmount: number;
+    /** ISO currency code from the account (e.g. ILS, USD). */
+    accountCurrency: string;
 };
 
 export type PortfolioUtilizationDailyPoint = {
