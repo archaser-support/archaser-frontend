@@ -2183,6 +2183,8 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                                     : "ltr",
                                             flex: 1,
                                             minWidth: 0,
+                                            overflowWrap: "anywhere",
+                                            overflow: "hidden",
                                         }}
                                     >
                                         {highlightText(
