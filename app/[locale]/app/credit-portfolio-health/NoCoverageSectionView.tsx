@@ -201,7 +201,7 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
             </IslandCard>
 
             <IslandCard
-                accent="copper"
+                accent="violet"
                 className={`${layout.span12} ${layout.mdSpan8} ${layout.cardPad}`}
             >
                 <Eyebrow
@@ -284,8 +284,8 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                                             key={i}
                                             fill={
                                                 i === 0
-                                                    ? CPH.copper
-                                                    : CPH.jadeDim
+                                                    ? CPH.violet
+                                                    : CPH.tealDim
                                             }
                                         />
                                     ))}
@@ -353,7 +353,7 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                                 defaultValue: "Share of total violations",
                             }
                         )}
-                        color={CPH.copper}
+                        color={CPH.violet}
                         locale={language}
                     />
                 </div>

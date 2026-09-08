@@ -451,6 +451,10 @@
     "credit_portfolio_health": {
         "page_title": "בריאות תיק",
         "page_description": "אנליטיקת תקופה לבריאות התיק, כיסוי, ניצול ועלות.",
+        "intro_status_health": "טוען בריאות תיק…",
+        "intro_status_utilisation": "טוען ניצול…",
+        "intro_status_coverage": "טוען כיסוי…",
+        "intro_status_costs": "טוען עלויות…",
         "days_available_footnote": "{{available}} מתוך {{total}} ימים זמינים",
         "generate_snapshots": "הפק",
         "generate_failed": "לא ניתן להפיק צילומים.",

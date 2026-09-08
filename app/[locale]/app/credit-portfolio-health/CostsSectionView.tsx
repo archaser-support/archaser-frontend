@@ -95,7 +95,7 @@ export function CostsSectionView({
     return (
         <div className={layout.grid12}>
             <IslandCard
-                accent="jade"
+                accent="teal"
                 className={`${layout.span6} ${layout.mdSpan4} ${layout.cardPad}`}
             >
                 <Eyebrow
@@ -129,7 +129,7 @@ export function CostsSectionView({
             </IslandCard>
 
             <IslandCard
-                accent="jade"
+                accent="teal"
                 className={`${layout.span6} ${layout.mdSpan4} ${layout.cardPad}`}
             >
                 <Eyebrow
@@ -154,7 +154,7 @@ export function CostsSectionView({
                         <div
                             className="text-3xl font-semibold tracking-tight"
                             style={{
-                                color: CPH.jade,
+                                color: CPH.teal,
                                 fontFamily: SPACE_GROTESK_FONT_FAMILY,
                             }}
                         >
@@ -181,7 +181,7 @@ export function CostsSectionView({
             </IslandCard>
 
             <IslandCard
-                accent="copper"
+                accent="violet"
                 className={`${layout.span6} ${layout.mdSpan4} ${layout.cardPad}`}
             >
                 <Eyebrow
@@ -219,7 +219,7 @@ export function CostsSectionView({
 
             {showMonthlyBars ? (
                 <IslandCard
-                    accent="jade"
+                    accent="teal"
                     className={`${layout.span12} ${layout.cardPad}`}
                 >
                     <Eyebrow
@@ -295,7 +295,7 @@ export function CostsSectionView({
                                             defaultValue: "Policy cost",
                                         }
                                     )}
-                                    fill={CPH.jade}
+                                    fill={CPH.teal}
                                     radius={[8, 8, 0, 0]}
                                     animationDuration={animDuration}
                                 />
@@ -306,12 +306,12 @@ export function CostsSectionView({
             ) : null}
 
             <IslandCard
-                accent="jade"
+                accent="good"
                 className={`${layout.span12} ${layout.mdSpan6} ${layout.cardPad}`}
             >
                 <Eyebrow
                     icon={Layers}
-                    tone={CPH.jade}
+                    tone={CPH.good}
                     help={t(
                         "credit_portfolio_health.kpi_approved_footprint_help",
                         {
@@ -331,7 +331,7 @@ export function CostsSectionView({
                         <div
                             className="text-3xl font-semibold"
                             style={{
-                                color: CPH.jade,
+                                color: CPH.good,
                                 fontFamily: SPACE_GROTESK_FONT_FAMILY,
                             }}
                         >
@@ -340,7 +340,7 @@ export function CostsSectionView({
                                 decimals={0}
                                 suffix="%"
                                 locale={language}
-                                color={CPH.jade}
+                                color={CPH.good}
                                 className="text-3xl"
                             />
                         </div>
@@ -359,7 +359,7 @@ export function CostsSectionView({
                         <div
                             className="text-3xl font-semibold"
                             style={{
-                                color: CPH.jade,
+                                color: CPH.good,
                                 fontFamily: SPACE_GROTESK_FONT_FAMILY,
                             }}
                         >
@@ -368,7 +368,7 @@ export function CostsSectionView({
                                 decimals={0}
                                 suffix="%"
                                 locale={language}
-                                color={CPH.jade}
+                                color={CPH.good}
                                 className="text-3xl"
                             />
                         </div>
@@ -387,7 +387,7 @@ export function CostsSectionView({
                     <div
                         className="text-2xl font-semibold tracking-tight"
                         style={{
-                            color: CPH.jade,
+                            color: CPH.good,
                             fontFamily: SPACE_GROTESK_FONT_FAMILY,
                         }}
                     >
