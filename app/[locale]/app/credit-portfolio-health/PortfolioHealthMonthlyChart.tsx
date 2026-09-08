@@ -162,8 +162,8 @@ export function PortfolioHealthMonthlyChart({
                                                 ? String(props.label)
                                                 : undefined
                                         }
-                                        payload={props.payload as
-                                            | Array<{
+                                        payload={props.payload as unknown as
+                                            | ReadonlyArray<{
                                                   name?: string;
                                                   value?: number | string;
                                                   color?: string;
