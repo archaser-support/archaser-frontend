@@ -128,7 +128,7 @@ interface LocaleProps {
 interface CurrencyProps {
     value: string;
     onChange: (value: string) => void;
-    label?: string;
+    label?: React.ReactNode;
     disabled?: boolean;
     error?: boolean;
     helperText?: string;
