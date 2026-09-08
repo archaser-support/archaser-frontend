@@ -28,9 +28,8 @@ export type NoCoverageSectionViewProps = {
     section: PortfolioNoCoverageSection;
 };
 
-const REASON_LABEL_KEYS: Record<
-    NoCoverageReasonKey,
-    { key: string; defaultValue: string }
+const REASON_LABEL_KEYS: Partial<
+    Record<NoCoverageReasonKey, { key: string; defaultValue: string }>
 > = {
     pending_review: {
         key: "credit_portfolio_health.reason_pending_review",
@@ -43,10 +42,6 @@ const REASON_LABEL_KEYS: Record<
     insurer_declined: {
         key: "credit_portfolio_health.reason_insurer_declined",
         defaultValue: "Insurer declined",
-    },
-    other: {
-        key: "credit_portfolio_health.reason_other",
-        defaultValue: "Other",
     },
     no_linked_policy: {
         key: "credit_portfolio_health.reason_no_linked_policy",
@@ -108,10 +103,12 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                     const meta = REASON_LABEL_KEYS[item.reason];
                     return {
                         reason: item.reason,
-                        label: t(meta.key, {
-                            ...ns,
-                            defaultValue: meta.defaultValue,
-                        }),
+                        label: meta
+                            ? t(meta.key, {
+                                  ...ns,
+                                  defaultValue: meta.defaultValue,
+                              })
+                            : item.reason,
                         amount: item.averageAmount,
                         customers: item.averageCustomerCount,
                     };
