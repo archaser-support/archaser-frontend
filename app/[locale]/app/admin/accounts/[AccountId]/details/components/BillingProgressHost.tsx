@@ -14,6 +14,7 @@ import type {
     ConnectorSyncStatePublic,
     SyncRunSummary,
 } from "@/shared/services/billingConnectorService";
+import type { BackfillProgressSessionPhase } from "@/shared/services/backfillImportProgress";
 import type { BackfillActionStageView } from "@/shared/services/billingConnectorSyncActions";
 import { getResetBackfillPurpose } from "@/shared/services/billingConnectorSyncActions";
 import BackfillImportProgress from "./BackfillImportProgress";
@@ -29,6 +30,7 @@ export interface BillingProgressHostProps {
     enabledEntities: ImportType[];
     displaySyncStates: ConnectorSyncStatePublic[] | undefined;
     expectDeletingStep: boolean;
+    sessionPhase?: BackfillProgressSessionPhase | null;
     pendingArPostIngestCustomers: number | undefined;
     expanded: boolean;
     onExpandedChange: (expanded: boolean) => void;
@@ -61,6 +63,7 @@ const BillingProgressHost = memo(function BillingProgressHost({
     enabledEntities,
     displaySyncStates,
     expectDeletingStep,
+    sessionPhase = null,
     pendingArPostIngestCustomers,
     expanded,
     onExpandedChange,
@@ -87,6 +90,7 @@ const BillingProgressHost = memo(function BillingProgressHost({
             enabledEntities={enabledEntities}
             syncStates={displaySyncStates}
             expectDeletingStep={expectDeletingStep}
+            sessionPhase={sessionPhase}
             pendingArPostIngestCustomers={pendingArPostIngestCustomers}
             expanded={expanded}
             onExpandedChange={onExpandedChange}

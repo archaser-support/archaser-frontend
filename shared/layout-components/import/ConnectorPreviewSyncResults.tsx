@@ -16,6 +16,7 @@ import type {
     PreviewSyncEntityResult,
     PreviewSyncResponse,
 } from "@/shared/services/billingConnectorService";
+import { formatPriorityValidationMessage } from "@/shared/utils/formatPriorityValidationMessage";
 
 function formatSampleCountLabel(count: number, capped: boolean): string {
     return `${count.toLocaleString()}${capped ? "+" : ""}`;
@@ -66,7 +67,9 @@ function buildPreviewColumns(
         maxWidth: 320,
         sortable: false,
         renderCell: (params: GridRenderCellParams) => {
-            const message = String(params.row?.message ?? "-");
+            const message = formatPriorityValidationMessage(
+                String(params.row?.message ?? "-")
+            );
             const failed =
                 params.row?.status === "Validation Failed" ||
                 (message !== "-" &&
@@ -97,6 +100,7 @@ function buildPreviewColumns(
                         variant="body2"
                         noWrap
                         title={message}
+                        dir="auto"
                         sx={{ flex: 1, minWidth: 0 }}
                     >
                         {message}
@@ -191,21 +195,11 @@ export default function ConnectorPreviewSyncResults({
                       ? ` (${pulledCount} pulled from ERP)`
                       : ""}
             </Typography>
-            {entity.effective_filter ? (
-                <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{
-                        fontFamily: "monospace",
-                        whiteSpace: "pre-wrap",
-                    }}
-                >
-                    Effective filter: {entity.effective_filter}
-                </Typography>
-            ) : null}
             {entity.validation_errors.length > 0 && (
-                <Alert severity="error">
-                    {entity.validation_errors.join("; ")}
+                <Alert severity="error" dir="auto">
+                    {entity.validation_errors
+                        .map(formatPriorityValidationMessage)
+                        .join("; ")}
                 </Alert>
             )}
             <Box

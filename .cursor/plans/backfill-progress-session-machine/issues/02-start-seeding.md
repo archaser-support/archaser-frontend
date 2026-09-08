@@ -1,6 +1,6 @@
 # 02 — Start seeding without fake Running
 
-**Status:** ready-for-agent
+**Status:** done
 **Priority:** high
 **Blocked by:** [01-session-idle-clear-reload](01-session-idle-clear-reload.md)
 **User stories:** 3, 4, 5, 6, 19, 20, 27
@@ -12,11 +12,11 @@ On Start / Resume, move the session to `seeding` with a planned step list derive
 
 ## Acceptance criteria
 
-- [ ] Start with clear-before-import enters `seeding` including Record deletion in planned steps, counters at zero, deletion not Running until live purge/`active_step`.
-- [ ] Start without clear-before-import does not plan a Record deletion step in seeding.
-- [ ] No `pending-backfill` (or equivalent) SyncRunSummary is required for the panel to show seeding.
-- [ ] When sync-runs shows the new RUNNING execution, phase becomes `running` and rows bind to that run.
-- [ ] Resume uses the same session machine (no second progress model).
+- [x] Start with clear-before-import enters `seeding` including Record deletion in planned steps, counters at zero, deletion not Running until live purge/`active_step`.
+- [x] Start without clear-before-import does not plan a Record deletion step in seeding.
+- [x] No `pending-backfill` (or equivalent) SyncRunSummary is required for the panel to show seeding.
+- [x] When sync-runs shows the new RUNNING execution, phase becomes `running` and rows bind to that run.
+- [x] Resume uses the same session machine (no second progress model).
 
 ## How to test
 

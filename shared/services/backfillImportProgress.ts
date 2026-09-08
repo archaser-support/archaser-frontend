@@ -280,9 +280,122 @@ export function resolveBackfillSubtitleFromActiveStep(
     return null;
 }
 
+/** Canonical backfill progress panel phases (session machine). */
+export type BackfillProgressSessionPhase =
+    | "idle"
+    | "seeding"
+    | "running"
+    | "finishing"
+    | "deferred_drain"
+    | "finished"
+    | "cleared";
+
+/**
+ * Progress session for the Backfill progress panel.
+ * `phase` + optional `executionId` are the source of truth; storage is a hint only (D6).
+ * Legacy `{ executionId, dismissed }` payloads are still accepted on read.
+ */
 export interface BackfillProgressSession {
-    executionId: string;
-    dismissed: boolean;
+    phase?: BackfillProgressSessionPhase;
+    executionId?: string;
+    /** @deprecated Legacy hide flag — maps to `cleared` when true. */
+    dismissed?: boolean;
+    /** Seeding only (slice 02) — planned step keys. */
+    plannedSteps?: string[];
+    /** Seeding only — clear-before-import was requested on Start. */
+    expectPurge?: boolean;
+}
+
+export function createClearedBackfillProgressSession(): BackfillProgressSession {
+    return { phase: "cleared" };
+}
+
+export function createSeedingBackfillProgressSession(options?: {
+    expectPurge?: boolean;
+    executionId?: string;
+    plannedSteps?: string[];
+}): BackfillProgressSession {
+    return {
+        phase: "seeding",
+        executionId: options?.executionId,
+        expectPurge: options?.expectPurge === true ? true : undefined,
+        plannedSteps: options?.plannedSteps,
+    };
+}
+
+/**
+ * Planned progress-row keys for Start/Resume seeding (D4).
+ * Record deletion is included only when clear-before-import was requested.
+ */
+export function buildPlannedBackfillStepKeys(
+    enabledEntities: ImportType[],
+    expectPurge = false
+): string[] {
+    const ordered = orderEnabledBackfillEntities(enabledEntities);
+    const keys: string[] = [];
+    if (expectPurge) {
+        keys.push(PURGE_ENTITY_STATS_KEY);
+    }
+    for (const entity of ordered) {
+        keys.push(entity);
+        if (entity === "Invoice" && shouldShowLinkPaymentsRow(ordered)) {
+            keys.push(MATURITY_ENTITY_STATS_KEY);
+        }
+    }
+    if (shouldShowArTailSteps(ordered)) {
+        for (const step of BACKFILL_TAIL_STEPS) {
+            keys.push(step.key);
+        }
+    }
+    return keys;
+}
+
+/**
+ * Seeding panel rows: Not started / Waiting with zero counts.
+ * Never shows a Running spinner (including Record deletion) until a live run
+ * reports purge / `active_step` (D4).
+ */
+export function buildSeedingEntityProgressRows(params: {
+    enabledEntities: ImportType[];
+    expectPurge?: boolean;
+}): EntityProgressRow[] {
+    const ordered = orderEnabledBackfillEntities(params.enabledEntities);
+    const waitingRow = (
+        entity_type: BackfillProgressRowKey
+    ): EntityProgressRow => ({
+        entity_type,
+        phase: "waiting",
+        records_pulled: 0,
+        total_records: null,
+        progress_percent: null,
+        last_error: null,
+    });
+
+    const entityRows = ordered.map((entity) =>
+        waitingRow(progressRowLabelForEntity(entity))
+    );
+    const withLinkRow = shouldShowLinkPaymentsRow(ordered)
+        ? insertLinkPaymentsRow(entityRows, waitingRow(BACKFILL_LINK_PAYMENTS_LABEL))
+        : entityRows;
+    const withTail = appendTailStepRows({
+        rows: withLinkRow,
+        stats: undefined,
+        runFinished: false,
+        enabledEntities: ordered,
+    });
+    if (params.expectPurge !== true) {
+        return withTail;
+    }
+    return prependDeletingRow(withTail, {
+        entity_type: BACKFILL_DELETING_LABEL,
+        phase: "not_started",
+        records_pulled: 0,
+        total_records: null,
+        progress_percent: null,
+        last_error: null,
+        deleted: 0,
+        success: 0,
+    });
 }
 
 export function isBackfillSyncRun(
@@ -298,6 +411,35 @@ export function findRunningBackfillRun(
     runs: SyncRunSummary[]
 ): SyncRunSummary | null {
     return runs.find((run) => isBackfillSyncRun(run) && run.status === "RUNNING") ?? null;
+}
+
+/** Most recent finished (non-RUNNING) real backfill — used for idle last-run paint. */
+export function findLastFinishedBackfillRun(
+    runs: SyncRunSummary[]
+): SyncRunSummary | null {
+    let best: SyncRunSummary | null = null;
+    let bestTs = Number.NEGATIVE_INFINITY;
+    for (const run of runs) {
+        if (!isBackfillSyncRun(run) || isPlaceholderBackfillProgressRun(run)) {
+            continue;
+        }
+        if (run.status === "RUNNING") {
+            continue;
+        }
+        if (
+            run.status === "TIMEOUT" &&
+            run.error_type === "cancelled" &&
+            !run.completed_at
+        ) {
+            continue;
+        }
+        const ts = Date.parse(run.completed_at ?? run.started_at ?? "") || 0;
+        if (ts >= bestTs) {
+            bestTs = ts;
+            best = run;
+        }
+    }
+    return best;
 }
 
 /**
@@ -376,24 +518,32 @@ export function findSyncRunById(
 }
 
 /**
- * Resolve which run the progress panel should bind to.
+ * Legacy binder kept for existing unit tests. Prefer
+ * {@link resolveBackfillProgressSession} for the panel.
  * - Prefer a RUNNING backfill.
- * - Else keep a tracked finished run until dismissed.
- * - Do not auto-attach to an old finished backfill with no session.
+ * - Else keep a tracked finished run until dismissed / cleared.
  */
 export function resolveBackfillProgressRun(params: {
     runs: SyncRunSummary[];
     session: BackfillProgressSession | null;
 }): { run: SyncRunSummary | null; session: BackfillProgressSession | null } {
     const running = findRunningBackfillRun(params.runs);
-    if (running) {
+    if (running && !isPlaceholderBackfillProgressRun(running)) {
         return {
             run: running,
-            session: { executionId: running.id, dismissed: false },
+            session: {
+                phase: "running",
+                executionId: running.id,
+                dismissed: false,
+            },
         };
     }
 
-    if (!params.session?.executionId || params.session.dismissed) {
+    if (
+        !params.session?.executionId ||
+        params.session.dismissed ||
+        params.session.phase === "cleared"
+    ) {
         return { run: null, session: params.session };
     }
 
@@ -405,11 +555,266 @@ export function resolveBackfillProgressRun(params: {
     if (tracked.status === "RUNNING") {
         return {
             run: tracked,
-            session: { executionId: tracked.id, dismissed: false },
+            session: {
+                phase: "running",
+                executionId: tracked.id,
+                dismissed: false,
+            },
         };
     }
 
-    return { run: tracked, session: params.session };
+    return {
+        run: tracked,
+        session: {
+            ...params.session,
+            phase: params.session.phase ?? "finished",
+            executionId: tracked.id,
+        },
+    };
+}
+
+export type BackfillProgressSessionIntent = "none" | "clear";
+
+export interface ResolveBackfillProgressSessionParams {
+    syncRuns: SyncRunSummary[];
+    /** False until the first sync-runs fetch settles — avoids orphan-clear races. */
+    syncRunsFetched: boolean;
+    /** Persisted / in-memory session hint (execution id + phase). */
+    sessionHint: BackfillProgressSession | null;
+    /** Reset backfill / Run preview → cleared empty panel (D3). */
+    intent?: BackfillProgressSessionIntent;
+    /**
+     * True while Start/Resume mutation is in flight (session may already be seeding).
+     * Prefer session hint `phase: "seeding"` as the durable owner.
+     */
+    seedingActive?: boolean;
+    seedingExpectPurge?: boolean;
+    seedingExecutionId?: string | null;
+    seedingPlannedSteps?: string[];
+    /**
+     * Connector config `pending_ar_post_ingest_customers` — finished run +
+     * pending above zero → `deferred_drain` (D7).
+     */
+    pendingArPostIngestCustomers?: number;
+}
+
+export interface ResolveBackfillProgressSessionResult {
+    session: BackfillProgressSession;
+    /** Real sync-run only — never `pending-backfill` / `progress-reset`. */
+    boundRun: SyncRunSummary | null;
+    /** Cleared / seeding / idle-without-finished → zero sync_state paint (D8). */
+    zeroCounts: boolean;
+    /**
+     * Record deletion planned for seeding only — never from idle delete toggles.
+     */
+    expectDeletingStep: boolean;
+}
+
+/** True when the worker AR post-ingest queue still has customers. */
+export function hasPendingArPostIngestCustomers(
+    pendingCustomers: number | undefined
+): boolean {
+    return (pendingCustomers ?? 0) > 0;
+}
+
+/**
+ * D7 — finished (non-RUNNING) bound run with pending AR customers →
+ * `deferred_drain`; queue empty → `finished`.
+ */
+export function resolveFinishedOrDeferredDrainPhase(
+    pendingArPostIngestCustomers: number | undefined
+): Extract<BackfillProgressSessionPhase, "deferred_drain" | "finished"> {
+    return hasPendingArPostIngestCustomers(pendingArPostIngestCustomers)
+        ? "deferred_drain"
+        : "finished";
+}
+
+/** Progress-row labels that may stay live during deferred AR worker drain. */
+export const DEFERRED_AR_DRAIN_PROGRESS_LABELS: ReadonlySet<BackfillProgressRowKey> =
+    new Set([BACKFILL_AR_REPLAY_LABEL, BACKFILL_LIVE_REFRESH_LABEL]);
+
+export function isDeferredArDrainProgressLabel(
+    label: BackfillProgressRowKey | string
+): boolean {
+    return DEFERRED_AR_DRAIN_PROGRESS_LABELS.has(
+        label as BackfillProgressRowKey
+    );
+}
+
+/**
+ * Single seam for panel phase + bound run (idle / cleared / reload / running).
+ * Fake sync-run placeholders are never returned as `boundRun`.
+ */
+export function resolveBackfillProgressSession(
+    params: ResolveBackfillProgressSessionParams
+): ResolveBackfillProgressSessionResult {
+    const intent = params.intent ?? "none";
+    const runs = params.syncRuns;
+    const hint = params.sessionHint;
+    const pendingAr = params.pendingArPostIngestCustomers;
+
+    if (intent === "clear") {
+        return {
+            session: createClearedBackfillProgressSession(),
+            boundRun: null,
+            zeroCounts: true,
+            expectDeletingStep: false,
+        };
+    }
+
+    // D6 — server RUNNING wins; never invent Running from storage alone.
+    const running = findRunningBackfillRun(runs);
+    if (running && !isPlaceholderBackfillProgressRun(running)) {
+        return {
+            session: {
+                phase: "running",
+                executionId: running.id,
+                // D5 — expectPurge is seeding-only; never force Running after bind.
+            },
+            boundRun: running,
+            zeroCounts: false,
+            expectDeletingStep: false,
+        };
+    }
+
+    if (hint?.phase === "cleared" || hint?.dismissed === true) {
+        return {
+            session: createClearedBackfillProgressSession(),
+            boundRun: null,
+            zeroCounts: true,
+            expectDeletingStep: false,
+        };
+    }
+
+    const seedingExpectPurge =
+        params.seedingExpectPurge === true || hint?.expectPurge === true;
+    const seedingExecutionId =
+        params.seedingExecutionId ??
+        (hint?.phase === "seeding" ? hint.executionId : null) ??
+        null;
+    const seedingPlannedSteps =
+        params.seedingPlannedSteps ?? hint?.plannedSteps;
+    const seedingActive =
+        params.seedingActive === true || hint?.phase === "seeding";
+
+    if (seedingActive) {
+        // Terminal sync-run for the seeding execution → leave seeding (Stop/cancel).
+        if (seedingExecutionId && params.syncRunsFetched) {
+            const tracked = findSyncRunById(runs, seedingExecutionId);
+            if (
+                tracked &&
+                isBackfillSyncRun(tracked) &&
+                !isPlaceholderBackfillProgressRun(tracked) &&
+                tracked.status !== "RUNNING"
+            ) {
+                return {
+                    session: {
+                        phase: resolveFinishedOrDeferredDrainPhase(pendingAr),
+                        executionId: tracked.id,
+                    },
+                    boundRun: tracked,
+                    zeroCounts: false,
+                    expectDeletingStep: false,
+                };
+            }
+            if (
+                !params.seedingActive &&
+                (!tracked ||
+                    !isBackfillSyncRun(tracked) ||
+                    isPlaceholderBackfillProgressRun(tracked))
+            ) {
+                // Stale seeding hint with missing execution → cleared (orphan).
+                return {
+                    session: createClearedBackfillProgressSession(),
+                    boundRun: null,
+                    zeroCounts: true,
+                    expectDeletingStep: false,
+                };
+            }
+        }
+        return {
+            session: createSeedingBackfillProgressSession({
+                expectPurge: seedingExpectPurge,
+                executionId: seedingExecutionId ?? undefined,
+                plannedSteps: seedingPlannedSteps,
+            }),
+            boundRun: null,
+            zeroCounts: true,
+            expectDeletingStep: seedingExpectPurge,
+        };
+    }
+
+    const hintId = hint?.executionId;
+    if (hintId && params.syncRunsFetched) {
+        const tracked = findSyncRunById(runs, hintId);
+        if (
+            !tracked ||
+            !isBackfillSyncRun(tracked) ||
+            isPlaceholderBackfillProgressRun(tracked)
+        ) {
+            return {
+                session: createClearedBackfillProgressSession(),
+                boundRun: null,
+                zeroCounts: true,
+                expectDeletingStep: false,
+            };
+        }
+        if (tracked.status === "RUNNING") {
+            return {
+                session: { phase: "running", executionId: tracked.id },
+                boundRun: tracked,
+                zeroCounts: false,
+                expectDeletingStep: false,
+            };
+        }
+        return {
+            session: {
+                phase: resolveFinishedOrDeferredDrainPhase(pendingAr),
+                executionId: tracked.id,
+            },
+            boundRun: tracked,
+            zeroCounts: false,
+            expectDeletingStep: false,
+        };
+    }
+
+    // Hint present but sync-runs not fetched yet — wait; do not invent Running.
+    if (hintId && !params.syncRunsFetched) {
+        return {
+            session: {
+                phase: hint?.phase ?? "idle",
+                executionId: hintId,
+                expectPurge: hint?.expectPurge,
+            },
+            boundRun: null,
+            zeroCounts: false,
+            expectDeletingStep: false,
+        };
+    }
+
+    // D2 / D7 — last finished run; pending AR queue elevates to deferred_drain.
+    const lastFinished = findLastFinishedBackfillRun(runs);
+    if (lastFinished) {
+        const phase = hasPendingArPostIngestCustomers(pendingAr)
+            ? "deferred_drain"
+            : "idle";
+        return {
+            session: {
+                phase,
+                executionId: lastFinished.id,
+            },
+            boundRun: lastFinished,
+            zeroCounts: false,
+            expectDeletingStep: false,
+        };
+    }
+
+    return {
+        session: { phase: "idle" },
+        boundRun: null,
+        zeroCounts: true,
+        expectDeletingStep: false,
+    };
 }
 
 export function orderEnabledBackfillEntities(
@@ -650,28 +1055,18 @@ function buildDeletingProgressRow(params: {
     const orchestratorPastPurge =
         params.activeStep != null &&
         params.activeStep !== PURGE_ENTITY_STATS_KEY;
-    // Delete switches on (or Start with clear-before-import) but purge has not
-    // reported yet — idle/finished panels show Not started; live Start shows Running.
+    const orchestratorOnPurge = params.activeStep === PURGE_ENTITY_STATS_KEY;
+    // D4 — expectPurge alone never forces Running; wait for live purge /
+    // active_step=_purge (or finished → Not started).
     if (
         params.expectPurge === true &&
         !hasPurgeEvidence &&
-        !orchestratorPastPurge
+        !orchestratorPastPurge &&
+        !orchestratorOnPurge
     ) {
-        if (params.runFinished) {
-            return {
-                entity_type: BACKFILL_DELETING_LABEL,
-                phase: "not_started",
-                records_pulled: 0,
-                total_records: null,
-                progress_percent: null,
-                last_error: null,
-                deleted: 0,
-                success: 0,
-            };
-        }
         return {
             entity_type: BACKFILL_DELETING_LABEL,
-            phase: "running",
+            phase: "not_started",
             records_pulled: 0,
             total_records: null,
             progress_percent: null,
@@ -683,10 +1078,7 @@ function buildDeletingProgressRow(params: {
     const running =
         !params.runFinished &&
         !orchestratorPastPurge &&
-        (purge?.status === "running" ||
-            (params.expectPurge === true &&
-                purge?.status !== "done" &&
-                !hasPurgeEvidence));
+        (purge?.status === "running" || orchestratorOnPurge);
     const percent =
         total != null && total > 0
             ? clampPercent(deletedTotal, total)
@@ -1191,6 +1583,21 @@ export function resolveEntityPulledCount(
 
     if (fromStats != null) {
         if (options?.running) {
+            // Prefer live entity_stats when meaningful; same-run checkpoints
+            // cover mid-import reload while stats are still placeholder zeros (D8).
+            if (
+                fromStats > 0 ||
+                hasMeaningfulEntityStats(entityStats) ||
+                !options.runStartedAt
+            ) {
+                return fromStats;
+            }
+            if (
+                syncStateTouchedInRun(state, options.runStartedAt) &&
+                fromState > 0
+            ) {
+                return fromState;
+            }
             return fromStats;
         }
         return Math.max(fromStats, fromState);
@@ -1270,17 +1677,9 @@ function entityCompletedInCurrentRun(
 
 /**
  * Build per-entity rows while a backfill execution is RUNNING.
- * Always lists every enabled entity. Active entity = first that is not
- * backfill_completed. Completed entities keep their checkpointed counts when
- * the live run only has placeholder zeros for them.
- *
- * When the live run has not reported any meaningful stats yet (just started),
- * ignore prior backfill_completed / last_error / pulled / totals so Start
- * resets chips and counters to Running / Waiting with zeros — same as Link
- * payments — instead of leaving Done / Failed counts from the previous run.
- * Waiting entities also keep counters clear until they become active.
- *
- * After Invoice completes, deferred payments are linked before Contact starts.
+ * Phases come from backend `active_step` + per-step `status` (D5) — not from
+ * client frontier heuristics. Counts prefer bound-run `entity_stats`; sync_state
+ * checkpoints only when touched in this run (D8).
  */
 export function buildRunningEntityProgressRows(params: {
     enabledEntities: ImportType[];
@@ -1293,8 +1692,8 @@ export function buildRunningEntityProgressRows(params: {
     /** Correlates browser console logs with backend execution id. */
     runId?: string | null;
     /**
-     * Start was requested with clear-before-import — show Deleting… immediately
-     * even before the first purge progress patch arrives.
+     * Seeding-only: plan Record deletion before the first purge patch.
+     * After bind, callers must pass false (D5).
      */
     expectPurge?: boolean;
 }): EntityProgressRow[] {
@@ -1307,302 +1706,194 @@ export function buildRunningEntityProgressRows(params: {
     const purge = readPurgeStats(stats);
     const expectPurge = params.expectPurge === true;
     const explicitStep = params.activeStep ?? null;
-    // expectPurge only covers the gap before the first purge patch. Once the
-    // orchestrator leaves `_purge` (or reports done), do not pin every entity
-    // on Waiting — that made Deleting stick until a full page refresh.
+    const runStartedAt = params.runStartedAt;
+    const showLinkRow = shouldShowLinkPaymentsRow(params.enabledEntities);
+
     const purgeFinished =
         purge?.status === "done" ||
         (explicitStep != null && explicitStep !== PURGE_ENTITY_STATS_KEY);
     const purgeRunning =
         !purgeFinished &&
         (purge?.status === "running" ||
-            (expectPurge && purge?.status !== "done"));
-    const runHasProgress = Object.entries(stats).some(
-        ([key, entityStats]) =>
-            key !== MATURITY_ENTITY_STATS_KEY &&
-            key !== PURGE_ENTITY_STATS_KEY &&
-            hasMeaningfulEntityStats(entityStats)
+            explicitStep === PURGE_ENTITY_STATS_KEY);
+
+    const activeEntityIndex =
+        explicitStep != null &&
+        (BACKFILL_ENTITY_ORDER as string[]).includes(explicitStep)
+            ? ordered.indexOf(explicitStep as ImportType)
+            : -1;
+    const activeStepPastEntities =
+        explicitStep != null &&
+        explicitStep !== PURGE_ENTITY_STATS_KEY &&
+        activeEntityIndex < 0;
+
+    const runHasEntityStats = ordered.some((entity) =>
+        hasMeaningfulEntityStats(stats[entity])
     );
-    // Placeholder zeros (Start backfill / pending run) are not a reload — do
-    // not resume from prior-run sync_state checkpoints.
-    const hasFreshPlaceholderStats =
-        ordered.length > 0 &&
-        ordered.every((entity) => {
-            const entityStats = stats[entity];
-            return (
-                entityStats != null && !hasMeaningfulEntityStats(entityStats)
-            );
-        });
-    const firstIncompleteIndex = ordered.findIndex(
-        (entity) => !byType.get(entity)?.backfill_completed
-    );
-    const runStartedAt = params.runStartedAt;
-    const hasCompletedEntityBeforeFrontierInCurrentRun =
-        firstIncompleteIndex > 0 &&
-        ordered.slice(0, firstIncompleteIndex).some((entity) =>
-            entityCompletedInCurrentRun(byType.get(entity), runStartedAt)
-        );
-    // Page reload mid-import: live entity_stats may be empty until the next
-    // poll, but sync_state checkpoints still have pulled/cursor — resume from
-    // those instead of zeroing the bar. Also when an earlier entity finished
-    // in *this* run while entity_stats are still placeholder zeros (common
-    // during column sampling / before the first onProgress patch).
-    const resumeFromCheckpoint =
-        !runHasProgress &&
-        (hasCompletedEntityBeforeFrontierInCurrentRun ||
-            (!hasFreshPlaceholderStats &&
-                ordered.some((entity) => {
-                    const state = byType.get(entity);
-                    if (!state || state.backfill_completed) {
-                        return false;
-                    }
-                    return (
-                        (state.backfill_records_pulled ?? 0) > 0 ||
-                        Boolean(state.backfill_cursor_present)
-                    );
-                })));
-    const useLiveOrCheckpoint = runHasProgress || resumeFromCheckpoint;
-    const showLinkRow = shouldShowLinkPaymentsRow(params.enabledEntities);
 
-    // Furthest entity that has live counts in this run (the fetch frontier).
-    let lastTouchedIndex = -1;
-    for (let i = 0; i < ordered.length; i++) {
-        if (hasMeaningfulEntityStats(stats[ordered[i]])) {
-            lastTouchedIndex = i;
-        }
-    }
-
-    /**
-     * Done only after this entity’s records are fully fetched in *this* run.
-     * Never treat prior-run backfill_completed as Done for entities we have not
-     * touched yet — that made Invoice look Done (and Link payments start) while
-     * Payment was still importing / sampling.
-     */
-    const completedInThisRun = (
-        entity: ImportType,
-        index: number,
-        state: ConnectorSyncStatePublic | undefined
-    ): boolean => {
-        // Live stats on entity N + sync_state frontier at N+1 ⇒ N is done,
-        // even before Invoice emits entity_stats (column sampling gap).
-        if (
-            runHasProgress &&
-            firstIncompleteIndex >= 0 &&
-            index < firstIncompleteIndex &&
-            hasMeaningfulEntityStats(stats[entity])
-        ) {
-            return true;
-        }
-
-        // A later entity already has live stats — done even when this entity's
-        // sync_state checkpoint lags (poll interval / between-page work).
-        if (
-            runHasProgress &&
-            lastTouchedIndex > index &&
-            hasMeaningfulEntityStats(stats[entity])
-        ) {
-            return true;
-        }
-
-        if (!state?.backfill_completed || state.backfill_cursor_present) {
-            return false;
-        }
-
-        if (!runHasProgress) {
-            // Checkpoint-only resume: Done only for entities before the first
-            // incomplete checkpoint (not every stale completed flag).
-            if (firstIncompleteIndex < 0) {
-                return true;
-            }
-            return index < firstIncompleteIndex;
-        }
-
-        if (!hasMeaningfulEntityStats(stats[entity])) {
-            return false;
-        }
-
-        const livePulled = stats[entity]?.pulled ?? 0;
-        const checkpointPulled = state.backfill_records_pulled ?? 0;
-        if (livePulled < checkpointPulled) {
-            return false;
-        }
-
-        // Earlier entity: Done once a later entity has live progress *and*
-        // this entity’s sync_state says completed.
-        if (lastTouchedIndex > index) {
-            return true;
-        }
-
-        // Frontier: Done only after pages are exhausted (backfill_completed).
-        return true;
-    };
-
-    const invoiceIndex = ordered.indexOf("Invoice");
-    const invoiceDone =
-        invoiceIndex >= 0 &&
-        completedInThisRun(
-            "Invoice",
-            invoiceIndex,
-            byType.get("Invoice")
-        ) &&
-        // Link payments must not start on stale Invoice completion alone.
-        (runHasProgress
-            ? hasMeaningfulEntityStats(stats.Invoice)
-            : firstIncompleteIndex < 0 || firstIncompleteIndex > invoiceIndex);
-    const linkComplete =
-        !showLinkRow ||
-        maturity?.status === "done" ||
-        maturity?.status === "failed";
-
-    const activeIndex = purgeRunning
-        ? -1
-        : ordered.findIndex((entity, index) => {
-        if (!useLiveOrCheckpoint) {
-            if (!hasFreshPlaceholderStats && firstIncompleteIndex >= 0) {
-                return index === firstIncompleteIndex;
-            }
-            return index === 0;
-        }
-        if (
-            showLinkRow &&
-            !linkComplete &&
-            invoiceIndex >= 0 &&
-            index > invoiceIndex
-        ) {
-            return false;
-        }
-        return !completedInThisRun(entity, index, byType.get(entity));
+    const waitingRow = (entity: ImportType): EntityProgressRow => ({
+        entity_type: progressRowLabelForEntity(entity),
+        phase: "waiting",
+        records_pulled: 0,
+        total_records: null,
+        progress_percent: null,
+        last_error: null,
     });
 
-    const entityRows = ordered.map((entity, index) => {
-        const state = byType.get(entity);
-        const entityStats = stats[entity];
-        const isActive = activeIndex >= 0 && index === activeIndex;
+    const doneRow = (
+        entity: ImportType,
+        entityStats: EntityStatSlice | undefined,
+        state: ConnectorSyncStatePublic | undefined
+    ): EntityProgressRow => {
+        const pulled = resolveEntityPulledCount(entityStats, state, {
+            running: true,
+            runStartedAt,
+        });
+        const total = estimateEntityTotalRecords({
+            knownTotal: syncStateTouchedInRun(state, runStartedAt)
+                ? (state?.backfill_total_records ?? null)
+                : null,
+            pulled,
+            pageComplete: true,
+        });
+        const success = resolveCompletedSuccessCount(
+            entityStats,
+            pulled,
+            true
+        );
+        return {
+            entity_type: progressRowLabelForEntity(entity),
+            phase: "done",
+            records_pulled: pulled,
+            total_records: total,
+            progress_percent:
+                entity === "Invoice" || entity === "Payment"
+                    ? pulled > 0
+                        ? clampPercent(success ?? 0, pulled)
+                        : 100
+                    : 100,
+            last_error: null,
+            success,
+            failed: hasMeaningfulEntityStats(entityStats)
+                ? entityStats?.failed
+                : 0,
+            skipped: hasMeaningfulEntityStats(entityStats)
+                ? entityStats?.skipped
+                : 0,
+        };
+    };
 
-        // Purge phase: keep import rows Waiting until deletes finish.
-        if (purgeRunning) {
-            return {
-                entity_type: progressRowLabelForEntity(entity),
-                phase: "waiting" as const,
-                records_pulled: 0,
-                total_records: null,
-                progress_percent: null,
-                last_error: null,
-            };
-        }
-
-        // Fresh Start: no live progress yet — zero counters like Link payments
-        // so stale sync_state Done counts/totals do not flash back.
-        if (!useLiveOrCheckpoint) {
-            return {
-                entity_type: progressRowLabelForEntity(entity),
-                phase: isActive ? ("running" as const) : ("waiting" as const),
-                records_pulled: 0,
-                total_records: null,
-                progress_percent: null,
-                last_error: null,
-            };
-        }
-
+    const runningRow = (
+        entity: ImportType,
+        entityStats: EntityStatSlice | undefined,
+        state: ConnectorSyncStatePublic | undefined
+    ): EntityProgressRow => {
         const pulled = resolveEntityPulledCount(entityStats, state, {
             running: true,
             runStartedAt,
         });
         const pageComplete = Boolean(
-            state?.backfill_completed && !state?.backfill_cursor_present
+            state?.backfill_completed &&
+                !state?.backfill_cursor_present &&
+                syncStateTouchedInRun(state, runStartedAt)
         );
-        const completed = completedInThisRun(entity, index, state);
         const staleCheckpointTotal =
-            isActive &&
-            pulled <= 0 &&
-            !syncStateTouchedInRun(state, runStartedAt);
-        const total = completed
-            ? estimateEntityTotalRecords({
-                  knownTotal: state?.backfill_total_records ?? null,
-                  pulled,
-                  pageComplete: true,
-              })
-            : isActive
-              ? estimateEntityTotalRecords({
-                    knownTotal: staleCheckpointTotal
-                        ? null
-                        : (state?.backfill_total_records ?? null),
-                    pulled,
-                    pageComplete,
-                })
-              : null;
-
-        if (completed) {
-            const success = resolveCompletedSuccessCount(
-                entityStats,
-                pulled,
-                true
-            );
-            return {
-                entity_type: progressRowLabelForEntity(entity),
-                phase: "done" as const,
-                records_pulled: pulled,
-                total_records: total,
-                progress_percent:
-                    entity === "Invoice" || entity === "Payment"
-                        ? pulled > 0
-                            ? clampPercent(success ?? 0, pulled)
-                            : 100
-                        : 100,
-                last_error: null,
-                success,
-                failed: hasMeaningfulEntityStats(entityStats)
-                    ? entityStats?.failed
-                    : 0,
-                skipped: hasMeaningfulEntityStats(entityStats)
-                    ? entityStats?.skipped
-                    : 0,
-            };
-        }
-
-        if (isActive) {
-            // Live failure only — ignore stale sync_state.last_error from a
-            // previous run so Start resets the Failed chip and validation text.
-            const liveIndicatesFailure =
-                (entityStats?.failed ?? 0) > 0 ||
-                entityStats?.status === "failed" ||
-                Boolean(entityStats?.sample_errors?.[0]?.trim());
-            const error = liveIndicatesFailure
-                ? entityStats?.sample_errors?.[0]?.trim() ||
-                  state?.last_error?.trim() ||
-                  null
-                : null;
-            return {
-                entity_type: progressRowLabelForEntity(entity),
-                phase: error ? ("failed" as const) : ("running" as const),
-                records_pulled: pulled,
-                total_records: total,
-                progress_percent:
-                    entity === "Invoice" || entity === "Payment"
-                        ? pulled > 0
-                            ? clampPercent(entityStats?.success ?? 0, pulled)
-                            : null
-                        : total != null
-                          ? clampPercent(pulled, total)
-                          : null,
-                last_error: error,
-                success: entityStats?.success,
-                failed: entityStats?.failed,
-                skipped: entityStats?.skipped,
-            };
-        }
-
-        // Waiting entities: clear counters (same as Link payments waiting).
-        // Ignore stale backfill_completed from a previous run.
+            pulled <= 0 && !syncStateTouchedInRun(state, runStartedAt);
+        const total = estimateEntityTotalRecords({
+            knownTotal: staleCheckpointTotal
+                ? null
+                : syncStateTouchedInRun(state, runStartedAt)
+                  ? (state?.backfill_total_records ?? null)
+                  : null,
+            pulled,
+            pageComplete,
+        });
+        const liveIndicatesFailure =
+            (entityStats?.failed ?? 0) > 0 ||
+            entityStats?.status === "failed" ||
+            Boolean(entityStats?.sample_errors?.[0]?.trim());
+        const error = liveIndicatesFailure
+            ? entityStats?.sample_errors?.[0]?.trim() ||
+              (syncStateTouchedInRun(state, runStartedAt)
+                  ? state?.last_error?.trim() || null
+                  : null)
+            : null;
         return {
             entity_type: progressRowLabelForEntity(entity),
-            phase: "waiting" as const,
-            records_pulled: 0,
-            total_records: null,
-            progress_percent: null,
-            last_error: null,
+            phase: error ? "failed" : "running",
+            records_pulled: pulled,
+            total_records: total,
+            progress_percent:
+                entity === "Invoice" || entity === "Payment"
+                    ? pulled > 0
+                        ? clampPercent(entityStats?.success ?? 0, pulled)
+                        : null
+                    : total != null
+                      ? clampPercent(pulled, total)
+                      : null,
+            last_error: error,
+            success: entityStats?.success,
+            failed: entityStats?.failed,
+            skipped: entityStats?.skipped,
         };
+    };
+
+    const entityRows = ordered.map((entity, index) => {
+        const state = byType.get(entity);
+        const entityStats = stats[entity];
+        const status = entityStats?.status;
+
+        if (purgeRunning) {
+            return waitingRow(entity);
+        }
+
+        if (status === "failed") {
+            return runningRow(entity, entityStats, state);
+        }
+
+        if (status === "done") {
+            return doneRow(entity, entityStats, state);
+        }
+
+        if (status === "running" || explicitStep === entity) {
+            return runningRow(entity, entityStats, state);
+        }
+
+        // Backend advanced past this entity (active_step later in pipeline).
+        if (
+            explicitStep != null &&
+            (activeStepPastEntities ||
+                (activeEntityIndex >= 0 && index < activeEntityIndex))
+        ) {
+            return doneRow(entity, entityStats, state);
+        }
+
+        if (explicitStep != null) {
+            return waitingRow(entity);
+        }
+
+        // Brief gap with no active_step yet: do not invent a Running frontier.
+        if (entityCompletedInCurrentRun(state, runStartedAt)) {
+            return doneRow(entity, entityStats, state);
+        }
+
+        return waitingRow(entity);
     });
+
+    const invoiceIndex = ordered.indexOf("Invoice");
+    const invoiceStatus = stats.Invoice?.status;
+    const invoiceDone =
+        invoiceStatus === "done" ||
+        maturity?.status === "running" ||
+        maturity?.status === "done" ||
+        maturity?.status === "failed" ||
+        explicitStep === MATURITY_ENTITY_STATS_KEY ||
+        (explicitStep != null &&
+            activeStepPastEntities &&
+            invoiceIndex >= 0) ||
+        (activeEntityIndex >= 0 &&
+            invoiceIndex >= 0 &&
+            activeEntityIndex > invoiceIndex);
 
     const withLinkRow = showLinkRow
         ? insertLinkPaymentsRow(
@@ -1610,7 +1901,7 @@ export function buildRunningEntityProgressRows(params: {
               buildLinkPaymentsRunningRow({
                   maturity,
                   invoiceDone,
-                  runHasProgress,
+                  runHasProgress: runHasEntityStats || Boolean(explicitStep),
               })
           )
         : entityRows;
@@ -1632,12 +1923,8 @@ export function buildRunningEntityProgressRows(params: {
         enabledEntities: ordered,
     });
 
-    const activeStep =
-        params.activeStep ??
-        (purgeRunning && !purge?.status ? PURGE_ENTITY_STATS_KEY : null);
-
-    return activeStep
-        ? applyExplicitActiveStepToRows(rows, activeStep)
+    return explicitStep
+        ? applyExplicitActiveStepToRows(rows, explicitStep)
         : rows;
 }
 
@@ -1646,50 +1933,114 @@ export function buildRunningEntityProgressRows(params: {
  * how many customers are still on ArPostIngestRetryQueue — use it when sync-run
  * entity_stats have not caught up yet.
  *
- * Only rewrite queued (worker-deferred) rows. Inline `_ar_replay` /
- * `_live_refresh` already emit real chunk progress; applying the queue depth
- * there zeroed the counter ("0 processed") and dropped the determinate bar.
+ * Only rewrite AR drain rows (replay / live refresh). Inline running progress
+ * is preserved unless `forceDeferredDrain` (session phase `deferred_drain`)
+ * which may promote waiting / not_started / queued rows to live drain.
+ * Non-AR rows are forced off live phases in that mode (D7).
  */
 export function enrichPostIngestDrainProgressRow(
     rows: EntityProgressRow[],
-    pendingCustomers: number | undefined
+    pendingCustomers: number | undefined,
+    options?: { forceDeferredDrain?: boolean }
 ): EntityProgressRow[] {
-    if (pendingCustomers == null) {
-        return rows;
+    const forceDeferredDrain = options?.forceDeferredDrain === true;
+    const pending = pendingCustomers ?? 0;
+    let next = rows;
+
+    if (forceDeferredDrain) {
+        // Earlier pipeline steps stay Done / Not started from the finished run.
+        next = next.map((row) => {
+            if (isDeferredArDrainProgressLabel(row.entity_type)) {
+                return row;
+            }
+            if (row.phase !== "running" && row.phase !== "queued") {
+                return row;
+            }
+            const settled =
+                row.records_pulled > 0 ||
+                (row.success ?? 0) > 0 ||
+                row.progress_percent != null;
+            return {
+                ...row,
+                phase: settled ? ("done" as const) : ("not_started" as const),
+                progress_percent: settled ? 100 : null,
+                detail: undefined,
+            };
+        });
     }
+
+    if (pendingCustomers == null && !forceDeferredDrain) {
+        return next;
+    }
+
     const drainLabels = [
         BACKFILL_AR_REPLAY_LABEL,
         BACKFILL_LIVE_REFRESH_LABEL,
     ] as const;
-    let next = rows;
     for (const label of drainLabels) {
         const index = next.findIndex((row) => row.entity_type === label);
         if (index < 0) {
             continue;
         }
         const row = next[index];
-        // Queued = deferred to worker. Do not clobber inline running progress.
-        if (row.phase !== "queued") {
+        const canRewriteQueued = row.phase === "queued";
+        const canPromoteForDeferred =
+            forceDeferredDrain &&
+            (row.phase === "queued" ||
+                row.phase === "waiting" ||
+                row.phase === "not_started" ||
+                row.phase === "running");
+        if (!canRewriteQueued && !canPromoteForDeferred) {
             continue;
         }
-        const total = row.total_records;
-        if (total == null || total <= 0) {
+        // Queued = deferred to worker. Do not clobber inline running progress
+        // unless the session is explicitly in deferred_drain.
+        if (row.phase === "running" && !forceDeferredDrain) {
             continue;
         }
-        const processed = Math.max(0, total - pendingCustomers);
-        if (pendingCustomers <= 0) {
+        const total =
+            row.total_records != null && row.total_records > 0
+                ? row.total_records
+                : pending > 0
+                  ? Math.max(pending, row.records_pulled || 0)
+                  : row.records_pulled > 0
+                    ? row.records_pulled
+                    : null;
+        if (pending <= 0) {
+            const doneTotal = total ?? row.records_pulled;
             const updated = [...next];
             updated[index] = {
                 ...row,
                 phase: "done",
-                records_pulled: total,
-                total_records: total,
+                records_pulled: doneTotal,
+                total_records: doneTotal > 0 ? doneTotal : row.total_records,
                 progress_percent: 100,
-                success: total,
+                success: doneTotal,
+                detail: undefined,
             };
             next = updated;
             continue;
         }
+        if (total == null || total <= 0) {
+            const detail = formatTailStepDetail({
+                step: "worker_drain",
+                processed: 0,
+                total: pending,
+            });
+            const updated = [...next];
+            updated[index] = {
+                ...row,
+                phase: "running",
+                records_pulled: 0,
+                total_records: pending,
+                progress_percent: null,
+                success: 0,
+                ...(detail ? { detail } : {}),
+            };
+            next = updated;
+            continue;
+        }
+        const processed = Math.max(0, total - pending);
         const detail = formatTailStepDetail({
             step: "worker_drain",
             processed,
@@ -1956,14 +2307,59 @@ export function readBackfillProgressSession(
         if (!raw) {
             return null;
         }
-        const parsed = JSON.parse(raw) as BackfillProgressSession;
-        if (
-            typeof parsed?.executionId !== "string" ||
-            typeof parsed?.dismissed !== "boolean"
-        ) {
+        const parsed = JSON.parse(raw) as Partial<BackfillProgressSession>;
+        if (!parsed || typeof parsed !== "object") {
             return null;
         }
-        return parsed;
+
+        const phases: BackfillProgressSessionPhase[] = [
+            "idle",
+            "seeding",
+            "running",
+            "finishing",
+            "deferred_drain",
+            "finished",
+            "cleared",
+        ];
+        const phase =
+            typeof parsed.phase === "string" &&
+            phases.includes(parsed.phase as BackfillProgressSessionPhase)
+                ? (parsed.phase as BackfillProgressSessionPhase)
+                : undefined;
+        const executionId =
+            typeof parsed.executionId === "string"
+                ? parsed.executionId
+                : undefined;
+        const dismissed =
+            typeof parsed.dismissed === "boolean"
+                ? parsed.dismissed
+                : undefined;
+
+        // Legacy shape: { executionId, dismissed } without phase.
+        if (!phase && executionId && dismissed === true) {
+            return createClearedBackfillProgressSession();
+        }
+        if (!phase && executionId && dismissed === false) {
+            return { executionId, dismissed: false };
+        }
+        if (!phase && !executionId && dismissed === true) {
+            return createClearedBackfillProgressSession();
+        }
+        if (!phase && !executionId) {
+            return null;
+        }
+
+        return {
+            phase,
+            executionId,
+            dismissed,
+            expectPurge: parsed.expectPurge === true ? true : undefined,
+            plannedSteps: Array.isArray(parsed.plannedSteps)
+                ? parsed.plannedSteps.filter(
+                      (step): step is string => typeof step === "string"
+                  )
+                : undefined,
+        };
     } catch {
         return null;
     }
@@ -1981,7 +2377,21 @@ export function writeBackfillProgressSession(
         window.sessionStorage.removeItem(key);
         return;
     }
-    window.sessionStorage.setItem(key, JSON.stringify(session));
+    // Persist cleared so Reload after Reset/Preview stays empty (D3), not last finished.
+    if (session.phase === "cleared") {
+        window.sessionStorage.setItem(
+            key,
+            JSON.stringify(createClearedBackfillProgressSession())
+        );
+        return;
+    }
+    const payload: BackfillProgressSession = {
+        phase: session.phase,
+        executionId: session.executionId,
+        expectPurge: session.expectPurge,
+        plannedSteps: session.plannedSteps,
+    };
+    window.sessionStorage.setItem(key, JSON.stringify(payload));
 }
 
 /** Zero pulled/total/error fields so Start backfill can clear the panel immediately. */
@@ -2001,11 +2411,13 @@ export function zeroBackfillProgressSyncStates(
     }));
 }
 
-/** Placeholder RUNNING run used until the server returns a real execution. */
-export function createPendingBackfillRun(options?: {
+/**
+ * Legacy placeholder id — panel seeding no longer requires this SyncRunSummary.
+ * Kept for tests / isPlaceholder detection; does not invent purge Running.
+ */
+export function createPendingBackfillRun(_options?: {
     expectPurge?: boolean;
 }): SyncRunSummary {
-    const expectPurge = options?.expectPurge === true;
     return {
         id: "pending-backfill",
         trigger: "backfill",
@@ -2014,23 +2426,38 @@ export function createPendingBackfillRun(options?: {
         started_at: new Date().toISOString(),
         completed_at: null,
         duration_seconds: null,
-        active_step: expectPurge ? PURGE_ENTITY_STATS_KEY : null,
+        active_step: null,
         entity_stats: {
             Customer: { pulled: 0, success: 0, failed: 0, skipped: 0 },
             Payment: { pulled: 0, success: 0, failed: 0, skipped: 0 },
             Invoice: { pulled: 0, success: 0, failed: 0, skipped: 0 },
             Contact: { pulled: 0, success: 0, failed: 0, skipped: 0 },
-            ...(expectPurge
-                ? {
-                      [PURGE_ENTITY_STATS_KEY]: {
-                          pulled: 0,
-                          success: 0,
-                          failed: 0,
-                          skipped: 0,
-                          status: "running" as const,
-                      },
-                  }
-                : {}),
+        },
+        error_message: null,
+        error_type: null,
+    };
+}
+
+/** Optimistic real-id RUNNING skeleton after Start returns (no fake purge). */
+export function createOptimisticBackfillRun(params: {
+    executionId: string;
+    sync_mode?: string;
+    trigger?: string;
+}): SyncRunSummary {
+    return {
+        id: params.executionId,
+        trigger: params.trigger ?? "backfill",
+        sync_mode: params.sync_mode ?? "BACKFILL",
+        status: "RUNNING",
+        started_at: new Date().toISOString(),
+        completed_at: null,
+        duration_seconds: null,
+        active_step: null,
+        entity_stats: {
+            Customer: { pulled: 0, success: 0, failed: 0, skipped: 0 },
+            Payment: { pulled: 0, success: 0, failed: 0, skipped: 0 },
+            Invoice: { pulled: 0, success: 0, failed: 0, skipped: 0 },
+            Contact: { pulled: 0, success: 0, failed: 0, skipped: 0 },
         },
         error_message: null,
         error_type: null,

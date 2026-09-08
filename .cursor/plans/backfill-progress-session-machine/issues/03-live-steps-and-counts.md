@@ -1,6 +1,6 @@
 # 03 — Live steps from backend + same-run counts
 
-**Status:** ready-for-agent
+**Status:** done
 **Priority:** high
 **Blocked by:** [02-start-seeding](02-start-seeding.md)
 **User stories:** 7, 8, 9, 18, 24, 25, 29
@@ -14,10 +14,10 @@ Frontend primary; create the same branch name in the backend repo when touching 
 
 ## Acceptance criteria
 
-- [ ] Only one step shows Running at a time, matching `active_step` / status.
-- [ ] After bind, client does not keep Record deletion Running via expect-purge flags.
-- [ ] Counts for cleared/seeding stay zero; live counts prefer entity_stats; checkpoints only for same-run.
-- [ ] Backend patches set per-step status for the pipeline keys used by the panel; finished steps do not stick via stale `active_step`.
+- [x] Only one step shows Running at a time, matching `active_step` / status.
+- [x] After bind, client does not keep Record deletion Running via expect-purge flags.
+- [x] Counts for cleared/seeding stay zero; live counts prefer entity_stats; checkpoints only for same-run.
+- [x] Backend patches set per-step status for the pipeline keys used by the panel; finished steps do not stick via stale `active_step`.
 
 ## How to test
 
