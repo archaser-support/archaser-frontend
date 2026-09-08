@@ -35,11 +35,11 @@ export function IslandCard({
                 aria-hidden
                 style={{
                     position: "absolute",
-                    left: 0,
-                    right: 0,
+                    insetInlineStart: 0,
                     top: 0,
-                    height: 2,
-                    background: `linear-gradient(90deg, ${accentHex}, transparent)`,
+                    bottom: 0,
+                    width: 3,
+                    background: accentHex,
                     pointerEvents: "none",
                 }}
             />

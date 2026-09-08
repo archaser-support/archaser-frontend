@@ -83,7 +83,7 @@ export function UtilizationDailyChart({
     );
 
     return (
-        <IslandCard accent="jade" className={`${layout.span12} ${layout.cardPad}`}>
+        <IslandCard accent="teal" className={`${layout.span12} ${layout.cardPad}`}>
             <Eyebrow
                 icon={Activity}
                 help={t("credit_portfolio_health.daily_util_chart_help", {
@@ -157,7 +157,7 @@ export function UtilizationDailyChart({
                                         defaultValue: "Avg. utilization",
                                     }
                                 )}
-                                stroke={CPH.jade}
+                                stroke={CPH.teal}
                                 strokeWidth={2.5}
                                 dot={false}
                                 connectNulls={false}
@@ -173,7 +173,7 @@ export function UtilizationDailyChart({
                                         defaultValue: "SDL avg. utilization",
                                     }
                                 )}
-                                stroke={CPH.copper}
+                                stroke={CPH.seriesBlue}
                                 strokeWidth={2}
                                 dot={false}
                                 connectNulls={false}
@@ -190,7 +190,7 @@ export function UtilizationDailyChart({
                                         defaultValue: "Issuer avg. utilization",
                                     }
                                 )}
-                                stroke={CPH.ink}
+                                stroke={CPH.seriesSlate}
                                 strokeWidth={2}
                                 dot={false}
                                 connectNulls={false}

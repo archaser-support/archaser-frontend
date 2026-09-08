@@ -1,6 +1,6 @@
 # 02 — Status lines, i18n, RTL, reduce-motion, title replay
 
-**Status:** ready-for-agent
+**Status:** done
 **Priority:** normal
 **Blocked by:** [01-intro-overlay-session-reveal](01-intro-overlay-session-reveal.md)
 **User stories:** 4, 9, 10, 11, 12, 13, 14, 18, 19, 20
@@ -12,13 +12,13 @@ Complete the intro polish on top of slice 01: rotate status lines health → uti
 
 ## Acceptance criteria
 
-- [ ] Status text rotates through the four section-themed lines during the fill
-- [ ] EN and HE translations exist under the credit portfolio health namespace (after approved translation edits)
-- [ ] Hebrew locale fills the progress bar right → left; English left → right
-- [ ] `prefers-reduced-motion: reduce` skips the intro and shows the dashboard
-- [ ] Five clicks on the page title immediately replay the intro
-- [ ] No persistent toggle/switch UI after unlock
-- [ ] Intro still cannot be dismissed early with click or Escape
+- [x] Status text rotates through the four section-themed lines during the fill
+- [x] EN and HE translations exist under the credit portfolio health namespace (after approved translation edits)
+- [x] Hebrew locale fills the progress bar right → left; English left → right
+- [x] `prefers-reduced-motion: reduce` skips the intro and shows the dashboard
+- [x] Five clicks on the page title immediately replay the intro
+- [x] No persistent toggle/switch UI after unlock
+- [x] Intro still cannot be dismissed early with click or Escape
 
 ## How to test
 

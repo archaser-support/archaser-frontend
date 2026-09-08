@@ -451,6 +451,10 @@
     "credit_portfolio_health": {
         "page_title": "Portfolio Health",
         "page_description": "Period analytics for portfolio health, coverage, utilization, and cost.",
+        "intro_status_health": "Loading portfolio health…",
+        "intro_status_utilisation": "Loading utilisation…",
+        "intro_status_coverage": "Loading coverage…",
+        "intro_status_costs": "Loading costs…",
         "days_available_footnote": "{{available}} of {{total}} days available",
         "generate_snapshots": "Generate",
         "generate_failed": "Could not generate snapshots.",

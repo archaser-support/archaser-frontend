@@ -72,13 +72,11 @@ function seriesFillForRisk(
     series: "customers" | "usage",
     zone: UtilizationRiskZone
 ): string {
-    if (zone === "calm") {
-        return series === "customers" ? CPH.jade : CPH.copper;
+    if (zone === "danger") {
+        return CPH.critical;
     }
-    if (zone === "warning") {
-        return series === "customers" ? CPH.copper : CPH.jadeDim;
-    }
-    return CPH.critical;
+    // Below 100%: customers = teal, usage = violet (one color = one meaning).
+    return series === "customers" ? CPH.teal : CPH.violet;
 }
 
 const BIN_LABEL_KEYS: Record<
@@ -216,12 +214,12 @@ function DistributionTooltip({
         {
             name: customerSeriesName,
             display: customerLine,
-            color: CPH.jade,
+            color: CPH.teal,
         },
         {
             name: usageSeriesName,
             display: usageLine,
-            color: CPH.copper,
+            color: CPH.violet,
         },
     ];
 
@@ -403,7 +401,7 @@ export function UtilizationSectionView({
     return (
         <div className={layout.grid12}>
             <IslandCard
-                accent="jade"
+                accent="teal"
                 className={`${layout.span6} ${layout.mdSpan3} ${layout.cardPad}`}
             >
                 <Eyebrow
@@ -432,7 +430,7 @@ export function UtilizationSectionView({
                             defaultValue: "Policy utilization",
                         }
                     )}
-                    color={CPH.jade}
+                    color={CPH.teal}
                     locale={language}
                 />
             </IslandCard>
@@ -474,7 +472,7 @@ export function UtilizationSectionView({
             </IslandCard>
 
             <IslandCard
-                accent="jade"
+                accent="teal"
                 className={`${layout.span6} ${layout.mdSpan3} ${layout.cardPad}`}
             >
                 <Eyebrow
@@ -497,13 +495,13 @@ export function UtilizationSectionView({
                     value={section.peakUtilizationPct}
                     suffix="%"
                     label={peakSub}
-                    color={CPH.jade}
+                    color={CPH.teal}
                     locale={language}
                 />
             </IslandCard>
 
             <IslandCard
-                accent="copper"
+                accent="violet"
                 className={`${layout.span6} ${layout.mdSpan3} ${layout.cardPad}`}
             >
                 <Eyebrow
@@ -533,19 +531,19 @@ export function UtilizationSectionView({
                                 defaultValue: "Health ÷ utilization",
                             }
                         )}
-                        color={CPH.copper}
+                        color={CPH.violet}
                         locale={language}
                     />
                 )}
             </IslandCard>
 
             <IslandCard
-                accent="jade"
+                accent="good"
                 className={`${layout.span12} ${layout.mdSpan6} ${layout.cardPad}`}
             >
                 <Eyebrow
                     icon={Layers}
-                    tone={CPH.jade}
+                    tone={CPH.good}
                     help={t(
                         "credit_portfolio_health.kpi_approved_footprint_help",
                         {
@@ -565,7 +563,7 @@ export function UtilizationSectionView({
                         <div
                             className="text-3xl font-semibold"
                             style={{
-                                color: CPH.jade,
+                                color: CPH.good,
                                 fontFamily: SPACE_GROTESK_FONT_FAMILY,
                             }}
                         >
@@ -574,7 +572,7 @@ export function UtilizationSectionView({
                                 decimals={0}
                                 suffix="%"
                                 locale={language}
-                                color={CPH.jade}
+                                color={CPH.good}
                                 className="text-3xl"
                             />
                         </div>
@@ -593,7 +591,7 @@ export function UtilizationSectionView({
                         <div
                             className="text-3xl font-semibold"
                             style={{
-                                color: CPH.jade,
+                                color: CPH.good,
                                 fontFamily: SPACE_GROTESK_FONT_FAMILY,
                             }}
                         >
@@ -602,7 +600,7 @@ export function UtilizationSectionView({
                                 decimals={0}
                                 suffix="%"
                                 locale={language}
-                                color={CPH.jade}
+                                color={CPH.good}
                                 className="text-3xl"
                             />
                         </div>
@@ -631,7 +629,7 @@ export function UtilizationSectionView({
                                     defaultValue: "Avg. utilization",
                                 }
                             )}
-                            color={CPH.jade}
+                            color={CPH.good}
                             locale={language}
                         />
                     )}
@@ -755,7 +753,7 @@ export function UtilizationSectionView({
 
             {section.distributionCustomerCount > 0 ? (
                 <IslandCard
-                    accent="jade"
+                    accent="teal"
                     className={`${layout.span12} ${layout.cardPad}`}
                 >
                     <Eyebrow
@@ -829,7 +827,7 @@ export function UtilizationSectionView({
                                 <Bar
                                     dataKey="customerPct"
                                     name={customerSeriesName}
-                                    fill={CPH.jade}
+                                    fill={CPH.teal}
                                     radius={[8, 8, 0, 0]}
                                     animationDuration={animDuration}
                                     cursor="pointer"
@@ -882,7 +880,7 @@ export function UtilizationSectionView({
                                 <Bar
                                     dataKey="usagePct"
                                     name={usageSeriesName}
-                                    fill={CPH.copper}
+                                    fill={CPH.violet}
                                     radius={[8, 8, 0, 0]}
                                     animationDuration={animDuration}
                                     cursor="pointer"
@@ -946,7 +944,7 @@ export function UtilizationSectionView({
 
             {topCustomersChartData.length > 0 ? (
                 <IslandCard
-                    accent="jade"
+                    accent="teal"
                     className={`${layout.span12} ${layout.mdSpan7} ${layout.cardPad}`}
                 >
                     <Eyebrow
@@ -1035,10 +1033,21 @@ export function UtilizationSectionView({
                                             defaultValue: "Coverage",
                                         }
                                     )}
-                                    fill={CPH.jade}
+                                    fill={CPH.teal}
                                     radius={[0, 6, 6, 0]}
                                     animationDuration={animDuration}
-                                />
+                                >
+                                    {topCustomersChartData.map((row, i) => (
+                                        <Cell
+                                            key={`top-${i}-${row.name}`}
+                                            fill={
+                                                row.utilization >= 100
+                                                    ? CPH.critical
+                                                    : CPH.teal
+                                            }
+                                        />
+                                    ))}
+                                </Bar>
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
@@ -1046,7 +1055,7 @@ export function UtilizationSectionView({
             ) : null}
 
             <IslandCard
-                accent="copper"
+                accent="violet"
                 className={`${layout.cardPad} ${
                     topCustomersChartData.length > 0
                         ? `${layout.span12} ${layout.mdSpan5}`
@@ -1108,7 +1117,7 @@ export function UtilizationSectionView({
                                         "Avg. utilization of top-up amount",
                                 }
                             )}
-                            color={CPH.copper}
+                            color={CPH.violet}
                             locale={language}
                         />
                     )}

@@ -6,6 +6,7 @@ import { Layers } from "lucide-react";
 import {
     CartesianGrid,
     ComposedChart,
+    Legend,
     Line,
     ResponsiveContainer,
     Tooltip,
@@ -89,7 +90,7 @@ export function PortfolioHealthMonthlyChart({
     };
 
     return (
-        <IslandCard accent="jade" className={layout.cardPad}>
+        <IslandCard accent="teal" className={layout.cardPad}>
             <Eyebrow
                 icon={Layers}
                 help={t("credit_portfolio_health.monthly_chart_help", {
@@ -154,11 +155,14 @@ export function PortfolioHealthMonthlyChart({
                                     />
                                 }
                             />
+                            <Legend
+                                wrapperStyle={{ fontSize: 12, color: CPH.slate }}
+                            />
                             <Line
                                 type="monotone"
                                 dataKey="covered"
                                 name={seriesLabels.covered}
-                                stroke={CPH.jade}
+                                stroke={CPH.good}
                                 strokeWidth={2}
                                 dot={false}
                                 connectNulls={false}
@@ -168,7 +172,7 @@ export function PortfolioHealthMonthlyChart({
                                 type="monotone"
                                 dataKey="uncovered"
                                 name={seriesLabels.uncovered}
-                                stroke={CPH.copper}
+                                stroke={CPH.critical}
                                 strokeWidth={2}
                                 dot={false}
                                 connectNulls={false}
@@ -179,7 +183,7 @@ export function PortfolioHealthMonthlyChart({
                                 type="monotone"
                                 dataKey="total"
                                 name={seriesLabels.total}
-                                stroke={CPH.ink}
+                                stroke={CPH.seriesSlate}
                                 strokeWidth={2}
                                 dot={false}
                                 connectNulls={false}

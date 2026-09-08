@@ -87,7 +87,7 @@ export function ChartTooltip({
                                     height: 8,
                                     borderRadius: "50%",
                                     flexShrink: 0,
-                                    backgroundColor: entry.color ?? CPH.jade,
+                                    backgroundColor: entry.color ?? CPH.teal,
                                 }}
                             />
                             <span style={{ color: CPH.slate }}>

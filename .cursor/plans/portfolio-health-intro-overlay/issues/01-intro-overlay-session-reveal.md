@@ -1,6 +1,6 @@
 # 01 — Intro overlay session gate and reveal
 
-**Status:** ready-for-agent
+**Status:** done
 **Priority:** high
 **Blocked by:** —
 **User stories:** 1, 2, 3, 5, 6, 7, 8, 15, 16, 17
@@ -12,13 +12,13 @@ Ship the first end-to-end intro on the credit portfolio health page: once per br
 
 ## Acceptance criteria
 
-- [ ] First visit in a browser session shows the overlay over the portfolio health page body; app nav/shell remain outside the cover
-- [ ] Progress bar uses light overlay + jade glow and completes in about 3–4 seconds, then fades out
-- [ ] Dashboard continues to load behind the overlay and is visible/usable after fade
-- [ ] Second visit in the same session skips the intro
-- [ ] New browser session plays the intro again
-- [ ] Intro timing is cosmetic (not waiting on fetch success)
-- [ ] No lasting testing UI in this slice
+- [x] First visit in a browser session shows the overlay over the portfolio health page body; app nav/shell remain outside the cover
+- [x] Progress bar uses light overlay + jade glow and completes in about 3–4 seconds, then fades out
+- [x] Dashboard continues to load behind the overlay and is visible/usable after fade
+- [x] Second visit in the same session skips the intro
+- [x] New browser session plays the intro again
+- [x] Intro timing is cosmetic (not waiting on fetch success)
+- [x] No lasting testing UI in this slice
 
 ## How to test
 

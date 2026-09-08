@@ -88,7 +88,7 @@ export function CoverageHalo({
                     cy={size / 2}
                     r={radius}
                     fill="none"
-                    stroke={CPH.jade}
+                    stroke={CPH.teal}
                     strokeWidth={stroke}
                     strokeLinecap="round"
                     strokeDasharray={circumference}
