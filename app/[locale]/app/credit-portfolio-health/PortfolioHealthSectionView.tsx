@@ -88,7 +88,7 @@ export function PortfolioHealthSectionView({
     return (
         <div className={layout.grid12}>
             <IslandCard
-                accent="jade"
+                accent="teal"
                 className={`${layout.span12} ${layout.lgSpan4} ${layout.haloCard}`}
             >
                 <Eyebrow
@@ -115,12 +115,12 @@ export function PortfolioHealthSectionView({
             </IslandCard>
 
             <IslandCard
-                accent="copper"
+                accent="violet"
                 className={`${layout.span12} ${layout.smSpan6} ${layout.lgSpan4} ${layout.cardPad}`}
             >
                 <Eyebrow
                     icon={TrendingDown}
-                    tone={CPH.copper}
+                    tone={CPH.violet}
                     help={t("credit_portfolio_health.kpi_lowest_health_help", {
                         ...ns,
                         defaultValue:
@@ -136,7 +136,7 @@ export function PortfolioHealthSectionView({
                     value={section.seriesA.lowestHealthPct}
                     suffix="%"
                     label={troughSub}
-                    color={CPH.copper}
+                    color={CPH.violet}
                     locale={language}
                 />
             </IslandCard>

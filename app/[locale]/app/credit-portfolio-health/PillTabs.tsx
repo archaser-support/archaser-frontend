@@ -117,7 +117,7 @@ export function PillTabs({
                         onKeyDown={(e) => onKeyDown(e, tab)}
                         className={layout.tabBtn}
                         style={{
-                            backgroundColor: selected ? CPH.jade : "transparent",
+                            backgroundColor: selected ? CPH.teal : "transparent",
                             color: selected ? "#FFFFFF" : CPH.slate,
                         }}
                     >
