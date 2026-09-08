@@ -24,6 +24,7 @@ import {
 import { CreditDashboardExcludedCustomersFilter } from "@/app/[locale]/app/credit-dashboard/CreditDashboardExcludedCustomersFilter";
 import BusinessUnitDashboardFilter from "@/shared/components/BusinessUnitDashboardFilter";
 import { PORTFOLIO_HEALTH_LARGE_RANGE_DAYS } from "@/shared/creditInsurance/portfolioHealthDateRange";
+import DeleteDialog from "@/shared/layout-components/modal/DeleteDialog";
 import Seo from "@/shared/layout-components/seo/seo";
 import { getRTLTooltipProps } from "@/utils/reportFieldUtils";
 import type {
@@ -298,10 +299,14 @@ export function CreditPortfolioHealthScreen({
         generatePending;
 
     const handleGenerateClick = () => {
-        if (isLargeGenerateRange && !confirmingLargeGenerate) {
+        if (isLargeGenerateRange) {
             setConfirmingLargeGenerate(true);
             return;
         }
+        onGenerateSnapshots();
+    };
+
+    const handleConfirmLargeGenerate = () => {
         setConfirmingLargeGenerate(false);
         onGenerateSnapshots();
     };
@@ -548,58 +553,6 @@ export function CreditPortfolioHealthScreen({
                             </Button>
                         ) : null}
                     </Box>
-                    {confirmingLargeGenerate ? (
-                        <Box
-                            sx={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 1,
-                            }}
-                        >
-                            <Typography variant="body2" color="text.secondary">
-                                {t(
-                                    "credit_portfolio_health.large_range_confirm",
-                                    {
-                                        ...ns,
-                                        defaultValue:
-                                            "Generate {{days}} days of snapshot history? This can take a while on large accounts.",
-                                        days: generateDaysInRange,
-                                    }
-                                )}
-                            </Typography>
-                            <Box sx={{ display: "flex", gap: 1 }}>
-                                <Button
-                                    variant="contained"
-                                    size="small"
-                                    disabled={generateDisabled}
-                                    onClick={handleGenerateClick}
-                                >
-                                    {t(
-                                        "credit_portfolio_health.large_range_confirm_button",
-                                        {
-                                            ...ns,
-                                            defaultValue: "Generate anyway",
-                                        }
-                                    )}
-                                </Button>
-                                <Button
-                                    variant="outlined"
-                                    size="small"
-                                    onClick={() =>
-                                        setConfirmingLargeGenerate(false)
-                                    }
-                                >
-                                    {t(
-                                        "credit_portfolio_health.large_range_cancel_button",
-                                        {
-                                            ...ns,
-                                            defaultValue: "Cancel",
-                                        }
-                                    )}
-                                </Button>
-                            </Box>
-                        </Box>
-                    ) : null}
                     {showProgress ? (
                         <Box
                             sx={{
@@ -905,6 +858,43 @@ export function CreditPortfolioHealthScreen({
                     </Box>
                 </Box>
             </Box>
+            <DeleteDialog
+                isOpen={confirmingLargeGenerate}
+                onClose={() => setConfirmingLargeGenerate(false)}
+                onConfirm={handleConfirmLargeGenerate}
+                title={t("credit_portfolio_health.large_range_confirm_title", {
+                    ...ns,
+                    defaultValue: "Generate snapshot history",
+                })}
+                description={t(
+                    "credit_portfolio_health.large_range_confirm",
+                    {
+                        ...ns,
+                        defaultValue:
+                            "Generate {{days}} days of snapshot history? This can take a while on large accounts.",
+                        days: generateDaysInRange,
+                    }
+                )}
+                confirmLabel={t(
+                    "credit_portfolio_health.large_range_confirm_button",
+                    {
+                        ...ns,
+                        defaultValue: "Generate anyway",
+                    }
+                )}
+                cancelLabel={t(
+                    "credit_portfolio_health.large_range_cancel_button",
+                    {
+                        ...ns,
+                        defaultValue: "Cancel",
+                    }
+                )}
+                isLoading={generatePending}
+                confirmDisabled={generateDisabled}
+                type="warning"
+                maxWidth="sm"
+                locale={i18n.language}
+            />
         </>
     );
 }
