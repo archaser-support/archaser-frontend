@@ -47,6 +47,14 @@ function formatAmount(value: number, language: string): string {
     return value.toLocaleString(locale, { maximumFractionDigits: 0 });
 }
 
+function formatAxisAmount(value: number, language: string): string {
+    const locale = language.startsWith("he") ? "he-IL" : "en-US";
+    return value.toLocaleString(locale, {
+        notation: "compact",
+        maximumFractionDigits: 1,
+    });
+}
+
 export function PortfolioHealthMonthlyChart({
     monthly,
     fromYmd,
@@ -120,11 +128,11 @@ export function PortfolioHealthMonthlyChart({
                     })}
                 </p>
             ) : (
-                <div style={{ width: "100%", height: 280 }}>
+                <div style={{ width: "100%", height: 300 }}>
                     <ResponsiveContainer width="100%" height="100%">
                         <ComposedChart
                             data={data}
-                            margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+                            margin={{ top: 10, right: 12, left: 4, bottom: 8 }}
                         >
                             <CartesianGrid
                                 strokeDasharray="3 6"
@@ -141,9 +149,9 @@ export function PortfolioHealthMonthlyChart({
                                 tick={{ fill: CPH.slate, fontSize: 12 }}
                                 axisLine={false}
                                 tickLine={false}
-                                width={64}
+                                width={52}
                                 tickFormatter={(v: number) =>
-                                    formatAmount(v, language)
+                                    formatAxisAmount(v, language)
                                 }
                             />
                             <Tooltip
@@ -156,7 +164,13 @@ export function PortfolioHealthMonthlyChart({
                                 }
                             />
                             <Legend
-                                wrapperStyle={{ fontSize: 12, color: CPH.slate }}
+                                verticalAlign="bottom"
+                                height={32}
+                                wrapperStyle={{
+                                    fontSize: 12,
+                                    color: CPH.slate,
+                                    paddingTop: 8,
+                                }}
                             />
                             <Line
                                 type="monotone"
