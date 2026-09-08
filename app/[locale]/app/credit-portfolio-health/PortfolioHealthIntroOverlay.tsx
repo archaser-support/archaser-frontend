@@ -35,8 +35,6 @@ export function PortfolioHealthIntroOverlay({
 }: PortfolioHealthIntroOverlayProps) {
     const clamped = Math.max(0, Math.min(100, progress));
     const overlayRef = useRef<HTMLDivElement>(null);
-    const centerRef = useRef<HTMLDivElement>(null);
-    const hasLoggedLayoutRef = useRef(false);
     const [visibleHeightPx, setVisibleHeightPx] = useState<number | null>(null);
 
     useLayoutEffect(() => {
@@ -59,35 +57,6 @@ export function PortfolioHealthIntroOverlay({
         };
     }, []);
 
-    useLayoutEffect(() => {
-        if (
-            process.env.NODE_ENV !== "development" ||
-            hasLoggedLayoutRef.current ||
-            !overlayRef.current ||
-            !centerRef.current ||
-            visibleHeightPx == null
-        ) {
-            return;
-        }
-        hasLoggedLayoutRef.current = true;
-        const overlayRect = overlayRef.current.getBoundingClientRect();
-        const centerRect = centerRef.current.getBoundingClientRect();
-        const viewportMidY = window.innerHeight / 2;
-        const visibleMidY = Math.max(0, overlayRect.top) + visibleHeightPx / 2;
-        const centerMidY = centerRect.top + centerRect.height / 2;
-        console.log("[PortfolioHealthIntroOverlay] Viewport center check:", {
-            viewportHeight: window.innerHeight,
-            overlayHeight: Math.round(overlayRect.height),
-            overlayTop: Math.round(overlayRect.top),
-            visibleHeightPx,
-            visibleMidY: Math.round(visibleMidY),
-            centerMidY: Math.round(centerMidY),
-            viewportMidY: Math.round(viewportMidY),
-            offsetFromVisibleMidPx: Math.round(centerMidY - visibleMidY),
-            progress: Math.round(clamped),
-        });
-    }, [clamped, visibleHeightPx]);
-
     return (
         <div
             ref={overlayRef}
@@ -108,7 +77,7 @@ export function PortfolioHealthIntroOverlay({
                         : undefined
                 }
             >
-                <div ref={centerRef} className={styles.center}>
+                <div className={styles.center}>
                     <div
                         className={`${styles.track}${isRtl ? ` ${styles.trackRtl}` : ""}`}
                         dir={isRtl ? "rtl" : "ltr"}
