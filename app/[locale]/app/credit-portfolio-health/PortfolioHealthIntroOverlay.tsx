@@ -38,7 +38,6 @@ export function PortfolioHealthIntroOverlay({
     const clamped = Math.max(0, Math.min(100, progress));
     const percent = useIntroPercentChase(clamped);
     const overlayRef = useRef<HTMLDivElement>(null);
-    const centerRef = useRef<HTMLDivElement>(null);
     const [visibleHeightPx, setVisibleHeightPx] = useState<number | null>(null);
 
     useLayoutEffect(() => {
@@ -81,7 +80,7 @@ export function PortfolioHealthIntroOverlay({
                         : undefined
                 }
             >
-                <div ref={centerRef} className={styles.center}>
+                <div className={styles.center}>
                     <p
                         className={styles.percent}
                         style={{ fontFamily: SPACE_GROTESK_FONT_FAMILY }}
