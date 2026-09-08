@@ -20,6 +20,11 @@ import { PortfolioHealthDailyChart } from "./PortfolioHealthDailyChart";
 import { PortfolioHealthMonthlyChart } from "./PortfolioHealthMonthlyChart";
 import { CPH } from "./designTokens";
 import layout from "./islandLayout.module.css";
+import {
+    PORTFOLIO_HEALTH_BELOW_THRESHOLD_MAX,
+    PORTFOLIO_HEALTH_BELOW_THRESHOLD_MIN,
+} from "./portfolioHealthBelowThreshold";
+import { usePortfolioHealthBelowThreshold } from "./usePortfolioHealthBelowThreshold";
 
 export type PortfolioHealthSectionViewProps = {
     section: PortfolioHealthSection;
@@ -84,6 +89,9 @@ export function PortfolioHealthSectionView({
                   defaultValue: "Longest streak at trough: {{days}} days",
                   days: section.seriesA.lowestHealthStreakDays,
               });
+
+    const { thresholdPct, setThresholdPct, pctDaysBelow } =
+        usePortfolioHealthBelowThreshold(section.dailyA);
 
     return (
         <div className={layout.grid12}>
@@ -151,33 +159,73 @@ export function PortfolioHealthSectionView({
                     help={t("credit_portfolio_health.kpi_pct_below_85_help", {
                         ...ns,
                         defaultValue:
-                            "Share of available days where portfolio health was below 85%.",
+                            "Share of available days where portfolio health was below {{pct}}%. Missing days are excluded from the denominator.",
+                        pct: thresholdPct,
                     })}
                 >
                     {t("credit_portfolio_health.kpi_pct_below_85", {
                         ...ns,
-                        defaultValue: "% of days below 85%",
+                        defaultValue: "Below {{pct}}%",
+                        pct: thresholdPct,
                     })}
                 </Eyebrow>
                 <BigNumber
-                    value={section.seriesA.pctDaysBelow85}
+                    value={pctDaysBelow}
                     suffix="%"
                     label={t(
                         "credit_portfolio_health.kpi_pct_below_85_label",
                         {
                             ...ns,
-                            defaultValue: "Of time spent below 85% health",
+                            defaultValue:
+                                "Of time spent below {{pct}}% health",
+                            pct: thresholdPct,
                         }
                     )}
                     color={CPH.critical}
                     locale={language}
                 />
+                <div className={layout.thresholdSlider}>
+                    <label
+                        className={layout.thresholdSliderLabel}
+                        htmlFor="cph-below-threshold-slider"
+                    >
+                        {t("credit_portfolio_health.kpi_threshold_slider", {
+                            ...ns,
+                            defaultValue: "Threshold {{pct}}%",
+                            pct: thresholdPct,
+                        })}
+                    </label>
+                    <input
+                        id="cph-below-threshold-slider"
+                        className={layout.thresholdRange}
+                        type="range"
+                        min={PORTFOLIO_HEALTH_BELOW_THRESHOLD_MIN}
+                        max={PORTFOLIO_HEALTH_BELOW_THRESHOLD_MAX}
+                        step={1}
+                        value={thresholdPct}
+                        aria-valuemin={PORTFOLIO_HEALTH_BELOW_THRESHOLD_MIN}
+                        aria-valuemax={PORTFOLIO_HEALTH_BELOW_THRESHOLD_MAX}
+                        aria-valuenow={thresholdPct}
+                        aria-label={t(
+                            "credit_portfolio_health.kpi_threshold_slider_aria",
+                            {
+                                ...ns,
+                                defaultValue:
+                                    "Portfolio health below-threshold cut-off",
+                            }
+                        )}
+                        onChange={(event) => {
+                            setThresholdPct(Number(event.target.value));
+                        }}
+                    />
+                </div>
             </IslandCard>
 
             <div className={layout.span12}>
                 <PortfolioHealthDailyChart
                     daily={section.dailyA}
                     averageHealthPct={section.seriesA.averageHealthPct}
+                    belowThresholdPct={thresholdPct}
                     fromYmd={fromYmd}
                     toYmd={toYmd}
                 />
