@@ -3,7 +3,6 @@
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import GavelIcon from "@mui/icons-material/Gavel";
-import PaidIcon from "@mui/icons-material/Paid";
 import PolicyIcon from "@mui/icons-material/Policy";
 import SecurityIcon from "@mui/icons-material/Security";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
@@ -40,12 +39,6 @@ import {
     type TermsBreachReasonSlice,
 } from "./customerDashboardCardViewModel";
 import { CustomerDashboardCreditCharts } from "./CustomerDashboardCreditCharts";
-import { CustomerDashboardDailyCostChart } from "./CustomerDashboardDailyCostChart";
-import { buildDailyCostChangeKpiDisplay } from "./customerDashboardDailyCostViewModel";
-import {
-    customerPolicyTrendQueryKey,
-    fetchCustomerPolicyTrend,
-} from "./customerDashboardPolicyTrendQuery";
 
 interface CustomerDashboardCardsProps {
     customerId: string;
@@ -270,42 +263,6 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                 ns: "customers",
             }),
             allPolicies: t("credit_insurance.all_policies", { ns: "customers" }),
-            dailyCostChangeTitle: t(
-                "credit_insurance_dashboard.daily_cost_title",
-                { ns: "dashboard" }
-            ),
-            dailyCostChangeNotConfigured: t(
-                "credit_insurance_dashboard.daily_cost_not_configured",
-                { ns: "dashboard" }
-            ),
-            dailyCostChangeBreakdownPolicy: t(
-                "credit_insurance_dashboard.daily_cost_breakdown_policy",
-                { ns: "dashboard" }
-            ),
-            dailyCostChangeBreakdownTopUp: t(
-                "credit_insurance_dashboard.daily_cost_breakdown_top_up",
-                { ns: "dashboard" }
-            ),
-            dailyCostChangeChartTitle: t(
-                "credit_insurance_dashboard.daily_cost_chart_title",
-                { ns: "dashboard" }
-            ),
-            dailyCostChangeChartEmpty: t(
-                "credit_insurance_dashboard.daily_cost_chart_empty",
-                { ns: "dashboard" }
-            ),
-            dailyCostChangeChartPolicySeries: t(
-                "credit_insurance_dashboard.daily_cost_chart_policy_series",
-                { ns: "dashboard" }
-            ),
-            dailyCostChangeChartTopUpSeries: t(
-                "credit_insurance_dashboard.daily_cost_chart_top_up_series",
-                { ns: "dashboard" }
-            ),
-            dailyCostChangeChartTotalSeries: t(
-                "credit_insurance_dashboard.daily_cost_chart_total_series",
-                { ns: "dashboard" }
-            ),
         }),
         [t]
     );
@@ -351,22 +308,8 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
             ? (overallKpiQuery.data?.cards ?? null)
             : (kpiQuery.data?.cards ?? null);
 
-    const policyTrendQuery = useQuery({
-        queryKey: customerPolicyTrendQueryKey(
-            customer.id,
-            customer.account_id,
-            selectedPolicyIdFromUrl,
-            90
-        ),
-        queryFn: () =>
-            fetchCustomerPolicyTrend(customer.id, selectedPolicyIdFromUrl, 90),
-        enabled: hasCreditProduct,
-        staleTime: 60_000,
-    });
-
     const kpiCardsLoading = kpiQuery.isLoading;
     const kpiCardsError = kpiQuery.isError;
-    const dailyCostTrendLoading = policyTrendQuery.isLoading;
 
     const creditKpis: CustomerCreditKpiCards | null = useMemo(
         () =>
@@ -553,49 +496,6 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
     const showTopUpMetrics =
         kpiCardsLoading ||
         (creditKpis?.topUpTotal != null && creditKpis.topUpTotal > 0);
-    const showDailyInsuranceCostChange = false;
-
-    const dailyCostKpiDisplay = useMemo(() => {
-        const formatPriorDate = (isoDate: string) =>
-            new Intl.DateTimeFormat(locale, {
-                year: "numeric",
-                month: "short",
-                day: "numeric",
-                timeZone: "UTC",
-            }).format(new Date(`${isoDate}T00:00:00.000Z`));
-
-        return buildDailyCostChangeKpiDisplay({
-            latest: policyTrendQuery.data?.latest,
-            locale,
-            isRtl,
-            policyLabel: creditInsuranceLabels.dailyCostChangeBreakdownPolicy,
-            topUpLabel: creditInsuranceLabels.dailyCostChangeBreakdownTopUp,
-            notConfiguredLabel: creditInsuranceLabels.dailyCostChangeNotConfigured,
-            formatPriorDate,
-        });
-    }, [
-        policyTrendQuery.data?.latest,
-        locale,
-        isRtl,
-        creditInsuranceLabels.dailyCostChangeBreakdownPolicy,
-        creditInsuranceLabels.dailyCostChangeBreakdownTopUp,
-        creditInsuranceLabels.dailyCostChangeNotConfigured,
-    ]);
-
-    const dailyCostSubtitle = useMemo(() => {
-        if (dailyCostKpiDisplay.subtitleDate == null) {
-            return undefined;
-        }
-        return t("credit_insurance_dashboard.daily_cost_change_since_date", {
-            ns: "dashboard",
-            date: dailyCostKpiDisplay.subtitleDate,
-        });
-    }, [dailyCostKpiDisplay.subtitleDate, t]);
-
-    const dailyCostChartPoints = useMemo(
-        () => policyTrendQuery.data?.series ?? [],
-        [policyTrendQuery.data?.series]
-    );
 
     const termsBreachSupplementaryLine = useMemo(() => {
         if (
@@ -822,28 +722,6 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                 { ns: "dashboard" }
                             )}
                         />
-                        {showDailyInsuranceCostChange && (
-                            <CreditMetricCard
-                                icon={<PaidIcon />}
-                                iconAccent="reporting"
-                                label={creditInsuranceLabels.dailyCostChangeTitle}
-                                value={
-                                    dailyCostTrendLoading
-                                        ? t("messages.loading", { ns: "common" })
-                                        : dailyCostKpiDisplay.primaryValue
-                                }
-                                secondaryLine={
-                                    dailyCostTrendLoading
-                                        ? undefined
-                                        : dailyCostKpiDisplay.breakdownLine ?? undefined
-                                }
-                                footnote={
-                                    dailyCostTrendLoading
-                                        ? undefined
-                                        : dailyCostSubtitle
-                                }
-                            />
-                        )}
                         {showTopUpMetrics && (
                             <>
                                 <CreditMetricCard
@@ -911,28 +789,6 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                 }
                                 isRtl={isRtl}
                             />
-                            {showDailyInsuranceCostChange && !dailyCostTrendLoading && (
-                                <CustomerDashboardDailyCostChart
-                                    points={dailyCostChartPoints}
-                                    isRtl={isRtl}
-                                    locale={locale}
-                                    title={creditInsuranceLabels.dailyCostChangeChartTitle}
-                                    titleTooltip={t(
-                                        "tooltips.customer_credit_daily_cost_change_chart",
-                                        { ns: "dashboard" }
-                                    )}
-                                    emptyLabel={creditInsuranceLabels.dailyCostChangeChartEmpty}
-                                    policySeriesLabel={
-                                        creditInsuranceLabels.dailyCostChangeChartPolicySeries
-                                    }
-                                    topUpSeriesLabel={
-                                        creditInsuranceLabels.dailyCostChangeChartTopUpSeries
-                                    }
-                                    totalSeriesLabel={
-                                        creditInsuranceLabels.dailyCostChangeChartTotalSeries
-                                    }
-                                />
-                            )}
                         </>
                     )}
                 </Stack>

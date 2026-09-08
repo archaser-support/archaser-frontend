@@ -2,7 +2,6 @@
  * Response shapes for the Nest credit-insurance endpoints consumed by the
  * dashboard, portfolio health and customer trend screens.
  */
-import type { cost_calculation_method } from "@/types/db";
 
 export const PORTFOLIO_HEALTH_BELOW_THRESHOLD_PCT = 85;
 export const INSURER_DECLINED_REASON = "Insurer declined";
@@ -392,6 +391,13 @@ export type PortfolioCostDailyPoint = {
 
 export type PortfolioCostMonthlyPoint = {
     month: string;
+    /** Insurance premium for the month (Actual Sales + Limit day-slices). */
+    insuranceCost: number;
+    /** Registration markup on insurance premiums (not top-ups). */
+    registrationFeeCost: number;
+    /** Amortized top-up premiums for the month. */
+    topUpCost: number;
+    /** insuranceCost + registrationFeeCost + topUpCost. */
     totalCost: number;
 };
 
@@ -479,40 +485,6 @@ export type CustomerPolicyUsageTrendResponse = {
     snapshotDate: string | null;
     hasTopUpPolicies: boolean;
     topCustomers: CustomerPolicyTrendTopRow[];
-};
-
-export type CustomerPolicyDailyCostChangeFields = {
-    policyDailyCostChange: number | null;
-    policyCostCurrency: string | null;
-    topUpDailyCostChange: number | null;
-    topUpCostCurrency: string | null;
-    totalDailyCostChange: number | null;
-    costCalculationMethod: cost_calculation_method | null;
-    costPercent: number | null;
-};
-
-export type CustomerPolicyDailyCostKpiMetadata = {
-    priorSnapshotDate: string | null;
-    gapFillDaysApplied?: number;
-};
-
-export type CustomerPolicyCustomerTrendPoint = {
-    snapshotDate: string;
-    usageAmount: number;
-    approvedLimit: number | null;
-    usagePct: number | null;
-} & CustomerPolicyDailyCostChangeFields;
-
-export type CustomerPolicyCustomerTrendLatestPoint =
-    CustomerPolicyCustomerTrendPoint & CustomerPolicyDailyCostKpiMetadata;
-
-export type CustomerPolicyCustomerTrendResponse = {
-    customerId: number;
-    policyId: number | null;
-    fromDate: string | null;
-    toDate: string | null;
-    latest: CustomerPolicyCustomerTrendLatestPoint | null;
-    series: CustomerPolicyCustomerTrendPoint[];
 };
 
 export type RiskExposurePolicySeries = {
