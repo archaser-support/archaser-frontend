@@ -26,5 +26,5 @@ Complete the intro polish on top of slice 01: rotate status lines health → uti
 2. Switch UI to Hebrew: confirm translated lines and right→left fill.
 3. Switch UI to English: confirm left→right fill and English lines.
 4. Enable OS reduce-motion: open the page — intro should be skipped.
-5. Disable reduce-motion, open the page after the session already played, click the page title five times — intro should replay immediately with no leftover button.
+5. Disable reduce-motion, open the page after the session already played, click the page title five times — intro should replay immediately with no leftover button; the large `%` should snap to `0%` then count up again.
 6. During replay, try clicking the overlay / pressing Escape — intro should still run to completion.
