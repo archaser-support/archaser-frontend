@@ -266,7 +266,7 @@
         "field_formula_required": "נדרש שם נוסחה",
         "object": "אובייקט",
         "expression": "ביטוי",
-        "expression_hint": "השתמש ב־[Table.field], מספרים, + - * / וסוגריים. שיעור פרמיה ודמי רישום הם אחוזים אוטומטית (אין לחלק ב־100).",
+        "expression_hint": "השתמש ב־[Table.field], מספרים, + - * / וסוגריים. שיעור דמי ביטוח ודמי רישום הם אחוזים אוטומטית (אין לחלק ב־100).",
         "insert": "הוסף",
         "insert_field": "הוסף שדה",
         "formulas_object": "נוסחאות",
@@ -292,7 +292,7 @@
         "aggregation_required": "נדרשת צבירה לדוחות מקובצים",
         "aggregation_not_allowed": "הסר צבירה לדוחות שאינם מקובצים",
         "remove_dependency_blocked": "לא ניתן להסיר שדה זה כי נוסחאות תלויות בו: {{labels}}",
-        "redundant_percent_division_warning": "שיעור פרמיה ודמי רישום כבר מטופלים כאחוזים בנוסחאות. הסר /100 אחרת התוצאה תהיה קטנה פי 100.",
+        "redundant_percent_division_warning": "שיעור דמי ביטוח ודמי רישום כבר מטופלים כאחוזים בנוסחאות. הסר /100 אחרת התוצאה תהיה קטנה פי 100.",
         "warning_summary": "{{label}}: {{count}} חישובים לא חוקיים",
         "errors": {
             "empty_expression": "נדרש ביטוי",

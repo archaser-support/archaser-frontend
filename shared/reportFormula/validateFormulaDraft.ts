@@ -372,7 +372,7 @@ export function validateFormulaDraft(
         ? {
               messageKey: "formulas.redundant_percent_division_warning",
               defaultMessage:
-                  "Insurance Premium Rate and Registration Fee are already treated as percentages in formulas. Remove /100 or results will be 100× too small.",
+                  "Insurance Fee Rate and Registration Fee are already treated as percentages in formulas. Remove /100 or results will be 100× too small.",
           }
         : undefined;
 
