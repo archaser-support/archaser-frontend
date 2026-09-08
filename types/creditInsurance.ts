@@ -326,8 +326,12 @@ export type PortfolioUtilizationDailyPoint = {
 export type PortfolioUtilizationTopCustomer = {
     customerId: number;
     customerName: string;
+    /** Mean daily usage_amount over available snapshot days in the range. */
     usageAmount: number;
-    /** Coverage/utilization % vs effective limit; null when limit ≤ 0. */
+    /**
+     * Mean daily effective utilization % over days with a positive effective
+     * limit; null when no such day exists.
+     */
     utilizationPct: number | null;
 };
 
@@ -374,7 +378,7 @@ export type PortfolioUtilizationSection = {
     accountCurrency: string;
     /** Daily portfolio / DCL / Named utilization for the Utilization chart. */
     daily: PortfolioUtilizationDailyPoint[];
-    /** Snapshot day used for top customers and distribution; null when none. */
+    /** Snapshot day kept for API compatibility; distribution/top customers use the full range. */
     asOfDate: string | null;
 };
 
