@@ -24,6 +24,7 @@ Ship the first end-to-end intro on the credit portfolio health page: once per br
 
 1. Open a fresh browser session (or clear session storage for the intro key) and go to credit portfolio health.
 2. Confirm the light jade-glow progress overlay covers the page body and fills to 100% in ~3–4s, then fades.
-3. Confirm the dashboard underneath is already loading / is ready after reveal and works normally.
-4. Navigate away and back in the same session — intro should not play again.
-5. Open a new session/tab context that resets session storage — intro should play once more.
+3. Confirm a large teal percentage sits above the bar, counts toward `100%` as whole percents (e.g. `48%`), and snaps to `0%` on five-title-click replay (PRD story 21 / grill D1–D8 — remaining if not yet shipped).
+4. Confirm the dashboard underneath is already loading / is ready after reveal and works normally.
+5. Navigate away and back in the same session — intro should not play again.
+6. Open a new session/tab context that resets session storage — intro should play once more.
