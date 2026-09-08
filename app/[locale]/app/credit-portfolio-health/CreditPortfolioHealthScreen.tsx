@@ -180,7 +180,7 @@ export function CreditPortfolioHealthScreen({
             window.clearTimeout(titleClickResetTimerRef.current);
         }
         titleClickCountRef.current += 1;
-        if (titleClickCountRef.current >= 5) {
+        if (titleClickCountRef.current >= 3) {
             titleClickCountRef.current = 0;
             intro.replay();
             return;
@@ -188,7 +188,7 @@ export function CreditPortfolioHealthScreen({
         titleClickResetTimerRef.current = window.setTimeout(() => {
             titleClickCountRef.current = 0;
             titleClickResetTimerRef.current = null;
-        }, 2000);
+        }, 3000);
     }, [intro.replay]);
 
     useEffect(() => {
@@ -329,28 +329,63 @@ export function CreditPortfolioHealthScreen({
                 <Box sx={stickyHeaderSx}>
                     <PageHeader
                         title={
-                            <Typography
-                                variant={
-                                    isRtl
-                                        ? "hebrewTitle"
-                                        : "listPageHeaderTitle"
-                                }
+                            <Box
                                 onClick={handlePageTitleClick}
                                 sx={{
-                                    color: theme.palette.text.primary,
-                                    mb: pageDescription ? "2px" : 0,
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    width: "100%",
+                                    minWidth: 0,
                                     cursor: "default",
                                     userSelect: "none",
-                                    ...(!isRtl && {
-                                        textAlign: "left",
-                                        direction: "ltr",
-                                    }),
+                                    py: 0.5,
+                                    // Widen the hit target around the label block
+                                    mx: { xs: -0.5, sm: -1 },
+                                    px: { xs: 0.5, sm: 1 },
+                                    alignItems: isRtl
+                                        ? "flex-end"
+                                        : "flex-start",
                                 }}
                             >
-                                {pageTitle}
-                            </Typography>
+                                <Typography
+                                    variant={
+                                        isRtl
+                                            ? "hebrewTitle"
+                                            : "listPageHeaderTitle"
+                                    }
+                                    sx={{
+                                        color: theme.palette.text.primary,
+                                        mb: pageDescription ? "2px" : 0,
+                                        width: "100%",
+                                        ...(!isRtl && {
+                                            textAlign: "left",
+                                            direction: "ltr",
+                                        }),
+                                    }}
+                                >
+                                    {pageTitle}
+                                </Typography>
+                                {pageDescription ? (
+                                    <Typography
+                                        variant={
+                                            isRtl
+                                                ? "hebrewSubtitle"
+                                                : "listPageHeaderDescription"
+                                        }
+                                        sx={{
+                                            color: theme.palette.text.secondary,
+                                            width: "100%",
+                                            ...(!isRtl && {
+                                                textAlign: "left",
+                                                direction: "ltr",
+                                            }),
+                                        }}
+                                    >
+                                        {pageDescription}
+                                    </Typography>
+                                ) : null}
+                            </Box>
                         }
-                        description={pageDescription}
                         sticky={false}
                     />
                 </Box>
