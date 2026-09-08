@@ -1,6 +1,6 @@
 # 01 — Session machine: idle, clear, reload
 
-**Status:** ready-for-agent
+**Status:** done
 **Priority:** high
 **Blocked by:** —
 **User stories:** 1, 2, 10, 11, 12, 13, 14, 17, 21, 22, 23, 26, 28, 31, 32
@@ -23,11 +23,11 @@ phase: idle | seeding | running | finishing | deferred_drain | finished | cleare
 
 ## Acceptance criteria
 
-- [ ] One resolver owns panel phase + bound run for idle / cleared / reload.
-- [ ] Delete-before-import toggles on with no live run do not show Record deletion as Running.
-- [ ] Reset and Preview clear the panel (zeros / empty) and drop the bound execution.
-- [ ] Stale sessionStorage execution missing after sync-runs fetch does not create a fake Running run.
-- [ ] Start remains enabled when the panel is idle or cleared (no placeholder busy).
+- [x] One resolver owns panel phase + bound run for idle / cleared / reload.
+- [x] Delete-before-import toggles on with no live run do not show Record deletion as Running.
+- [x] Reset and Preview clear the panel (zeros / empty) and drop the bound execution.
+- [x] Stale sessionStorage execution missing after sync-runs fetch does not create a fake Running run.
+- [x] Start remains enabled when the panel is idle or cleared (no placeholder busy).
 
 ## How to test
 

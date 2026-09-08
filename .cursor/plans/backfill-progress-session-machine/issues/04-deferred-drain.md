@@ -1,6 +1,6 @@
 # 04 — Deferred AR drain phase
 
-**Status:** ready-for-agent
+**Status:** done
 **Priority:** normal
 **Blocked by:** [03-live-steps-and-counts](03-live-steps-and-counts.md)
 **User stories:** 15, 16
@@ -12,10 +12,10 @@ When the bound sync-run is finished but connector config still reports pending A
 
 ## Acceptance criteria
 
-- [ ] Finished run + pending AR customers above zero → `deferred_drain` (not full-pipeline Running).
-- [ ] Only AR replay / related drain steps can show live progress in that phase.
-- [ ] Queue zero → `finished`.
-- [ ] Reset/Preview from deferred_drain still clears the panel.
+- [x] Finished run + pending AR customers above zero → `deferred_drain` (not full-pipeline Running).
+- [x] Only AR replay / related drain steps can show live progress in that phase.
+- [x] Queue zero → `finished`.
+- [x] Reset/Preview from deferred_drain still clears the panel.
 
 ## How to test
 
