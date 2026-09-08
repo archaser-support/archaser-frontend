@@ -1,6 +1,6 @@
 # 01 — Shared trim + Daily avg. health
 
-**Status:** ready-for-agent
+**Status:** done
 **Priority:** high
 **Blocked by:** —
 **User stories:** 1, 5, 6, 7, 9, 15
