@@ -463,13 +463,19 @@ export default function CreditPortfolioHealthPage() {
                 job
             );
         },
-        onError: () => {
-            showError(
-                t("credit_portfolio_health.generate_failed", {
-                    ns: "dashboard",
-                    defaultValue: "Could not generate snapshots.",
-                })
-            );
+        onError: (error) => {
+            const message =
+                error instanceof Error && error.message === "already_running"
+                    ? t("credit_portfolio_health.generate_already_running", {
+                          ns: "dashboard",
+                          defaultValue:
+                              "A generate job is already running. Use Stop, then Retry to resume, or wait for it to finish.",
+                      })
+                    : t("credit_portfolio_health.generate_failed", {
+                          ns: "dashboard",
+                          defaultValue: "Could not generate snapshots.",
+                      });
+            showError(message);
         },
     });
 
