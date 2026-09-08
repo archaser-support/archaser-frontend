@@ -14,6 +14,9 @@ export const PORTFOLIO_HEALTH_INTRO_DURATION_MS = 3500;
 /** Fade-out after the bar reaches 100%. */
 export const PORTFOLIO_HEALTH_INTRO_FADE_MS = 450;
 
+/** How often to publish progress to React (avoids per-frame setState depth issues). */
+const PROGRESS_TICK_MS = 100;
+
 const FALLBACK_STATUS_LINES = [
     "Loading portfolio health…",
     "Loading utilisation…",
@@ -32,7 +35,7 @@ export type PortfolioHealthIntroController = {
     statusLine: string;
     /**
      * Clear the session flag and restart the intro immediately.
-     * Wired to title five-click replay.
+     * Wired to title multi-click replay.
      */
     replay: () => void;
 };
@@ -70,6 +73,10 @@ export function statusLineForProgress(
 /**
  * Single intro controller seam: session gate, reduce-motion skip,
  * time-based progress, status rotation, fade, replay.
+ *
+ * Progress is published on an interval (not requestAnimationFrame) so Safari /
+ * React never nest dozens of setState calls from a re-entrant frame callback
+ * (Maximum update depth exceeded in useEffect.tick).
  */
 export function usePortfolioHealthIntro(
     options: UsePortfolioHealthIntroOptions = {}
@@ -83,6 +90,7 @@ export function usePortfolioHealthIntro(
     const [progress, setProgress] = useState(0);
     const [runId, setRunId] = useState(0);
     const fadeTimerRef = useRef<number | null>(null);
+    const progressTimerRef = useRef<number | null>(null);
     const autoStartedRef = useRef(false);
 
     useLayoutEffect(() => {
@@ -94,6 +102,10 @@ export function usePortfolioHealthIntro(
             if (fadeTimerRef.current != null) {
                 window.clearTimeout(fadeTimerRef.current);
                 fadeTimerRef.current = null;
+            }
+            if (progressTimerRef.current != null) {
+                window.clearInterval(progressTimerRef.current);
+                progressTimerRef.current = null;
             }
             setPhase("idle");
             setProgress(0);
@@ -119,26 +131,38 @@ export function usePortfolioHealthIntro(
         }
 
         const startedAt = performance.now();
-        let frameId = 0;
 
-        const tick = (now: number) => {
-            const elapsed = now - startedAt;
+        const publish = () => {
+            const elapsed = performance.now() - startedAt;
             const next = Math.min(
                 100,
                 (elapsed / PORTFOLIO_HEALTH_INTRO_DURATION_MS) * 100
             );
-            setProgress(next);
+            // Bail out on identical rounded values so React does not schedule work.
+            setProgress((prev) => {
+                const rounded = Math.round(next * 10) / 10;
+                return prev === rounded ? prev : rounded;
+            });
             if (next >= 100) {
+                if (progressTimerRef.current != null) {
+                    window.clearInterval(progressTimerRef.current);
+                    progressTimerRef.current = null;
+                }
                 markPortfolioHealthIntroPlayed();
                 setPhase("fading");
-                return;
             }
-            frameId = window.requestAnimationFrame(tick);
         };
 
-        frameId = window.requestAnimationFrame(tick);
+        publish();
+        progressTimerRef.current = window.setInterval(
+            publish,
+            PROGRESS_TICK_MS
+        );
         return () => {
-            window.cancelAnimationFrame(frameId);
+            if (progressTimerRef.current != null) {
+                window.clearInterval(progressTimerRef.current);
+                progressTimerRef.current = null;
+            }
         };
     }, [phase, runId]);
 
@@ -170,6 +194,10 @@ export function usePortfolioHealthIntro(
         if (fadeTimerRef.current != null) {
             window.clearTimeout(fadeTimerRef.current);
             fadeTimerRef.current = null;
+        }
+        if (progressTimerRef.current != null) {
+            window.clearInterval(progressTimerRef.current);
+            progressTimerRef.current = null;
         }
         setProgress(0);
         setPhase("playing");
