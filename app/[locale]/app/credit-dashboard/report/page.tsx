@@ -141,6 +141,16 @@ export default function CreditDashboardReportPage() {
         return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null;
     }, [searchParams]);
 
+    const fromDateFromUrl = useMemo(() => {
+        const raw = searchParams?.get("from")?.trim() ?? "";
+        return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : asOfDateFromUrl;
+    }, [searchParams, asOfDateFromUrl]);
+
+    const toDateFromUrl = useMemo(() => {
+        const raw = searchParams?.get("to")?.trim() ?? "";
+        return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : asOfDateFromUrl;
+    }, [searchParams, asOfDateFromUrl]);
+
     const policyIdForScope = useMemo(() => {
         if (parsedPolicyIdFromUrl == null) {
             return null;
@@ -315,6 +325,8 @@ export default function CreditDashboardReportPage() {
                                 termsOverdueOnly={termsOverdueOnlyFromUrl}
                                 withinDays={withinDaysFromUrl}
                                 utilizationBin={utilizationBinFromUrl}
+                                fromDate={fromDateFromUrl}
+                                toDate={toDateFromUrl}
                                 asOfDate={asOfDateFromUrl}
                             />
                         </Box>

@@ -266,7 +266,7 @@
         "field_formula_required": "Formula name is required",
         "object": "Object",
         "expression": "Expression",
-        "expression_hint": "Use [Table.field], numbers, + - * / and parentheses. Insurance Premium Rate and Registration Fee are percentages automatically (do not divide by 100).",
+        "expression_hint": "Use [Table.field], numbers, + - * / and parentheses. Registration fee (of premium): [Invoice.amount] * [Customer.cost_percent] * [Customer.registration_fee_percent]. Insurance Fee Rate and Registration Fee are percentages automatically (do not divide by 100).",
         "insert": "Insert",
         "insert_field": "Insert field",
         "formulas_object": "Formulas",
@@ -292,7 +292,7 @@
         "aggregation_required": "Aggregation is required for grouped reports",
         "aggregation_not_allowed": "Remove aggregation for ungrouped reports",
         "remove_dependency_blocked": "Cannot remove this field because formulas depend on it: {{labels}}",
-        "redundant_percent_division_warning": "Insurance Premium Rate and Registration Fee are already treated as percentages in formulas. Remove /100 or results will be 100× too small.",
+        "redundant_percent_division_warning": "Insurance Fee Rate and Registration Fee are already treated as percentages in formulas. Remove /100 or results will be 100× too small.",
         "warning_summary": "{{label}}: {{count}} invalid calculation(s)",
         "errors": {
             "empty_expression": "Expression is required",

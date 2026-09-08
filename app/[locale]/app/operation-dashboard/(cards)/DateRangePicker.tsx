@@ -144,6 +144,12 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
             { value: "this_month", label: t("fields.date_preset_this_month") },
             { value: "last_month", label: t("fields.date_preset_last_month") },
             {
+                value: "last_6_months",
+                label: t("fields.date_preset_last_6_months", {
+                    defaultValue: "Last 6 Month",
+                }),
+            },
+            {
                 value: "this_year",
                 label: t("fields.date_preset_this_year", {
                     defaultValue: "This Year",
@@ -239,6 +245,16 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                     59,
                     999
                 );
+                return { start, end };
+            }
+            case "last_6_months": {
+                const start = new Date(
+                    today.getFullYear(),
+                    today.getMonth() - 6,
+                    today.getDate()
+                );
+                const end = new Date(today);
+                end.setHours(23, 59, 59, 999);
                 return { start, end };
             }
             case "this_year": {

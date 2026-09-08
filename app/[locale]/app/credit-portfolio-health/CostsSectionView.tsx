@@ -21,10 +21,13 @@ import {
 
 import type { PortfolioCostsSection } from "@/types/creditInsurance";
 import { padSeriesByUtcMonth } from "@/shared/creditInsurance/portfolioHealthDateRange";
-import { formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
 
 import { ChartTooltip } from "./ChartTooltip";
 import { Eyebrow } from "./Eyebrow";
+import {
+    formatPortfolioAxisMoney,
+    formatPortfolioMoney,
+} from "./formatPortfolioMoney";
 import { IslandCard } from "./IslandCard";
 import { StatNumber } from "./StatNumber";
 import { CPH } from "./designTokens";
@@ -38,19 +41,14 @@ export type CostsSectionViewProps = {
     toYmd: string;
 };
 
-function formatMoney(
-    amount: number,
-    currencyCode: string,
-    language: string
-): string {
-    const locale = language.startsWith("he") ? "he-IL" : "en-US";
-    return formatCurrencyWithRTLSupport(
-        amount,
-        currencyCode,
-        locale,
-        language.startsWith("he") ? "he" : language
-    );
-}
+type MonthlyCostChartRow = {
+    label: string;
+    cost: number | null;
+    insuranceCost: number | null;
+    registrationFeeCost: number | null;
+    topUpCost: number | null;
+    totalCost: number | null;
+};
 
 function formatMonthLabel(month: string, language: string): string {
     const [y, m] = month.split("-").map(Number);
@@ -83,9 +81,13 @@ export function CostsSectionView({
                 fromYmd,
                 toYmd,
                 (point) => point.month
-            ).map(({ month, point }) => ({
+            ).map(({ month, point }): MonthlyCostChartRow => ({
                 label: formatMonthLabel(month, language),
                 cost: point?.totalCost ?? null,
+                insuranceCost: point?.insuranceCost ?? null,
+                registrationFeeCost: point?.registrationFeeCost ?? null,
+                topUpCost: point?.topUpCost ?? null,
+                totalCost: point?.totalCost ?? null,
             })),
         [section.monthly, fromYmd, toYmd, language]
     );
@@ -103,7 +105,7 @@ export function CostsSectionView({
                     help={t("credit_portfolio_health.kpi_period_cost_help", {
                         ...ns,
                         defaultValue:
-                            "Issued sales × cost % (Actual Sales) + annualized limit cost (Limit) + amortized top-ups over the selected range.",
+                            "Issued sales × cost % (Actual Sales) + annualized limit cost (Limit), plus registration as a percent of that insurance premium, plus amortized top-ups over the selected range.",
                     })}
                 >
                     {t("credit_portfolio_health.kpi_period_cost", {
@@ -118,7 +120,7 @@ export function CostsSectionView({
                         fontFamily: SPACE_GROTESK_FONT_FAMILY,
                     }}
                 >
-                    {formatMoney(section.periodCost, currency, language)}
+                    {formatPortfolioMoney(section.periodCost, currency, language)}
                 </div>
                 <div className="mt-1 text-sm" style={{ color: CPH.slate }}>
                     {t("credit_portfolio_health.kpi_period_cost_label", {
@@ -158,7 +160,7 @@ export function CostsSectionView({
                                 fontFamily: SPACE_GROTESK_FONT_FAMILY,
                             }}
                         >
-                            {formatMoney(
+                            {formatPortfolioMoney(
                                 section.effectiveCost,
                                 currency,
                                 language
@@ -229,7 +231,7 @@ export function CostsSectionView({
                             {
                                 ...ns,
                                 defaultValue:
-                                    "Same as period Policy cost, scoped to each calendar month (issued sales, annualized limit days, and amortized top-ups).",
+                                    "Same as period Policy cost, scoped to each calendar month (issued sales, annualized limit days, registration as a percent of the insurance premium, and amortized top-ups).",
                             }
                         )}
                     >
@@ -242,7 +244,7 @@ export function CostsSectionView({
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart
                                 data={monthlyChartData}
-                                margin={{ top: 10, left: -10, right: 10 }}
+                                margin={{ top: 10, left: 8, right: 10 }}
                             >
                                 <CartesianGrid
                                     strokeDasharray="3 6"
@@ -256,35 +258,116 @@ export function CostsSectionView({
                                     tickLine={false}
                                 />
                                 <YAxis
-                                    tick={{ fill: CPH.slate, fontSize: 12 }}
+                                    tick={{ fill: CPH.slate, fontSize: 11 }}
                                     axisLine={false}
                                     tickLine={false}
-                                    width={64}
-                                    tickFormatter={(v: number) => {
-                                        const locale = language.startsWith(
-                                            "he"
+                                    width={84}
+                                    tickFormatter={(v: number) =>
+                                        formatPortfolioAxisMoney(
+                                            v,
+                                            currency,
+                                            language
                                         )
-                                            ? "he-IL"
-                                            : "en-US";
-                                        return v.toLocaleString(locale, {
-                                            maximumFractionDigits: 0,
-                                            notation: "compact",
-                                        });
-                                    }}
+                                    }
                                 />
                                 <Tooltip
                                     cursor={{ fill: CPH.surfaceMuted }}
-                                    content={
-                                        <ChartTooltip
-                                            formatValue={(v) =>
-                                                formatMoney(
-                                                    v,
-                                                    currency,
-                                                    language
-                                                )
-                                            }
-                                        />
-                                    }
+                                    content={(props) => {
+                                        const row = (
+                                            props.payload as
+                                                | Array<{
+                                                      payload?: MonthlyCostChartRow;
+                                                  }>
+                                                | undefined
+                                        )?.[0]?.payload;
+                                        if (
+                                            row == null ||
+                                            row.totalCost == null
+                                        ) {
+                                            return null;
+                                        }
+                                        return (
+                                            <ChartTooltip
+                                                active={props.active}
+                                                label={
+                                                    typeof props.label ===
+                                                        "string" ||
+                                                    typeof props.label ===
+                                                        "number"
+                                                        ? String(props.label)
+                                                        : undefined
+                                                }
+                                                items={[
+                                                    {
+                                                        name: t(
+                                                            "credit_portfolio_health.chart_monthly_cost_insurance",
+                                                            {
+                                                                ...ns,
+                                                                defaultValue:
+                                                                    "Insurance fee",
+                                                            }
+                                                        ),
+                                                        value:
+                                                            row.insuranceCost ??
+                                                            0,
+                                                        color: CPH.teal,
+                                                        dataKey:
+                                                            "insuranceCost",
+                                                    },
+                                                    {
+                                                        name: t(
+                                                            "credit_portfolio_health.chart_monthly_cost_registration",
+                                                            {
+                                                                ...ns,
+                                                                defaultValue:
+                                                                    "Registration fee",
+                                                            }
+                                                        ),
+                                                        value:
+                                                            row.registrationFeeCost ??
+                                                            0,
+                                                        color: CPH.teal,
+                                                        dataKey:
+                                                            "registrationFeeCost",
+                                                    },
+                                                    {
+                                                        name: t(
+                                                            "credit_portfolio_health.chart_monthly_cost_top_ups",
+                                                            {
+                                                                ...ns,
+                                                                defaultValue:
+                                                                    "Top-ups",
+                                                            }
+                                                        ),
+                                                        value:
+                                                            row.topUpCost ?? 0,
+                                                        color: CPH.teal,
+                                                        dataKey: "topUpCost",
+                                                    },
+                                                    {
+                                                        name: t(
+                                                            "credit_portfolio_health.chart_monthly_cost_total",
+                                                            {
+                                                                ...ns,
+                                                                defaultValue:
+                                                                    "Total",
+                                                            }
+                                                        ),
+                                                        value: row.totalCost,
+                                                        color: CPH.teal,
+                                                        dataKey: "totalCost",
+                                                    },
+                                                ]}
+                                                formatValue={(v) =>
+                                                    formatPortfolioMoney(
+                                                        v,
+                                                        currency,
+                                                        language
+                                                    )
+                                                }
+                                            />
+                                        );
+                                    }}
                                 />
                                 <Bar
                                     dataKey="cost"
@@ -391,7 +474,7 @@ export function CostsSectionView({
                             fontFamily: SPACE_GROTESK_FONT_FAMILY,
                         }}
                     >
-                        {formatMoney(
+                        {formatPortfolioMoney(
                             section.approvedAverageAr,
                             currency,
                             language
@@ -493,7 +576,7 @@ export function CostsSectionView({
                             fontFamily: SPACE_GROTESK_FONT_FAMILY,
                         }}
                     >
-                        {formatMoney(
+                        {formatPortfolioMoney(
                             section.selfUnderwrittenAverageAr,
                             currency,
                             language

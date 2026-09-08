@@ -34,6 +34,27 @@ function formatValue(
     });
 }
 
+const SUB_ONE_MAX_DECIMALS = 2;
+
+/**
+ * Sub-1 magnitudes keep enough fraction digits so a positive value does not
+ * collapse to 0 (e.g. 0.1 → 1 dp, 0.03 → 2 dp). Caps at {@link SUB_ONE_MAX_DECIMALS}.
+ */
+function resolveDecimals(value: number, decimals: number): number {
+    const abs = Math.abs(value);
+    if (!(abs > 0) || abs >= 1) {
+        return decimals;
+    }
+    let resolved = Math.max(decimals, 1);
+    while (
+        resolved < SUB_ONE_MAX_DECIMALS &&
+        Math.round(abs * 10 ** resolved) / 10 ** resolved === 0
+    ) {
+        resolved += 1;
+    }
+    return resolved;
+}
+
 export function StatNumber({
     value,
     decimals = 1,
@@ -49,6 +70,7 @@ export function StatNumber({
     );
     const frameRef = useRef<number | null>(null);
     const fromRef = useRef(0);
+    const effectiveDecimals = resolveDecimals(value, decimals);
 
     useEffect(() => {
         if (prefersReducedMotion) {
@@ -88,7 +110,7 @@ export function StatNumber({
             }}
         >
             {prefix}
-            {formatValue(display, decimals, locale)}
+            {formatValue(display, effectiveDecimals, locale)}
             {suffix}
         </span>
     );
