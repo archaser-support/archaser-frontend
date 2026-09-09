@@ -354,7 +354,7 @@ export default function CreditPortfolioHealthPage() {
         });
     };
 
-    const { data, isLoading, isError, error, refetch } = useQuery({
+    const { data, isError, error, refetch } = useQuery({
         queryKey: [
             "credit-insurance",
             "portfolio-health",
@@ -557,7 +557,6 @@ export default function CreditPortfolioHealthPage() {
             activeTab={activeTab}
             onTabChange={handleTabChange}
             data={data}
-            isLoading={isLoading}
             isError={isError}
             error={
                 isError
