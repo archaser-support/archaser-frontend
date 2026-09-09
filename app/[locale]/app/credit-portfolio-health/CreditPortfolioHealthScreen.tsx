@@ -3,7 +3,6 @@
 import {
     Box,
     Button,
-    CircularProgress,
     FormControlLabel,
     LinearProgress,
     Switch,
@@ -65,7 +64,6 @@ export type CreditPortfolioHealthScreenProps = {
     activeTab: PortfolioHealthTabId;
     onTabChange: (tab: PortfolioHealthTabId) => void;
     data: CreditPortfolioHealthResponse | undefined;
-    isLoading: boolean;
     isError: boolean;
     error: Error | null;
     backfillJob: CreditAsOfBackfillJobView | undefined;
@@ -108,7 +106,6 @@ export function CreditPortfolioHealthScreen({
     activeTab,
     onTabChange,
     data,
-    isLoading,
     isError,
     error,
     backfillJob,
@@ -637,19 +634,7 @@ export function CreditPortfolioHealthScreen({
                             ) : null}
                         </Box>
                     ) : null}
-                    {isLoading ? (
-                        <Box
-                            sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                minHeight: { xs: "300px", sm: "400px" },
-                                width: "100%",
-                            }}
-                        >
-                            <CircularProgress color="primary" size={48} />
-                        </Box>
-                    ) : isError ? (
+                    {isError ? (
                         <Box sx={{ p: 3, width: "100%" }}>
                             <Typography color="error">
                                 {error?.message === "forbidden"

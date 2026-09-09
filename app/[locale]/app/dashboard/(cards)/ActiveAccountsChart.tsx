@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
 import AppUrls from "@/utils/appUrls";
+import { pushFinancialChartDetails } from "@/shared/dashboard/financialChartDetailsTitle";
 import { useDashboardBusinessUnitId } from "@/shared/dashboard/DashboardBusinessUnitContext";
 import { appendDashboardBusinessUnitId } from "@/shared/dashboard/dashboardBusinessUnitParams";
 import { formatAmountWithoutSymbol } from "@/utils/stringFormatters";
@@ -83,8 +84,11 @@ const ActiveAccountsChart = ({
             }),
             businessUnitId
         );
-        router.push(
-            `${AppUrls.DASHBOARD}/chart-details?${searchParams.toString()}`
+        pushFinancialChartDetails(
+            router,
+            `${AppUrls.DASHBOARD}/chart-details?${searchParams.toString()}`,
+            t,
+            i18n.language
         );
     };
 

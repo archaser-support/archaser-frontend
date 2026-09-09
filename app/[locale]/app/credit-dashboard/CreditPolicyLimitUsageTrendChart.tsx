@@ -144,12 +144,26 @@ export function CreditPolicyLimitUsageTrendChart({
                     status = "ok";
                 }
                 const palette = usageStatusColors[status];
-                const barPolicyPct = showTopUpStack
-                    ? row.barPolicyPct
+                const rawPolicyPct = showTopUpStack
+                    ? Math.max(0, row.barPolicyPct)
                     : Math.max(0, row.policyUsagePct ?? row.usagePct ?? 0);
-                const barTopUpPct = showTopUpStack ? row.barTopUpPct : 0;
-                const barOverPct = showTopUpStack ? row.barOverPct : 0;
-                const barTotalPct = barPolicyPct + barTopUpPct + barOverPct;
+                const rawTopUpPct = showTopUpStack
+                    ? Math.max(0, row.barTopUpPct)
+                    : 0;
+                const rawOverPct = showTopUpStack
+                    ? Math.max(0, row.barOverPct)
+                    : 0;
+                const rawTotalPct = rawPolicyPct + rawTopUpPct + rawOverPct;
+                // Fixed 100-wide track: scale/capped fill so every row shares the same bar width.
+                const scale =
+                    rawTotalPct > 100 && rawTotalPct > 0
+                        ? 100 / rawTotalPct
+                        : 1;
+                const barPolicyPct = rawPolicyPct * scale;
+                const barTopUpPct = rawTopUpPct * scale;
+                const barOverPct = rawOverPct * scale;
+                const barFillPct = Math.min(100, rawTotalPct);
+                const barTrackPct = Math.max(0, 100 - barFillPct);
 
                 return {
                     customer: row.customerName,
@@ -164,36 +178,21 @@ export function CreditPolicyLimitUsageTrendChart({
                     barPolicyPct,
                     barTopUpPct,
                     barOverPct,
-                    barTotalPct,
+                    barFillPct,
+                    barTrackPct,
+                    barTotalPct: rawTotalPct,
                     policyNumber: row.policyNumber,
                     status,
                     color: palette.fill,
+                    trackColor: alpha(palette.fill, isLight ? 0.22 : 0.28),
                     borderColor: palette.border,
                 };
             }),
-        [topCustomers, showTopUpStack, usageStatusColors]
+        [topCustomers, showTopUpStack, usageStatusColors, isLight]
     );
 
-    const { xAxisMax, xAxisTickStep } = useMemo(() => {
-        const maxBarPct = chartData.reduce(
-            (acc, item) => Math.max(acc, item.barTotalPct),
-            0
-        );
-        const paddedMax = maxBarPct <= 100 ? 100 : maxBarPct * 1.1;
-        const tickStep =
-            paddedMax <= 100
-                ? 20
-                : paddedMax <= 200
-                  ? 50
-                  : paddedMax <= 500
-                    ? 100
-                    : 200;
-
-        return {
-            xAxisMax: Math.ceil(paddedMax / tickStep) * tickStep,
-            xAxisTickStep: tickStep,
-        };
-    }, [chartData]);
+    const xAxisMax = 100;
+    const xAxisTickStep = 20;
 
     const currentArLabel = t(
         "credit_insurance_dashboard.top_customers_current_ar_series",
@@ -257,13 +256,14 @@ export function CreditPolicyLimitUsageTrendChart({
             defaultValue: "Over effective limit",
         }
     );
+    const trackSeriesLabel = "__track__";
 
     const barChartOptions = useMemo(
         () => ({
             chart: {
                 type: "bar" as const,
                 height: "auto",
-                stacked: showTopUpStack,
+                stacked: true,
                 toolbar: { show: false },
                 ...(isRtl && { animations: { enabled: false } }),
                 background: "transparent",
@@ -272,8 +272,7 @@ export function CreditPolicyLimitUsageTrendChart({
                 bar: {
                     horizontal: true,
                     barHeight: "68%",
-                    borderRadius: 4,
-                    ...(showTopUpStack ? {} : { distributed: true }),
+                    borderRadius: 0,
                 },
             },
             dataLabels: {
@@ -303,19 +302,8 @@ export function CreditPolicyLimitUsageTrendChart({
                               : pctText
                                 ? pctText
                                 : limitText ?? "";
-                    const anchorX = showTopUpStack
-                        ? item.barTotalPct
-                        : item.usagePct;
-                    const pillColor =
-                        showTopUpStack && item.barOverPct > 0
-                            ? overBarColor
-                            : item.color;
-                    const pillBorder =
-                        showTopUpStack && item.barOverPct > 0
-                            ? theme.palette.error.dark
-                            : item.borderColor;
                     return {
-                        x: anchorX,
+                        x: xAxisMax,
                         y: item.customer as unknown as number,
                         marker: {
                             size: 0,
@@ -324,22 +312,20 @@ export function CreditPolicyLimitUsageTrendChart({
                         },
                         label: {
                             text: pillText,
-                            borderColor: pillBorder,
-                            borderWidth: 1,
-                            borderRadius: 4,
+                            borderWidth: 0,
                             textAnchor: "start" as const,
                             offsetX: 8,
                             offsetY: 9,
                             style: {
-                                background: pillColor,
-                                color: "#ffffff",
-                                fontSize: "10px",
-                                fontWeight: 600,
+                                background: "transparent",
+                                color: "#000000",
+                                fontSize: "11px",
+                                fontWeight: 400,
                                 padding: {
-                                    left: 6,
-                                    right: 6,
-                                    top: 2,
-                                    bottom: 2,
+                                    left: 0,
+                                    right: 0,
+                                    top: 0,
+                                    bottom: 0,
                                 },
                             },
                         },
@@ -349,6 +335,7 @@ export function CreditPolicyLimitUsageTrendChart({
             xaxis: {
                 categories: chartData.map((item) => item.customer),
                 max: xAxisMax,
+                min: 0,
                 tickAmount: Math.round(xAxisMax / xAxisTickStep),
                 labels: {
                     formatter: function (val: string) {
@@ -391,9 +378,17 @@ export function CreditPolicyLimitUsageTrendChart({
                 show: showTopUpStack,
                 position: "bottom" as const,
                 horizontalAlign: "center" as const,
+                customLegendItems: showTopUpStack
+                    ? [policySeriesLabel, topUpSeriesLabel, overSeriesLabel]
+                    : undefined,
             },
             colors: showTopUpStack
-                ? [policyBarColor, topUpBarColor, overBarColor]
+                ? [
+                      policyBarColor,
+                      topUpBarColor,
+                      overBarColor,
+                      alpha(policyBarColor, isLight ? 0.18 : 0.24),
+                  ]
                 : chartData.map((item) => item.color),
             tooltip: {
                 custom: function ({
@@ -405,6 +400,22 @@ export function CreditPolicyLimitUsageTrendChart({
                 }) {
                     const item = chartData[dataPointIndex];
                     if (!item) return "";
+                    const textAlign = isRtl ? "right" : "left";
+                    const direction = isRtl ? "rtl" : "ltr";
+                    const rowGap = isRtl ? "8px" : "16px";
+                    const labelColor = "#2F3B52";
+                    const mutedColor = theme.palette.text.secondary;
+                    const row = (label: string, value: string, valueColor = labelColor) =>
+                        isRtl
+                            ? `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: ${rowGap}; width: 100%;">` +
+                              `<div style="font-weight: 400; color: ${labelColor}; text-align: right; direction: rtl; flex: 1;">${label}</div>` +
+                              `<div style="color: ${valueColor}; font-weight: 400; text-align: left; direction: ltr; flex-shrink: 0;">${value}</div>` +
+                              `</div>`
+                            : `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: ${rowGap};">` +
+                              `<div style="font-weight: 400; color: ${labelColor}; text-align: left; direction: ltr; flex: 1;">${label}</div>` +
+                              `<div style="color: ${valueColor}; font-weight: 400; text-align: right; direction: ltr;">${value}</div>` +
+                              `</div>`;
+
                     const limitText =
                         item.limit != null && item.limit > 0
                             ? amountFormatter.format(item.limit)
@@ -417,34 +428,54 @@ export function CreditPolicyLimitUsageTrendChart({
                         item.effectiveLimit != null && item.effectiveLimit > 0
                             ? amountFormatter.format(item.effectiveLimit)
                             : "-";
-                    const policyLine =
-                        item.policyUsagePct != null
-                            ? `<div style="color: ${theme.palette.text.secondary}; font-size: 12px;">${policyUsageLabel}: ${percentFormatter.format(item.policyUsagePct)}%</div>`
-                            : "";
-                    const topUpLine =
-                        showTopUpStack && item.topUpUsagePct != null
-                            ? `<div style="color: ${theme.palette.text.secondary}; font-size: 12px;">${topUpUsageLabel}: ${percentFormatter.format(item.topUpUsagePct)}%</div>`
-                            : "";
-                    const effectiveLine =
-                        showTopUpStack && item.effectiveUsagePct != null
-                            ? `<div style="color: ${theme.palette.text.secondary}; font-size: 12px;">${effectiveUsageLabel}: ${percentFormatter.format(item.effectiveUsagePct)}%</div>`
-                            : `<div style="color: ${theme.palette.text.secondary}; font-size: 12px;">${usagePctLabel}: ${item.usagePct != null ? `${percentFormatter.format(item.usagePct)}%` : "-"}</div>`;
-                    const policyNumberLine = item.policyNumber
-                        ? `<div style="color: ${theme.palette.text.secondary}; font-size: 11px; margin-top: 4px;">${item.policyNumber}</div>`
-                        : "";
-                    return `
-                        <div style="padding: 8px; background: ${theme.palette.background.paper}; border: 1px solid ${theme.palette.divider}; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                            <div style="font-weight: 600; margin-bottom: 6px; color: ${theme.palette.text.primary}; font-size: 14px;">${item.customer}</div>
-                            <div style="color: ${theme.palette.text.secondary}; font-size: 12px;">${currentArLabel}: ${amountFormatter.format(item.amount)}</div>
-                            <div style="color: ${theme.palette.text.secondary}; font-size: 12px;">${approvedLimitLabel}: ${limitText}</div>
-                            ${showTopUpStack ? `<div style="color: ${theme.palette.text.secondary}; font-size: 12px;">${topUpTotalLabel}: ${topUpText}</div>` : ""}
-                            ${showTopUpStack ? `<div style="color: ${theme.palette.text.secondary}; font-size: 12px;">${effectiveLimitLabel}: ${effectiveText}</div>` : ""}
-                            ${policyLine}
-                            ${topUpLine}
-                            ${effectiveLine}
-                            ${policyNumberLine}
-                        </div>
-                    `;
+
+                    let tooltipContent =
+                        `<div class="custom-tooltip" style="background: ${theme.palette.background.paper}; border: 1px solid ${theme.palette.divider}; border-radius: 4px; padding: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 12px; font-family: inherit; text-align: ${textAlign}; direction: ${direction};">` +
+                        `<div style="font-weight: 700; color: ${theme.palette.text.primary}; margin-bottom: 6px; border-bottom: 1px solid ${theme.palette.divider}; padding-bottom: 4px; text-align: ${textAlign}; direction: ${direction};">${item.customer}</div>`;
+
+                    tooltipContent += row(
+                        currentArLabel,
+                        amountFormatter.format(item.amount)
+                    );
+                    tooltipContent += row(approvedLimitLabel, limitText);
+                    if (showTopUpStack) {
+                        tooltipContent += row(topUpTotalLabel, topUpText);
+                        tooltipContent += row(effectiveLimitLabel, effectiveText);
+                    }
+                    if (item.policyUsagePct != null) {
+                        tooltipContent += row(
+                            policyUsageLabel,
+                            `${percentFormatter.format(item.policyUsagePct)}%`,
+                            mutedColor
+                        );
+                    }
+                    if (showTopUpStack && item.topUpUsagePct != null) {
+                        tooltipContent += row(
+                            topUpUsageLabel,
+                            `${percentFormatter.format(item.topUpUsagePct)}%`,
+                            mutedColor
+                        );
+                    }
+                    if (showTopUpStack && item.effectiveUsagePct != null) {
+                        tooltipContent += row(
+                            effectiveUsageLabel,
+                            `${percentFormatter.format(item.effectiveUsagePct)}%`,
+                            mutedColor
+                        );
+                    } else if (!showTopUpStack) {
+                        tooltipContent += row(
+                            usagePctLabel,
+                            item.usagePct != null
+                                ? `${percentFormatter.format(item.usagePct)}%`
+                                : "-",
+                            mutedColor
+                        );
+                    }
+                    if (item.policyNumber) {
+                        tooltipContent += `<div style="font-weight: 400; color: ${mutedColor}; font-size: 11px; margin-top: 4px; text-align: ${textAlign}; direction: ${direction};">${item.policyNumber}</div>`;
+                    }
+                    tooltipContent += "</div>";
+                    return tooltipContent;
                 },
             },
         }),
@@ -470,6 +501,10 @@ export function CreditPolicyLimitUsageTrendChart({
             overBarColor,
             xAxisMax,
             xAxisTickStep,
+            isLight,
+            policySeriesLabel,
+            topUpSeriesLabel,
+            overSeriesLabel,
         ]
     );
 
@@ -488,12 +523,28 @@ export function CreditPolicyLimitUsageTrendChart({
                     name: overSeriesLabel,
                     data: chartData.map((item) => item.barOverPct),
                 },
+                {
+                    name: trackSeriesLabel,
+                    data: chartData.map((item) => item.barTrackPct),
+                },
             ];
         }
         return [
             {
                 name: usagePctLabel,
-                data: chartData.map((item) => item.usagePct),
+                data: chartData.map((item) => ({
+                    x: item.customer,
+                    y: item.barFillPct,
+                    fillColor: item.color,
+                })),
+            },
+            {
+                name: trackSeriesLabel,
+                data: chartData.map((item) => ({
+                    x: item.customer,
+                    y: item.barTrackPct,
+                    fillColor: item.trackColor,
+                })),
             },
         ];
     }, [
@@ -502,6 +553,7 @@ export function CreditPolicyLimitUsageTrendChart({
         policySeriesLabel,
         topUpSeriesLabel,
         overSeriesLabel,
+        trackSeriesLabel,
         usagePctLabel,
     ]);
 
