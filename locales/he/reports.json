@@ -82,10 +82,14 @@
         "create_view": "צור תצוגה",
         "clone_view": "שכפל תצוגה",
         "set_as_default": "הגדר כברירת מחדל",
+        "set_as_primary": "הגדר כראשי",
         "create_new_report": "צור דוח חדש",
         "edit_report": "ערוך דוח",
         "delete_report": "מחק דוח",
         "share_button": "שתף"
+    },
+    "labels": {
+        "primary_table": "ראשי"
     },
     "messages": {
         "error_fetching_data": "שגיאה בטעינת דוחות",
@@ -246,7 +250,9 @@
         "set_as_default": "כאשר מופעל, דוח זה יוגדר כברירת המחדל עבור דף זה. כל הדוחות האחרים עבור דף זה יוסרו כברירת מחדל.",
         "shared_report": "דוח זה שותף איתך",
         "you_are_sharing_this_report": "אתה משתף את הדוח הזה",
-        "add_share": "הוסף שיתוף"
+        "add_share": "הוסף שיתוף",
+        "primary_table": "טבלה זו היא גרעין הדוח (שורה אחת לכל רשומה).",
+        "set_as_primary": "השתמש בטבלה זו כגרעין הדוח בלי להסיר שדות."
     },
     "validation": {
         "name_required": "שם הדוח נדרש",
