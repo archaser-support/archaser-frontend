@@ -1,6 +1,8 @@
 import {
     generateFormulaId,
     getFormulaOperandReferencesFromTables,
+    isFormulaDateOperandFieldType,
+    isFormulaNumericOperandFieldType,
     resolveAllFormulaCurrencySources,
     resolveFormulaCurrencySourceFromExpression,
 } from "@/shared/reportFormula/columnOrder";
@@ -16,7 +18,9 @@ import {
 import {
     extractFieldReferences,
     FormulaParseError,
+    type FormulaAstNode,
     type FormulaParseErrorCode,
+    isFormulaCompareOperator,
     isFormulaOperandReference,
     normalizeFormulaExpression,
     parseFormulaExpression,
@@ -36,7 +40,9 @@ export type FormulaValidationErrorCode =
     | "formula_label_reference"
     | "currency_field_required"
     | "aggregation_required"
-    | "aggregation_not_allowed";
+    | "aggregation_not_allowed"
+    | "date_arithmetic_not_allowed"
+    | "compare_type_mismatch";
 
 export type FormulaValidationFailure = {
     ok: false;
@@ -112,7 +118,17 @@ const PARSE_ERROR_MESSAGES: Record<
         messageKey: "formulas.errors.prohibited_token",
         defaultMessage: "Expression contains a prohibited token",
     },
+    invalid_date_literal: {
+        messageKey: "formulas.errors.invalid_date_literal",
+        defaultMessage: "Date must be YYYY-MM-DD (for example 2026-03-01)",
+    },
+    clock_time_not_allowed: {
+        messageKey: "formulas.errors.clock_time_not_allowed",
+        defaultMessage: "Clock time is not allowed in typed dates",
+    },
 };
+
+type FormulaValueFamily = "number" | "date";
 
 function validationFailure(
     errorCode: FormulaValidationErrorCode,
@@ -125,6 +141,102 @@ function validationFailure(
 
 function getDecimalSeparator(locale: string): "." | "," {
     return locale.startsWith("he") ? "," : ".";
+}
+
+function resolveFieldType(
+    reference: string,
+    tablesMetadata: ValidateFormulaDraftInput["tablesMetadata"]
+): string | undefined {
+    const dot = reference.indexOf(".");
+    if (dot <= 0) {
+        return undefined;
+    }
+    const table = tablesMetadata.find(
+        (entry) => entry.name === reference.slice(0, dot)
+    );
+    const fieldName = reference.slice(dot + 1);
+    return table?.fields.find((entry) => entry.name === fieldName)?.type;
+}
+
+function inferAstFamily(
+    node: FormulaAstNode,
+    tablesMetadata: ValidateFormulaDraftInput["tablesMetadata"]
+): FormulaValueFamily | FormulaValidationFailure {
+    if (node.type === "number") {
+        return "number";
+    }
+    if (node.type === "date_literal") {
+        return "date";
+    }
+    if (node.type === "field") {
+        if (isFormulaOperandReference(node.reference)) {
+            return "number";
+        }
+        const fieldType = resolveFieldType(node.reference, tablesMetadata);
+        if (isFormulaDateOperandFieldType(fieldType)) {
+            return "date";
+        }
+        if (isFormulaNumericOperandFieldType(fieldType)) {
+            return "number";
+        }
+        return validationFailure(
+            "compare_type_mismatch",
+            "formulas.errors.compare_type_mismatch",
+            `Field ${node.reference} cannot be used in this formula`,
+            { ref: node.reference }
+        );
+    }
+    if (node.type === "unary") {
+        const inner = inferAstFamily(node.operand, tablesMetadata);
+        if (typeof inner !== "string") {
+            return inner;
+        }
+        if (inner === "date") {
+            return validationFailure(
+                "date_arithmetic_not_allowed",
+                "formulas.errors.date_arithmetic_not_allowed",
+                "Dates cannot be used with + − × ÷"
+            );
+        }
+        return "number";
+    }
+
+    if (isFormulaCompareOperator(node.operator)) {
+        const left = inferAstFamily(node.left, tablesMetadata);
+        if (typeof left !== "string") {
+            return left;
+        }
+        const right = inferAstFamily(node.right, tablesMetadata);
+        if (typeof right !== "string") {
+            return right;
+        }
+        if (left === right) {
+            // Compare yields 1/0 so the expression family is numeric.
+            return "number";
+        }
+        return validationFailure(
+            "compare_type_mismatch",
+            "formulas.errors.compare_type_mismatch",
+            "Both sides of a comparison must be the same type (dates or numbers)"
+        );
+    }
+
+    const left = inferAstFamily(node.left, tablesMetadata);
+    if (typeof left !== "string") {
+        return left;
+    }
+    const right = inferAstFamily(node.right, tablesMetadata);
+    if (typeof right !== "string") {
+        return right;
+    }
+    if (left === "date" || right === "date") {
+        return validationFailure(
+            "date_arithmetic_not_allowed",
+            "formulas.errors.date_arithmetic_not_allowed",
+            "Dates cannot be used with + − × ÷"
+        );
+    }
+    return "number";
 }
 
 export function resolveFormulaValidationMessage(
@@ -190,12 +302,13 @@ export function validateFormulaDraft(
     );
 
     let normalized: string;
+    let ast: FormulaAstNode;
     try {
         normalized = normalizeFormulaExpression(
             storageExpression,
             getDecimalSeparator(input.locale)
         );
-        parseFormulaExpression(normalized);
+        ast = parseFormulaExpression(normalized);
     } catch (e) {
         if (e instanceof FormulaParseError) {
             const mapped = PARSE_ERROR_MESSAGES[e.code];
@@ -210,6 +323,11 @@ export function validateFormulaDraft(
             "formulas.errors.unexpected_character",
             e instanceof Error ? e.message : String(e)
         );
+    }
+
+    const family = inferAstFamily(ast, input.tablesMetadata);
+    if (typeof family !== "string") {
+        return family;
     }
 
     const refs = extractFieldReferences(normalized);

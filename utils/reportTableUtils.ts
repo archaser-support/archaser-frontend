@@ -1,3 +1,8 @@
+import {
+    getFormulaOutputKey,
+    isFormulaFilterField,
+} from "@/shared/reportFormula/types";
+
 export interface Relationship {
     from: string;
     to: string;
@@ -393,10 +398,21 @@ type ReportFilterTranslate = (
 export function validateReportFilters(
     filters: ReportFilterRow[],
     t: ReportFilterTranslate,
-    options?: { skipTableFieldCheck?: boolean }
+    options?: {
+        skipTableFieldCheck?: boolean;
+        formulas?: Array<{ id: string }>;
+    }
 ): Record<number, string> {
     const errors: Record<number, string> = {};
     const skipTableFieldCheck = options?.skipTableFieldCheck === true;
+    const formulaKeys =
+        options?.formulas != null
+            ? new Set(
+                  options.formulas.map((formula) =>
+                      getFormulaOutputKey(formula.id)
+                  )
+              )
+            : null;
 
     filters.forEach((filter, index) => {
         if (!skipTableFieldCheck) {
@@ -407,6 +423,18 @@ export function validateReportFilters(
                 });
                 return;
             }
+        }
+
+        if (
+            formulaKeys &&
+            isFormulaFilterField(filter.field) &&
+            !formulaKeys.has(filter.field as string)
+        ) {
+            errors[index] = t("validation.orphan_formula_filter", {
+                defaultValue:
+                    "A filter references a formula that is not on this report. Remove or update the filter.",
+            });
+            return;
         }
 
         if (!isReportFilterValueIncomplete(filter)) {

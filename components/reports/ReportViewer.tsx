@@ -37,6 +37,10 @@ import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import { MAIN_REPORTS_MENU_CONTEXT } from "@/shared/utils/viewConfigs";
 import { generateViewColumns } from "@/shared/utils/viewColumnGenerator";
 import { isFormulaOutputKey } from "@/shared/reportFormula/types";
+import { isGroupedReportConfig } from "@/shared/reportFormula/columnOrder";
+import {
+    formulaFilterGuardTranslationKey,
+} from "@/shared/reportFormula/validateFormulaFilterGuards";
 import AppUrls from "@/utils/appUrls";
 import {
     getUserDateLocale,
@@ -255,7 +259,26 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const errorData = await response.json().catch(() => ({}));
+                const translationKey = formulaFilterGuardTranslationKey(
+                    errorData.errorCode
+                );
+                const nestMessage = Array.isArray(errorData.message)
+                    ? errorData.message.join(", ")
+                    : errorData.message;
+                throw new Error(
+                    (translationKey
+                        ? t(translationKey, {
+                              defaultValue:
+                                  typeof nestMessage === "string"
+                                      ? nestMessage
+                                      : undefined,
+                          })
+                        : null) ||
+                        (typeof nestMessage === "string" && nestMessage) ||
+                        errorData.error ||
+                        `HTTP error! status: ${response.status}`
+                );
             }
 
             const data = await response.json();
@@ -278,7 +301,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
                     | undefined,
             };
         },
-        [reportId, getViewerExecutionParams]
+        [reportId, getViewerExecutionParams, t]
     );
 
     // Use virtual infinite scroll hook
@@ -1089,6 +1112,9 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
                         "Error fetching report data"
                     )}
                 </Typography>
+                <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                    {error.message}
+                </Typography>
             </Paper>
         );
     }
@@ -1233,6 +1259,8 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
                     }
                     selectedTables={reportConfig?.tables ?? []}
                     tables={allTables}
+                    formulas={reportConfig?.formulas || []}
+                    isGrouped={isGroupedReportConfig(reportConfig || {})}
                     onApply={handleFilterApply}
                 />
             )}

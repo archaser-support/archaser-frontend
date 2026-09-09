@@ -34,6 +34,7 @@ import {
 } from "@/shared/reportFormula/parser";
 import {
     FORMULA_AGGREGATION_TYPES,
+    FORMULA_FILTER_TABLE,
     type FormulaResultFormat,
     type ReportFormula,
 } from "@/shared/reportFormula/types";
@@ -42,11 +43,13 @@ import {
     validateFormulaDraft,
 } from "@/shared/reportFormula/validateFormulaDraft";
 
+import FormulaHelpDialog from "./FormulaHelpDialog";
+
 const SCROLL_CONTAINER_ID = "formula-upsert-modal-scroll";
 const DIALOG_HEIGHT_FRACTION = 0.62;
 
 /** Pseudo object name for formula operands in the insert picker. */
-export const FORMULA_OPERAND_OBJECT_NAME = "__formulas__";
+export const FORMULA_OPERAND_OBJECT_NAME = FORMULA_FILTER_TABLE;
 
 export type FormulaOperandOption = {
     reference: string;
@@ -201,6 +204,12 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
                     defaultValue: "Percentage",
                 }),
             },
+            {
+                value: "yes_no",
+                label: t("formulas.format_yes_no", {
+                    defaultValue: "Yes/No",
+                }),
+            },
         ],
         [t]
     );
@@ -228,6 +237,7 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
     const [selectedOperandReference, setSelectedOperandReference] =
         useState("");
     const [selectedTableName, setSelectedTableName] = useState("");
+    const [helpOpen, setHelpOpen] = useState(false);
 
     const selectedFormatOption = useMemo(
         () => formatOptions.find((option) => option.value === formatDraft),
@@ -265,10 +275,25 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
                 return false;
             }
             if (formatDraft === "currency") {
-                return o.formulaFormat === "currency";
+                // Currency, number, and Yes/No (raw 1/0) formulas can feed amount math.
+                return (
+                    o.formulaFormat === "currency" ||
+                    o.formulaFormat === "number" ||
+                    o.formulaFormat === "yes_no"
+                );
             }
             if (formatDraft === "percentage") {
-                return o.formulaFormat === "percentage";
+                return (
+                    o.formulaFormat === "percentage" ||
+                    o.formulaFormat === "number" ||
+                    o.formulaFormat === "yes_no"
+                );
+            }
+            if (formatDraft === "yes_no") {
+                return (
+                    o.formulaFormat === "yes_no" ||
+                    o.formulaFormat === "number"
+                );
             }
             return true;
         });
@@ -301,6 +326,7 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
 
     useEffect(() => {
         if (!open) {
+            setHelpOpen(false);
             return;
         }
         if (mode === "edit" && initialFormula) {
@@ -323,6 +349,7 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
         setValidationWarning(null);
         setSelectedOperandReference("");
         setSelectedTableName(tableOptions[0]?.name ?? "");
+        setHelpOpen(false);
     }, [open, mode, initialFormula, defaultLabel, existingFormulas, tableOptions]);
 
     const insertOperand = useCallback(
@@ -391,7 +418,7 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
         operandOptions.length === 0
             ? t("formulas.no_operands_hint", {
                   defaultValue:
-                      "Select numeric report fields first, then build your expression.",
+                      "Select numeric or date report fields first, then build your expression.",
               })
             : formatFilteredOperandOptions.length === 0
               ? t("formulas.no_operands_for_format", {
@@ -401,7 +428,7 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
                 })
               : t("formulas.expression_hint", {
                     defaultValue:
-                        "Use [Table.field], numbers, + - * / and parentheses. Registration fee (of premium): [Invoice.amount] * [Customer.cost_percent] * [Customer.registration_fee_percent]. Insurance Fee Rate and Registration Fee are percentages automatically (do not divide by 100).",
+                        "Use [Table.field], numbers, dates (2026-03-01), + - * / , compare operators (= != < > <= >=), and parentheses. Registration fee (of premium): [Invoice.amount] * [Customer.cost_percent] * [Customer.registration_fee_percent]. Insurance Fee Rate and Registration Fee are percentages automatically (do not divide by 100).",
                 });
 
     const redundantPercentDivisionWarning = useMemo(() => {
@@ -447,6 +474,7 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
     const displayedWarning = validationWarning || redundantPercentDivisionWarning;
 
     return (
+        <>
         <AppDialog
             open={open}
             onClose={onClose}
@@ -472,6 +500,15 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
             }}
             actions={
                 <>
+                    <Button
+                        onClick={() => setHelpOpen(true)}
+                        variant="outlined"
+                        size="small"
+                        fullWidth={false}
+                        sx={{ marginInlineEnd: "auto" }}
+                    >
+                        {t("formulas.help", { defaultValue: "Help" })}
+                    </Button>
                     <Button
                         onClick={onClose}
                         variant="outlined"
@@ -812,6 +849,11 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
                 </ModalScrollBox>
             </Box>
         </AppDialog>
+        <FormulaHelpDialog
+            open={helpOpen}
+            onClose={() => setHelpOpen(false)}
+        />
+        </>
     );
 };
 

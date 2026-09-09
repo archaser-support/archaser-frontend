@@ -14,8 +14,31 @@ import {
 } from "@/shared/reportFormula/types";
 import { getFieldOutputKey, type Field } from "@/utils/reportTableUtils";
 
-/** Metadata field types eligible as formula operands (numeric / amount). */
+/** Metadata field types eligible as formula operands (numeric / amount / date / datetime). */
 export function isFormulaOperandFieldType(fieldType?: string): boolean {
+    if (!fieldType) {
+        return false;
+    }
+    const t = fieldType.toLowerCase();
+    return (
+        t === "number" ||
+        t === "decimal" ||
+        t === "integer" ||
+        t === "amount" ||
+        t === "currency" ||
+        t === "percentage" ||
+        t === "date" ||
+        t === "datetime"
+    );
+}
+
+/** Date-only or date-and-time report fields (compare operands). */
+export function isFormulaDateOperandFieldType(fieldType?: string): boolean {
+    const t = (fieldType || "").toLowerCase();
+    return t === "date" || t === "datetime";
+}
+
+export function isFormulaNumericOperandFieldType(fieldType?: string): boolean {
     if (!fieldType) {
         return false;
     }
@@ -83,13 +106,24 @@ export function isFormulaOperandEligibleForFormat(
 
     switch (format) {
         case "currency":
-            return isFormulaCurrencySourceField(
-                tableName,
-                fieldName,
-                metadataTables
+            // Amount fields plus dates so mixed `(date = date) * amount` works.
+            return (
+                isFormulaCurrencySourceField(
+                    tableName,
+                    fieldName,
+                    metadataTables
+                ) || isFormulaDateOperandFieldType(fieldMeta.type)
             );
         case "percentage":
-            return isFormulaPercentageOperandField(fieldName, fieldMeta);
+            return (
+                isFormulaPercentageOperandField(fieldName, fieldMeta) ||
+                isFormulaDateOperandFieldType(fieldMeta.type)
+            );
+        case "yes_no":
+            return (
+                isFormulaDateOperandFieldType(fieldMeta.type) ||
+                isFormulaNumericOperandFieldType(fieldMeta.type)
+            );
         case "number":
         default:
             return true;
