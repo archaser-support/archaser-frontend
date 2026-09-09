@@ -21,6 +21,7 @@ import { appendDashboardBusinessUnitId } from "@/shared/dashboard/dashboardBusin
 
 import { FinancialDashboardChartCard } from "./FinancialDashboardChartCard";
 import AppUrls from "@/utils/appUrls";
+import { pushFinancialChartDetails } from "@/shared/dashboard/financialChartDetailsTitle";
 import {
     formatAmountWithoutSymbol,
     formatCurrencyWithRTLSupport,
@@ -64,8 +65,11 @@ const AgingOverduePortfolio = ({
                 }),
                 businessUnitId
             );
-            router.push(
-                `/${locale}${AppUrls.DASHBOARD}/chart-details?${searchParams.toString()}`
+            pushFinancialChartDetails(
+                router,
+                `/${locale}${AppUrls.DASHBOARD}/chart-details?${searchParams.toString()}`,
+                t,
+                locale
             );
         }, 0);
     };
