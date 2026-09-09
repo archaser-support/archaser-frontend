@@ -53,6 +53,7 @@ import {
     type ReportFilterRow,
     type ReportMetadataTable,
     resolveLegacyFieldOutputKey,
+    resolveReportPrimaryTable,
 } from "@/utils/reportTableUtils";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), {
@@ -131,9 +132,19 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
 
     const hasReportFilters = (reportConfig?.filters?.length ?? 0) > 0;
 
+    // Same grain rule as execution: context → primaryTable → tables[0] → Customer.
+    // Do not use fields[0].table — column order must not imply primary.
     const primaryTableName = useMemo(() => {
-        return reportConfig?.fields?.[0]?.table || "Customer";
-    }, [reportConfig?.fields]);
+        return resolveReportPrimaryTable({
+            context: storedReportContext,
+            primaryTable: reportConfig?.primaryTable,
+            tables: reportConfig?.tables,
+        });
+    }, [
+        storedReportContext,
+        reportConfig?.primaryTable,
+        reportConfig?.tables,
+    ]);
 
     // Initialize sortModel from reportConfig.sorting if available
     // The sort field format should match: alias || table.field || field

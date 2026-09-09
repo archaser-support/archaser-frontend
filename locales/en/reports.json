@@ -82,10 +82,14 @@
         "create_view": "Create View",
         "clone_view": "Clone View",
         "set_as_default": "Set as Default",
+        "set_as_primary": "Set as primary",
         "create_new_report": "Create New Report",
         "edit_report": "Edit Report",
         "delete_report": "Delete Report",
         "share_button": "Share"
+    },
+    "labels": {
+        "primary_table": "Primary"
     },
     "messages": {
         "error_fetching_data": "Error fetching reports",
@@ -246,7 +250,9 @@
         "set_as_default": "When enabled, this report will be set as the default for this page. All other reports for this page will be unset as default.",
         "shared_report": "This report has been shared with you",
         "you_are_sharing_this_report": "You are sharing this report",
-        "add_share": "Add share"
+        "add_share": "Add share",
+        "primary_table": "This table is the report grain (one row per record).",
+        "set_as_primary": "Use this table as the report grain without removing fields."
     },
     "validation": {
         "name_required": "Report name is required",

@@ -13,6 +13,7 @@ import { useTheme, alpha } from "@mui/material/styles";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { useDroppable } from "@dnd-kit/core";
+import { getRTLTooltipProps } from "@/utils/reportFieldUtils";
 
 interface Table {
     name: string;
@@ -35,9 +36,13 @@ interface Join {
 interface TableCanvasProps {
     tables: Table[];
     joins: Join[];
+    /** Explicit report grain; falls back to tables[0] when unset. */
+    primaryTable?: string | null;
     onTableRemove: (tableName: string) => void;
     onTableDrop: (table: Table) => void;
     onJoinCreate?: (join: Join) => void;
+    /** Set another selected table as report grain without removing fields. */
+    onSetPrimary?: (tableName: string) => void;
 }
 
 const DroppableCanvas: React.FC<{
@@ -70,9 +75,19 @@ const DroppableCanvas: React.FC<{
 
 const TableCard: React.FC<{
     table: Table;
+    isPrimary: boolean;
+    canSetPrimary: boolean;
     onRemove: () => void;
+    onSetPrimary?: () => void;
     isDragging?: boolean;
-}> = ({ table, onRemove, isDragging }) => {
+}> = ({
+    table,
+    isPrimary,
+    canSetPrimary,
+    onRemove,
+    onSetPrimary,
+    isDragging,
+}) => {
     const theme = useTheme();
     const { t, i18n } = useTranslation(["reports", "common"]);
 
@@ -81,7 +96,11 @@ const TableCard: React.FC<{
             elevation={0}
             sx={{
                 p: 1.5,
-                border: `1px solid ${theme.palette.divider}`,
+                border: `1px solid ${
+                    isPrimary
+                        ? theme.palette.primary.main
+                        : theme.palette.divider
+                }`,
                 borderRadius: 1,
                 display: "flex",
                 flexDirection: "column",
@@ -90,7 +109,9 @@ const TableCard: React.FC<{
                 minWidth: 200,
                 maxWidth: 250,
                 opacity: isDragging ? 0.5 : 1,
-                bgcolor: "background.paper",
+                bgcolor: isPrimary
+                    ? alpha(theme.palette.primary.main, 0.04)
+                    : "background.paper",
                 transition: "all 0.2s ease",
                 "&:hover": {
                     borderColor: theme.palette.primary.main,
@@ -132,23 +153,7 @@ const TableCard: React.FC<{
                 >
                     <Tooltip
                         title={t("actions.remove_table", "Remove table")}
-                        arrow
-                        enterDelay={300}
-                        leaveDelay={100}
-                        placement="bottom"
-                        PopperProps={{
-                            sx: {
-                                "& .MuiTooltip-tooltip": {
-                                    direction:
-                                        i18n.language === "he" ? "rtl" : "ltr",
-                                },
-                                "& .MuiTooltip-arrow": {
-                                    ...(i18n.language === "he" && {
-                                        transform: "scaleX(-1)",
-                                    }),
-                                },
-                            },
-                        }}
+                        {...getRTLTooltipProps(i18n)}
                     >
                         <IconButton
                             size="small"
@@ -168,18 +173,67 @@ const TableCard: React.FC<{
                     </Tooltip>
                 </Box>
             </Box>
+            <Box
+                sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    width: "100%",
+                    flexWrap: "wrap",
+                }}
+            >
+                {isPrimary ? (
+                    <Tooltip
+                        title={t(
+                            "tooltips.primary_table",
+                            "This table is the report grain (one row per record)."
+                        )}
+                        {...getRTLTooltipProps(i18n)}
+                    >
+                        <Chip
+                            label={t("labels.primary_table", "Primary")}
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                        />
+                    </Tooltip>
+                ) : canSetPrimary && onSetPrimary ? (
+                    <Tooltip
+                        title={t(
+                            "tooltips.set_as_primary",
+                            "Use this table as the report grain without removing fields."
+                        )}
+                        {...getRTLTooltipProps(i18n)}
+                    >
+                        <Chip
+                            label={t(
+                                "actions.set_as_primary",
+                                "Set as primary"
+                            )}
+                            size="small"
+                            variant="outlined"
+                            onClick={onSetPrimary}
+                            clickable
+                        />
+                    </Tooltip>
+                ) : null}
+            </Box>
         </Paper>
     );
 };
 
 const TableCanvas: React.FC<TableCanvasProps> = ({
     tables,
-    joins,
+    primaryTable,
     onTableRemove,
-    onTableDrop,
+    onSetPrimary,
 }) => {
     const { t } = useTranslation(["reports", "common"]);
-    const theme = useTheme();
+    const resolvedPrimary =
+        primaryTable && tables.some((table) => table.name === primaryTable)
+            ? primaryTable
+            : tables[0]?.name;
+    const canSetPrimary = tables.length > 1 && !!onSetPrimary;
 
     return (
         <Box
@@ -270,8 +324,18 @@ const TableCanvas: React.FC<TableCanvasProps> = ({
                                     <TableCard
                                         key={table.name}
                                         table={table}
+                                        isPrimary={
+                                            table.name === resolvedPrimary
+                                        }
+                                        canSetPrimary={canSetPrimary}
                                         onRemove={() =>
                                             onTableRemove(table.name)
+                                        }
+                                        onSetPrimary={
+                                            onSetPrimary
+                                                ? () =>
+                                                      onSetPrimary(table.name)
+                                                : undefined
                                         }
                                     />
                                 ))}
