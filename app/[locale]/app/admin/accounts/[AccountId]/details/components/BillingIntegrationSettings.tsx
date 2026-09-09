@@ -5,9 +5,13 @@ import {
     Box,
     Checkbox,
     CircularProgress,
+    FormControl,
     FormControlLabel,
+    InputLabel,
+    MenuItem,
     Radio,
     RadioGroup,
+    Select,
     Typography,
 } from "@mui/material";
 import type { ConnectorAuthType, ImportType } from "@/types/db";
@@ -30,6 +34,7 @@ import {
     saveBillingConnectorConfig,
     testBillingConnectorConnection,
     type BillingConnectorConfig,
+    type ImportCacheDaySummary,
     type ImportCacheEntityType,
     type ImportCacheRun,
     type PreviewSyncResponse,
@@ -244,6 +249,9 @@ const BillingIntegrationSettings = forwardRef<
     const [cacheSuggestionRuns, setCacheSuggestionRuns] = useState<
         ImportCacheRun[]
     >([]);
+    const [cacheSuggestionDays, setCacheSuggestionDays] = useState<
+        ImportCacheDaySummary[]
+    >([]);
     const [cacheSuggestionSelectedExecutionId, setCacheSuggestionSelectedExecutionId] =
         useState<string | null>(null);
     const [cacheSuggestionSelection, setCacheSuggestionSelection] = useState<
@@ -255,9 +263,14 @@ const BillingIntegrationSettings = forwardRef<
     const [cacheSuggestionCacheDay, setCacheSuggestionCacheDay] = useState<
         string | null
     >(null);
+    const [cacheSuggestionCustomerId, setCacheSuggestionCustomerId] = useState<
+        number | null
+    >(null);
     const [cacheSuggestionTimeZone, setCacheSuggestionTimeZone] = useState<
         string | null
     >(null);
+    const [cacheSuggestionDayLoading, setCacheSuggestionDayLoading] =
+        useState(false);
     const [cacheCheckPending, setCacheCheckPending] = useState(false);
     /** Carried from cache dialog into Start / clear-before confirm. */
     const pendingUseCachedImportRef = useRef<
@@ -314,11 +327,14 @@ const BillingIntegrationSettings = forwardRef<
         setClearBeforeStartDialogOpen(false);
         setCacheSuggestionDialogOpen(false);
         setCacheSuggestionRuns([]);
+        setCacheSuggestionDays([]);
         setCacheSuggestionSelectedExecutionId(null);
         setCacheSuggestionSelection({});
         setCacheSuggestionMode(null);
         setCacheSuggestionCacheDay(null);
+        setCacheSuggestionCustomerId(null);
         setCacheSuggestionTimeZone(null);
+        setCacheSuggestionDayLoading(false);
         setCacheCheckPending(false);
         pendingUseCachedImportRef.current = undefined;
     }, [accountId]);
@@ -1406,6 +1422,7 @@ const BillingIntegrationSettings = forwardRef<
                         customer_id: args.customerId,
                     }
                 );
+                const days = check.days ?? [];
                 const runsWithEntities = (check.runs ?? []).filter((run) =>
                     run.entities.some(
                         (entity) =>
@@ -1413,13 +1430,19 @@ const BillingIntegrationSettings = forwardRef<
                             enabledEntities.includes(entity.import_type)
                     )
                 );
-                if (runsWithEntities.length === 0) {
+                if (days.length === 0 || runsWithEntities.length === 0) {
                     pendingUseCachedImportRef.current = undefined;
                     args.onNoCache();
                     return;
                 }
+                setCacheSuggestionDays(days);
                 setCacheSuggestionRuns(runsWithEntities);
-                setCacheSuggestionCacheDay(check.cache_day);
+                setCacheSuggestionCacheDay(
+                    check.cache_day ?? days[0]?.cache_day ?? null
+                );
+                setCacheSuggestionCustomerId(
+                    typeof args.customerId === "number" ? args.customerId : null
+                );
                 setCacheSuggestionTimeZone(check.time_zone);
                 setCacheSuggestionMode(args.mode);
                 applyCacheRunSelection(runsWithEntities[0]);
@@ -1434,6 +1457,57 @@ const BillingIntegrationSettings = forwardRef<
             }
         },
         [accountId, enabledEntities, applyCacheRunSelection]
+    );
+
+    const handleCacheSuggestionDayChange = useCallback(
+        async (nextDay: string) => {
+            if (
+                !cacheSuggestionMode ||
+                !nextDay ||
+                nextDay === cacheSuggestionCacheDay
+            ) {
+                return;
+            }
+            setCacheSuggestionDayLoading(true);
+            setCacheSuggestionCacheDay(nextDay);
+            setCacheSuggestionRuns([]);
+            applyCacheRunSelection(undefined);
+            try {
+                const check = await fetchBillingConnectorImportCacheCheck(
+                    accountId,
+                    {
+                        mode: cacheSuggestionMode,
+                        customer_id: cacheSuggestionCustomerId,
+                        cache_day: nextDay,
+                    }
+                );
+                if (check.days?.length) {
+                    setCacheSuggestionDays(check.days);
+                }
+                const runsWithEntities = (check.runs ?? []).filter((run) =>
+                    run.entities.some(
+                        (entity) =>
+                            entity.available &&
+                            enabledEntities.includes(entity.import_type)
+                    )
+                );
+                setCacheSuggestionRuns(runsWithEntities);
+                applyCacheRunSelection(runsWithEntities[0]);
+            } catch {
+                setCacheSuggestionRuns([]);
+                applyCacheRunSelection(undefined);
+            } finally {
+                setCacheSuggestionDayLoading(false);
+            }
+        },
+        [
+            accountId,
+            cacheSuggestionMode,
+            cacheSuggestionCacheDay,
+            cacheSuggestionCustomerId,
+            enabledEntities,
+            applyCacheRunSelection,
+        ]
     );
 
     const handlePrimaryAction = () => {
@@ -1594,15 +1668,52 @@ const BillingIntegrationSettings = forwardRef<
     ]);
 
     const handleCacheSuggestionCancel = useCallback(() => {
+        // Skip cache → full ERP (H8). Same path as Continue with nothing checked.
+        const mode = cacheSuggestionMode;
         setCacheSuggestionDialogOpen(false);
         setCacheSuggestionMode(null);
         setCacheSuggestionRuns([]);
+        setCacheSuggestionDays([]);
         setCacheSuggestionSelectedExecutionId(null);
         setCacheSuggestionSelection({});
         setCacheSuggestionCacheDay(null);
+        setCacheSuggestionCustomerId(null);
         setCacheSuggestionTimeZone(null);
+        setCacheSuggestionDayLoading(false);
         pendingUseCachedImportRef.current = undefined;
-    }, []);
+        if (mode === "incremental") {
+            proceedIncrementalStart({ use_cached_import: [] });
+            return;
+        }
+        if (mode !== "backfill") {
+            return;
+        }
+        const clearBeforeImport = resolveClearBeforeImportPayload({
+            session: clearBeforeImportSession,
+            enabledEntities,
+        });
+        const customerId = clearBeforeImportCustomerId;
+        if (
+            shouldConfirmStartBackfillClear({
+                clearBeforeImport,
+                customerId,
+            })
+        ) {
+            setClearBeforeStartDialogOpen(true);
+            return;
+        }
+        proceedBackfillStart({
+            ...(customerId != null ? { customer_id: customerId } : {}),
+            use_cached_import: [],
+        });
+    }, [
+        cacheSuggestionMode,
+        clearBeforeImportSession,
+        clearBeforeImportCustomerId,
+        enabledEntities,
+        proceedBackfillStart,
+        proceedIncrementalStart,
+    ]);
 
     const selectedCacheRun = useMemo(
         () =>
@@ -1642,28 +1753,71 @@ const BillingIntegrationSettings = forwardRef<
         return (
             <Box display="flex" flexDirection="column" gap={1.5}>
                 <Typography variant="body2">
-                    {cacheSuggestionCacheDay
-                        ? `Same-day backups (${cacheSuggestionCacheDay}) are available. Pick a run, then select entities to load from that run's cache. Leave all unchecked to fetch from the ERP.`
-                        : "Same-day backups are available. Pick a run, then select entities to load from that run's cache. Leave all unchecked to fetch from the ERP."}
+                    Import backups within the 6-month retention window are
+                    available. Pick a day, then a run, then select entities to
+                    load from that run&apos;s cache. Leave all unchecked (or
+                    cancel) to fetch everything from the ERP.
                 </Typography>
-                <RadioGroup
-                    value={cacheSuggestionSelectedExecutionId ?? ""}
-                    onChange={(e) => {
-                        const run = cacheSuggestionRuns.find(
-                            (item) => item.execution_id === e.target.value
-                        );
-                        applyCacheRunSelection(run);
-                    }}
-                >
-                    {cacheSuggestionRuns.map((run) => (
-                        <FormControlLabel
-                            key={run.execution_id}
-                            value={run.execution_id}
-                            control={<Radio />}
-                            label={`${formatRunTime(run.created_at)} — ${formatRunEntityCounts(run) || "no entities"}`}
-                        />
-                    ))}
-                </RadioGroup>
+                {cacheSuggestionDays.length > 0 ? (
+                    <FormControl fullWidth size="small">
+                        <InputLabel id="cache-suggestion-day-label">
+                            Cache day
+                        </InputLabel>
+                        <Select
+                            labelId="cache-suggestion-day-label"
+                            label="Cache day"
+                            value={cacheSuggestionCacheDay ?? ""}
+                            disabled={cacheSuggestionDayLoading}
+                            onChange={(e) => {
+                                void handleCacheSuggestionDayChange(
+                                    String(e.target.value)
+                                );
+                            }}
+                        >
+                            {cacheSuggestionDays.map((day) => (
+                                <MenuItem
+                                    key={day.cache_day}
+                                    value={day.cache_day}
+                                >
+                                    {day.cache_day}
+                                    {day.run_count > 0
+                                        ? ` (${day.run_count} run${day.run_count === 1 ? "" : "s"})`
+                                        : ""}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                ) : null}
+                {cacheSuggestionDayLoading ? (
+                    <Box display="flex" justifyContent="center" py={1}>
+                        <CircularProgress size={24} />
+                    </Box>
+                ) : (
+                    <RadioGroup
+                        value={cacheSuggestionSelectedExecutionId ?? ""}
+                        onChange={(e) => {
+                            const run = cacheSuggestionRuns.find(
+                                (item) => item.execution_id === e.target.value
+                            );
+                            applyCacheRunSelection(run);
+                        }}
+                    >
+                        {cacheSuggestionRuns.map((run) => (
+                            <FormControlLabel
+                                key={run.execution_id}
+                                value={run.execution_id}
+                                control={<Radio />}
+                                label={`${formatRunTime(run.created_at)} — ${formatRunEntityCounts(run) || "no entities"}`}
+                            />
+                        ))}
+                    </RadioGroup>
+                )}
+                {!cacheSuggestionDayLoading &&
+                cacheSuggestionRuns.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                        No selectable runs on this day.
+                    </Typography>
+                ) : null}
                 {selectedCacheRun ? (
                     <Box display="flex" flexDirection="column" gap={0.5}>
                         {selectedCacheRun.entities
@@ -1704,13 +1858,16 @@ const BillingIntegrationSettings = forwardRef<
         );
     }, [
         cacheSuggestionRuns,
+        cacheSuggestionDays,
         cacheSuggestionSelectedExecutionId,
         cacheSuggestionSelection,
         cacheSuggestionCacheDay,
         cacheSuggestionTimeZone,
+        cacheSuggestionDayLoading,
         selectedCacheRun,
         enabledEntities,
         applyCacheRunSelection,
+        handleCacheSuggestionDayChange,
     ]);
 
     const clearBeforeStartConfirmCopy = useMemo(() => {
@@ -2267,10 +2424,10 @@ const BillingIntegrationSettings = forwardRef<
                 isOpen={cacheSuggestionDialogOpen}
                 onClose={handleCacheSuggestionCancel}
                 onConfirm={handleCacheSuggestionConfirm}
-                title="Use today's import backup?"
+                title="Use import backup?"
                 description={cacheSuggestionDescription}
                 confirmLabel="Continue"
-                cancelLabel="Cancel"
+                cancelLabel="Skip cache / fetch from ERP"
                 isLoading={
                     backfillMutation.isPending || incrementalMutation.isPending
                 }
