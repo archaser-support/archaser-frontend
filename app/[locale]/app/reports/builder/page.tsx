@@ -3,7 +3,6 @@
 import {
     DndContext,
     DragEndEvent,
-    DragOverEvent,
     DragOverlay,
     DragStartEvent,
     PointerSensor,
@@ -46,6 +45,7 @@ import FormulaColumnEditor, {
     type FormulaColumnEditorHandle,
 } from "@/components/reports/FormulaColumnEditor";
 import GroupingBuilder from "@/components/reports/GroupingBuilder";
+import TableCanvas from "@/components/reports/TableCanvas";
 import { useSessionState } from "@/hooks/useSessionState";
 import {
     buildDashboardChartDetailsReturnPath,
@@ -77,6 +77,12 @@ import {
     resolveFormulaValidationMessage,
     validateAllReportFormulas,
 } from "@/shared/reportFormula/validateFormulaDraft";
+import {
+    FORMULA_FILTER_GROUPING_CONFLICT_CODE,
+    ORPHAN_FORMULA_FILTER_CODE,
+    findOrphanFormulaFilterIndexes,
+    getFormulaFilterGuardFailure,
+} from "@/shared/reportFormula/validateFormulaFilterGuards";
 import { getViewConfig, MAIN_REPORTS_MENU_CONTEXT } from "@/shared/utils/viewConfigs";
 import type { ReportConfig } from "@/types/reports";
 import { apiFetch } from "@/utils/apiFetch";
@@ -86,7 +92,10 @@ import {
     dedupeReportFieldOutputKeys,
     getFieldOutputKey,
     getForbiddenGroupingKeysForAggregatedFields,
-    isReportFilterValueIncomplete,
+    resolveNextReportPrimaryTable,
+    resolveReportTablesPreservingPrimary,
+    syncReportTablesWithPrimary,
+    validateReportFilters,
 } from "@/utils/reportTableUtils";
 
 /** Same join inference as autoDetectJoins useMemo; used at hydrate time so we do not rely on selectedTables state. */
@@ -407,7 +416,7 @@ const ReportBuilderPage: React.FC = () => {
     };
 
     // Handle drag over for better visual feedback
-    const handleDragOver = (event: DragOverEvent) => {
+    const handleDragOver = () => {
         // This helps with drop detection
     };
 
@@ -480,10 +489,48 @@ const ReportBuilderPage: React.FC = () => {
         }
 
         setSelectedTables([...selectedTables, table]);
+        setReportConfig((prev) => {
+            const isFirstTable = (prev.tables || []).length === 0;
+            const nextTables = [...(prev.tables || []), table.name];
+            return {
+                ...prev,
+                tables: isFirstTable
+                    ? syncReportTablesWithPrimary(nextTables, table.name)
+                    : nextTables,
+                // Grain is set when the first table is added via the selector,
+                // not when the first column is dragged onto the canvas.
+                ...(isFirstTable ? { primaryTable: table.name } : {}),
+            };
+        });
+    };
+
+    /** Deliberately change report grain without removing fields. */
+    const handleSetPrimaryTable = (tableName: string) => {
+        if (!selectedTables.some((table) => table.name === tableName)) {
+            return;
+        }
         setReportConfig((prev) => ({
             ...prev,
-            tables: [...prev.tables, table.name],
+            primaryTable: tableName,
+            tables: syncReportTablesWithPrimary(prev.tables || [], tableName),
         }));
+        setSelectedTables((prev) => {
+            if (!prev.some((table) => table.name === tableName)) {
+                return prev;
+            }
+            return [
+                ...prev.filter((table) => table.name === tableName),
+                ...prev.filter((table) => table.name !== tableName),
+            ];
+        });
+    };
+
+    /** Remove a selected table and all of its fields/filters that depend on it. */
+    const handleTableRemove = (tableName: string) => {
+        const remainingFields = (reportConfig.fields || []).filter(
+            (field) => field.table !== tableName
+        );
+        handleFieldsChange(remainingFields);
     };
 
     const handleFieldsChange = (
@@ -491,12 +538,24 @@ const ReportBuilderPage: React.FC = () => {
         columnOrderOverride?: string[]
     ) => {
         const normalizedFields = dedupeReportFieldOutputKeys(fields || []);
-        // Extract unique table names from fields
-        const activeTables = Array.from(
-            new Set(normalizedFields.map((f) => f.table))
+        // Tables still used by fields — membership only. Order must preserve
+        // primary (`tables[0]`): column reorder must not flip Customer/Invoice root.
+        const activeTableSet = new Set(
+            normalizedFields.map((f) => f.table).filter(Boolean)
         );
 
         setReportConfig((prev) => {
+            const preferredPrimary =
+                prev.primaryTable || prev.tables?.[0] || null;
+            const activeTables = resolveReportTablesPreservingPrimary(
+                prev.tables || [],
+                activeTableSet,
+                preferredPrimary
+            );
+            const nextPrimaryTable = resolveNextReportPrimaryTable(
+                preferredPrimary,
+                activeTables
+            );
             const prevFields = prev.fields || [];
             const nextFieldKeys = new Set(
                 normalizedFields.map((f) => getFieldOutputKey(f))
@@ -525,21 +584,16 @@ const ReportBuilderPage: React.FC = () => {
                 return prev;
             }
 
-            // Identify tables that are being removed
-            const tablesToRemove = prev.tables.filter(
-                (t) => !activeTables.includes(t)
-            );
-
             // Clean up filters that reference removed tables
             const cleanedFilters = (prev.filters || []).filter((filter: any) =>
-                activeTables.includes(filter.table)
+                activeTableSet.has(filter.table)
             );
 
             // Clean up joins that reference removed tables
             const cleanedJoins = (prev.joins || []).filter(
                 (join: any) =>
-                    activeTables.includes(join.from) &&
-                    activeTables.includes(join.to)
+                    activeTableSet.has(join.from) &&
+                    activeTableSet.has(join.to)
             );
 
             // Clean up grouping: keys are output keys (alias or table.field), not always "table.field"
@@ -549,12 +603,12 @@ const ReportBuilderPage: React.FC = () => {
                         (f) => getFieldOutputKey(f) === groupKey
                     );
                     if (matched) {
-                        return activeTables.includes(matched.table);
+                        return activeTableSet.has(matched.table);
                     }
                     const firstDot = groupKey.indexOf(".");
                     if (firstDot !== -1) {
                         const tableName = groupKey.substring(0, firstDot);
-                        return activeTables.includes(tableName);
+                        return activeTableSet.has(tableName);
                     }
                     return false;
                 }
@@ -622,6 +676,7 @@ const ReportBuilderPage: React.FC = () => {
                 ...prev,
                 fields: normalizedFields,
                 tables: activeTables,
+                primaryTable: nextPrimaryTable,
                 filters: cleanedFilters,
                 joins: cleanedJoins,
                 grouping: nextGrouping,
@@ -636,8 +691,13 @@ const ReportBuilderPage: React.FC = () => {
             };
         });
 
-        // Update selectedTables to match active tables
-        const updatedSelectedTables = activeTables
+        // Keep table chips in sync with preserved primary order.
+        const tablesForUi = resolveReportTablesPreservingPrimary(
+            reportConfig.tables || [],
+            activeTableSet,
+            reportConfig.primaryTable || reportConfig.tables?.[0]
+        );
+        const updatedSelectedTables = tablesForUi
             .map((tableName) => {
                 const tableMetadata = metadata?.tables?.find(
                     (t: any) => t.name === tableName
@@ -666,12 +726,18 @@ const ReportBuilderPage: React.FC = () => {
             handleFieldsChange(fieldsOverride, columnOrder);
             return;
         }
+        // Display order only — re-pin tables[0] to primaryTable so reorder never
+        // drifts grain for legacy tables[0] readers.
         setReportConfig((prev) => {
             const fields = prev.fields || [];
             return {
                 ...prev,
                 columnOrder,
                 fields: syncFieldsOrderFromColumnOrder(fields, columnOrder),
+                tables: syncReportTablesWithPrimary(
+                    prev.tables || [],
+                    prev.primaryTable || prev.tables?.[0]
+                ),
             };
         });
     };
@@ -728,7 +794,15 @@ const ReportBuilderPage: React.FC = () => {
         };
 
         // Map table names to table objects for selectedTables
-        const tableNames = config.tables || [];
+        const rawTableNames = config.tables || [];
+        const hydratedPrimaryTable = resolveNextReportPrimaryTable(
+            config.primaryTable,
+            rawTableNames
+        );
+        const tableNames = syncReportTablesWithPrimary(
+            rawTableNames,
+            hydratedPrimaryTable
+        );
         const mappedTables = tableNames
             .map((tableName: string) => {
                 const tableMetadata = metadata.tables.find(
@@ -763,6 +837,8 @@ const ReportBuilderPage: React.FC = () => {
 
         const hydratedConfig: ReportConfig = {
             ...config,
+            tables: tableNames,
+            primaryTable: hydratedPrimaryTable,
             fields: config.fields ?? [],
             filters: config.filters ?? [],
             grouping: Array.isArray(config.grouping) ? config.grouping : [],
@@ -1027,33 +1103,50 @@ const ReportBuilderPage: React.FC = () => {
         }
         setFormulaValidationErrors({});
 
-        // Validate filters have values when required (between, in, equals, etc.)
-        const errors: Record<number, string> = {};
-        if (reportConfig.filters && reportConfig.filters.length > 0) {
-            reportConfig.filters.forEach((filter, index) => {
-                if (!filter.table?.trim() || !filter.field?.trim()) {
-                    errors[index] = t(
-                        "validation.filter_field_required",
-                        "Please choose a table and field for every filter, or remove unused filters."
-                    );
-                    return;
-                }
-                if (!isReportFilterValueIncomplete(filter)) {
-                    return;
-                }
-                if (filter.operator === "between") {
-                    errors[index] = t(
-                        "validation.between_filter_incomplete",
-                        "Filter with 'between' operator requires both start and end values to be filled"
-                    );
-                } else {
-                    errors[index] = t(
-                        "validation.filter_value_required",
-                        "Every filter must have a value. Choose values, switch to \"Is empty\" or \"Is not empty\" if appropriate, or remove the filter."
-                    );
-                }
-            });
+        const formulaFilterGuard = getFormulaFilterGuardFailure({
+            filters: reportConfig.filters || [],
+            formulas: reportConfig.formulas || [],
+            isGrouped: isGroupedReportConfig(reportConfig),
+        });
+        if (formulaFilterGuard === FORMULA_FILTER_GROUPING_CONFLICT_CODE) {
+            alert(
+                t("validation.formula_filter_grouping_conflict", {
+                    defaultValue:
+                        "Formula filters cannot be used with grouping. Remove the formula filter(s) or the grouping.",
+                })
+            );
+            setActiveStep(2);
+            return;
         }
+        if (formulaFilterGuard === ORPHAN_FORMULA_FILTER_CODE) {
+            const orphanErrors: Record<number, string> = {};
+            const orphanMessage = t("validation.orphan_formula_filter", {
+                defaultValue:
+                    "A filter references a formula that is not on this report. Remove or update the filter.",
+            });
+            for (const index of findOrphanFormulaFilterIndexes(
+                reportConfig.filters || [],
+                reportConfig.formulas || []
+            )) {
+                orphanErrors[index] = orphanMessage;
+            }
+            setFilterValidationErrors(orphanErrors);
+            setActiveStep(2);
+            return;
+        }
+
+        // Validate filters have values when required (between, in, equals, etc.)
+        const errors = validateReportFilters(
+            reportConfig.filters || [],
+            (key, opts) =>
+                t(key, {
+                    defaultValue:
+                        typeof opts === "string"
+                            ? opts
+                            : opts?.defaultValue,
+                }),
+            { formulas: reportConfig.formulas || [] }
+        );
 
         if (Object.keys(errors).length > 0) {
             setFilterValidationErrors(errors);
@@ -1080,7 +1173,14 @@ const ReportBuilderPage: React.FC = () => {
                 body: JSON.stringify({
                     name,
                     description: description || undefined,
-                    report_config: reportConfig,
+                    report_config: {
+                        ...reportConfig,
+                        tables: syncReportTablesWithPrimary(
+                            reportConfig.tables || [],
+                            reportConfig.primaryTable ||
+                                reportConfig.tables?.[0]
+                        ),
+                    },
                     context:
                         context && context.trim() ? context.trim() : undefined,
                     is_system: isAdminAccount ? isSystem : undefined,
@@ -1108,8 +1208,29 @@ const ReportBuilderPage: React.FC = () => {
                             "messages.duplicate_report_name",
                             "A report with this name already exists. Please choose a different name."
                         );
+                    } else if (
+                        errorData.errorCode ===
+                        FORMULA_FILTER_GROUPING_CONFLICT_CODE
+                    ) {
+                        errorMessage = t(
+                            "validation.formula_filter_grouping_conflict",
+                            {
+                                defaultValue:
+                                    "Formula filters cannot be used with grouping. Remove the formula filter(s) or the grouping.",
+                            }
+                        );
+                    } else if (
+                        errorData.errorCode === ORPHAN_FORMULA_FILTER_CODE
+                    ) {
+                        errorMessage = t(
+                            "validation.orphan_formula_filter",
+                            {
+                                defaultValue:
+                                    "A filter references a formula that is not on this report. Remove or update the filter.",
+                            }
+                        );
                     }
-                } catch (e) {
+                } catch {
                     // If response is not JSON, use status text
                     errorMessage = response.statusText || errorMessage;
                 }
@@ -1522,6 +1643,30 @@ const ReportBuilderPage: React.FC = () => {
             ),
             component: (
                 <Box>
+                    {selectedTables.length > 0 && (
+                        <Box sx={{ mb: 2 }}>
+                            <TableCanvas
+                                tables={selectedTables}
+                                joins={(reportConfig.joins || []).map(
+                                    (join) => ({
+                                        from: join.from,
+                                        to: join.to,
+                                        fromField: join.on || "",
+                                        toField: join.on || "",
+                                        type: join.type || "LEFT",
+                                    })
+                                )}
+                                primaryTable={
+                                    reportConfig.primaryTable ||
+                                    reportConfig.tables?.[0] ||
+                                    selectedTables[0]?.name
+                                }
+                                onTableRemove={handleTableRemove}
+                                onTableDrop={handleTableDrop}
+                                onSetPrimary={handleSetPrimaryTable}
+                            />
+                        </Box>
+                    )}
                     <DragDropFieldSelector
                         selectedTables={selectedTables}
                         tables={tables}
@@ -1583,6 +1728,7 @@ const ReportBuilderPage: React.FC = () => {
                 <FilterBuilder
                     selectedTables={reportConfig.tables}
                     tables={allTables}
+                    formulas={reportConfig.formulas || []}
                     filters={reportConfig.filters || []}
                     onFiltersChange={handleFiltersChange}
                     validationErrors={filterValidationErrors}
