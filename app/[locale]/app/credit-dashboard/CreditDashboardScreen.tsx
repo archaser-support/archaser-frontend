@@ -46,6 +46,7 @@ import { CreditMetricCard } from "./CreditMetricCard";
 import { CreditPolicyUsageChart } from "./CreditPolicyUsageChart";
 import { CreditTermsBreachBarChart } from "./CreditTermsBreachBarChart";
 import { CreditPolicyLimitUsageTrendChart } from "./CreditPolicyLimitUsageTrendChart";
+import { formatPortfolioMoney } from "../credit-portfolio-health/formatPortfolioMoney";
 import { applyCreditReportDocumentTitle } from "./report/creditReportTitles";
 import { isCreditReportType } from "./report/creditReportTypes";
 
@@ -279,6 +280,7 @@ export function CreditDashboardScreen({
     };
 
     const showTopUpMetrics = s.hasTopUpPolicies && s.topUp != null;
+    const currency = s.accountCurrency || "USD";
 
     const notificationBannerSx = {
         display: "flex",
@@ -531,8 +533,9 @@ export function CreditDashboardScreen({
                                         "credit_insurance_dashboard.total_receivables",
                                         { ns: "dashboard" }
                                     )}
-                                    value={fmt(
+                                    value={formatPortfolioMoney(
                                         s.totalReceivables,
+                                        currency,
                                         language
                                     )}
                                     tooltip={t(
@@ -549,8 +552,9 @@ export function CreditDashboardScreen({
                                         "credit_insurance_dashboard.compliant_exposure",
                                         { ns: "dashboard" }
                                     )}
-                                    value={fmt(
+                                    value={formatPortfolioMoney(
                                         s.compliantExposure,
+                                        currency,
                                         language
                                     )}
                                     tooltip={t(
@@ -567,8 +571,9 @@ export function CreditDashboardScreen({
                                         "credit_insurance_dashboard.at_risk_exposure",
                                         { ns: "dashboard" }
                                     )}
-                                    value={fmt(
+                                    value={formatPortfolioMoney(
                                         s.atRiskExposure,
+                                        currency,
                                         language
                                     )}
                                     tooltip={t(
@@ -730,8 +735,9 @@ export function CreditDashboardScreen({
                                                 "credit_insurance_dashboard.active_top_up_cover",
                                                 { ns: "dashboard" }
                                             )}
-                                            value={fmt(
+                                            value={formatPortfolioMoney(
                                                 s.topUp.activeCoverTotal,
+                                                currency,
                                                 language
                                             )}
                                             footnote={
@@ -744,10 +750,11 @@ export function CreditDashboardScreen({
                                                             count: s.topUp
                                                                 .coverDeclinedDueToLimit
                                                                 .customerCount,
-                                                            amount: fmt(
+                                                            amount: formatPortfolioMoney(
                                                                 s.topUp
                                                                     .coverDeclinedDueToLimit
                                                                     .coverLostTotal,
+                                                                currency,
                                                                 language
                                                             ),
                                                         }
@@ -851,8 +858,9 @@ export function CreditDashboardScreen({
                                             "credit_insurance_dashboard.capacity_gap",
                                             { ns: "dashboard" }
                                         )}
-                                        value={fmt(
+                                        value={formatPortfolioMoney(
                                             s.capacityGap.totalAmount,
+                                            currency,
                                             language
                                         )}
                                         secondaryLine={t(
@@ -906,8 +914,9 @@ export function CreditDashboardScreen({
                                             "credit_insurance_dashboard.terms_breach",
                                             { ns: "dashboard" }
                                         )}
-                                        value={fmt(
+                                        value={formatPortfolioMoney(
                                             s.termsBreach.totalAmount,
+                                            currency,
                                             language
                                         )}
                                         secondaryLine={t(
@@ -934,8 +943,9 @@ export function CreditDashboardScreen({
                                             "credit_insurance_dashboard.no_policy_exposure",
                                             { ns: "dashboard" }
                                         )}
-                                        value={fmt(
+                                        value={formatPortfolioMoney(
                                             s.withoutPolicy.totalAmount,
+                                            currency,
                                             language
                                         )}
                                         secondaryLine={t(
