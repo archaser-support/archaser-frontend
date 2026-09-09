@@ -12,6 +12,9 @@ export function getMetricStatCardBorderRadius(theme: Theme) {
     return theme.spacing(3);
 }
 
+/** Absolute card-icon tile size (metric + credit chart headers). */
+export const METRIC_STAT_CARD_ICON_SIZE_PX = 40;
+
 const METRIC_STAT_CARD_ICON_BG: Record<
     MetricStatCardIconAccent,
     { light: string; dark: string }
@@ -83,8 +86,8 @@ function buildCreditDashboardChartCardStyles(
             alignItems: "stretch",
             width: "100%",
             minWidth: 0,
-            // Clear the absolutely positioned icon tile (top 14px + 48px height)
-            minHeight: `calc(48px + ${theme.spacing(1.75)})`,
+            // Clear the absolutely positioned icon tile (top 14px + icon height)
+            minHeight: `calc(${METRIC_STAT_CARD_ICON_SIZE_PX}px + ${theme.spacing(1.75)})`,
             mb: theme.spacing(1),
         }),
     };
@@ -120,9 +123,9 @@ function metricCardHorizontalRow(
     };
 }
 
-/** Horizontal inset for text beside the 48px absolutely positioned icon tile. */
+/** Horizontal inset for text beside the absolutely positioned icon tile. */
 function metricIconTextGutter(theme: Theme, isRtl: boolean): SystemStyleObject<Theme> {
-    const reserve = `calc(48px + ${theme.spacing(1.75)} + ${theme.spacing(0.5)})`;
+    const reserve = `calc(${METRIC_STAT_CARD_ICON_SIZE_PX}px + ${theme.spacing(1.75)} + ${theme.spacing(0.5)})`;
     return {
         boxSizing: "border-box",
         ...(isRtl
@@ -213,10 +216,10 @@ function buildMetricStatCardStyles(): MetricStatCardThemeStyles {
                     ? METRIC_STAT_CARD_ICON_BG[key].light
                     : METRIC_STAT_CARD_ICON_BG[key].dark;
             return {
-                width: 48,
-                height: 48,
+                width: METRIC_STAT_CARD_ICON_SIZE_PX,
+                height: METRIC_STAT_CARD_ICON_SIZE_PX,
                 background: bg,
-                borderRadius: "10px",
+                borderRadius: "6px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -228,7 +231,7 @@ function buildMetricStatCardStyles(): MetricStatCardThemeStyles {
                 transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
                 "& .MuiSvgIcon-root": {
                     color: "#FFFFFF",
-                    fontSize: "2rem",
+                    fontSize: "1.375rem",
                 },
             };
         },
