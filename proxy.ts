@@ -1,19 +1,19 @@
+import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { i18nRouter } from "next-i18n-router";
-import { NextRequest, NextResponse } from "next/server";
 
 import i18nConfig from "./i18nConfig";
 import { getDefaultLandingPage } from "./shared/utils/navigation";
-import { isSuspiciousPayload } from "./utils/payloadScanner";
-import { getSecurityHeaders } from "./utils/securityHeaders";
 import {
     authCookiesAreSecure,
     getCookieName,
     getCookieNameCandidates,
     sessionSecret,
 } from "./utils/authUtils";
+import { isSuspiciousPayload } from "./utils/payloadScanner";
+import { getSecurityHeaders } from "./utils/securityHeaders";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     const host = request.headers.get("host");
     const pathname = request.nextUrl.pathname;
 
@@ -260,7 +260,7 @@ export async function middleware(request: NextRequest) {
     return response;
 }
 
-// Apply middleware to protect both pages and API routes
+// Apply proxy to protect both pages and API routes
 export const config = {
     matcher: [
         "/((?!api|_next/static|_next/image|assets|favicon.ico|grafana).*)", // Protect all non-static routes, exclude assets
