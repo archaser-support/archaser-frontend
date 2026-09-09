@@ -24,7 +24,6 @@ import { Trans, useTranslation } from "react-i18next";
 
 import PageHeader from "@/components/PageHeader";
 import BusinessUnitDashboardFilter from "@/shared/components/BusinessUnitDashboardFilter";
-import { CreditInsuranceNavIcon } from "@/shared/components/CreditInsuranceNavIcon";
 import type { CreditDashboardHistoryDelta, CreditDashboardHistoryInterval, CreditDashboardHistoryPoint, CreditDashboardMonthPct } from "@/types/creditInsurance";
 import type { CustomerPolicyUsageTrendResponse } from "@/types/creditInsurance";
 import type { CreditDashboardSummary } from "@/types/creditInsurance";
@@ -47,6 +46,8 @@ import { CreditMetricCard } from "./CreditMetricCard";
 import { CreditPolicyUsageChart } from "./CreditPolicyUsageChart";
 import { CreditTermsBreachBarChart } from "./CreditTermsBreachBarChart";
 import { CreditPolicyLimitUsageTrendChart } from "./CreditPolicyLimitUsageTrendChart";
+import { applyCreditReportDocumentTitle } from "./report/creditReportTitles";
+import { isCreditReportType } from "./report/creditReportTypes";
 
 function fmt(n: number, language: string): string {
     return new Intl.NumberFormat(
@@ -121,6 +122,22 @@ export function CreditDashboardScreen({
     const pageDescription = t("credit_insurance_dashboard.page_description", {
         ns: "dashboard",
     });
+
+    const navigateToReport = (path: string) => {
+        // Safari records the session-history title at navigation time; set it
+        // before router.push so back-list entries are not stuck on "ARchaser".
+        try {
+            const typeParam = new URL(path, "http://local").searchParams.get(
+                "type"
+            );
+            if (typeParam && isCreditReportType(typeParam)) {
+                applyCreditReportDocumentTitle(t, typeParam);
+            }
+        } catch {
+            // ignore URL parse errors; navigation still proceeds
+        }
+        onNavigateReport(path);
+    };
 
     const dashboardShellSx = {
         display: "flex",
@@ -621,6 +638,9 @@ export function CreditDashboardScreen({
                                         delta={historyDelta}
                                         interval={trendInterval}
                                         historyDays={historyDays}
+                                        accountCurrency={
+                                            s.accountCurrency || "USD"
+                                        }
                                         onIntervalChange={onTrendIntervalChange}
                                     />
                                 </Box>
@@ -665,7 +685,7 @@ export function CreditDashboardScreen({
                                     changePct={monthPct?.reportingCountdownInvoiceCount}
                                     changePolarity="up-is-bad"
                                     onClick={() =>
-                                        onNavigateReport(reportHref("reporting"))
+                                        navigateToReport(reportHref("reporting"))
                                     }
                                 />
                                 <CreditMetricCard
@@ -696,7 +716,7 @@ export function CreditDashboardScreen({
                                     changePct={monthPct?.limitWarningsCustomerCount}
                                     changePolarity="up-is-bad"
                                     onClick={() =>
-                                        onNavigateReport(
+                                        navigateToReport(
                                             reportHref("limit_warning")
                                         )
                                     }
@@ -752,7 +772,7 @@ export function CreditDashboardScreen({
                                                 { ns: "dashboard" }
                                             )}
                                             onClick={() =>
-                                                onNavigateReport(
+                                                navigateToReport(
                                                     reportHref(
                                                         "top_up",
                                                         (s.topUp
@@ -789,7 +809,7 @@ export function CreditDashboardScreen({
                                         { ns: "dashboard" }
                                     )}
                                     onClick={() =>
-                                        onNavigateReport(
+                                        navigateToReport(
                                             reportHref("zero_limit_warning")
                                         )
                                     }
@@ -810,7 +830,7 @@ export function CreditDashboardScreen({
                                 <CreditTermsBreachBarChart
                                     countByReason={s.termsBreach.countByReason}
                                     onOpenReport={() =>
-                                        onNavigateReport(reportHref("terms"))
+                                        navigateToReport(reportHref("terms"))
                                     }
                                 />
                                 <Box
@@ -850,7 +870,7 @@ export function CreditDashboardScreen({
                                         changePct={monthPct?.capacityGapTotalAmount}
                                         changePolarity="up-is-bad"
                                         onClick={() =>
-                                            onNavigateReport(reportHref("capacity"))
+                                            navigateToReport(reportHref("capacity"))
                                         }
                                     />
                                     <CreditMetricCard
@@ -876,7 +896,7 @@ export function CreditDashboardScreen({
                                         changePct={monthPct?.overdueBlockCustomerCount}
                                         changePolarity="up-is-bad"
                                         onClick={() =>
-                                            onNavigateReport(reportHref("overdue"))
+                                            navigateToReport(reportHref("overdue"))
                                         }
                                     />
                                     <CreditMetricCard
@@ -904,7 +924,7 @@ export function CreditDashboardScreen({
                                         changePct={monthPct?.termsBreachTotalAmount}
                                         changePolarity="up-is-bad"
                                         onClick={() =>
-                                            onNavigateReport(reportHref("terms"))
+                                            navigateToReport(reportHref("terms"))
                                         }
                                     />
                                     <CreditMetricCard
@@ -938,7 +958,7 @@ export function CreditDashboardScreen({
                                         }
                                         changePolarity="up-is-bad"
                                         onClick={() =>
-                                            onNavigateReport(
+                                            navigateToReport(
                                                 reportHref("no_policy_exposure")
                                             )
                                         }

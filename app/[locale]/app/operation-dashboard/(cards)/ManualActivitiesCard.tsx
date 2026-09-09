@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { CreditMetricCard } from "@/app/[locale]/app/credit-dashboard/CreditMetricCard";
 import { useDashboardBusinessUnitId } from "@/shared/dashboard/DashboardBusinessUnitContext";
 
-import { buildOperationDashboardDetailsUrl } from "../operationDashboardDetailsUrl";
+import { pushOperationDashboardDetails } from "../operationDashboardDetailsUrl";
 
 type ManualActivitiesCardProps = {
     count?: number;
@@ -33,13 +33,15 @@ const ManualActivitiesCard = ({
             label={t("fields.manual_activities", { ns: "activities" })}
             value={count.toLocaleString()}
             onClick={() =>
-                router.push(
-                    buildOperationDashboardDetailsUrl("manual-activities", {
+                pushOperationDashboardDetails(
+                    router,
+                    t,
+                    "manual-activities", {
                         startDate,
                         endDate,
                         selectedUserId,
                         businessUnitId,
-                    })
+                    }
                 )
             }
         />

@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { CreditMetricCard } from "@/app/[locale]/app/credit-dashboard/CreditMetricCard";
 import { useDashboardBusinessUnitId } from "@/shared/dashboard/DashboardBusinessUnitContext";
 
-import { buildOperationDashboardDetailsUrl } from "../operationDashboardDetailsUrl";
+import { pushOperationDashboardDetails } from "../operationDashboardDetailsUrl";
 
 type OpenDisputesCardProps = {
     count?: number;
@@ -33,13 +33,15 @@ const OpenDisputesCard = ({
             label={t("fields.open_disputes", { ns: "disputes" })}
             value={count.toLocaleString()}
             onClick={() =>
-                router.push(
-                    buildOperationDashboardDetailsUrl("open-disputes", {
+                pushOperationDashboardDetails(
+                    router,
+                    t,
+                    "open-disputes", {
                         startDate,
                         endDate,
                         selectedUserId,
                         businessUnitId,
-                    })
+                    }
                 )
             }
         />

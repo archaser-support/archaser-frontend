@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { CreditMetricCard } from "@/app/[locale]/app/credit-dashboard/CreditMetricCard";
 import { useDashboardBusinessUnitId } from "@/shared/dashboard/DashboardBusinessUnitContext";
 
-import { buildOperationDashboardDetailsUrl } from "../operationDashboardDetailsUrl";
+import { pushOperationDashboardDetails } from "../operationDashboardDetailsUrl";
 
 type AutomationStuckCardProps = {
     count?: number;
@@ -33,13 +33,15 @@ const AutomationStuckCard = ({
             label={t("fields.automation_stuck", { ns: "common" })}
             value={count.toLocaleString()}
             onClick={() =>
-                router.push(
-                    buildOperationDashboardDetailsUrl("automation-stuck", {
+                pushOperationDashboardDetails(
+                    router,
+                    t,
+                    "automation-stuck", {
                         startDate,
                         endDate,
                         selectedUserId,
                         businessUnitId,
-                    })
+                    }
                 )
             }
         />

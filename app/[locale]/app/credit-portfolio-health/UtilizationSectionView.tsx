@@ -29,6 +29,7 @@ import { useParams, useRouter } from "next/navigation";
 
 import type { PortfolioUtilizationSection, UtilizationDistributionBinKey } from "@/types/creditInsurance";
 import { appendDashboardBusinessUnitId } from "@/shared/dashboard/dashboardBusinessUnitParams";
+import { applyCreditReportDocumentTitle } from "../credit-dashboard/report/creditReportTitles";
 import { formatPortfolioMoney } from "./formatPortfolioMoney";
 import { BigNumber } from "./BigNumber";
 import { ChartTooltip } from "./ChartTooltip";
@@ -366,6 +367,7 @@ export function UtilizationSectionView({
             sp.set("includeNoPolicyExposure", "0");
         }
         appendDashboardBusinessUnitId(sp, businessUnitId);
+        applyCreditReportDocumentTitle(t, "utilization_bin");
         router.push(`/${locale}/app/credit-dashboard/report?${sp.toString()}`);
     };
 
