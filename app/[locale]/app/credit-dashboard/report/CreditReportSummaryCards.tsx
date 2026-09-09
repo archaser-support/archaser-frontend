@@ -38,8 +38,9 @@ export function CreditReportSummaryCards({
                 n,
                 accountCurrency,
                 userLocale,
-                i18n.language
-            ),
+                i18n.language,
+                { wholeNumbers: true }
+                        ),
         [accountCurrency, userLocale, i18n.language]
     );
 

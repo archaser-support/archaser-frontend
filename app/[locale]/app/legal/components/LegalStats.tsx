@@ -73,8 +73,9 @@ const LegalStats: React.FC<LegalStatsProps> = ({ statsData, statsLoading }) => {
                           Number(counts?.totalAmount ?? 0),
                           currencyCode,
                           locale,
-                          i18n.language
-                      ),
+                          i18n.language,
+                          { wholeNumbers: true }
+                        ),
         },
     ];
 

@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
 import StatCard, {
     StatCardGrid,
 } from "@/shared/layout-components/stats/StatCard";
-import { formatAmountWithoutSymbol } from "@/utils/stringFormatters";
+import { formatAmountWithoutSymbolWhole } from "@/utils/stringFormatters";
 
 export type StatConfig = {
     key: string;
@@ -131,7 +131,7 @@ export const createStatConfigs = (data: any): StatConfig[] => {
             value: data.counts.total_outstanding_amount,
             icon: <STAT_ICONS.MONEY />,
             status: "warning",
-            formatter: formatAmountWithoutSymbol,
+            formatter: formatAmountWithoutSymbolWhole,
         });
     }
 

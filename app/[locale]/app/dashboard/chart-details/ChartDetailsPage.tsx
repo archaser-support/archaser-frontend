@@ -854,7 +854,8 @@ export default function ChartDetailsPage({ params }: ChartDetailsProps) {
             amount,
             currency,
             userLocale, // Use user locale for number formatting
-            i18n.language // Use i18n language for RTL/LTR placement
+            i18n.language, // Use i18n language for RTL/LTR placement
+            { wholeNumbers: true }
         );
     };
 

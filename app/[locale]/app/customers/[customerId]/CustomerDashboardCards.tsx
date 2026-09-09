@@ -31,7 +31,7 @@ import { resolveCapacityGapDisplayAmounts } from "@/shared/creditInsurance/invoi
 import { resolveCustomerDetailDashboardUx } from "@/shared/customerDetailDashboardUx";
 import { currencies } from "@/shared/data/common/currencies";
 import { Customer } from "@/types/Customer";
-import { formatAmountWithoutSymbol } from "@/utils/stringFormatters";
+import { formatAmountWithoutSymbolWhole } from "@/utils/stringFormatters";
 
 import {
     buildDashboardCardContract,
@@ -182,7 +182,7 @@ function formatDualCurrencyCreditInsuranceLine(
 ): string {
     const amountLocale = langHebrew ? "he-IL" : "en-US";
     const acctSym = getCurrencySymbol(accountCurrency);
-    const main = formatAmountWithoutSymbol(accountAmount, amountLocale);
+    const main = formatAmountWithoutSymbolWhole(accountAmount, amountLocale);
     const mainPart = formatCurrencyAmountPart(langHebrew, main, acctSym);
     if (
         secondaryCurrency &&
@@ -190,7 +190,7 @@ function formatDualCurrencyCreditInsuranceLine(
         Number.isFinite(secondaryAmount)
     ) {
         const secSym = getCurrencySymbol(secondaryCurrency);
-        const sec = formatAmountWithoutSymbol(secondaryAmount, amountLocale);
+        const sec = formatAmountWithoutSymbolWhole(secondaryAmount, amountLocale);
         const secPart = formatCurrencyAmountPart(langHebrew, sec, secSym);
         return `${secPart} (${mainPart})`;
     }
@@ -453,7 +453,7 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
             if (amount == null || !Number.isFinite(amount)) {
                 return "—";
             }
-            const base = formatAmountWithoutSymbol(amount, locale);
+            const base = formatAmountWithoutSymbolWhole(amount, locale);
             const symbol = getCurrencySymbol(accountCurrency ?? "");
             if (!symbol) {
                 return base;

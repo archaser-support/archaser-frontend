@@ -51,7 +51,8 @@ const TotalDueCard = ({ count = 0, currency = "USD" }: TotalDueCardProps) => {
                 count || 0,
                 currency,
                 locale,
-                i18n.language
+                i18n.language,
+                { wholeNumbers: true }
             )}
             tooltip={t("tooltips.financial_metric_total_due")}
             onClick={handleCardClick}

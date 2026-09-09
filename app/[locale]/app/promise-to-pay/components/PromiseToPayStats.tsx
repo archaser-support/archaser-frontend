@@ -97,8 +97,9 @@ const PromiseToPayStats: React.FC<PromiseToPayStatsProps> = ({
                               Number(counts?.total_outstanding_amount ?? 0),
                               currency,
                               locale,
-                              i18n.language
-                          ),
+                              i18n.language,
+                              { wholeNumbers: true }
+                        ),
             },
         ],
         [
