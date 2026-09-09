@@ -51,6 +51,7 @@ import {
     buildDashboardChartDetailsReturnPath,
     isDashboardChartDetailsReportContext,
 } from "@/shared/dashboard/dashboardInvoiceBuilderReturn";
+import { applyFinancialChartDetailsDocumentTitleFromHref } from "@/shared/dashboard/financialChartDetailsTitle";
 import {
     DASHBOARD_ACTIVITIES_CONTEXT,
     DASHBOARD_CUSTOMERS_CONTEXT,
@@ -63,6 +64,7 @@ import {
     buildOperationDashboardDetailsReturnPath,
     isOperationDashboardDetailsReportContext,
 } from "@/shared/dashboard/dashboardOperationBuilderReturn";
+import { applyOperationDashboardDetailsDocumentTitle } from "@/shared/dashboard/operationDashboardDetailsNavigation";
 import {
     getFormulaOperandReference,
     isGroupedReportConfig,
@@ -1172,25 +1174,40 @@ const ReportBuilderPage: React.FC = () => {
                 } else if (effectiveContext === MAIN_REPORTS_MENU_CONTEXT) {
                     router.push(`/${locale}${AppUrls.REPORT_DETAILS(savedReportId)}`);
                 } else if (isDashboardChartDetailsReportContext(effectiveContext)) {
-                    router.push(
-                        buildDashboardChartDetailsReturnPath(
-                            locale,
-                            searchParams ?? new URLSearchParams(),
-                            savedReportId,
-                            effectiveContext
-                        )
+                    const chartDetailsHref = buildDashboardChartDetailsReturnPath(
+                        locale,
+                        searchParams ?? new URLSearchParams(),
+                        savedReportId,
+                        effectiveContext
                     );
+                    applyFinancialChartDetailsDocumentTitleFromHref(
+                        t,
+                        chartDetailsHref,
+                        locale
+                    );
+                    router.push(chartDetailsHref);
                 } else if (
                     isOperationDashboardDetailsReportContext(effectiveContext)
                 ) {
-                    router.push(
+                    const operationDetailsHref =
                         buildOperationDashboardDetailsReturnPath(
                             locale,
                             searchParams ?? new URLSearchParams(),
                             savedReportId,
                             effectiveContext
-                        )
-                    );
+                        );
+                    try {
+                        const type = new URL(
+                            operationDetailsHref,
+                            "http://local"
+                        ).searchParams.get("type");
+                        if (type) {
+                            applyOperationDashboardDetailsDocumentTitle(t, type);
+                        }
+                    } catch {
+                        // ignore
+                    }
+                    router.push(operationDetailsHref);
                 } else if (effectiveContext.startsWith("customer_") && customerId) {
                     // Redirect back to customer detail page with tab and reportId if available
                     const queryParams = new URLSearchParams();

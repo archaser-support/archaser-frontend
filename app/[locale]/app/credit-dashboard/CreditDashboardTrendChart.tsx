@@ -14,8 +14,11 @@ import { useSession } from "next-auth/react";
 import { memo, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
+import { CPH } from "@/app/[locale]/app/credit-portfolio-health/designTokens";
+import { ExposureTrendLinesChart } from "@/app/[locale]/app/credit-portfolio-health/ExposureTrendLinesChart";
 import type { CreditDashboardHistoryDelta, CreditDashboardHistoryInterval, CreditDashboardHistoryPoint } from "@/types/creditInsurance";
 import {
+    formatDateForDisplay,
     getUserDateLocale,
     getUserTimezone,
 } from "@/utils/datetimeOperations";
@@ -26,7 +29,7 @@ import {
     CREDIT_DASHBOARD_COMPACT_CHART_HEIGHT_PX,
     CREDIT_DASHBOARD_COMPACT_ICON_TILE_BOTTOM_PX,
 } from "./creditDashboardCompactLayout";
-import { TrendLineChartSvg } from "./TrendLineChartSvg";
+import { METRIC_STAT_CARD_ICON_SIZE_PX } from "@/app/theme/metricStatCard";
 
 const TREND_CHART_HEIGHT_FULL = 352;
 
@@ -37,6 +40,8 @@ export type CreditDashboardTrendChartProps = {
     onIntervalChange: (interval: CreditDashboardHistoryInterval) => void;
     /** Snapshot window requested for the chart (30 days for daily and weekly). */
     historyDays: number;
+    /** Account currency for axis / tooltip money formatting. */
+    accountCurrency: string;
     /** Shorter chart for inline layout beside the health index */
     compact?: boolean;
 };
@@ -72,6 +77,20 @@ function sanitizeWeeklyDisplaySeries(
     return pruned;
 }
 
+function formatChartDate(
+    snapshotDate: string,
+    dateLocale: string,
+    userTimezone: string,
+    isWeekly: boolean
+): string {
+    const date = new Date(`${snapshotDate}T12:00:00.000Z`);
+    /** Weekly axis uses calendar dates only — avoid TZ shifting the day. */
+    if (isWeekly) {
+        return formatDateForDisplay(date, "date", dateLocale, "UTC");
+    }
+    return formatDateForDisplay(date, "date", dateLocale, userTimezone);
+}
+
 function fmtSigned(
     value: number | null,
     language: string,
@@ -90,6 +109,7 @@ function CreditDashboardTrendChartInner({
     interval,
     onIntervalChange,
     historyDays,
+    accountCurrency,
     compact = false,
 }: CreditDashboardTrendChartProps) {
     const theme = useTheme();
@@ -109,11 +129,7 @@ function CreditDashboardTrendChartInner({
 
     const c = theme.creditDashboardChartCard;
     const labelColor = isLight ? "#7C8DA1" : theme.palette.text.secondary;
-    const axisMutedColor = isLight ? "#7C8DA1" : theme.palette.text.secondary;
-    const gridLineColor = isLight ? "#DCE3EB" : theme.palette.divider;
     const primaryMain = theme.palette.primary.main;
-    const successMain = theme.palette.success.main;
-    const warningMain = theme.palette.warning.main;
     const toggleCornerRadius =
         typeof theme.shape.borderRadius === "number"
             ? `${theme.shape.borderRadius}px`
@@ -127,15 +143,48 @@ function CreditDashboardTrendChartInner({
             isWeekly ? sanitizeWeeklyDisplaySeries(series) : series,
         [isWeekly, series]
     );
-    const chartColors = [primaryMain, successMain, warningMain] as const;
+
+    const chartData = useMemo(
+        () =>
+            chartSeries.map((point) => ({
+                label: formatChartDate(
+                    point.snapshotDate,
+                    dateLocale,
+                    userTimezone,
+                    isWeekly
+                ),
+                total: point.totalReceivables,
+                covered: point.compliantExposure,
+                uncovered: point.atRiskExposure,
+            })),
+        [chartSeries, dateLocale, isWeekly, userTimezone]
+    );
+
+    const seriesLabels = useMemo(
+        () => ({
+            total: t(
+                "credit_insurance_dashboard.trend_series_total_receivables",
+                nsDashboard
+            ),
+            covered: t(
+                "credit_insurance_dashboard.trend_series_compliant_exposure",
+                nsDashboard
+            ),
+            uncovered: t(
+                "credit_insurance_dashboard.trend_series_at_risk_exposure",
+                nsDashboard
+            ),
+        }),
+        [t]
+    );
 
     const ledgerColorByDeltaId: Record<
         "totalReceivables" | "compliantExposure" | "atRiskExposure",
         string
     > = {
-        totalReceivables: primaryMain,
-        compliantExposure: successMain,
-        atRiskExposure: warningMain,
+        totalReceivables: CPH.seriesSlate,
+        compliantExposure: CPH.good,
+        atRiskExposure: CPH.critical,
     };
 
     const trendTitle = useMemo(() => {
@@ -250,33 +299,6 @@ function CreditDashboardTrendChartInner({
         </ToggleButtonGroup>
     );
 
-    const legendItems = useMemo(
-        () => [
-            {
-                color: primaryMain,
-                label: t(
-                    "credit_insurance_dashboard.trend_series_total_receivables",
-                    nsDashboard
-                ),
-            },
-            {
-                color: successMain,
-                label: t(
-                    "credit_insurance_dashboard.trend_series_compliant_exposure",
-                    nsDashboard
-                ),
-            },
-            {
-                color: warningMain,
-                label: t(
-                    "credit_insurance_dashboard.trend_series_at_risk_exposure",
-                    nsDashboard
-                ),
-            },
-        ],
-        [primaryMain, successMain, t, warningMain]
-    );
-
     const deltaStatItems = useMemo(
         () => [
             {
@@ -388,7 +410,7 @@ function CreditDashboardTrendChartInner({
                                   zIndex: 2,
                                   boxSizing: "border-box",
                                   minHeight: CREDIT_DASHBOARD_COMPACT_ICON_TILE_BOTTOM_PX,
-                                  paddingInlineEnd: `calc(48px + ${theme.spacing(1.75)} + ${theme.spacing(0.5)})`,
+                                  paddingInlineEnd: `calc(${METRIC_STAT_CARD_ICON_SIZE_PX}px + ${theme.spacing(1.75)} + ${theme.spacing(0.5)})`,
                                   direction: isHebrew ? "rtl" : "ltr",
                               }
                             : {
@@ -537,51 +559,6 @@ function CreditDashboardTrendChartInner({
                         </Typography>
                     ) : null}
                 </Box>
-                {series.length > 0 && !compact ? (
-                    <Box
-                        sx={{
-                            display: "flex",
-                            flexWrap: "wrap",
-                            alignItems: "center",
-                            gap: { xs: 1, sm: 1.5 },
-                            mb: 0.75,
-                            pl: `calc(${theme.spacing(8)} + ${theme.spacing(0.5)})`,
-                        }}
-                    >
-                        {legendItems.map((item) => (
-                            <Box
-                                key={item.label}
-                                sx={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: 0.5,
-                                    minWidth: 0,
-                                }}
-                            >
-                                <Box
-                                    sx={{
-                                        width: 18,
-                                        height: 3,
-                                        borderRadius: 1,
-                                        bgcolor: item.color,
-                                        flexShrink: 0,
-                                    }}
-                                />
-                                <Typography
-                                    variant="caption"
-                                    sx={{
-                                        color: labelColor,
-                                        fontSize: compact ? "0.65rem" : "0.72rem",
-                                        lineHeight: 1.2,
-                                        whiteSpace: "nowrap",
-                                    }}
-                                >
-                                    {item.label}
-                                </Typography>
-                            </Box>
-                        ))}
-                    </Box>
-                ) : null}
                 {series.length > 0 ? (
                     <Box
                         className="credit-dashboard-trend-chart"
@@ -605,23 +582,14 @@ function CreditDashboardTrendChartInner({
                                   }),
                         }}
                     >
-                        <TrendLineChartSvg
-                            key={interval}
-                            series={chartSeries}
-                            colors={chartColors}
-                            seriesLabels={[
-                                legendItems[0].label,
-                                legendItems[1].label,
-                                legendItems[2].label,
-                            ]}
-                            axisColor={axisMutedColor}
-                            gridColor={gridLineColor}
+                        <ExposureTrendLinesChart
+                            data={chartData}
+                            height={plotHeight}
+                            currency={accountCurrency}
                             language={language}
-                            dateLocale={dateLocale}
-                            userTimezone={userTimezone}
-                            isWeekly={isWeekly}
-                            displayHeight={plotHeight}
-                            xLabelRotationDeg={38}
+                            seriesLabels={seriesLabels}
+                            showLegend={!compact}
+                            minTickGap={isWeekly ? 16 : 28}
                         />
                     </Box>
                 ) : (
@@ -642,6 +610,7 @@ export const CreditDashboardTrendChart = memo(
     (prev, next) =>
         prev.interval === next.interval &&
         prev.historyDays === next.historyDays &&
+        prev.accountCurrency === next.accountCurrency &&
         prev.compact === next.compact &&
         prev.series === next.series &&
         prev.delta === next.delta &&

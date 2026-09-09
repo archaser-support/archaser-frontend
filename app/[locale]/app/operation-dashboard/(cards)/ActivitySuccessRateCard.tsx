@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { CreditMetricCard } from "@/app/[locale]/app/credit-dashboard/CreditMetricCard";
 import { useDashboardBusinessUnitId } from "@/shared/dashboard/DashboardBusinessUnitContext";
 
-import { buildOperationDashboardDetailsUrl } from "../operationDashboardDetailsUrl";
+import { pushOperationDashboardDetails } from "../operationDashboardDetailsUrl";
 
 type ActivitySuccessRateCardProps = {
     successRate?: number;
@@ -38,13 +38,15 @@ const ActivitySuccessRateCard = ({
                     "Formula: (Delivered Activities + Completed Activities) / Total Activities × 100. Only activities with DELIVERED or COMPLETED status are considered successful.",
             })}
             onClick={() =>
-                router.push(
-                    buildOperationDashboardDetailsUrl("activity-success-rate", {
+                pushOperationDashboardDetails(
+                    router,
+                    t,
+                    "activity-success-rate", {
                         startDate,
                         endDate,
                         selectedUserId,
                         businessUnitId,
-                    })
+                    }
                 )
             }
         />
