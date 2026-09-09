@@ -303,6 +303,7 @@
         "policy_usage_bar_dcl_sdl_limits": "ניצול מסגרות DCL/SDL",
         "policy_usage_bar_dcl_sdl_limits_short": "מסגרות DCL/SDL",
         "policy_usage_bar_top_up_cover": "כיסוי השלמה",
+        "policy_usage_bar_top_up_cover_short": "השלמה",
         "active_top_up_cover": "כיסוי השלמה פעיל",
         "active_top_up_cover_footnote": "{{count}} לקוחות עם השלמה פעילה",
         "active_top_up_cover_footnote_declined": "כיסוי ירד ב-{{amount}} — {{count}} לקוחות (ירידה במגבול מאושר)",

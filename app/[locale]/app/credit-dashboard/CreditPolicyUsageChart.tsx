@@ -159,12 +159,12 @@ export function CreditPolicyUsageChart(props: {
             labels.push(
                 t("credit_insurance_dashboard.policy_usage_bar_top_up_cover_short", {
                     ...nsDashboard,
-                    defaultValue: isRtl ? "×”×©×œ×ž×”" : "Top-Up",
+                    defaultValue: "Top-Up",
                 })
             );
         }
         return labels;
-    }, [baseCategories, isRtl, showTopUpBar, t]);
+    }, [baseCategories, showTopUpBar, t]);
 
     const usagePctByIndex = showTopUpBar
         ? [...usagePctBase, usagePctTopUp]
@@ -448,7 +448,7 @@ export function CreditPolicyUsageChart(props: {
     );
 
     const policyUsageCaption = useMemo(
-        () => categoryFullLabels.join(" Â· "),
+        () => categoryFullLabels.join(" · "),
         [categoryFullLabels]
     );
 

@@ -303,6 +303,7 @@
         "policy_usage_bar_dcl_sdl_limits": "DCL/SDL Limits Usage",
         "policy_usage_bar_dcl_sdl_limits_short": "DCL/SDL Limits",
         "policy_usage_bar_top_up_cover": "Top-Up Cover",
+        "policy_usage_bar_top_up_cover_short": "Top-Up",
         "active_top_up_cover": "Active Top-Up Cover",
         "active_top_up_cover_footnote": "{{count}} customers with active top-up",
         "active_top_up_cover_footnote_declined": "Cover down {{amount}} — {{count}} customers (approved limit reduced)",
