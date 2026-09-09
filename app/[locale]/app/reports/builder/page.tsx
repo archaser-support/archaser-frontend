@@ -92,7 +92,10 @@ import {
     dedupeReportFieldOutputKeys,
     getFieldOutputKey,
     getForbiddenGroupingKeysForAggregatedFields,
-    isReportFilterValueIncomplete,
+    resolveNextReportPrimaryTable,
+    resolveReportTablesPreservingPrimary,
+    syncReportTablesWithPrimary,
+    validateReportFilters,
 } from "@/utils/reportTableUtils";
 
 /** Same join inference as autoDetectJoins useMemo; used at hydrate time so we do not rely on selectedTables state. */
@@ -486,10 +489,48 @@ const ReportBuilderPage: React.FC = () => {
         }
 
         setSelectedTables([...selectedTables, table]);
+        setReportConfig((prev) => {
+            const isFirstTable = (prev.tables || []).length === 0;
+            const nextTables = [...(prev.tables || []), table.name];
+            return {
+                ...prev,
+                tables: isFirstTable
+                    ? syncReportTablesWithPrimary(nextTables, table.name)
+                    : nextTables,
+                // Grain is set when the first table is added via the selector,
+                // not when the first column is dragged onto the canvas.
+                ...(isFirstTable ? { primaryTable: table.name } : {}),
+            };
+        });
+    };
+
+    /** Deliberately change report grain without removing fields. */
+    const handleSetPrimaryTable = (tableName: string) => {
+        if (!selectedTables.some((table) => table.name === tableName)) {
+            return;
+        }
         setReportConfig((prev) => ({
             ...prev,
-            tables: [...prev.tables, table.name],
+            primaryTable: tableName,
+            tables: syncReportTablesWithPrimary(prev.tables || [], tableName),
         }));
+        setSelectedTables((prev) => {
+            if (!prev.some((table) => table.name === tableName)) {
+                return prev;
+            }
+            return [
+                ...prev.filter((table) => table.name === tableName),
+                ...prev.filter((table) => table.name !== tableName),
+            ];
+        });
+    };
+
+    /** Remove a selected table and all of its fields/filters that depend on it. */
+    const handleTableRemove = (tableName: string) => {
+        const remainingFields = (reportConfig.fields || []).filter(
+            (field) => field.table !== tableName
+        );
+        handleFieldsChange(remainingFields);
     };
 
     const handleFieldsChange = (
@@ -497,12 +538,24 @@ const ReportBuilderPage: React.FC = () => {
         columnOrderOverride?: string[]
     ) => {
         const normalizedFields = dedupeReportFieldOutputKeys(fields || []);
-        // Extract unique table names from fields
-        const activeTables = Array.from(
-            new Set(normalizedFields.map((f) => f.table))
+        // Tables still used by fields — membership only. Order must preserve
+        // primary (`tables[0]`): column reorder must not flip Customer/Invoice root.
+        const activeTableSet = new Set(
+            normalizedFields.map((f) => f.table).filter(Boolean)
         );
 
         setReportConfig((prev) => {
+            const preferredPrimary =
+                prev.primaryTable || prev.tables?.[0] || null;
+            const activeTables = resolveReportTablesPreservingPrimary(
+                prev.tables || [],
+                activeTableSet,
+                preferredPrimary
+            );
+            const nextPrimaryTable = resolveNextReportPrimaryTable(
+                preferredPrimary,
+                activeTables
+            );
             const prevFields = prev.fields || [];
             const nextFieldKeys = new Set(
                 normalizedFields.map((f) => getFieldOutputKey(f))
@@ -623,6 +676,7 @@ const ReportBuilderPage: React.FC = () => {
                 ...prev,
                 fields: normalizedFields,
                 tables: activeTables,
+                primaryTable: nextPrimaryTable,
                 filters: cleanedFilters,
                 joins: cleanedJoins,
                 grouping: nextGrouping,
@@ -637,8 +691,13 @@ const ReportBuilderPage: React.FC = () => {
             };
         });
 
-        // Update selectedTables to match active tables
-        const updatedSelectedTables = activeTables
+        // Keep table chips in sync with preserved primary order.
+        const tablesForUi = resolveReportTablesPreservingPrimary(
+            reportConfig.tables || [],
+            activeTableSet,
+            reportConfig.primaryTable || reportConfig.tables?.[0]
+        );
+        const updatedSelectedTables = tablesForUi
             .map((tableName) => {
                 const tableMetadata = metadata?.tables?.find(
                     (t: any) => t.name === tableName
@@ -667,12 +726,18 @@ const ReportBuilderPage: React.FC = () => {
             handleFieldsChange(fieldsOverride, columnOrder);
             return;
         }
+        // Display order only — re-pin tables[0] to primaryTable so reorder never
+        // drifts grain for legacy tables[0] readers.
         setReportConfig((prev) => {
             const fields = prev.fields || [];
             return {
                 ...prev,
                 columnOrder,
                 fields: syncFieldsOrderFromColumnOrder(fields, columnOrder),
+                tables: syncReportTablesWithPrimary(
+                    prev.tables || [],
+                    prev.primaryTable || prev.tables?.[0]
+                ),
             };
         });
     };
@@ -729,7 +794,15 @@ const ReportBuilderPage: React.FC = () => {
         };
 
         // Map table names to table objects for selectedTables
-        const tableNames = config.tables || [];
+        const rawTableNames = config.tables || [];
+        const hydratedPrimaryTable = resolveNextReportPrimaryTable(
+            config.primaryTable,
+            rawTableNames
+        );
+        const tableNames = syncReportTablesWithPrimary(
+            rawTableNames,
+            hydratedPrimaryTable
+        );
         const mappedTables = tableNames
             .map((tableName: string) => {
                 const tableMetadata = metadata.tables.find(
@@ -764,6 +837,8 @@ const ReportBuilderPage: React.FC = () => {
 
         const hydratedConfig: ReportConfig = {
             ...config,
+            tables: tableNames,
+            primaryTable: hydratedPrimaryTable,
             fields: config.fields ?? [],
             filters: config.filters ?? [],
             grouping: Array.isArray(config.grouping) ? config.grouping : [],
@@ -1098,7 +1173,14 @@ const ReportBuilderPage: React.FC = () => {
                 body: JSON.stringify({
                     name,
                     description: description || undefined,
-                    report_config: reportConfig,
+                    report_config: {
+                        ...reportConfig,
+                        tables: syncReportTablesWithPrimary(
+                            reportConfig.tables || [],
+                            reportConfig.primaryTable ||
+                                reportConfig.tables?.[0]
+                        ),
+                    },
                     context:
                         context && context.trim() ? context.trim() : undefined,
                     is_system: isAdminAccount ? isSystem : undefined,
@@ -1561,6 +1643,30 @@ const ReportBuilderPage: React.FC = () => {
             ),
             component: (
                 <Box>
+                    {selectedTables.length > 0 && (
+                        <Box sx={{ mb: 2 }}>
+                            <TableCanvas
+                                tables={selectedTables}
+                                joins={(reportConfig.joins || []).map(
+                                    (join) => ({
+                                        from: join.from,
+                                        to: join.to,
+                                        fromField: join.on || "",
+                                        toField: join.on || "",
+                                        type: join.type || "LEFT",
+                                    })
+                                )}
+                                primaryTable={
+                                    reportConfig.primaryTable ||
+                                    reportConfig.tables?.[0] ||
+                                    selectedTables[0]?.name
+                                }
+                                onTableRemove={handleTableRemove}
+                                onTableDrop={handleTableDrop}
+                                onSetPrimary={handleSetPrimaryTable}
+                            />
+                        </Box>
+                    )}
                     <DragDropFieldSelector
                         selectedTables={selectedTables}
                         tables={tables}
