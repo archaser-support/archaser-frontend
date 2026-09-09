@@ -408,6 +408,12 @@ export function reorderColumnOrder(
     return next;
 }
 
+/**
+ * Reorder field rows to match display `columnOrder`.
+ * Display-only: does not change report grain. Callers must keep `primaryTable`
+ * and `tables[0]` via `syncReportTablesWithPrimary` / preserve helpers — never
+ * derive primary from the first field after this sync.
+ */
 export function syncFieldsOrderFromColumnOrder(
     fields: Field[],
     columnOrder: string[]
