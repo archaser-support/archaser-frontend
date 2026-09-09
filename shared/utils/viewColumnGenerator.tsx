@@ -8,7 +8,7 @@ import React from "react";
 
 import { resolvePolicyNumberFromReportRow } from "@/shared/customerPolicyAdapter";
 import { INVOICE_CREDIT_INSURANCE_VIOLATION_FIELDS } from "./invoiceGridRowFields";
-import { getAggregationLabelSuffix, translateReportAggregationType } from "./reportAggregationHelpers";
+import { translateReportAggregationType } from "./reportAggregationHelpers";
 import {
     getFormulaByOutputKey,
     resolveReportColumnOrder,
@@ -536,9 +536,7 @@ export function generateViewColumns(
         linkHandlers = {},
         customCellRenderers = {},
         enableAggregation = false,
-        rawData,
         accountCurrency,
-        aggregationTotals,
         hideCollectionCategoryDisplay = false,
     } = options;
 
@@ -720,26 +718,12 @@ export function generateViewColumns(
             );
         }
 
-        // Add aggregation suffix if enabled
+        // Aggregation type in the header label only (e.g. "Invoices COUNT").
+        // Do not append dataset totals beside headers.
         if (enableAggregation && fieldConfig?.aggregation) {
-            const dataForAggregation = rawData || rows;
             const omitRedundantAggInHeader = !fieldConfig?.alias;
             if (omitRedundantAggInHeader && label) {
                 label = `${label} ${translateReportAggregationType(fieldConfig.aggregation, t)}`;
-            }
-            const aggregationSuffix = getAggregationLabelSuffix(
-                fieldConfig,
-                dataForAggregation,
-                key,
-                tablesMetadata,
-                i18n,
-                accountCurrency,
-                omitRedundantAggInHeader,
-                aggregationTotals,
-                t
-            );
-            if (label && aggregationSuffix) {
-                label = label + aggregationSuffix;
             }
         }
 
@@ -799,7 +783,11 @@ export function generateViewColumns(
         }
 
         // Check field types
-        const shouldFormatAmount = isAmountField(fieldConfig, tablesMetadata);
+        // COUNT is a quantity of rows, never a money amount — even when the
+        // underlying field is Invoice.amount.
+        const shouldFormatAmount =
+            fieldConfig?.aggregation !== "COUNT" &&
+            isAmountField(fieldConfig, tablesMetadata);
         const shouldFormatDate = isDateField(fieldConfig, tablesMetadata);
         const shouldTranslateEnum =
             isEnumField(fieldConfig, tablesMetadata) ||
@@ -1088,6 +1076,7 @@ export function generateViewColumns(
 
                 if (
                     shouldFormatAmount &&
+                    fieldConfig?.aggregation !== "COUNT" &&
                     displayValue !== "" &&
                     displayValue !== "-"
                 ) {
