@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { BarChart as BarChartIcon } from "@mui/icons-material";
 import { alpha, Box, Card, CardContent, Typography, useTheme } from "@mui/material";
@@ -205,7 +205,7 @@ export function CreditPolicyUsageChart(props: {
             plotOptions: {
                 bar: {
                     columnWidth: showTopUpBar ? "38%" : "48%",
-                    borderRadius: 4,
+                    borderRadius: 0,
                     dataLabels: {
                         position: "center",
                     },
@@ -268,27 +268,7 @@ export function CreditPolicyUsageChart(props: {
                 },
             },
             dataLabels: {
-                enabled: true,
-                formatter: (val: number) => {
-                    if (!Number.isFinite(val) || val === 0) {
-                        return "";
-                    }
-                    return Math.round(val).toLocaleString(numLocale);
-                },
-                style: {
-                    colors: ["#FFFFFF"],
-                    fontWeight: 600,
-                    fontSize: "11px",
-                },
-                background: {
-                    enabled: true,
-                    foreColor: "#2F3B52",
-                    borderRadius: 4,
-                    padding: 4,
-                    opacity: 0.9,
-                    borderWidth: 1,
-                    borderColor: "#ffffff",
-                },
+                enabled: false,
             },
             tooltip: {
                 shared: true,
@@ -312,8 +292,8 @@ export function CreditPolicyUsageChart(props: {
                     if (approvedLimitValue > 0) {
                         tooltipContent +=
                             `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 16px;">` +
-                            `<div style="font-weight: 600; color: #2F3B52; text-align: ${textAlign}; direction: ${direction}; flex: 1;">${approvedLimitLabel}</div>` +
-                            `<div style="color: #2F3B52; font-weight: 700; text-align: ${isRtl ? "left" : "right"}; direction: ltr;">${Math.round(approvedLimitValue).toLocaleString(numLocale)}</div>` +
+                            `<div style="font-weight: 400; color: #2F3B52; text-align: ${textAlign}; direction: ${direction}; flex: 1;">${approvedLimitLabel}</div>` +
+                            `<div style="color: #2F3B52; font-weight: 400; text-align: ${isRtl ? "left" : "right"}; direction: ltr;">${Math.round(approvedLimitValue).toLocaleString(numLocale)}</div>` +
                             `</div>`;
                     } else if (isTopUpColumn && topUpCapacity > 0) {
                         const totalCoverLabel = t(
@@ -325,8 +305,8 @@ export function CreditPolicyUsageChart(props: {
                         );
                         tooltipContent +=
                             `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 16px;">` +
-                            `<div style="font-weight: 600; color: #2F3B52; text-align: ${textAlign}; direction: ${direction}; flex: 1;">${totalCoverLabel}</div>` +
-                            `<div style="color: #2F3B52; font-weight: 700; text-align: ${isRtl ? "left" : "right"}; direction: ltr;">${Math.round(topUpCapacity).toLocaleString(numLocale)}</div>` +
+                            `<div style="font-weight: 400; color: #2F3B52; text-align: ${textAlign}; direction: ${direction}; flex: 1;">${totalCoverLabel}</div>` +
+                            `<div style="color: #2F3B52; font-weight: 400; text-align: ${isRtl ? "left" : "right"}; direction: ltr;">${Math.round(topUpCapacity).toLocaleString(numLocale)}</div>` +
                             `</div>`;
                     }
 
@@ -338,19 +318,19 @@ export function CreditPolicyUsageChart(props: {
                         if (isRtl) {
                             tooltipContent +=
                                 `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 8px; width: 100%;">` +
-                                `<div style="font-weight: 600; color: #2F3B52; text-align: right; direction: rtl; flex: 1;">${labels[index] ?? ""}</div>` +
-                                `<div style="color: ${colors[index]}; font-weight: 500; text-align: left; direction: ltr; flex-shrink: 0;">${Math.round(value).toLocaleString(numLocale)}</div>` +
+                                `<div style="font-weight: 400; color: #2F3B52; text-align: right; direction: rtl; flex: 1;">${labels[index] ?? ""}</div>` +
+                                `<div style="color: ${colors[index]}; font-weight: 400; text-align: left; direction: ltr; flex-shrink: 0;">${Math.round(value).toLocaleString(numLocale)}</div>` +
                                 `</div>`;
                         } else {
                             tooltipContent +=
                                 `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 16px;">` +
-                                `<div style="font-weight: 600; color: #2F3B52; text-align: left; direction: ltr; flex: 1;">${labels[index] ?? ""}</div>` +
-                                `<div style="color: ${colors[index]}; font-weight: 500; text-align: right; direction: ltr;">${Math.round(value).toLocaleString(numLocale)}</div>` +
+                                `<div style="font-weight: 400; color: #2F3B52; text-align: left; direction: ltr; flex: 1;">${labels[index] ?? ""}</div>` +
+                                `<div style="color: ${colors[index]}; font-weight: 400; text-align: right; direction: ltr;">${Math.round(value).toLocaleString(numLocale)}</div>` +
                                 `</div>`;
                         }
                     });
 
-                    tooltipContent += `<div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #DCE3EB; font-weight: 700; color: #2F3B52; text-align: ${textAlign}; direction: ${direction};">${usagePctLabel}: ${usagePctFormatter.format(usagePctValue)}%</div>`;
+                    tooltipContent += `<div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #DCE3EB; font-weight: 400; color: #2F3B52; text-align: ${textAlign}; direction: ${direction};">${usagePctLabel}: ${usagePctFormatter.format(usagePctValue)}%</div>`;
                     tooltipContent += "</div>";
                     return tooltipContent;
                 },
