@@ -196,7 +196,8 @@ const CollectionPhasesCard = ({
                                         ) || 0,
                                         currency,
                                         i18n.language,
-                                        i18n.language
+                                        i18n.language,
+                                        { wholeNumbers: true }
                                     )}
                                 </Typography>
                             </Box>
@@ -328,7 +329,8 @@ const CollectionPhasesCard = ({
                                         ) || 0,
                                         currency,
                                         i18n.language,
-                                        i18n.language
+                                        i18n.language,
+                                        { wholeNumbers: true }
                                     )}
                                 </Typography>
                             </Box>
@@ -487,7 +489,8 @@ const DisputeAndPromiseCard = ({
                                         ) || 0,
                                         currency,
                                         i18n.language,
-                                        i18n.language
+                                        i18n.language,
+                                        { wholeNumbers: true }
                                     )}
                                 </Typography>
                             </Box>
@@ -621,7 +624,8 @@ const DisputeAndPromiseCard = ({
                                         ) || 0,
                                         currency,
                                         i18n.language,
-                                        i18n.language
+                                        i18n.language,
+                                        { wholeNumbers: true }
                                     )}
                                 </Typography>
                             </Box>

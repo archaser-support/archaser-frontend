@@ -82,8 +82,9 @@ const AccountStats: React.FC<AccountStatsProps> = ({
                           Number(s?.counts?.total_overdue_amount ?? 0),
                           currencyCode,
                           locale,
-                          i18n.language
-                      ),
+                          i18n.language,
+                          { wholeNumbers: true }
+                        ),
         },
         {
             key: "total_due_amount",
@@ -97,8 +98,9 @@ const AccountStats: React.FC<AccountStatsProps> = ({
                           Number(s?.counts?.total_due_amount ?? 0),
                           currencyCode,
                           locale,
-                          i18n.language
-                      ),
+                          i18n.language,
+                          { wholeNumbers: true }
+                        ),
         },
     ];
 

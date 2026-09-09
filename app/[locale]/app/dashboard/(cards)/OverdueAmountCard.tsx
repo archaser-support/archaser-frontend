@@ -57,7 +57,8 @@ const OverdueAmountCard = ({
                 count || 0,
                 currency,
                 locale,
-                i18n.language
+                i18n.language,
+                { wholeNumbers: true }
             )}
             tooltip={t("tooltips.financial_metric_overdue_amount")}
             onClick={handleCardClick}

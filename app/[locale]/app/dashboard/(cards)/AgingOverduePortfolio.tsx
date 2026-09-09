@@ -349,17 +349,19 @@ const AgingOverduePortfolio = ({
                                             >
                                                 {Number(row.amount) === 0
                                                     ? formatCurrencyWithRTLSupport(
-                                                        0,
-                                                        currency,
-                                                        locale,
-                                                        i18n.language
-                                                    )
+                                                          0,
+                                                          currency,
+                                                          locale,
+                                                          i18n.language,
+                                                          { wholeNumbers: true }
+                                                      )
                                                     : formatCurrencyWithRTLSupport(
-                                                        Number(row.amount),
-                                                        currency,
-                                                        locale,
-                                                        i18n.language
-                                                    )}
+                                                          Number(row.amount),
+                                                          currency,
+                                                          locale,
+                                                          i18n.language,
+                                                          { wholeNumbers: true }
+                                                      )}
                                             </TableCell>
                                             <TableCell
                                                 sx={{

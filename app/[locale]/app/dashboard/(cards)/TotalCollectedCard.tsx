@@ -55,7 +55,8 @@ const TotalCollectedCard = ({
                 parseFloat(amount) || 0,
                 currency,
                 locale,
-                i18n.language
+                i18n.language,
+                { wholeNumbers: true }
             )}
             tooltip={t("tooltips.financial_metric_total_collected_mtd")}
             onClick={handleCardClick}
