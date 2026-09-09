@@ -1109,6 +1109,7 @@ const LINK_PAYMENTS_DETAIL_LABELS: Record<
     string,
     { label: string; unit: string }
 > = {
+    prepare: { label: "Finding deferred payments to link", unit: "payments" },
     link: { label: "Linking payments to invoices", unit: "payments" },
     close: { label: "Closing reconciled invoices", unit: "payments" },
     recalc: { label: "Recalculating paid totals", unit: "invoices" },
@@ -1193,13 +1194,25 @@ function buildLinkPaymentsRunningRow(params: {
     }
 
     if (status === "running") {
+        // Prefer live sub-step counts (link / close / recalc) so the bar does
+        // not freeze at "payments linked / candidates" during the slow phases.
+        const detailCounts = maturity?.detail;
+        const useDetailCounts =
+            detailCounts != null &&
+            detailCounts.total != null &&
+            detailCounts.total > 0 &&
+            detailCounts.processed != null;
+        const barPulled = useDetailCounts
+            ? detailCounts.processed!
+            : linked;
+        const barTotal = useDetailCounts ? detailCounts.total! : total;
         return {
             entity_type: BACKFILL_LINK_PAYMENTS_LABEL,
             phase: "running",
-            records_pulled: linked,
-            total_records: total,
+            records_pulled: barPulled,
+            total_records: barTotal,
             progress_percent:
-                total != null ? clampPercent(linked, total) : null,
+                barTotal != null ? clampPercent(barPulled, barTotal) : null,
             last_error: null,
             success: linked,
             failed: 0,
@@ -1343,7 +1356,10 @@ const TAIL_STEP_DETAIL_LABELS: Record<string, { label: string; unit: string }> =
             label: "Refreshing insurance dates",
             unit: "invoices",
         },
-        // live_refresh: omit — row label is enough; avoid "Refreshing insurance fields · N / M"
+        live_refresh: {
+            label: "Refreshing insurance fields",
+            unit: "customers",
+        },
         worker_drain: {
             label: "Finishing AR & insurance on worker",
             unit: "customers",
@@ -1393,6 +1409,57 @@ export function formatArReplayProgressSubtitle(
     return "Replaying AR history";
 }
 
+function formatCustomerScopedTailDetail(
+    detail: NonNullable<EntityStatSlice["detail"]>,
+    options: {
+        /** Inner counter unit when processed/total are work items (e.g. events). */
+        innerUnit?: string;
+    } = {}
+): string | undefined {
+    const numberOrId =
+        detail.customer_label?.trim() ||
+        (detail.customer_id != null ? `#${detail.customer_id}` : null);
+    const who = numberOrId ? `Customer ${numberOrId}` : null;
+    const customerPos =
+        detail.customer_index != null &&
+        detail.customer_total != null &&
+        detail.customer_total > 0
+            ? `${detail.customer_index.toLocaleString()} / ${detail.customer_total.toLocaleString()}`
+            : null;
+
+    // Inner work (e.g. events) only when a customer is in flight — otherwise
+    // processed/total may be a between-customer position tick (or zeros).
+    const hasInFlightCustomer = who != null;
+    const hasInner =
+        hasInFlightCustomer &&
+        options.innerUnit != null &&
+        detail.total != null &&
+        detail.total > 0;
+    const innerCounts = hasInner
+        ? `${(detail.processed ?? 0).toLocaleString()} / ${detail.total!.toLocaleString()} ${options.innerUnit}`
+        : null;
+
+    if (who && customerPos && innerCounts) {
+        return `${who} (${customerPos}) · ${innerCounts}`;
+    }
+    if (who && customerPos) {
+        return `${who} (${customerPos})`;
+    }
+    if (who && innerCounts) {
+        return `${who} · ${innerCounts}`;
+    }
+    if (customerPos && innerCounts) {
+        return `Customer ${customerPos} · ${innerCounts}`;
+    }
+    if (who) {
+        return who;
+    }
+    if (customerPos) {
+        return `Customer ${customerPos}`;
+    }
+    return innerCounts ?? undefined;
+}
+
 function formatTailStepDetail(
     detail: EntityStatSlice["detail"]
 ): string | undefined {
@@ -1400,17 +1467,21 @@ function formatTailStepDetail(
         return undefined;
     }
     const known = TAIL_STEP_DETAIL_LABELS[detail.step];
-    // Skip steps with no detail label (e.g. live_refresh) — the row title is enough.
+    // Skip steps with no detail label — the row title is enough.
     if (!known) {
         return undefined;
     }
-    // Replay window text lives on the section subtitle; row only keeps counts.
     if (detail.step === "replay") {
-        if (detail.total == null || detail.total <= 0) {
-            return undefined;
-        }
-        const processed = detail.processed ?? 0;
-        return `${processed.toLocaleString()} / ${detail.total.toLocaleString()} ${known.unit}`;
+        const hasInFlightCustomer =
+            detail.customer_id != null ||
+            Boolean(detail.customer_label?.trim());
+        return formatCustomerScopedTailDetail(
+            detail,
+            hasInFlightCustomer ? { innerUnit: known.unit } : {}
+        );
+    }
+    if (detail.step === "live_refresh" || detail.step === "process_overdue") {
+        return formatCustomerScopedTailDetail(detail);
     }
     const label = known.label;
     if (detail.total == null || detail.total <= 0) {
