@@ -17,6 +17,7 @@ import {
     alpha,
     useTheme,
 } from "@mui/material";
+import { keyframes } from "@mui/system";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api, { apiFetch } from "@/app/api";
 import React, { useEffect, useState } from "react";
@@ -32,6 +33,18 @@ import GlobalSearch from "./GlobalSearch";
 import NotificationCenter from "./NotificationCenter";
 import ProfileMenu from "./ProfileMenu";
 import ViewAsMenu from "./ViewAsMenu";
+
+const HEADER_GLOW = "#67E8F9";
+
+const headerGlowScanLtr = keyframes`
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+`;
+
+const headerGlowScanRtl = keyframes`
+  0% { transform: translateX(400%); }
+  100% { transform: translateX(-100%); }
+`;
 
 interface AppHeaderProps {
     onDrawerToggle: () => void;
@@ -402,16 +415,19 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                     "0 4px 20px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08)",
                 border: "none",
                 borderRadius: 0,
+                overflow: "hidden",
+                // Soft traveling wash — soft fades only (no box-shadow; that caused hard vertical edges)
                 "&::before": {
                     content: '""',
                     position: "absolute",
                     top: 0,
                     left: 0,
-                    right: 0,
-                    height: "1px",
-                    background: isHebrewUser
-                        ? `linear-gradient(270deg, transparent 0%, ${alpha(theme.palette.common.white, 0.2)} 50%, transparent 100%)`
-                        : `linear-gradient(90deg, transparent 0%, ${alpha(theme.palette.common.white, 0.2)} 50%, transparent 100%)`,
+                    width: "45%",
+                    height: "100%",
+                    background: `linear-gradient(${isHebrewUser ? "270deg" : "90deg"}, transparent 0%, ${alpha(HEADER_GLOW, 0.12)} 20%, ${alpha("#FFFFFF", 0.22)} 50%, ${alpha(HEADER_GLOW, 0.12)} 80%, transparent 100%)`,
+                    pointerEvents: "none",
+                    zIndex: 2,
+                    animation: `${isHebrewUser ? headerGlowScanRtl : headerGlowScanLtr} 20s linear infinite`,
                 },
             }}
         >
@@ -422,6 +438,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                     px: { xs: 1.5, sm: 2, md: 3 },
                     gap: { xs: 1, md: 2 },
                     position: "relative",
+                    zIndex: 3,
                 }}
             >
                 {/* Left Section - Navigation Controls */}
