@@ -27,7 +27,7 @@ function astContainsAutoScalePercentField(node: FormulaAstNode): boolean {
     if (node.type === "field") {
         return isFormulaAutoScalePercentReference(node.reference);
     }
-    if (node.type === "number") {
+    if (node.type === "number" || node.type === "date_literal") {
         return false;
     }
     if (node.type === "unary") {

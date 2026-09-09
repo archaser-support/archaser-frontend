@@ -12,7 +12,9 @@ export type FormulaParseErrorCode =
     | "invalid_reference"
     | "missing_operand"
     | "overflow"
-    | "prohibited_token";
+    | "prohibited_token"
+    | "invalid_date_literal"
+    | "clock_time_not_allowed";
 
 export class FormulaParseError extends Error {
     constructor(
@@ -24,28 +26,57 @@ export class FormulaParseError extends Error {
     }
 }
 
+export type FormulaCompareOperator = "=" | "!=" | "<" | ">" | "<=" | ">=";
+
+export type FormulaBinaryOperator =
+    | "+"
+    | "-"
+    | "*"
+    | "/"
+    | FormulaCompareOperator;
+
 export type FormulaAstNode =
     | { type: "number"; value: string }
+    | { type: "date_literal"; value: string }
     | { type: "field"; reference: string }
     | { type: "unary"; operator: "+" | "-"; operand: FormulaAstNode }
     | {
           type: "binary";
-          operator: "+" | "-" | "*" | "/";
+          operator: FormulaBinaryOperator;
           left: FormulaAstNode;
           right: FormulaAstNode;
       };
 
 /** Field refs (`Invoice.amount`) or persisted formula refs (`formula:<id>`). */
-const OPERAND_REF_TOKEN_PATTERN = /^\[(?:formula:[A-Za-z0-9][A-Za-z0-9_-]*|[A-Za-z][A-Za-z0-9_.]*)\]$/;
+const OPERAND_REF_TOKEN_PATTERN =
+    /^\[(?:formula:[A-Za-z0-9][A-Za-z0-9_-]*|[A-Za-z][A-Za-z0-9_.]*)\]$/;
 const OPERAND_REF_EXTRACT_PATTERN =
     /\[(formula:[A-Za-z0-9][A-Za-z0-9_-]*|[A-Za-z][A-Za-z0-9_.]*)\]/g;
-const PROHIBITED_TOKENS = /\b(eval|function|return|new|typeof|window|global|import|require)\b/i;
+const PROHIBITED_TOKENS =
+    /\b(eval|function|return|new|typeof|window|global|import|require)\b/i;
+const ISO_DATE_TOKEN_PATTERN = /^(\d{4})-(\d{2})-(\d{2})/;
+const COMPARE_OPERATORS = new Set<string>([
+    "=",
+    "!=",
+    "<",
+    ">",
+    "<=",
+    ">=",
+]);
+
+export function isFormulaCompareOperator(
+    operator: string
+): operator is FormulaCompareOperator {
+    return COMPARE_OPERATORS.has(operator);
+}
 
 export function isFormulaOperandReference(reference: string): boolean {
     return reference.startsWith("formula:");
 }
 
-export function getFormulaIdFromOperandReference(reference: string): string | null {
+export function getFormulaIdFromOperandReference(
+    reference: string
+): string | null {
     if (!isFormulaOperandReference(reference)) {
         return null;
     }
@@ -53,7 +84,10 @@ export function getFormulaIdFromOperandReference(reference: string): string | nu
     return id || null;
 }
 
-export function buildCanonicalFieldReference(table: string, field: string): string {
+export function buildCanonicalFieldReference(
+    table: string,
+    field: string
+): string {
     return `[${table}.${field}]`;
 }
 
@@ -69,6 +103,66 @@ export function extractFieldReferences(expression: string): string[] {
         refs.push(match[1]);
     }
     return refs;
+}
+
+function isValidIsoCalendarDate(
+    year: number,
+    month: number,
+    day: number
+): boolean {
+    const date = new Date(Date.UTC(year, month - 1, day));
+    return (
+        date.getUTCFullYear() === year &&
+        date.getUTCMonth() === month - 1 &&
+        date.getUTCDate() === day
+    );
+}
+
+/** Try to read YYYY-MM-DD at `pos`. Returns the token or null. */
+function matchIsoDateTokenAt(
+    input: string,
+    pos: number
+): { value: string } | null {
+    const match = input.slice(pos).match(ISO_DATE_TOKEN_PATTERN);
+    if (!match) {
+        return null;
+    }
+    const end = pos + match[0].length;
+    if (end < input.length && /[0-9]/.test(input[end])) {
+        return null;
+    }
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    if (!isValidIsoCalendarDate(year, month, day)) {
+        throw new FormulaParseError(
+            "invalid_date_literal",
+            `Invalid date literal: ${match[0]}`
+        );
+    }
+    return { value: match[0] };
+}
+
+function assertNoClockTimeSuffix(input: string, pos: number): void {
+    let i = pos;
+    while (i < input.length && /\s/.test(input[i])) {
+        i += 1;
+    }
+    if (i >= input.length) {
+        return;
+    }
+    if (input[i] === "T" || input[i] === "t") {
+        throw new FormulaParseError(
+            "clock_time_not_allowed",
+            "Clock time is not allowed in date literals"
+        );
+    }
+    if (/^\d{1,2}:\d{2}/.test(input.slice(i))) {
+        throw new FormulaParseError(
+            "clock_time_not_allowed",
+            "Clock time is not allowed in date literals"
+        );
+    }
 }
 
 export function normalizeFormulaExpression(
@@ -100,6 +194,13 @@ export function normalizeFormulaExpression(
             i = end + 1;
             continue;
         }
+        const isoDate = matchIsoDateTokenAt(trimmed, i);
+        if (isoDate) {
+            assertNoClockTimeSuffix(trimmed, i + isoDate.value.length);
+            out += isoDate.value;
+            i += isoDate.value.length;
+            continue;
+        }
         if (/[0-9]/.test(ch) || ch === decimalSeparator) {
             let num = "";
             while (i < trimmed.length) {
@@ -114,7 +215,17 @@ export function normalizeFormulaExpression(
             out += num;
             continue;
         }
-        if ("+-*/()".includes(ch)) {
+        if (ch === "!" && trimmed[i + 1] === "=") {
+            out += "!=";
+            i += 2;
+            continue;
+        }
+        if ((ch === "<" || ch === ">") && trimmed[i + 1] === "=") {
+            out += `${ch}=`;
+            i += 2;
+            continue;
+        }
+        if ("+-*/()=<>".includes(ch)) {
             out += ch;
             i += 1;
             continue;
@@ -128,7 +239,11 @@ export function normalizeFormulaExpression(
 }
 
 function getAstDepth(node: FormulaAstNode): number {
-    if (node.type === "number" || node.type === "field") {
+    if (
+        node.type === "number" ||
+        node.type === "field" ||
+        node.type === "date_literal"
+    ) {
         return 1;
     }
     if (node.type === "unary") {
@@ -156,7 +271,10 @@ class Tokenizer {
     }
 
     private skipWhitespace(): void {
-        while (this.pos < this.input.length && /\s/.test(this.input[this.pos])) {
+        while (
+            this.pos < this.input.length &&
+            /\s/.test(this.input[this.pos])
+        ) {
             this.pos += 1;
         }
     }
@@ -182,6 +300,17 @@ class Tokenizer {
         }
         this.pos = end + 1;
         return token.slice(1, -1);
+    }
+
+    consumeDateLiteral(): string | null {
+        this.skipWhitespace();
+        const matched = matchIsoDateTokenAt(this.input, this.pos);
+        if (!matched) {
+            return null;
+        }
+        this.pos += matched.value.length;
+        assertNoClockTimeSuffix(this.input, this.pos);
+        return matched.value;
     }
 
     consumeNumber(): string | null {
@@ -215,6 +344,42 @@ class Tokenizer {
         }
         return this.input.slice(start, this.pos);
     }
+
+    consumeCompareOperator(): FormulaCompareOperator | null {
+        this.skipWhitespace();
+        const ch = this.pos < this.input.length ? this.input[this.pos] : null;
+        if (ch === "=") {
+            this.pos += 1;
+            return "=";
+        }
+        if (ch === "!") {
+            if (this.input[this.pos + 1] !== "=") {
+                throw new FormulaParseError(
+                    "unexpected_character",
+                    "Unexpected character: !"
+                );
+            }
+            this.pos += 2;
+            return "!=";
+        }
+        if (ch === "<") {
+            this.pos += 1;
+            if (this.input[this.pos] === "=") {
+                this.pos += 1;
+                return "<=";
+            }
+            return "<";
+        }
+        if (ch === ">") {
+            this.pos += 1;
+            if (this.input[this.pos] === "=") {
+                this.pos += 1;
+                return ">=";
+            }
+            return ">";
+        }
+        return null;
+    }
 }
 
 class Parser {
@@ -243,7 +408,21 @@ class Parser {
     }
 
     private parseExpression(): FormulaAstNode {
-        return this.parseAddSub();
+        return this.parseCompare();
+    }
+
+    /** Compare operators bind looser than `+ − × ÷`. */
+    private parseCompare(): FormulaAstNode {
+        let left = this.parseAddSub();
+        while (true) {
+            const op = this.tokenizer.consumeCompareOperator();
+            if (!op) {
+                break;
+            }
+            const right = this.parseAddSub();
+            left = { type: "binary", operator: op, left, right };
+        }
+        return left;
     }
 
     private parseAddSub(): FormulaAstNode {
@@ -289,6 +468,10 @@ class Parser {
         if (fieldRef) {
             return { type: "field", reference: fieldRef };
         }
+        const dateLiteral = this.tokenizer.consumeDateLiteral();
+        if (dateLiteral) {
+            return { type: "date_literal", value: dateLiteral };
+        }
         const num = this.tokenizer.consumeNumber();
         if (num) {
             return { type: "number", value: num };
@@ -308,7 +491,7 @@ class Parser {
         if (ch === null) {
             throw new FormulaParseError(
                 "missing_operand",
-                "Expected number, field reference, or parenthesized expression"
+                "Expected number, field reference, date, or parenthesized expression"
             );
         }
         throw new FormulaParseError(

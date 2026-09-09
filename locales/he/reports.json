@@ -140,6 +140,10 @@
         "none": "ללא",
         "true": "כן",
         "false": "לא",
+        "yes": "כן",
+        "no": "לא",
+        "filter_yes_no": "כן/לא",
+        "filter_percentage_raw_hint": "הזן שבר (0.15 = 15%), לא אחוז שלם.",
         "no_chart": "ללא גרף",
         "chart_type_bar": "גרף עמודות",
         "chart_type_line": "גרף קו",
@@ -255,6 +259,8 @@
         "between_filter_incomplete": "מסנן עם אופרטור 'בין' דורש ששני הערכים (התחלה וסיום) יהיו מלאים",
         "filter_field_required": "יש לבחור טבלה ושדה לכל מסנן, או להסיר מסננים שאינם בשימוש.",
         "filter_value_required": "יש למלא ערך לכל מסנן. בחר ערכים, עבור ל־\"ריק\" או \"לא ריק\" אם מתאים, או הסר את המסנן.",
+        "formula_filter_grouping_conflict": "לא ניתן להשתמש במסנני נוסחה יחד עם קיבוץ. הסר את מסנן/י הנוסחה או את הקיבוץ.",
+        "orphan_formula_filter": "מסנן מפנה לנוסחה שאינה קיימת בדוח. הסר או עדכן את המסנן.",
         "duplicate_name": "דוח עם שם זה כבר קיים"
     },
     "formulas": {
@@ -266,11 +272,11 @@
         "field_formula_required": "נדרש שם נוסחה",
         "object": "אובייקט",
         "expression": "ביטוי",
-        "expression_hint": "השתמש ב־[Table.field], מספרים, + - * / וסוגריים. דמי רישום (מהפרמיה): [Invoice.amount] * [Customer.cost_percent] * [Customer.registration_fee_percent]. שיעור דמי ביטוח ודמי רישום הם אחוזים אוטומטית (אין לחלק ב־100).",
+        "expression_hint": "השתמש ב־[Table.field], מספרים, תאריכים (2026-03-01), + - * / , אופרטורי השוואה (= != < > <= >=), וסוגריים. דמי רישום (מהפרמיה): [Invoice.amount] * [Customer.cost_percent] * [Customer.registration_fee_percent]. שיעור דמי ביטוח ודמי רישום הם אחוזים אוטומטית (אין לחלק ב־100).",
         "insert": "הוסף",
         "insert_field": "הוסף שדה",
         "formulas_object": "נוסחאות",
-        "no_operands_hint": "בחר תחילה שדות מספריים בדוח, ואז בנה את הביטוי.",
+        "no_operands_hint": "בחר תחילה שדות מספריים או תאריך בדוח, ואז בנה את הביטוי.",
         "no_operands_for_format": "אין שדות התואמים לפורמט הנבחר עבור אובייקט זה.",
         "format": "פורמט",
         "format_number": "מספר",
@@ -309,7 +315,27 @@
             "unknown_formula_reference": "הפניה לנוסחה לא ידועה: {{ref}}",
             "formula_cycle": "הפניות לנוסחאות יוצרות מעגל תלויות",
             "formula_self_reference": "נוסחה לא יכולה להפנות לעצמה",
-            "formula_label_reference": "השתמש ב־[formula:<id>] במקום התווית \"{{label}}\""
-        }
+            "formula_label_reference": "השתמש ב־[formula:<id>] במקום התווית \"{{label}}\"",
+            "clock_time_not_allowed": "שעת שעון אינה מותרת בתאריכים מוקלדים",
+            "compare_type_mismatch": "שני צדי ההשוואה חייבים להיות מאותו סוג (תאריכים או מספרים)",
+            "date_arithmetic_not_allowed": "לא ניתן להשתמש בתאריכים עם + − × ÷",
+            "invalid_date_literal": "התאריך חייב להיות YYYY-MM-DD (למשל 2026-03-01)"
+        },
+        "format_yes_no": "כן/לא",
+        "help": "עזרה",
+        "help_copied": "הועתק",
+        "help_copy": "העתק",
+        "help_examples_hint": "העתק דוגמה לביטוי שלך.",
+        "help_examples_title": "דוגמאות",
+        "help_rule_calendar_day": "שדות תאריך בלבד מושווים לפי יום בלוח השנה (אותו יום נחשב שווה גם אם שעות השעון שונות).",
+        "help_rule_datetime": "שדות תאריך ושעה מושווים לפי תאריך ושעה מלאים.",
+        "help_rule_grouping": "בדוחות מקובצים, SUM/AVG/MIN/MAX של כן/לא מוצג כמספר (ספירה), לא ככן/לא.",
+        "help_rule_mixed_math": "ערבוב השוואה עם חישוב דורש סוגריים, למשל (תאריך = תאריך) * סכום.",
+        "help_rule_operators": "השווה עם = != < > <= >= (השתמש ב־!= לאי־שוויון).",
+        "help_rule_typed_date": "תאריכים מוקלדים בפורמט שנה-חודש-יום בלבד, למשל 2026-03-01 (ללא שעת שעון).",
+        "help_rule_types_only": "רק תאריכים ומספרים ניתנים להשוואה. טקסט, שדות כן/לא בדוח, ורשימות אינם מותרים.",
+        "help_rule_yes_no": "בחר פורמט כן/לא להצגת כן או לא. מתחת לפני השטח, כן הוא 1 ולא הוא 0 כדי שנוסחאות אחרות יוכלו להשתמש בתוצאה.",
+        "help_rules_title": "כללים",
+        "help_title": "עזרה לנוסחאות"
     }
 }
