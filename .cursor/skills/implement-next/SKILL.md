@@ -33,6 +33,7 @@ If the user passes a **PRD/plan path** instead (e.g. `.cursor/plans/billing-acco
 | Frontier order | One at a time; lowest `NN` first |
 | Git | Do **not** commit or push unless the user explicitly asks in this chat |
 | Repos | Implementers may edit **backend and portal** as the issue needs |
+| i18n | When a slice adds or changes user-facing copy, implementers **must** update **both English and Hebrew** locale files in the same change (identical keys — see `.cursor/rules/translations.mdc`). Do **not** leave English-only `defaultValue` gaps or defer HE to a follow-up |
 | Failure | Leave `Status: in-progress`, stop the chain, report |
 | Resume | If any issue is `in-progress`, resume that issue (do not pick a different frontier item) |
 | End | Stop and report only — no auto-commit, no auto-PR |
@@ -83,9 +84,10 @@ Give the implementer:
 - Parent PRD/plan path from `## Parent` (read it if present)
 - Instruction to satisfy **Acceptance criteria** and automated parts of **How to test** using **existing** coverage only
 - Permission to edit backend **and** portal when the slice needs both
+- **i18n:** if the slice introduces or changes user-facing strings, update **both** `locales/en` and `locales/he` (same keys/structure) in that slice — no English-only `defaultValue` gaps
 - **Do not commit, push, or open a PR**
 - **Do not add, expand, or update tests** (unit/integration/e2e or otherwise) unless the user explicitly asked for tests in this chat — project critical rule; do **not** use TDD / create seam tests “for the done gate”
-- Return a short result: what changed, which **existing** automated commands (if any) to re-run, any blockers, leftover manual checks
+- Return a short result: what changed, which **existing** automated commands (if any) to re-run, any blockers, leftover manual checks, and whether EN+HE locale keys were added/updated
 
 Wait until the Task finishes before continuing.
 
@@ -94,15 +96,16 @@ Completion criterion: implementer returned; working tree may be dirty.
 ### 5. Done gate (orchestrator verifies)
 
 1. Confirm acceptance criteria look implemented from the implementer’s report + spot-check of key files when needed.
-2. If **existing** automated tests already cover the touched seams, **run those yourself** — do not trust the implementer’s word alone. Do **not** add tests to create a gate.
-3. If no relevant existing tests: skip the automated run; still mark done when acceptance criteria are satisfied (manual How-to-test steps go in the end report).
-4. If an existing test run is **red**:
+2. If the slice added user-facing copy: confirm matching keys exist in **both** English and Hebrew locale files (fail the done gate if HE is missing).
+3. If **existing** automated tests already cover the touched seams, **run those yourself** — do not trust the implementer’s word alone. Do **not** add tests to create a gate.
+4. If no relevant existing tests: skip the automated run; still mark done when acceptance criteria are satisfied (manual How-to-test steps go in the end report).
+5. If an existing test run is **red**:
    - Leave `Status: in-progress`
    - **Stop the chain**
    - Report: issue path, failing commands/output summary, that the user can re-run `/implement-next <slug>` to resume
    - Fix production code on resume if appropriate — still **do not** add/expand tests unless the user asked
    - End turn
-5. If **green** (or no existing tests to run):
+6. If **green** (or no existing tests to run):
    - Set `Status: done`
    - Optionally check off completed Acceptance criteria boxes in the issue file
    - Loop to **step 2** (next slice)
