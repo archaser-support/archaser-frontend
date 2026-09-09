@@ -1,4 +1,8 @@
-export type FormulaResultFormat = "number" | "currency" | "percentage";
+export type FormulaResultFormat =
+    | "number"
+    | "currency"
+    | "percentage"
+    | "yes_no";
 
 export type FormulaAggregation = "SUM" | "AVG" | "MIN" | "MAX";
 
@@ -30,12 +34,24 @@ export interface ReportFormula {
 /** Prefix for formula output / column-order keys. */
 export const FORMULA_OUTPUT_KEY_PREFIX = "formula:";
 
+/**
+ * Pseudo filter-table name for formula columns in report filter rows.
+ * Matches the Formulas object picker (`__formulas__`).
+ */
+export const FORMULA_FILTER_TABLE = "__formulas__";
+
 export function getFormulaOutputKey(formulaId: string): string {
     return `${FORMULA_OUTPUT_KEY_PREFIX}${formulaId}`;
 }
 
 export function isFormulaOutputKey(key: string): boolean {
     return key.startsWith(FORMULA_OUTPUT_KEY_PREFIX);
+}
+
+export function isFormulaFilterField(
+    field: string | undefined | null
+): boolean {
+    return typeof field === "string" && isFormulaOutputKey(field);
 }
 
 export function parseFormulaIdFromOutputKey(key: string): string | null {

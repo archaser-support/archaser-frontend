@@ -82,10 +82,14 @@
         "create_view": "Create View",
         "clone_view": "Clone View",
         "set_as_default": "Set as Default",
+        "set_as_primary": "Set as primary",
         "create_new_report": "Create New Report",
         "edit_report": "Edit Report",
         "delete_report": "Delete Report",
         "share_button": "Share"
+    },
+    "labels": {
+        "primary_table": "Primary"
     },
     "messages": {
         "error_fetching_data": "Error fetching reports",
@@ -140,6 +144,10 @@
         "none": "None",
         "true": "True",
         "false": "False",
+        "yes": "Yes",
+        "no": "No",
+        "filter_yes_no": "Yes/No",
+        "filter_percentage_raw_hint": "Enter a fraction (0.15 = 15%), not a whole percent.",
         "no_chart": "No Chart",
         "chart_type_bar": "Bar Chart",
         "chart_type_line": "Line Chart",
@@ -242,7 +250,9 @@
         "set_as_default": "When enabled, this report will be set as the default for this page. All other reports for this page will be unset as default.",
         "shared_report": "This report has been shared with you",
         "you_are_sharing_this_report": "You are sharing this report",
-        "add_share": "Add share"
+        "add_share": "Add share",
+        "primary_table": "This table is the report grain (one row per record).",
+        "set_as_primary": "Use this table as the report grain without removing fields."
     },
     "validation": {
         "name_required": "Report name is required",
@@ -255,6 +265,8 @@
         "between_filter_incomplete": "Filter with 'between' operator requires both start and end values to be filled",
         "filter_field_required": "Please choose a table and field for every filter, or remove unused filters.",
         "filter_value_required": "Every filter must have a value. Choose values, switch to \"Is empty\" or \"Is not empty\" if appropriate, or remove the filter.",
+        "formula_filter_grouping_conflict": "Formula filters cannot be used with grouping. Remove the formula filter(s) or the grouping.",
+        "orphan_formula_filter": "A filter references a formula that is not on this report. Remove or update the filter.",
         "duplicate_name": "A report with this name already exists"
     },
     "formulas": {
@@ -266,11 +278,11 @@
         "field_formula_required": "Formula name is required",
         "object": "Object",
         "expression": "Expression",
-        "expression_hint": "Use [Table.field], numbers, + - * / and parentheses. Registration fee (of premium): [Invoice.amount] * [Customer.cost_percent] * [Customer.registration_fee_percent]. Insurance Fee Rate and Registration Fee are percentages automatically (do not divide by 100).",
+        "expression_hint": "Use [Table.field], numbers, dates (2026-03-01), + - * / , compare operators (= != < > <= >=), and parentheses. Registration fee (of premium): [Invoice.amount] * [Customer.cost_percent] * [Customer.registration_fee_percent]. Insurance Fee Rate and Registration Fee are percentages automatically (do not divide by 100).",
         "insert": "Insert",
         "insert_field": "Insert field",
         "formulas_object": "Formulas",
-        "no_operands_hint": "Select numeric report fields first, then build your expression.",
+        "no_operands_hint": "Select numeric or date report fields first, then build your expression.",
         "no_operands_for_format": "No fields match the selected format for this object.",
         "format": "Format",
         "format_number": "Number",
@@ -309,7 +321,27 @@
             "unknown_formula_reference": "Unknown formula reference: {{ref}}",
             "formula_cycle": "Formula references create a dependency cycle",
             "formula_self_reference": "A formula cannot reference itself",
-            "formula_label_reference": "Use [formula:<id>] instead of label \"{{label}}\""
-        }
+            "formula_label_reference": "Use [formula:<id>] instead of label \"{{label}}\"",
+            "clock_time_not_allowed": "Clock time is not allowed in typed dates",
+            "compare_type_mismatch": "Both sides of a comparison must be the same type (dates or numbers)",
+            "date_arithmetic_not_allowed": "Dates cannot be used with + − × ÷",
+            "invalid_date_literal": "Date must be YYYY-MM-DD (for example 2026-03-01)"
+        },
+        "format_yes_no": "Yes/No",
+        "help": "Help",
+        "help_copied": "Copied",
+        "help_copy": "Copy",
+        "help_examples_hint": "Copy an example into your expression.",
+        "help_examples_title": "Examples",
+        "help_rule_calendar_day": "Date-only fields compare by calendar day (same day matches even if clock times differ).",
+        "help_rule_datetime": "Date-and-time fields compare by full date and time.",
+        "help_rule_grouping": "On grouped reports, SUM/AVG/MIN/MAX of Yes/No shows as a number (a count), not Yes/No.",
+        "help_rule_mixed_math": "Mixing a compare with math needs parentheses, for example (date = date) * amount.",
+        "help_rule_operators": "Compare with = != < > <= >= (use != for not equal).",
+        "help_rule_typed_date": "Typed dates use year-month-day only, for example 2026-03-01 (no clock time).",
+        "help_rule_types_only": "Only dates and numbers can be compared. Text, Yes/No report fields, and lists are not allowed.",
+        "help_rule_yes_no": "Pick Yes/No format to show Yes or No. Underneath, Yes is 1 and No is 0 so other formulas can use the result.",
+        "help_rules_title": "Rules",
+        "help_title": "Formula help"
     }
 }
