@@ -162,7 +162,7 @@ export function CreditMetricCard({
                                   top: 14,
                                   left: isRtl ? 14 : "auto",
                                   right: isRtl ? "auto" : 14,
-                                  borderRadius: "10px",
+                                  borderRadius: "6px",
                                   "& .MuiSvgIcon-root": {
                                       fontSize: "1.125rem",
                                   },

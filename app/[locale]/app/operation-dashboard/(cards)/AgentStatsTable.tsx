@@ -54,7 +54,7 @@ const AgentStatsTable: React.FC<AgentStatsTableProps> = ({
         flexDirection: "column",
     } as const;
 
-    /** Clears the absolutely positioned card-icon (top 14px + 48px tall). */
+    /** Clears the absolutely positioned card-icon (top 14px + 40px tall). */
     const headerAreaSx = {
         position: "relative" as const,
         minHeight: 62,

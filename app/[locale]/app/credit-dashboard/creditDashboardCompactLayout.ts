@@ -1,11 +1,17 @@
+import { METRIC_STAT_CARD_ICON_SIZE_PX } from "@/app/theme/metricStatCard";
+
 /** Shared height for Health Index + Trend cards in the dashboard top row. */
 export const CREDIT_DASHBOARD_COMPACT_CARD_HEIGHT_PX = 352;
 
 /** Toolbar row (title + delta chips + interval toggle) — single line. */
 export const CREDIT_DASHBOARD_COMPACT_TOOLBAR_PX = 48;
 
-/** Bottom edge of the 48px icon tile (top 14px + height 48px) — header must reserve this. */
-export const CREDIT_DASHBOARD_COMPACT_ICON_TILE_BOTTOM_PX = 62;
+/** Icon tile top offset (matches metricStatCard iconBox). */
+const CREDIT_DASHBOARD_COMPACT_ICON_TOP_PX = 14;
+
+/** Bottom edge of the icon tile — header must reserve this. */
+export const CREDIT_DASHBOARD_COMPACT_ICON_TILE_BOTTOM_PX =
+    CREDIT_DASHBOARD_COMPACT_ICON_TOP_PX + METRIC_STAT_CARD_ICON_SIZE_PX;
 
 /** Vertical padding inside compact cards (theme.spacing(1.5) × 2). */
 const CREDIT_DASHBOARD_COMPACT_VERTICAL_PADDING_PX = 24;
