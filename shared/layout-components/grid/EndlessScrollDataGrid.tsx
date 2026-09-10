@@ -977,57 +977,11 @@ const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
         [rows.length, height, visibleRows, fillViewport, viewportHeightForGrid]
     );
 
+    // Empty + loading: show body spinner, but keep the same outer tree so the
+    // toolbar/search field is not remounted (preserves focus while typing).
     const showInitialLoading =
         rows.length === 0 &&
         (isLoading || !hasCompletedInitialFetchRef.current);
-
-    // Loading state: show spinner when loading or when we haven't completed initial fetch yet
-    // (avoids flashing "no customers found" before the first fetch completes)
-    if (showInitialLoading) {
-        return (
-            <Box
-                ref={wrapperRef}
-                sx={{
-                    width: "100%",
-                }}
-            >
-                {/* Toolbar */}
-                {!hideToolbar && (
-                    <Box
-                        sx={{
-                            bgcolor: "background.paper",
-                            borderRadius: theme.shape.borderRadius,
-                            mb: 2,
-                        }}
-                    >
-                        <EndlessScrollToolbar {...toolbarProps} />
-                    </Box>
-                )}
-
-                <Box
-                    sx={{
-                        width: "100%",
-                        height: responsiveHeights,
-                        borderRadius: theme.shape.borderRadius,
-                        overflow: "hidden",
-                        position: "relative",
-                        isolation: "isolate",
-                    }}
-                >
-                    <Box
-                        sx={{
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            height: "100%",
-                        }}
-                    >
-                        <CircularProgress color="primary" size={40} thickness={4} />
-                    </Box>
-                </Box>
-            </Box>
-        );
-    }
 
     return (
         <Box
@@ -1044,159 +998,193 @@ const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
                     : {}),
             }}
         >
-            {/* Toolbar */}
+            {/* Toolbar — always the same mount point across loading ↔ data */}
             {!hideToolbar && <EndlessScrollToolbar {...toolbarProps} />}
 
-            <Box
-                sx={{
-                    width: "100%",
-                    height: `${containerHeight}px`,
-                    borderRadius: theme.shape.borderRadius,
-                    border: `1px solid ${theme.palette.divider}`,
-                    overflow: "hidden",
-                    position: "relative",
-                    // Remove isolation: isolate as it can clip borders when combined with overflow: hidden
-                    // isolation: "isolate",
-                    boxSizing: "border-box",
-                    padding: 0,
-                    margin: 0,
-                    // Links in grid cells: primary color + underline (exclude MUI anchor buttons)
-                    "& a:not(.MuiButtonBase-root), & .MuiLink-root:not(.MuiButtonBase-root)": {
-                        color: `${theme.palette.primary.main} !important`,
-                        textDecoration: "underline",
-                        textUnderlineOffset: "0.125em",
-                        "&:hover": {
-                            color: `${theme.palette.primary.dark} !important`,
-                            textDecoration: "underline",
-                        },
-                    },
-                }}
-            >
-                {/* Header wrapper */}
+            {showInitialLoading ? (
                 <Box
                     sx={{
+                        width: "100%",
+                        height: responsiveHeights,
+                        borderRadius: theme.shape.borderRadius,
+                        border: `1px solid ${theme.palette.divider}`,
                         overflow: "hidden",
-                        borderBottom: `1px solid ${theme.palette.divider}`,
-                        width: "100%", // Ensure header wrapper takes full width
-                        maxWidth: "100%", // Constrain to parent width
+                        position: "relative",
+                        isolation: "isolate",
+                        boxSizing: "border-box",
+                    }}
+                >
+                    <Box
+                        sx={{
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            height: "100%",
+                        }}
+                    >
+                        <CircularProgress
+                            color="primary"
+                            size={40}
+                            thickness={4}
+                        />
+                    </Box>
+                </Box>
+            ) : (
+                <Box
+                    sx={{
+                        width: "100%",
+                        height: `${containerHeight}px`,
+                        borderRadius: theme.shape.borderRadius,
+                        border: `1px solid ${theme.palette.divider}`,
+                        overflow: "hidden",
+                        position: "relative",
+                        // Remove isolation: isolate as it can clip borders when combined with overflow: hidden
+                        // isolation: "isolate",
                         boxSizing: "border-box",
                         padding: 0,
                         margin: 0,
-                        // Account for scrollbar width to align with body content
-                        // In RTL (Hebrew), scrollbar is on the left, so use paddingLeft
-                        // In LTR, scrollbar is on the right, so use paddingRight
-                        ...(language === "he"
-                            ? {
-                                paddingLeft:
-                                    scrollbarWidth > 0
-                                        ? `${scrollbarWidth}px`
-                                        : 0,
-                                paddingRight: 0,
-                            }
-                            : {
-                                paddingRight:
-                                    scrollbarWidth > 0
-                                        ? `${scrollbarWidth}px`
-                                        : 0,
-                                paddingLeft: 0,
-                            }),
-                    }}
-                >
-                    {renderHeader()}
-                </Box>
-
-                <Box
-                    ref={containerRef}
-                    onScroll={handleScroll}
-                    sx={{
-                        height: containerHeight !== null ? `${containerHeight - ITEM_HEIGHT}px` : "auto", // Subtract header height
-                        overflowY: "auto",
-                        overflowX: "hidden",
-                        pointerEvents: "auto",
-                        overscrollBehavior: "contain",
-                        overscrollBehaviorY: "contain",
-                        overscrollBehaviorX: "none",
-                        touchAction: "pan-y",
-                        position: "relative",
-                        // Remove isolation: isolate and contain as they can clip borders
-                        // isolation: "isolate",
-                        // contain: "layout style paint", // This can clip borders
-                        boxSizing: "border-box",
-                        // Remove padding/margin that might clip borders - borders should be fully visible
-                        paddingTop: 0,
-                        paddingLeft: 0,
-                        paddingRight: 0,
-                        paddingBottom: 0,
-                        marginTop: 0,
-                        marginLeft: 0,
-                        marginRight: 0,
-                        marginBottom: 0,
-                        // Only vertical scrollbar for body
-                        scrollbarWidth: "thin !important" as any,
-                        scrollbarColor: `${alpha(theme.palette.primary.main, 0.6)} ${alpha(theme.palette.primary.main, 0.1)} !important`,
-                        msOverflowStyle: "auto !important" as any,
-                        "&::-webkit-scrollbar": {
-                            width: "12px !important",
-                            display: "block !important",
-                            WebkitAppearance: "none",
-                            appearance: "none",
-                        },
-                        "&::-webkit-scrollbar-track": {
-                            background: `${alpha(theme.palette.primary.main, 0.1)} !important`,
-                            borderRadius: "6px",
-                        },
-                        "&::-webkit-scrollbar-thumb": {
-                            backgroundColor: `${alpha(theme.palette.primary.main, 0.6)} !important`,
-                            borderRadius: "6px",
-                            "&:hover": {
-                                backgroundColor: `${theme.palette.primary.main} !important`,
+                        // Links in grid cells: primary color + underline (exclude MUI anchor buttons)
+                        "& a:not(.MuiButtonBase-root), & .MuiLink-root:not(.MuiButtonBase-root)":
+                            {
+                                color: `${theme.palette.primary.main} !important`,
+                                textDecoration: "underline",
+                                textUnderlineOffset: "0.125em",
+                                "&:hover": {
+                                    color: `${theme.palette.primary.dark} !important`,
+                                    textDecoration: "underline",
+                                },
                             },
-                        },
                     }}
                 >
-                    {/* Inner wrapper to ensure header and rows have same width - matching EndlessScrollDataGrid */}
+                    {/* Header wrapper */}
                     <Box
-                        ref={bodyContentRef}
                         sx={{
-                            display: "block",
-                            width: "100%", // Match header width for alignment
-                            minWidth: "100%", // Ensure minimum matches header
+                            overflow: "hidden",
+                            borderBottom: `1px solid ${theme.palette.divider}`,
+                            width: "100%", // Ensure header wrapper takes full width
+                            maxWidth: "100%", // Constrain to parent width
                             boxSizing: "border-box",
                             padding: 0,
                             margin: 0,
+                            // Account for scrollbar width to align with body content
+                            // In RTL (Hebrew), scrollbar is on the left, so use paddingLeft
+                            // In LTR, scrollbar is on the right, so use paddingRight
+                            ...(language === "he"
+                                ? {
+                                      paddingLeft:
+                                          scrollbarWidth > 0
+                                              ? `${scrollbarWidth}px`
+                                              : 0,
+                                      paddingRight: 0,
+                                  }
+                                : {
+                                      paddingRight:
+                                          scrollbarWidth > 0
+                                              ? `${scrollbarWidth}px`
+                                              : 0,
+                                      paddingLeft: 0,
+                                  }),
                         }}
                     >
-                        {rows.length === 0 &&
-                            !isLoading &&
-                            hasCompletedInitialFetchRef.current ? (
-                            <EmptyState
-                                noRowsMessage={noRowsMessage}
-                                noRowsDescription={noRowsDescription}
-                                language={language}
-                                height={responsiveHeights}
-                            />
-                        ) : (
-                            renderVirtualItems()
-                        )}
+                        {renderHeader()}
                     </Box>
 
-                    {/* Loading more indicator */}
-                    {isLoadingMore && (
+                    <Box
+                        ref={containerRef}
+                        onScroll={handleScroll}
+                        sx={{
+                            height:
+                                containerHeight !== null
+                                    ? `${containerHeight - ITEM_HEIGHT}px`
+                                    : "auto", // Subtract header height
+                            overflowY: "auto",
+                            overflowX: "hidden",
+                            pointerEvents: "auto",
+                            overscrollBehavior: "contain",
+                            overscrollBehaviorY: "contain",
+                            overscrollBehaviorX: "none",
+                            touchAction: "pan-y",
+                            position: "relative",
+                            // Remove isolation: isolate and contain as they can clip borders
+                            // isolation: "isolate",
+                            // contain: "layout style paint", // This can clip borders
+                            boxSizing: "border-box",
+                            // Remove padding/margin that might clip borders - borders should be fully visible
+                            paddingTop: 0,
+                            paddingLeft: 0,
+                            paddingRight: 0,
+                            paddingBottom: 0,
+                            marginTop: 0,
+                            marginLeft: 0,
+                            marginRight: 0,
+                            marginBottom: 0,
+                            // Only vertical scrollbar for body
+                            scrollbarWidth: "thin !important" as any,
+                            scrollbarColor: `${alpha(theme.palette.primary.main, 0.6)} ${alpha(theme.palette.primary.main, 0.1)} !important`,
+                            msOverflowStyle: "auto !important" as any,
+                            "&::-webkit-scrollbar": {
+                                width: "12px !important",
+                                display: "block !important",
+                                WebkitAppearance: "none",
+                                appearance: "none",
+                            },
+                            "&::-webkit-scrollbar-track": {
+                                background: `${alpha(theme.palette.primary.main, 0.1)} !important`,
+                                borderRadius: "6px",
+                            },
+                            "&::-webkit-scrollbar-thumb": {
+                                backgroundColor: `${alpha(theme.palette.primary.main, 0.6)} !important`,
+                                borderRadius: "6px",
+                                "&:hover": {
+                                    backgroundColor: `${theme.palette.primary.main} !important`,
+                                },
+                            },
+                        }}
+                    >
+                        {/* Inner wrapper to ensure header and rows have same width - matching EndlessScrollDataGrid */}
                         <Box
+                            ref={bodyContentRef}
                             sx={{
-                                display: "flex",
-                                justifyContent: "center",
-                                alignItems: "center",
-                                py: { xs: 1, sm: 2 },
-                                borderTop: `1px solid ${theme.palette.divider}`,
-                                backgroundColor: theme.palette.action.hover,
+                                display: "block",
+                                width: "100%", // Match header width for alignment
+                                minWidth: "100%", // Ensure minimum matches header
+                                boxSizing: "border-box",
+                                padding: 0,
+                                margin: 0,
                             }}
                         >
-                            <CircularProgress color="primary" size={24} />
+                            {rows.length === 0 &&
+                            !isLoading &&
+                            hasCompletedInitialFetchRef.current ? (
+                                <EmptyState
+                                    noRowsMessage={noRowsMessage}
+                                    noRowsDescription={noRowsDescription}
+                                    language={language}
+                                    height={responsiveHeights}
+                                />
+                            ) : (
+                                renderVirtualItems()
+                            )}
                         </Box>
-                    )}
+
+                        {/* Loading more indicator */}
+                        {isLoadingMore && (
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    justifyContent: "center",
+                                    alignItems: "center",
+                                    py: { xs: 1, sm: 2 },
+                                    borderTop: `1px solid ${theme.palette.divider}`,
+                                    backgroundColor: theme.palette.action.hover,
+                                }}
+                            >
+                                <CircularProgress color="primary" size={24} />
+                            </Box>
+                        )}
+                    </Box>
                 </Box>
-            </Box>
+            )}
 
             {/* Export Dialog */}
             <ExportDialog
