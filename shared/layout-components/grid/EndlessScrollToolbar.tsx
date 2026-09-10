@@ -38,6 +38,10 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next";
 
 import { getEndlessScrollToolbarTooltipProps } from "./endlessScrollToolbarTooltip";
+import {
+    SEARCH_DEBOUNCE_MS,
+    resolveAppliedSearchTerm,
+} from "@/shared/layout-components/search/searchPolicy";
 import { dedupeReportsForSelector } from "@/shared/utils/reportSelectorDedupe";
 
 export { getEndlessScrollToolbarTooltipProps };
@@ -431,6 +435,29 @@ const EndlessScrollToolbarComponent: React.FC<EndlessScrollToolbarProps> = ({
         }
     }, [searchValue, isFocused, localSearchValue]);
 
+    // Search-as-you-type: ≥2 applies after debounce; under 2 clears; empty clears immediately
+    useEffect(() => {
+        if (!onSearchChange) {
+            return;
+        }
+
+        if (localSearchValue === "") {
+            if (searchValue !== "") {
+                onSearchChange("");
+            }
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            const applied = resolveAppliedSearchTerm(localSearchValue);
+            if (applied !== (searchValue ?? "")) {
+                onSearchChange(applied);
+            }
+        }, SEARCH_DEBOUNCE_MS);
+
+        return () => clearTimeout(timer);
+    }, [localSearchValue, onSearchChange, searchValue]);
+
     // Memoized callbacks
     const handleSearchChange = useCallback(
         (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -440,7 +467,8 @@ const EndlessScrollToolbarComponent: React.FC<EndlessScrollToolbarProps> = ({
     );
 
     const handleSearchSubmit = useCallback(() => {
-        onSearchChange?.(localSearchValue);
+        const applied = resolveAppliedSearchTerm(localSearchValue);
+        onSearchChange?.(applied);
     }, [onSearchChange, localSearchValue]);
 
     const handleKeyDown = useCallback(

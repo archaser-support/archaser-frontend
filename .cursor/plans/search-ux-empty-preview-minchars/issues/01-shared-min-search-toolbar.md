@@ -1,6 +1,6 @@
 # 01 — Shared min-search policy + toolbar/TableSearch
 
-**Status:** ready-for-agent
+**Status:** done
 **Priority:** high
 **Blocked by:** —
 **User stories:** 7, 8, 9, 10, 11, 12, 13, 14, 18, 19
@@ -16,12 +16,12 @@ Wire TableSearch to the same helper and force 200ms debounce everywhere it is us
 
 ## Acceptance criteria
 
-- [ ] Shared function owns “should search” / under-2 clear policy; EndlessScrollToolbar and TableSearch both call it
-- [ ] Shared 200ms debounce constant used by EndlessScrollToolbar and TableSearch
-- [ ] EndlessScrollToolbar: 1 character does not filter; ≥2 filters after ~200ms; delete to 1 clears; empty clear is immediate
-- [ ] Enter / search icon with 1 character does not apply a 1-character filter
-- [ ] TableSearch screens follow the same ≥2 / clear-under-2 / 200ms rules
-- [ ] No unrelated search UIs changed unless required to share the helper
+- [x] Shared function owns “should search” / under-2 clear policy; EndlessScrollToolbar and TableSearch both call it
+- [x] Shared 200ms debounce constant used by EndlessScrollToolbar and TableSearch
+- [x] EndlessScrollToolbar: 1 character does not filter; ≥2 filters after ~200ms; delete to 1 clears; empty clear is immediate
+- [x] Enter / search icon with 1 character does not apply a 1-character filter
+- [x] TableSearch screens follow the same ≥2 / clear-under-2 / 200ms rules
+- [x] No unrelated search UIs changed unless required to share the helper
 
 ## How to test
 
