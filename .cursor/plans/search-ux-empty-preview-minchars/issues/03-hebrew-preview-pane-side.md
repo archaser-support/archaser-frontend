@@ -1,6 +1,6 @@
 # 03 — Hebrew query preview pane side
 
-**Status:** ready-for-agent
+**Status:** done
 **Priority:** high
 **Blocked by:** —
 **User stories:** 3, 4, 5, 6, 20
@@ -14,10 +14,10 @@ Do not change the intended product rule (Hebrew query → preview left). Empty-i
 
 ## Acceptance criteria
 
-- [ ] Searching `סער`, opening a result preview → preview pane is left of the results list
-- [ ] Searching `ארז`, opening a result preview → preview pane is left of the results list (same as `סער`)
-- [ ] English UI + Hebrew query still uses Hebrew-query chrome (preview left), not English pane side
-- [ ] Empty / last-results global search behavior unchanged
+- [x] Searching `סער`, opening a result preview → preview pane is left of the results list
+- [x] Searching `ארז`, opening a result preview → preview pane is left of the results list (same as `סער`)
+- [x] English UI + Hebrew query still uses Hebrew-query chrome (preview left), not English pane side
+- [x] Empty / last-results global search behavior unchanged
 
 ## How to test
 
