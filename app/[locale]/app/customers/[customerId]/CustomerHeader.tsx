@@ -1180,10 +1180,16 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                         },
                                     }}
                                 >
-                                    {extractCustomerName(customer)}
+                                    <Box
+                                        component="span"
+                                        sx={{ unicodeBidi: "isolate" }}
+                                    >
+                                        {extractCustomerName(customer)}
+                                    </Box>
                                     {customer.customer_number ? (
                                         <Box
                                             component="span"
+                                            dir="ltr"
                                             sx={{
                                                 fontSize: {
                                                     xs: "0.75rem",
@@ -1193,9 +1199,10 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                                 fontWeight: 400,
                                                 color: "text.secondary",
                                                 ml: 0.75,
+                                                unicodeBidi: "isolate",
                                             }}
                                         >
-                                            {" "}({customer.customer_number})
+                                            ({customer.customer_number})
                                         </Box>
                                     ) : null}
                                 </Typography>

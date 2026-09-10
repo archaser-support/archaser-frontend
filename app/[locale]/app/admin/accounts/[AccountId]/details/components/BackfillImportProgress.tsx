@@ -8,6 +8,7 @@ import {
     Card,
     CardContent,
     CircularProgress,
+    Divider,
     LinearProgress,
     Tooltip,
     Typography,
@@ -213,8 +214,8 @@ function formatCounts(row: EntityProgressRow, finished: boolean): string {
     // Prefer N/M whenever a total is known (Link payments, purge, AR tail, etc.).
     if (row.total_records != null) {
         const countLabel = `${row.records_pulled.toLocaleString()} / ${row.total_records.toLocaleString()} ${unit}`;
-        if (!finished && isTailStep && row.detail) {
-            // Keep the richer sub-step label, but always include the counter.
+        // Link payments has prepare/link/close/recalc detail — same as AR tail.
+        if (!finished && (isTailStep || isLinkPayments) && row.detail) {
             const detailHasCounts = /\d/.test(row.detail);
             return detailHasCounts ? row.detail : `${row.detail} · ${countLabel}`;
         }
@@ -478,14 +479,14 @@ export default function BackfillImportProgress({
                                 sx={{
                                     display: "grid",
                                     gridTemplateColumns:
-                                        "20px max-content minmax(0, 1fr) max-content",
+                                        "20px max-content minmax(0, 1fr)",
                                     columnGap: 1,
                                     rowGap: 1.5,
-                                    alignItems: "center",
+                                    alignItems: "start",
                                     mb: actions ? 2 : 0,
                                 }}
                             >
-                                {rows.map((row) => {
+                                {rows.map((row, index) => {
                                     const showBar =
                                         row.progress_percent != null &&
                                         (row.phase === "running" ||
@@ -503,6 +504,18 @@ export default function BackfillImportProgress({
                                         row.progress_percent == null &&
                                         row.records_pulled <= 0 &&
                                         Boolean(showLiveProgress);
+                                    const countsLabel = formatCountsWithEta(
+                                        formatCounts(
+                                            row,
+                                            !showLiveProgress ||
+                                                row.phase === "done" ||
+                                                row.phase === "failed"
+                                        ),
+                                        row.entity_type ===
+                                            BACKFILL_LINK_PAYMENTS_LABEL
+                                            ? linkPaymentsEta
+                                            : null
+                                    );
 
                                     return (
                                         <Fragment key={row.entity_type}>
@@ -551,52 +564,66 @@ export default function BackfillImportProgress({
                                                     </Box>
                                                 </Tooltip>
                                             </Box>
-                                            {showBar ? (
-                                                <LinearProgress
-                                                    variant="determinate"
-                                                    value={
-                                                        row.progress_percent ??
-                                                        0
-                                                    }
-                                                    color={
-                                                        row.phase === "failed"
-                                                            ? "error"
-                                                            : row.phase ===
-                                                                "done"
-                                                              ? "success"
-                                                              : "primary"
-                                                    }
-                                                    sx={{ width: "100%" }}
-                                                />
-                                            ) : showIndeterminateBar ? (
-                                                <LinearProgress
-                                                    variant="indeterminate"
-                                                    color="primary"
-                                                    sx={{ width: "100%" }}
-                                                />
-                                            ) : (
-                                                <Box />
-                                            )}
-                                            <Typography
-                                                variant="body2"
-                                                color="text.secondary"
-                                                sx={{ justifySelf: "end" }}
+                                            <Box
+                                                sx={{
+                                                    display: "flex",
+                                                    flexDirection: "column",
+                                                    alignItems: "flex-start",
+                                                    gap: 0.5,
+                                                    minWidth: 0,
+                                                    width: "100%",
+                                                }}
                                             >
-                                                {formatCountsWithEta(
-                                                    formatCounts(
-                                                        row,
-                                                        !showLiveProgress ||
-                                                            row.phase ===
-                                                                "done" ||
-                                                            row.phase ===
-                                                                "failed"
-                                                    ),
-                                                    row.entity_type ===
-                                                        BACKFILL_LINK_PAYMENTS_LABEL
-                                                        ? linkPaymentsEta
-                                                        : null
-                                                )}
-                                            </Typography>
+                                                {showBar ||
+                                                showIndeterminateBar ? (
+                                                    <Box
+                                                        sx={{
+                                                            display: "flex",
+                                                            alignItems:
+                                                                "center",
+                                                            width: "100%",
+                                                            minHeight: 20,
+                                                        }}
+                                                    >
+                                                        {showBar ? (
+                                                            <LinearProgress
+                                                                variant="determinate"
+                                                                value={
+                                                                    row.progress_percent ??
+                                                                    0
+                                                                }
+                                                                color={
+                                                                    row.phase ===
+                                                                    "failed"
+                                                                        ? "error"
+                                                                        : row.phase ===
+                                                                            "done"
+                                                                          ? "success"
+                                                                          : "primary"
+                                                                }
+                                                                sx={{
+                                                                    width: "100%",
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <LinearProgress
+                                                                variant="indeterminate"
+                                                                color="primary"
+                                                                sx={{
+                                                                    width: "100%",
+                                                                }}
+                                                            />
+                                                        )}
+                                                    </Box>
+                                                ) : null}
+                                                <Typography
+                                                    variant="body2"
+                                                    color="text.secondary"
+                                                    sx={{ textAlign: "start" }}
+                                                >
+                                                    {countsLabel}
+                                                </Typography>
+                                            </Box>
                                             {row.last_error ? (
                                                 <Typography
                                                     variant="caption"
@@ -610,6 +637,13 @@ export default function BackfillImportProgress({
                                                         t
                                                     )}
                                                 </Typography>
+                                            ) : null}
+                                            {index < rows.length - 1 ? (
+                                                <Divider
+                                                    sx={{
+                                                        gridColumn: "1 / -1",
+                                                    }}
+                                                />
                                             ) : null}
                                         </Fragment>
                                     );

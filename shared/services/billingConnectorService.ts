@@ -163,6 +163,10 @@ export interface SyncRunSummary {
                 step: string;
                 processed?: number;
                 total?: number;
+                customer_id?: number;
+                customer_label?: string;
+                customer_index?: number;
+                customer_total?: number;
             };
         }
     >;
@@ -447,20 +451,28 @@ export interface ImportCacheRun {
     entities: ImportCacheRunEntity[];
 }
 
+export interface ImportCacheDaySummary {
+    cache_day: string;
+    run_count: number;
+}
+
 export interface ImportCacheCheckResponse {
     sync_mode: "BACKFILL" | "INCREMENTAL";
-    cache_day: string;
+    /** Selected / default day for `runs[]` (null when no TTL days). */
+    cache_day: string | null;
     customer_scope: string;
     time_zone: string;
+    days: ImportCacheDaySummary[];
     runs: ImportCacheRun[];
 }
 
-/** Same-day Mongo import-cache availability for manual Start suggestion. */
+/** Mongo import-cache days + runs for manual Start suggestion (TTL window). */
 export async function fetchBillingConnectorImportCacheCheck(
     accountId: number,
     options: {
         mode: "backfill" | "incremental";
         customer_id?: number | null;
+        cache_day?: string | null;
     }
 ): Promise<ImportCacheCheckResponse> {
     const params: Record<string, string | number> = {
@@ -472,6 +484,12 @@ export async function fetchBillingConnectorImportCacheCheck(
         options.customer_id > 0
     ) {
         params.customer_id = Math.trunc(options.customer_id);
+    }
+    if (
+        typeof options.cache_day === "string" &&
+        /^\d{4}-\d{2}-\d{2}$/.test(options.cache_day.trim())
+    ) {
+        params.cache_day = options.cache_day.trim();
     }
     const response = await api.get<ImportCacheCheckResponse>(
         `${basePath(accountId)}/sync/cache-check`,
