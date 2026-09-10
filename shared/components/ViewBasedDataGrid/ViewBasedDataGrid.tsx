@@ -15,7 +15,6 @@ import React, {
     useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { useDebounce } from "use-debounce";
 
 import { createCheckboxColumn } from "./CheckboxColumn";
 
@@ -195,8 +194,8 @@ export const ViewBasedDataGrid: React.FC<ViewBasedDataGridProps> = ({
     }
     const config = { ...baseConfig, ...contextConfigOverride };
 
-    // Search state
-    const [debouncedSearch] = useDebounce(searchValue, 500);
+    // Search: EndlessScrollToolbar owns ≥2 policy + SEARCH_DEBOUNCE_MS; use applied value as-is
+    const debouncedSearch = searchValue;
     const [sortModel, setSortModel] = useState<GridSortModel>([
         config.defaultSort,
     ]);
@@ -1044,8 +1043,9 @@ export const ViewBasedDataGrid: React.FC<ViewBasedDataGridProps> = ({
     const prevViewIdRef = useRef<number | null>(selectedViewId);
 
     useEffect(() => {
-        // When view changes or search changes, reset the initial load state
-        if (selectedViewId !== prevViewIdRef.current || debouncedSearch !== prevDebouncedSearchRef.current) {
+        // View change can swap columns — unmount until first fetch for that view.
+        // Search only refreshes rows; keep the grid mounted (toolbar stays usable).
+        if (selectedViewId !== prevViewIdRef.current) {
             setIsInitialDataLoaded(false);
             prevViewIdRef.current = selectedViewId;
         }
@@ -1056,7 +1056,7 @@ export const ViewBasedDataGrid: React.FC<ViewBasedDataGridProps> = ({
             const timer = setTimeout(() => setIsInitialDataLoaded(true), 50);
             return () => clearTimeout(timer);
         }
-    }, [isLoading, rows.length, viewConfig, selectedViewId, debouncedSearch]);
+    }, [isLoading, rows.length, viewConfig, selectedViewId]);
 
     // Error state
     if (error) {
@@ -1095,10 +1095,10 @@ export const ViewBasedDataGrid: React.FC<ViewBasedDataGridProps> = ({
         );
     }
 
-    // Show loading placeholder if:
-    // 1. We are explicitly loading and have no rows (standard case)
-    // 2. We just changed the view/search and haven't finished the FIRST fetch yet (prevents empty columns flash)
-    if ((isLoading && rows.length === 0) || !isInitialDataLoaded) {
+    // Full-grid placeholder only before the first load of the current view
+    // (column set may still be settling). Search refetches keep EndlessScrollDataGrid
+    // mounted so the toolbar/search field do not remount; body loading is handled there.
+    if (!isInitialDataLoaded) {
         return (
             <Box
                 sx={{
@@ -1118,7 +1118,7 @@ export const ViewBasedDataGrid: React.FC<ViewBasedDataGridProps> = ({
     return (
         <>
             <EndlessScrollDataGrid
-                key={`${debouncedSearch}-${selectedViewId}`}
+                key={selectedViewId ?? "no-view"}
                 rows={rows}
                 columns={columns}
                 totalRecords={totalRecords}
@@ -1132,7 +1132,6 @@ export const ViewBasedDataGrid: React.FC<ViewBasedDataGridProps> = ({
                 searchValue={searchValue}
                 onSearchChange={onSearchChange}
                 searchPlaceholder={t("fields.search_placeholder", { ns: "common" })}
-                searchDebounceMs={500}
                 searchDisabled={false}
                 searchDirection={i18n.language === "he" ? "rtl" : "ltr"}
                 language={i18n.language}
