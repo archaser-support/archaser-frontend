@@ -12,6 +12,7 @@ import React, { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 import TableSearch from "../search/TableSearch";
+import { SEARCH_DEBOUNCE_MS } from "../search/searchPolicy";
 
 import CustomColumnsButton from "./CustomColumnsButton";
 import CustomFilterButton from "./CustomFilterButton";
@@ -23,6 +24,7 @@ interface CustomDataGridToolbarProps {
     searchValue?: string;
     onSearchChange?: (value: string) => void;
     searchPlaceholder?: string;
+    /** @deprecated Ignored — TableSearch always uses shared SEARCH_DEBOUNCE_MS (200). */
     searchDebounceMs?: number;
     searchDisabled?: boolean;
     searchDirection?: 'ltr' | 'rtl';
@@ -36,7 +38,6 @@ export const CustomDataGridToolbar = ({
     searchValue,
     onSearchChange,
     searchPlaceholder,
-    searchDebounceMs = 1000,
     searchDisabled = false,
     searchDirection = 'ltr',
     onSearchFocus,
@@ -185,7 +186,7 @@ export const CustomDataGridToolbar = ({
                         searchValue={searchValue}
                         onSearchChange={onSearchChange}
                         placeholder={searchPlaceholder}
-                        debounceMs={searchDebounceMs}
+                        debounceMs={SEARCH_DEBOUNCE_MS}
                         disabled={searchDisabled}
                         direction={searchDirection}
                         fullWidth={false}

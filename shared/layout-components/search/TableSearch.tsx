@@ -3,7 +3,6 @@ import {
     Clear as ClearIcon
 } from '@mui/icons-material';
 import {
-    Box,
     TextField,
     IconButton,
     InputAdornment,
@@ -13,10 +12,16 @@ import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDebounce } from 'use-debounce';
 
+import {
+    SEARCH_DEBOUNCE_MS,
+    resolveAppliedSearchTerm,
+} from './searchPolicy';
+
 interface TableSearchProps {
     searchValue: string;
     onSearchChange: (value: string) => void;
     placeholder?: string;
+    /** @deprecated Ignored — always uses shared SEARCH_DEBOUNCE_MS (200). */
     debounceMs?: number;
     disabled?: boolean;
     fullWidth?: boolean;
@@ -30,7 +35,6 @@ const TableSearchComponent: React.FC<TableSearchProps> = ({
     searchValue,
     onSearchChange,
     placeholder,
-    debounceMs = 1000,
     disabled = false,
     fullWidth = false,
     maxWidth,
@@ -41,7 +45,7 @@ const TableSearchComponent: React.FC<TableSearchProps> = ({
     const theme = useTheme();
     const { t } = useTranslation(["common"]);
     const [localValue, setLocalValue] = useState(searchValue);
-    const [debouncedValue] = useDebounce(localValue, debounceMs);
+    const [debouncedValue] = useDebounce(localValue, SEARCH_DEBOUNCE_MS);
     const inputRef = useRef<HTMLInputElement>(null);
     const isUserTyping = useRef(false);
     const lastExternalValue = useRef(searchValue);
@@ -52,12 +56,24 @@ const TableSearchComponent: React.FC<TableSearchProps> = ({
         onSearchChangeRef.current = onSearchChange;
     }, [onSearchChange]);
 
-    // Update parent when debounced value changes - use ref to avoid dependency
+    // Empty clears immediately; otherwise apply policy after debounce
     useEffect(() => {
-        if (debouncedValue !== searchValue) {
-            onSearchChangeRef.current(debouncedValue);
+        if (localValue === "") {
+            if (searchValue !== "") {
+                onSearchChangeRef.current("");
+            }
+            return;
         }
-    }, [debouncedValue, searchValue]);
+
+        if (debouncedValue !== localValue) {
+            return;
+        }
+
+        const applied = resolveAppliedSearchTerm(debouncedValue);
+        if (applied !== searchValue) {
+            onSearchChangeRef.current(applied);
+        }
+    }, [localValue, debouncedValue, searchValue]);
 
     // Only sync with external changes when the user is not typing and the value actually changed
     // This effect is now completely isolated from re-renders
