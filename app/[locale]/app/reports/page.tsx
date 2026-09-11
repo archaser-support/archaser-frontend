@@ -877,7 +877,7 @@ const ReportsPage: React.FC = () => {
                         }}
                     >
                         <EndlessScrollDataGrid
-                        key={`reports-${debouncedSearch}-${queryKeyVersion}-${isAdmin}`}
+                        key={`reports-${isAdmin}`}
                         rows={rows}
                         columns={columns}
                         totalRecords={totalRecords}

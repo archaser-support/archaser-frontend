@@ -804,7 +804,6 @@ const AccountList: React.FC = () => {
                 }}
             >
                 <EndlessScrollDataGrid
-                    key={`${debouncedSearch}-${filterStatus}-${deletionFilter}`}
                     rows={rows}
                     columns={columns}
                     totalRecords={totalRecords}
