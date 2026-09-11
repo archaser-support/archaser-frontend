@@ -1,6 +1,6 @@
 import { Box, CircularProgress } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
-import { GridColDef, GridSortModel } from "@mui/x-data-grid";
+import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import React, {
     useCallback,
     useEffect,

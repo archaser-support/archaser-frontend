@@ -1,7 +1,7 @@
 import { Warning, WarningAmber } from "@mui/icons-material";
 import { Box, Switch, Tooltip, Typography } from "@mui/material";
 import { Theme } from "@mui/material/styles";
-import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+import { GridColDef, GridRenderCellParams } from "@/shared/layout-components/grid/gridColumnTypes";
 import { TFunction } from "i18next";
 import { NextRouter } from "next/router";
 import React from "react";
