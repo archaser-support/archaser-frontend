@@ -537,30 +537,9 @@ const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
         });
     }, [columnVisibilityModel, syncColumnWidths]);
 
-    // Sync column widths when sort model changes (sorting can affect column rendering)
-    // Use useLayoutEffect for immediate sync before paint
-    useLayoutEffect(() => {
-        if (sortModel && sortModel.length > 0) {
-            // Use multiple requestAnimationFrame calls to ensure DOM has fully updated after sort
-            // Also add a small delay to ensure data has been loaded and rendered
-            const syncTimeout = setTimeout(() => {
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        requestAnimationFrame(() => {
-                            // Force sync to ensure columns align after sort
-                            syncColumnWidths(true, true);
-                        });
-                    });
-                });
-            }, 100); // Small delay to ensure data is loaded
-
-            return () => clearTimeout(syncTimeout);
-        }
-    }, [sortModel, syncColumnWidths]);
-
-    // Sync column widths when rows data changes significantly (e.g., after loading all rows or sorting)
-    // This ensures column widths are correct after pagination completes or data structure changes
-    // Use useLayoutEffect for immediate sync before paint
+    // Sync column widths when rows data changes significantly (e.g., after loading all rows).
+    // Sort-driven refetch empties then refills rows — do not treat that as a structure change
+    // and do not rememeasure flex widths from the header (that was shifting column widths).
     const prevRowCountRef = useRef(rows.length);
     const prevRowKeysRef = useRef<string>("");
     const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -572,17 +551,28 @@ const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
             syncTimeoutRef.current = null;
         }
 
-        const rowCountChanged = rows.length !== prevRowCountRef.current;
+        const prevRowCount = prevRowCountRef.current;
+        const rowCountChanged = rows.length !== prevRowCount;
         // Check if data structure changed (e.g., different fields present) by comparing keys of first row
         const currentRowKeys =
             rows.length > 0
                 ? JSON.stringify(Object.keys(rows[0] || {}).sort())
                 : "";
+        // Ignore empty→populated: sort/filter refetch clears rows then restores the same shape
         const dataStructureChanged =
-            currentRowKeys !== prevRowKeysRef.current && currentRowKeys !== "";
+            currentRowKeys !== prevRowKeysRef.current &&
+            currentRowKeys !== "" &&
+            prevRowKeysRef.current !== "";
 
+        const recoveringFromEmpty = prevRowCount === 0 && rows.length > 0;
+        const shouldSync =
+            rows.length > 0 &&
+            (dataStructureChanged ||
+                (rowCountChanged && !recoveringFromEmpty) ||
+                // First populate only (never had row keys yet)
+                (recoveringFromEmpty && prevRowKeysRef.current === ""));
 
-        if ((rowCountChanged || dataStructureChanged) && rows.length > 0) {
+        if (shouldSync) {
             // Use multiple requestAnimationFrame calls to ensure DOM has fully updated
             // Also add a small delay to ensure virtual rows are rendered
             const syncFn = () => {
@@ -615,8 +605,12 @@ const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
                 });
             });
         }
+
         prevRowCountRef.current = rows.length;
-        prevRowKeysRef.current = currentRowKeys;
+        // Keep last known row keys while empty so refill is not treated as a new structure
+        if (currentRowKeys !== "") {
+            prevRowKeysRef.current = currentRowKeys;
+        }
 
         // Cleanup timeout on unmount
         return () => {
