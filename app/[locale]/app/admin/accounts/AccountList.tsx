@@ -23,7 +23,7 @@ import {
     GridColDef,
     GridRenderCellParams,
     GridSortModel,
-} from "@mui/x-data-grid";
+} from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQueryClient } from "@tanstack/react-query";
 import api from "@/app/api";
 import { useSession } from "next-auth/react";

@@ -2,7 +2,7 @@
 import { apiFetch } from "@/utils/apiFetch";
 
 import { Box, CircularProgress, Typography, useTheme } from "@mui/material";
-import { GridColDef, GridSortModel } from "@mui/x-data-grid";
+import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useSession } from "next-auth/react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";

@@ -29,7 +29,7 @@ import {
     Typography,
 } from "@mui/material";
 import { Theme, alpha, useTheme } from "@mui/material/styles";
-import { GridColDef } from "@mui/x-data-grid";
+import { GridColDef } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/app/api";
 import { TFunction } from "i18next";

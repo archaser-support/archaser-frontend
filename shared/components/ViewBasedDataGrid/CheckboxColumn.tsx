@@ -1,6 +1,6 @@
 import { Box, Checkbox } from "@mui/material";
 import { Theme } from "@mui/material/styles";
-import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+import { GridColDef, GridRenderCellParams } from "@/shared/layout-components/grid/gridColumnTypes";
 
 interface CreateCheckboxColumnOptions {
     selectedRows: number[];

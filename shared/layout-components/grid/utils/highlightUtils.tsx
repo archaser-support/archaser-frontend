@@ -1,5 +1,5 @@
 import React from "react";
-import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+import { GridColDef, GridRenderCellParams } from "@/shared/layout-components/grid/gridColumnTypes";
 import { isFormulaOutputKey } from "@/shared/reportFormula/types";
 import { HighlightText } from "../components/HighlightText";
 
