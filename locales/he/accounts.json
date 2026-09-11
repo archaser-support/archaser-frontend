@@ -214,7 +214,13 @@
     "billing_connector": {
         "mep_breach_start_date_label": "תאריך תחילת חריגת MEP",
         "mep_breach_start_date_helper": "אופציונלי. חשבוניות שהונפקו לפני יום זה אינן נכללות בחישוב חריגת MEP. השאירו ריק כדי לחשב על כל ההיסטוריה.",
-        "mep_breach_start_date_locked": "נעול לאחר תחילת מילוי ההיסטוריה. אפסו את המילוי כדי לשנות את תאריך תחילת חריגת MEP."
+        "mep_breach_start_date_locked": "נעול לאחר תחילת מילוי ההיסטוריה. אפסו את המילוי כדי לשנות את תאריך תחילת חריגת MEP.",
+        "sync_mode_backfill": "מילוי היסטוריה",
+        "sync_mode_incremental": "מצטבר",
+        "sync_mode_label": "מצב סנכרון",
+        "last_sync_at_label": "סנכרון אחרון (UTC)",
+        "last_sync_at_empty": "—",
+        "next_scheduled_sync_at_label": "הסנכרון המתוזמן הבא (UTC)"
     },
     "as_of_backfill": {
         "open_button": "מילוי היסטוריה לפי תאריך",

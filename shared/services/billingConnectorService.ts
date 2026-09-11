@@ -1,4 +1,4 @@
-﻿import api from "@/app/api";
+import api from "@/app/api";
 import type { ConnectorAuthType, BillingProvider, ImportType } from "@/types/db";
 
 import type { MappingRule } from "@/shared/constants/importEntityFields";
@@ -121,6 +121,8 @@ export interface BillingConnectorConfig {
     daily_time_utc?: string;
     weekly_day?: number;
     next_scheduled_sync_at_utc?: string | null;
+    /** Oldest enabled-entity last_successful_run_at (account-wide freshness). */
+    last_sync_at?: string | null;
     schedule_warning?: string | null;
     sync_states?: ConnectorSyncStatePublic[];
 }

@@ -27,6 +27,7 @@ import {
     Settings as SettingsIcon,
 } from "@mui/icons-material";
 import { memo, type ComponentType, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { BillingExtensionPanelProps } from "@/shared/billing-extensions/types";
 import type { UpsertBillingConnectorPayload } from "@/shared/services/billingConnectorService";
@@ -46,7 +47,14 @@ import {
     accountCardTitleSx,
     accountSectionIconSx,
 } from "../accountCardStyles";
+import BillingSyncModeChip from "./BillingSyncModeChip";
 
+function formatUtcTimestamp(value: string): string {
+    return new Date(value)
+        .toISOString()
+        .replace("T", " ")
+        .replace(/\.\d{3}Z$/, " UTC");
+}
 /** Info icon sits after the control (outside the input), matching Customer autocomplete. */
 function FieldWithTrailingInfoTooltip({
     isHebrew,
@@ -98,6 +106,7 @@ export interface BillingScheduleSectionProps {
     onExpandedChange: (expanded: boolean) => void;
     syncEnabled: boolean;
     onSyncEnabledChange: (value: boolean) => void;
+    syncMode: string | null | undefined;
     scheduleSummary: string | null | undefined;
     extensionKey: string;
     onExtensionKeyChange: (value: string) => void;
@@ -111,6 +120,7 @@ export interface BillingScheduleSectionProps {
     onWeeklyDayChange: (value: number) => void;
     scheduleWarning: string | null | undefined;
     nextScheduledSyncAtUtc: string | null | undefined;
+    lastSyncAt: string | null | undefined;
     invoicePaidTolerance: string;
     onInvoicePaidToleranceChange: (value: string) => void;
     invoicePaidToleranceError: string | null;
@@ -145,6 +155,7 @@ const BillingScheduleSection = memo(function BillingScheduleSection(props: Billi
         onExpandedChange,
         syncEnabled,
         onSyncEnabledChange,
+        syncMode,
         scheduleSummary,
         extensionKey,
         onExtensionKeyChange,
@@ -158,6 +169,7 @@ const BillingScheduleSection = memo(function BillingScheduleSection(props: Billi
         onWeeklyDayChange,
         scheduleWarning,
         nextScheduledSyncAtUtc,
+        lastSyncAt,
         invoicePaidTolerance,
         onInvoicePaidToleranceChange,
         invoicePaidToleranceError,
@@ -184,6 +196,7 @@ const BillingScheduleSection = memo(function BillingScheduleSection(props: Billi
         extensionRegistrationKey,
     } = props;
 
+    const { t } = useTranslation(["accounts"]);
     const theme = useTheme();
     const pillRadiusPx = `${theme.appButton.sizeMedium.borderRadius}px`;
     const {
@@ -208,12 +221,25 @@ const BillingScheduleSection = memo(function BillingScheduleSection(props: Billi
                             >
                                 <SettingsIcon sx={accountSectionIconSx} />
                                 <Box sx={{ minWidth: 0, flex: 1 }}>
-                                    <Typography
-                                        variant="subtitle1"
-                                        sx={accountCardTitleSx}
+                                    <Box
+                                        sx={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 1,
+                                            flexWrap: "wrap",
+                                        }}
                                     >
-                                        Sync Settings
-                                    </Typography>
+                                        <Typography
+                                            variant="subtitle1"
+                                            sx={accountCardTitleSx}
+                                        >
+                                            Sync Settings
+                                        </Typography>
+                                        <BillingSyncModeChip
+                                            syncMode={syncMode}
+                                            isHebrew={isHebrew}
+                                        />
+                                    </Box>
                                     <Typography
                                         variant="body2"
                                         color="text.secondary"
@@ -360,28 +386,51 @@ const BillingScheduleSection = memo(function BillingScheduleSection(props: Billi
                                     </Grid>
                                 ) : null}
         
-                                {(nextScheduledSyncAtUtc ||
+                                {(lastSyncAt ||
+                                    nextScheduledSyncAtUtc ||
                                     syncEnabled) && (
                                     <Grid size={{ xs: 12 }}>
+                                        <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                        >
+                                            {t(
+                                                "billing_connector.last_sync_at_label"
+                                            )}
+                                            :{" "}
+                                            {lastSyncAt
+                                                ? formatUtcTimestamp(lastSyncAt)
+                                                : t(
+                                                      "billing_connector.last_sync_at_empty"
+                                                  )}
+                                        </Typography>
                                         {nextScheduledSyncAtUtc ? (
                                             <Typography
                                                 variant="body2"
                                                 color="text.secondary"
+                                                sx={{ mt: 0.5 }}
                                             >
-                                                Next scheduled sync (UTC):{" "}
-                                                {new Date(
+                                                {t(
+                                                    "billing_connector.next_scheduled_sync_at_label"
+                                                )}
+                                                :{" "}
+                                                {formatUtcTimestamp(
                                                     nextScheduledSyncAtUtc
-                                                )
-                                                    .toISOString()
-                                                    .replace("T", " ")
-                                                    .replace(/\.\d{3}Z$/, " UTC")}
+                                                )}
                                             </Typography>
                                         ) : syncEnabled ? (
                                             <Typography
                                                 variant="body2"
                                                 color="text.secondary"
+                                                sx={{ mt: 0.5 }}
                                             >
-                                                Next scheduled sync (UTC): —
+                                                {t(
+                                                    "billing_connector.next_scheduled_sync_at_label"
+                                                )}
+                                                :{" "}
+                                                {t(
+                                                    "billing_connector.last_sync_at_empty"
+                                                )}
                                             </Typography>
                                         ) : null}
                                     </Grid>
