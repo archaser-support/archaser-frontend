@@ -817,7 +817,6 @@ const LegalList: React.FC<LegalListProps> = ({
             ) : (
                 <Box ref={tableContainerRef}>
                     <EndlessScrollDataGrid
-                    key={`${debouncedSearch}`}
                     rows={rows}
                     columns={columns}
                     totalRecords={totalRecords}

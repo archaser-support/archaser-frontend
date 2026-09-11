@@ -1207,7 +1207,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
                 }}
             >
                 <EndlessScrollDataGrid
-                    key={`${reportId}-${debouncedSearch}-${JSON.stringify(sortModel)}-${queryKeyVersion}`}
+                    key={`report-${reportId}`}
                     customButtons={ReportActionButtons}
                     viewportRecalcDependency={fillViewportRecalcKey}
                     rows={rows}
