@@ -264,18 +264,29 @@ const DataGridHeader: React.FC<DataGridHeaderProps> = React.memo(
                                     />
                                 )}
                             </Box>
-                            {isSortable && sortDirection ? (
+                            {/* Always reserve sort-indicator space so sorting does not shift column widths */}
+                            {isSortable ? (
                                 <Box
                                     key={`${column.field}-sort-indicator`}
+                                    aria-hidden={!sortDirection}
                                     sx={{
                                         color: theme.palette.primary.main,
                                         fontSize:
                                             theme.typography.caption.fontSize,
                                         flexShrink: 0,
                                         lineHeight: 1,
+                                        width: "1em",
+                                        textAlign: "center",
+                                        visibility: sortDirection
+                                            ? "visible"
+                                            : "hidden",
                                     }}
                                 >
-                                    {sortDirection === "asc" ? "↑" : "↓"}
+                                    {sortDirection === "asc"
+                                        ? "↑"
+                                        : sortDirection === "desc"
+                                          ? "↓"
+                                          : "↑"}
                                 </Box>
                             ) : null}
                             {/* Resize handle */}
