@@ -453,7 +453,7 @@ export function CustomerTopUpList({
 
             <Box sx={{ position: "relative", isolation: "isolate" }}>
                 <EndlessScrollDataGrid
-                    key={`customer-top-ups-${customerId}-${debouncedSearch}-${queryKeyVersion}`}
+                    key={`customer-top-ups-${customerId}`}
                     rows={rows}
                     columns={columns}
                     totalRecords={totalRecords}

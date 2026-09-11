@@ -763,7 +763,6 @@ const DisputeTemplateList: React.FC<DisputeTemplateListProps> = ({
                 }}
             >
                 <EndlessScrollDataGrid
-                    key={`dispute-templates-${debouncedSearch}-${queryKeyVersion}`}
                     rows={disputeTemplates}
                     columns={columns}
                     totalRecords={totalRecords}
