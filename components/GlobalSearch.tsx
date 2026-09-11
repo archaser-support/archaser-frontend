@@ -67,8 +67,6 @@ const MAX_RECENT_SEARCHES = 5;
 const SEARCH_RESULTS_PANEL_WIDTH_PX = 350;
 const SEARCH_PREVIEW_PANEL_WIDTH_PX = 300;
 const SEARCH_DROPDOWN_MAX_HEIGHT_PX = 400;
-const SEARCH_DROPDOWN_EXPANDED_WIDTH_PX =
-    SEARCH_RESULTS_PANEL_WIDTH_PX + SEARCH_PREVIEW_PANEL_WIDTH_PX;
 
 // Helper function to highlight search terms
 const highlightText = (text: string, searchTerm: string): React.ReactNode => {
@@ -224,6 +222,10 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
     const popperRef = useRef<HTMLElement | null>(null);
     const resultRefs = useRef<{ [key: number]: HTMLElement | null }>({});
     const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    // Match dropdown to the Autocomplete root (search pill) width — not a fixed 350px.
+    const [anchorWidthPx, setAnchorWidthPx] = useState(
+        SEARCH_RESULTS_PANEL_WIDTH_PX
+    );
 
     const accountId = session?.user?.account_id ?? null;
     const { data: accountProducts } = useQuery({
@@ -290,9 +292,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
     const isAppRtl = appTextDirection === "rtl";
 
     const previewOpen = Boolean(hoveredResult) && !isMobile;
+    const resultsPanelWidth =
+        Math.round(anchorWidthPx) || SEARCH_RESULTS_PANEL_WIDTH_PX;
     const dropdownPanelWidth = previewOpen
-        ? SEARCH_DROPDOWN_EXPANDED_WIDTH_PX
-        : SEARCH_RESULTS_PANEL_WIDTH_PX;
+        ? resultsPanelWidth + SEARCH_PREVIEW_PANEL_WIDTH_PX
+        : resultsPanelWidth;
 
     const listboxRendererRef = useRef<(props: any) => React.ReactNode>(
         () => null
@@ -351,6 +355,27 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
         }, 100);
         return () => clearTimeout(timer);
     }, []);
+
+    // Keep dropdown width in sync with the search pill (focus expand + resize).
+    useEffect(() => {
+        const input = searchInputRef.current;
+        const autocompleteRoot = input?.closest(
+            ".MuiAutocomplete-root"
+        ) as HTMLElement | null;
+        if (!autocompleteRoot) return;
+
+        const updateWidth = () => {
+            const next = autocompleteRoot.getBoundingClientRect().width;
+            if (next > 0) {
+                setAnchorWidthPx(next);
+            }
+        };
+
+        updateWidth();
+        const resizeObserver = new ResizeObserver(updateWidth);
+        resizeObserver.observe(autocompleteRoot);
+        return () => resizeObserver.disconnect();
+    }, [isFocused, searchTerm, isMobile, isOpen]);
 
     // Debounce search term (reduced to 200ms for faster feedback)
     useEffect(() => {
@@ -2284,7 +2309,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                 <Box
                     data-global-search-results="true"
                     sx={{
-                        width: SEARCH_RESULTS_PANEL_WIDTH_PX,
+                        width: resultsPanelWidth,
                         flexShrink: 0,
                         maxHeight: SEARCH_DROPDOWN_MAX_HEIGHT_PX,
                         overflowY: "auto",
