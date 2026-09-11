@@ -219,7 +219,10 @@ function formatCounts(row: EntityProgressRow, finished: boolean): string {
             const detailHasCounts = /\d/.test(row.detail);
             return detailHasCounts ? row.detail : `${row.detail} · ${countLabel}`;
         }
-        if (finished && ((row.failed ?? 0) > 0 || (row.skipped ?? 0) > 0)) {
+        if (
+            (finished || row.phase === "done") &&
+            ((row.failed ?? 0) > 0 || (row.skipped ?? 0) > 0)
+        ) {
             return [countLabel, ...formatFailedSkippedSuffix(row, isLinkPayments)].join(
                 " · "
             );
