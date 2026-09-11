@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { GridColDef } from "@mui/x-data-grid";
+import { GridColDef } from "@/shared/layout-components/grid/gridColumnTypes";
 
 /**
  * Hook to create row number column definition

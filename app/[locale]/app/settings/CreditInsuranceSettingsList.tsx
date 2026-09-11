@@ -16,7 +16,7 @@ import {
     useTheme,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
-import { GridColDef, GridSortModel } from "@mui/x-data-grid";
+import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, {
