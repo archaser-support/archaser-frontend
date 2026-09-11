@@ -15,7 +15,7 @@ import {
 } from "@mui/material";
 import Button from "@mui/material/Button";
 import { useTheme } from "@mui/material/styles";
-import { GridColDef, GridSortModel } from "@mui/x-data-grid";
+import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api, { apiFetch } from "@/app/api";
 import { useSession } from "next-auth/react";

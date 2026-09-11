@@ -11,7 +11,7 @@ import {
     Tooltip,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
-import { GridColDef, GridSortModel } from "@mui/x-data-grid";
+import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApexOptions } from "apexcharts";
 import dynamic from "next/dynamic";

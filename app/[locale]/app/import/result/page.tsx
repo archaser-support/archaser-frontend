@@ -26,7 +26,7 @@ import {
     Typography,
     useTheme
 } from "@mui/material";
-import { GridColDef } from "@mui/x-data-grid";
+import { GridColDef } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
