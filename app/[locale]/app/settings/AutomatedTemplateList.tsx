@@ -713,7 +713,6 @@ const AutomatedTemplateList: React.FC<{ accountId?: number }> = ({ accountId: _a
                 }}
             >
                 <EndlessScrollDataGrid
-                    key={`automated-templates-${debouncedSearch}-${queryKeyVersion}`}
                     rows={rows}
                     columns={columns}
                     totalRecords={totalRecords}

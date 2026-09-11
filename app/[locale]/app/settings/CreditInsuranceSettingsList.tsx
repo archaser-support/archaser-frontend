@@ -657,7 +657,7 @@ export function CreditInsuranceSettingsList({
                 }}
             >
                 <EndlessScrollDataGrid
-                    key={`insurance-policies-${accountId}-${debouncedSearch}-${queryKeyVersion}`}
+                    key={`insurance-policies-${accountId}`}
                     rows={rows}
                     columns={columns}
                     totalRecords={totalRecords}
