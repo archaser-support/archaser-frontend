@@ -764,7 +764,6 @@ const PromiseToPayTemplateList: React.FC<{ accountId?: number }> = ({
                 }}
             >
                 <EndlessScrollDataGrid
-                    key={`promise-to-pay-templates-${debouncedSearch}-${queryKeyVersion}`}
                     rows={promiseToPayTemplates}
                     columns={columns}
                     totalRecords={totalRecords}
