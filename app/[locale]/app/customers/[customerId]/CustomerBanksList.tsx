@@ -10,7 +10,7 @@ import {
     Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { GridRenderCellParams } from "@mui/x-data-grid";
+import { GridRenderCellParams } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

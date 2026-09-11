@@ -8,7 +8,7 @@ import { styled, useTheme } from "@mui/material/styles";
 import Switch from "@mui/material/Switch";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import { GridColDef, GridSortModel } from "@mui/x-data-grid";
+import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import React, { useState, useCallback, useMemo, useRef } from "react";

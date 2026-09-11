@@ -3,7 +3,7 @@ import { CircularProgress, Button, Tooltip, useTheme } from "@mui/material";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import Typography from "@mui/material/Typography";
-import { GridColDef, GridSortModel } from "@mui/x-data-grid";
+import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";

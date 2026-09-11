@@ -3,7 +3,7 @@ import { apiFetch } from "@/utils/apiFetch";
 
 import { Box, CircularProgress, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { GridColDef, GridRenderCellParams, GridSortModel } from "@mui/x-data-grid";
+import { GridColDef, GridRenderCellParams, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";

@@ -20,7 +20,7 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import { GridColDef, GridSortModel } from "@mui/x-data-grid";
+import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api, { apiFetch } from "@/app/api";
 import { isAxiosError } from "axios";
