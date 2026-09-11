@@ -16,7 +16,7 @@ import {
     Alert,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { GridColDef } from "@mui/x-data-grid";
+import { GridColDef } from "@/shared/layout-components/grid/gridColumnTypes";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { activity_type } from "@/types/db";
 import moment from "moment";

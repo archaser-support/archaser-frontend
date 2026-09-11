@@ -25,7 +25,7 @@ import {
     Chip,
     Alert,
 } from "@mui/material";
-import { GridColDef } from "@mui/x-data-grid";
+import { GridColDef } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import React, { Fragment, useState, useEffect, useMemo, useRef } from "react";
