@@ -15,7 +15,7 @@ import {
     useMediaQuery,
     useTheme,
 } from "@mui/material";
-import { GridSortModel } from "@mui/x-data-grid";
+import { GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery } from "@tanstack/react-query";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";

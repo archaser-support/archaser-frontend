@@ -5,7 +5,7 @@ import {
     CheckCircle as CheckCircleIcon,
 } from "@mui/icons-material";
 import { Alert, Box, Typography } from "@mui/material";
-import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+import { GridColDef, GridRenderCellParams } from "@/shared/layout-components/grid/gridColumnTypes";
 import type { ImportType } from "@/types/db";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";

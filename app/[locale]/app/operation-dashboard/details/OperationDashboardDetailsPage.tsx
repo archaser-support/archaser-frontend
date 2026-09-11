@@ -8,7 +8,7 @@ import {
     Typography,
     useTheme
 } from "@mui/material";
-import { GridSortModel } from "@mui/x-data-grid";
+import { GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
