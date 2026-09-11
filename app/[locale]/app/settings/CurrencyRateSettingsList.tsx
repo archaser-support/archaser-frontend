@@ -249,7 +249,6 @@ export function CurrencyRateSettingsList() {
         <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
             <Box sx={{ position: "relative", isolation: "isolate" }}>
                 <EndlessScrollDataGrid
-                    key={`currency-rates-${debouncedSearch}-${queryKeyVersion}`}
                     rows={rows}
                     columns={columns}
                     totalRecords={totalRecords}
