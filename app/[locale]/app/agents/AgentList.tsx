@@ -28,7 +28,7 @@ import {
     GridSortModel,
     GridColDef,
     GridRenderCellParams,
-} from "@mui/x-data-grid";
+} from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import moment from "moment";
 import dynamic from "next/dynamic";

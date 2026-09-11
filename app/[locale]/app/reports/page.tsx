@@ -24,7 +24,7 @@ import {
     GridColDef,
     GridRenderCellParams,
     GridSortModel,
-} from "@mui/x-data-grid";
+} from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api, { apiFetch } from "@/app/api";
 import { useRouter, useParams } from "next/navigation";
