@@ -15,7 +15,7 @@ import {
     IconButton,
     useTheme,
 } from "@mui/material";
-import { GridColDef } from "@mui/x-data-grid";
+import { GridColDef } from "@/shared/layout-components/grid/gridColumnTypes";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { useDebounce } from "use-debounce";
