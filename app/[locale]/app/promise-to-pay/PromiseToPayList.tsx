@@ -530,7 +530,6 @@ const PromiseToPayList: React.FC<PromiseToPayListProps> = ({
                     }}
                 >
                     <EndlessScrollDataGrid
-                        key={`${debouncedSearch}`}
                         rows={rows}
                         columns={columns}
                         totalRecords={totalRecords}
