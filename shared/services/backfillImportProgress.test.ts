@@ -56,7 +56,7 @@ function waitingTailProgressRows(): Array<[string, string]> {
 }
 
 describe("backfillImportProgress", () => {
-    it("detects backfill runs by sync_mode or trigger", () => {
+    it("detects backfill and incremental runs for the progress panel", () => {
         expect(
             isBackfillSyncRun({ sync_mode: "BACKFILL", trigger: "scheduled" })
         ).toBe(true);
@@ -65,6 +65,9 @@ describe("backfillImportProgress", () => {
         ).toBe(true);
         expect(
             isBackfillSyncRun({ sync_mode: "INCREMENTAL", trigger: "manual" })
+        ).toBe(true);
+        expect(
+            isBackfillSyncRun({ sync_mode: "PREVIEW", trigger: "preview" })
         ).toBe(false);
     });
 

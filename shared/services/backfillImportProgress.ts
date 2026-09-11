@@ -398,11 +398,20 @@ export function buildSeedingEntityProgressRows(params: {
     });
 }
 
+/**
+ * True for sync runs the import progress panel should track.
+ * Includes Backfill and Incremental; excludes Preview.
+ */
 export function isBackfillSyncRun(
     run: Pick<SyncRunSummary, "sync_mode" | "trigger">
 ): boolean {
+    const mode = String(run.sync_mode ?? "").toUpperCase();
+    if (mode === "PREVIEW") {
+        return false;
+    }
     return (
-        run.sync_mode === "BACKFILL" ||
+        mode === "BACKFILL" ||
+        mode === "INCREMENTAL" ||
         run.trigger === "backfill"
     );
 }
@@ -1514,6 +1523,7 @@ function buildTailStepRow(params: {
 
     const processed = slice.success ?? 0;
     const total = slice.pulled && slice.pulled > 0 ? slice.pulled : null;
+    const skipped = slice.skipped ?? 0;
     const error = slice.sample_errors?.[0]?.trim() || null;
 
     if (slice.status === "failed") {
@@ -1526,7 +1536,7 @@ function buildTailStepRow(params: {
             last_error: error ?? `${params.label} failed`,
             success: processed,
             failed: slice.failed ?? 1,
-            skipped: 0,
+            skipped,
         };
     }
 
@@ -1540,7 +1550,7 @@ function buildTailStepRow(params: {
             last_error: null,
             success: processed,
             failed: 0,
-            skipped: 0,
+            skipped,
         };
     }
 
@@ -1555,7 +1565,7 @@ function buildTailStepRow(params: {
             last_error: null,
             success: processed,
             failed: 0,
-            skipped: 0,
+            skipped,
             detail,
         };
     }
@@ -1574,7 +1584,7 @@ function buildTailStepRow(params: {
         last_error: null,
         success: processed,
         failed: 0,
-        skipped: 0,
+        skipped,
         ...(detailText ? { detail: detailText } : {}),
     };
 }
@@ -1700,6 +1710,42 @@ function hasMeaningfulEntityStats(
         entityStats.status === "done" ||
         entityStats.status === "failed"
     );
+}
+
+/**
+ * True when maturity or any AR tail step has started — the orchestrator is past
+ * (or finished) entity pull/import. Used so Invoice/Payment do not stay Waiting
+ * after settle/overdue/AR already report progress (Payment runs before Invoice;
+ * active_step is also cleared briefly between done steps).
+ */
+function pipelineAdvancedPastEntityImports(
+    stats: SyncRunSummary["entity_stats"] | undefined,
+    explicitStep?: string | null
+): boolean {
+    if (
+        explicitStep != null &&
+        explicitStep !== PURGE_ENTITY_STATS_KEY &&
+        !(BACKFILL_ENTITY_ORDER as string[]).includes(explicitStep)
+    ) {
+        return true;
+    }
+    const maturity = stats?.[MATURITY_ENTITY_STATS_KEY]?.status;
+    if (
+        maturity === "running" ||
+        maturity === "done" ||
+        maturity === "failed"
+    ) {
+        return true;
+    }
+    return BACKFILL_TAIL_STEPS.some((step) => {
+        const status = stats?.[step.key]?.status;
+        return (
+            status === "running" ||
+            status === "done" ||
+            status === "failed" ||
+            status === "queued"
+        );
+    });
 }
 
 /**
@@ -1948,6 +1994,13 @@ export function buildRunningEntityProgressRows(params: {
             return doneRow(entity, entityStats, state);
         }
 
+        // Tail/maturity already moved — do not leave earlier entities Waiting
+        // while settle/overdue/AR show Done (common when active_step is cleared
+        // between steps, or Payment-first tail ran with empty Invoice stats).
+        if (pipelineAdvancedPastEntityImports(stats, explicitStep)) {
+            return doneRow(entity, entityStats, state);
+        }
+
         return waitingRow(entity);
     });
 
@@ -1959,6 +2012,7 @@ export function buildRunningEntityProgressRows(params: {
         maturity?.status === "done" ||
         maturity?.status === "failed" ||
         explicitStep === MATURITY_ENTITY_STATS_KEY ||
+        pipelineAdvancedPastEntityImports(stats, explicitStep) ||
         (explicitStep != null &&
             activeStepPastEntities &&
             invoiceIndex >= 0) ||
@@ -2152,6 +2206,12 @@ export function buildFinishedEntityProgressRows(params: {
         (params.syncStates ?? []).map((state) => [state.entity_type, state])
     );
     const stats = params.run.entity_stats ?? {};
+    const pipelinePast = pipelineAdvancedPastEntityImports(stats);
+    const runOk =
+        params.run.status === "SUCCESS" ||
+        (params.run.status !== "FAILED" &&
+            params.run.status !== "TIMEOUT" &&
+            pipelinePast);
 
     const entityRows = ordered.map((entity) => {
         const state = byType.get(entity);
@@ -2163,13 +2223,27 @@ export function buildFinishedEntityProgressRows(params: {
         const success = resolveCompletedSuccessCount(
             entityStats,
             pulled,
-            Boolean(state?.backfill_completed)
+            Boolean(state?.backfill_completed) || (runOk && pipelinePast)
         );
         const skipped = meaningful ? entityStats?.skipped : undefined;
         const sampleError = entityStats?.sample_errors?.[0]?.trim() || null;
         const stateError = state?.last_error?.trim() || null;
 
         if (!meaningful && !state?.backfill_completed && pulled === 0) {
+            // Successful / advanced pipeline: empty entity is Done, not Waiting.
+            if (runOk && pipelinePast) {
+                return {
+                    entity_type: progressRowLabelForEntity(entity),
+                    phase: "done" as const,
+                    records_pulled: 0,
+                    total_records: total,
+                    progress_percent: 100,
+                    last_error: null,
+                    success: 0,
+                    failed: 0,
+                    skipped: 0,
+                };
+            }
             return {
                 entity_type: progressRowLabelForEntity(entity),
                 phase: "not_started" as const,
@@ -2183,7 +2257,10 @@ export function buildFinishedEntityProgressRows(params: {
         const resolvedPhase: EntityProgressPhase =
             failedCount > 0
                 ? "failed"
-                : meaningful || state?.backfill_completed || pulled > 0
+                : meaningful ||
+                    state?.backfill_completed ||
+                    pulled > 0 ||
+                    (runOk && pipelinePast)
                   ? "done"
                   : "not_started";
 
@@ -2196,7 +2273,9 @@ export function buildFinishedEntityProgressRows(params: {
                 entity === "Invoice" || entity === "Payment"
                     ? pulled > 0
                         ? clampPercent(success ?? 0, pulled)
-                        : null
+                        : resolvedPhase === "done"
+                          ? 100
+                          : null
                     : resolvedPhase === "done"
                       ? 100
                       : total != null
@@ -2217,7 +2296,8 @@ export function buildFinishedEntityProgressRows(params: {
     );
     const invoiceCompletedInRun =
         invoiceRow?.phase === "done" ||
-        Boolean(byType.get("Invoice")?.backfill_completed);
+        Boolean(byType.get("Invoice")?.backfill_completed) ||
+        pipelinePast;
 
     const withLinkRow = shouldShowLinkPaymentsRow(params.enabledEntities)
         ? insertLinkPaymentsRow(
