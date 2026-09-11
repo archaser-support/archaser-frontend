@@ -22,7 +22,7 @@ import {
     GridColDef,
     GridRenderCellParams,
     GridSortModel,
-} from "@mui/x-data-grid";
+} from "@/shared/layout-components/grid/gridColumnTypes";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";

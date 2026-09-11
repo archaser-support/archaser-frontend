@@ -1,9 +1,19 @@
-import {
-    GridColDef,
-    GridSortModel,
-    GridRenderCellParams,
-} from "@mui/x-data-grid";
 import { ExportFormat } from "../../utility/exportToExcel";
+import type {
+    GridColDef,
+    GridRenderCellParams,
+    GridSortModel,
+} from "./gridColumnTypes";
+
+export type {
+    GridAlignment,
+    GridColDef,
+    GridRenderCellParams,
+    GridSortDirection,
+    GridSortItem,
+    GridSortModel,
+    GridValueGetterParams,
+} from "./gridColumnTypes";
 
 /**
  * Comprehensive type definitions for EndlessScrollDataGrid and related components

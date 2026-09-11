@@ -16,7 +16,7 @@ import { useTheme } from "@mui/material/styles";
 import {
     GridColDef,
     GridSortModel,
-} from "@mui/x-data-grid";
+} from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api, { apiFetch } from "@/app/api";
 import { useRouter } from "next/navigation";

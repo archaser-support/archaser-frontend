@@ -10,7 +10,7 @@ import {
     Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+import { GridColDef, GridRenderCellParams } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery } from "@tanstack/react-query";
 import { Country } from "countries-and-timezones";
 import moment from "moment";

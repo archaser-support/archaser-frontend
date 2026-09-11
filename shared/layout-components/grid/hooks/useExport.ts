@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { GridColDef, GridSortModel } from "@mui/x-data-grid";
+import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useSession } from "next-auth/react";
 
 import {

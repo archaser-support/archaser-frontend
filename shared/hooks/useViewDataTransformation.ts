@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from "react";
-import { GridSortModel } from "@mui/x-data-grid";
+import { GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { ViewContextConfig } from "@/shared/utils/viewConfigs";
 
 export interface UseViewDataTransformationOptions {
