@@ -446,18 +446,6 @@ const calculateColumnWidthsMap = (
                     headerFlexGrow !== bodyFlexGrow ||
                     headerCell.style.flex !== bodyCells[index].style.flex);
 
-            // Log only columns with significant misalignment issues
-            const hasMisalignment =
-                alignmentDiff > SYNC_CONSTANTS.ALIGNMENT_THRESHOLD;
-
-            // For flex columns, allow larger threshold (5px) since they can have rounding differences
-            // For fixed columns, use smaller threshold (1px)
-            const threshold =
-                effectiveColumnHasFlex && !hasBeenResized
-                    ? 5
-                    : SYNC_CONSTANTS.ALIGNMENT_THRESHOLD;
-            const significantMisalignment = alignmentDiff > threshold;
-
             // For flex columns: sync if flex styles don't match (allow 5px width difference for rounding)
             // For fixed columns: sync if widths don't match (use 1px threshold)
             // Also sync if border positions don't align (indicates container misalignment)
