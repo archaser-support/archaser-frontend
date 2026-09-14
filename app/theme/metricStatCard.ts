@@ -103,23 +103,16 @@ function metricCardHorizontalRow(
 ): SystemStyleObject<Theme> {
     return {
         display: "flex",
+        // Stable DOM order (title, then icon). In RTL, row-reverse + flex-start
+        // packs from the right so the title sits on the right with the info icon to its left.
         flexDirection: isRtl ? "row-reverse" : "row",
         alignItems: "center",
         justifyContent: "flex-start",
         gap: theme.spacing(0.5),
         minWidth: 0,
-        // Stable DOM order (title, then icon); row-reverse places the icon left of the title in RTL.
+        width: "100%",
+        maxWidth: "100%",
         direction: "ltr",
-        ...(isRtl
-            ? {
-                  width: "auto",
-                  maxWidth: "100%",
-                  marginInlineStart: "auto",
-              }
-            : {
-                  width: "100%",
-                  maxWidth: "100%",
-              }),
     };
 }
 
