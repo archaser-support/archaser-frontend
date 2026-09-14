@@ -99,8 +99,13 @@ function fmtSigned(
     if (value == null) {
         return naLabel;
     }
-    const sign = value > 0 ? "+" : "";
-    return `${sign}${Math.round(value).toLocaleString(numberLocale(language))}`;
+    const rounded = Math.round(value);
+    const abs = Math.abs(rounded).toLocaleString(numberLocale(language));
+    const signed = rounded > 0 ? `+${abs}` : rounded < 0 ? `-${abs}` : abs;
+    // LRM keeps the sign to the left of digits in Hebrew (RTL) card headers.
+    return language === "he" || language.startsWith("he")
+        ? `\u200E${signed}`
+        : signed;
 }
 
 function CreditDashboardTrendChartInner({

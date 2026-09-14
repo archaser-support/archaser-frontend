@@ -189,6 +189,7 @@ function DistributionTooltip({
         return null;
     }
     const locale = language.startsWith("he") ? "he-IL" : "en-US";
+    const isRtl = language === "he" || language.startsWith("he-");
     const customerLine = `${row.customerCount.toLocaleString(locale)} (${formatPct(row.customerPct, language)})`;
     const usageLine = `${formatPortfolioMoney(
         row.usageAmount,
@@ -211,6 +212,7 @@ function DistributionTooltip({
 
     return (
         <div
+            dir={isRtl ? "rtl" : "ltr"}
             style={{
                 borderRadius: 8,
                 border: `1px solid ${CPH.border}`,
@@ -219,6 +221,9 @@ function DistributionTooltip({
                 backgroundColor: CPH.card,
                 color: CPH.ink,
                 boxShadow: CPH.shadow,
+                direction: isRtl ? "rtl" : "ltr",
+                textAlign: isRtl ? "right" : "left",
+                unicodeBidi: "isolate",
             }}
         >
             {label ? (
@@ -227,6 +232,8 @@ function DistributionTooltip({
                         marginBottom: 4,
                         fontWeight: 500,
                         color: CPH.slate,
+                        direction: isRtl ? "rtl" : "ltr",
+                        textAlign: isRtl ? "right" : "left",
                     }}
                 >
                     {label}
@@ -247,8 +254,11 @@ function DistributionTooltip({
                         key={entry.name}
                         style={{
                             display: "flex",
+                            flexDirection: "row",
                             alignItems: "center",
                             gap: 8,
+                            direction: isRtl ? "rtl" : "ltr",
+                            width: "100%",
                         }}
                     >
                         <span
@@ -261,13 +271,25 @@ function DistributionTooltip({
                                 backgroundColor: entry.color,
                             }}
                         />
-                        <span style={{ color: CPH.slate }}>{entry.name}</span>
                         <span
                             style={{
-                                marginInlineStart: "auto",
+                                color: CPH.slate,
+                                flex: 1,
+                                minWidth: 0,
+                                textAlign: isRtl ? "right" : "left",
+                            }}
+                        >
+                            {entry.name}
+                        </span>
+                        <span
+                            style={{
+                                flexShrink: 0,
                                 fontWeight: 500,
                                 fontVariantNumeric: "tabular-nums",
                                 color: CPH.ink,
+                                direction: "ltr",
+                                textAlign: isRtl ? "left" : "right",
+                                unicodeBidi: "isolate",
                             }}
                         >
                             {entry.display}
@@ -978,6 +1000,7 @@ export function UtilizationSectionView({
                                     cursor={{ fill: CPH.surfaceMuted }}
                                     content={
                                         <ChartTooltip
+                                            language={language}
                                             formatValue={(v) =>
                                                 formatPct(v, language)
                                             }
