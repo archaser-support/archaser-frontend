@@ -33,7 +33,7 @@ export function Eyebrow({
             style={{
                 display: "flex",
                 alignItems: "center",
-                justifyContent: centered ? "center" : undefined,
+                justifyContent: centered ? "center" : "flex-start",
                 gap: 6,
                 marginBottom: 12,
                 fontSize: 11,
@@ -41,7 +41,9 @@ export function Eyebrow({
                 letterSpacing: "0.12em",
                 textTransform: "uppercase",
                 color: tone,
-                width: centered ? "100%" : undefined,
+                width: "100%",
+                direction: isRtl ? "rtl" : "ltr",
+                textAlign: isRtl ? "right" : "left",
             }}
         >
             {Icon ? <Icon size={13} strokeWidth={2.25} aria-hidden /> : null}

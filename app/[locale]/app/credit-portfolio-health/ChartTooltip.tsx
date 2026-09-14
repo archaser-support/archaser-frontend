@@ -19,6 +19,8 @@ export type ChartTooltipProps = {
      */
     items?: ReadonlyArray<TooltipPayloadItem>;
     formatValue?: (value: number, name?: string) => string;
+    /** When Hebrew, flip tooltip layout (RTL) like ApexCharts credit-dashboard tooltips. */
+    language?: string;
 };
 
 export function ChartTooltip({
@@ -27,6 +29,7 @@ export function ChartTooltip({
     payload,
     items: explicitItems,
     formatValue,
+    language,
 }: ChartTooltipProps) {
     const items = (explicitItems ?? payload ?? []).filter(
         (entry) => entry.value != null && entry.value !== ""
@@ -35,8 +38,13 @@ export function ChartTooltip({
         return null;
     }
 
+    const isRtl =
+        language != null &&
+        (language === "he" || language.startsWith("he-"));
+
     return (
         <div
+            dir={isRtl ? "rtl" : "ltr"}
             style={{
                 borderRadius: 8,
                 border: `1px solid ${CPH.border}`,
@@ -45,6 +53,9 @@ export function ChartTooltip({
                 backgroundColor: CPH.card,
                 color: CPH.ink,
                 boxShadow: CPH.shadow,
+                direction: isRtl ? "rtl" : "ltr",
+                textAlign: isRtl ? "right" : "left",
+                unicodeBidi: "isolate",
             }}
         >
             {label ? (
@@ -53,6 +64,9 @@ export function ChartTooltip({
                         marginBottom: 4,
                         fontWeight: 500,
                         color: CPH.slate,
+                        direction: isRtl ? "rtl" : "ltr",
+                        textAlign: isRtl ? "right" : "left",
+                        unicodeBidi: isRtl ? "plaintext" : undefined,
                     }}
                 >
                     {label}
@@ -82,8 +96,11 @@ export function ChartTooltip({
                             key={`${entry.dataKey ?? entry.name ?? index}`}
                             style={{
                                 display: "flex",
+                                flexDirection: "row",
                                 alignItems: "center",
                                 gap: 8,
+                                direction: isRtl ? "rtl" : "ltr",
+                                width: "100%",
                             }}
                         >
                             <span
@@ -96,15 +113,27 @@ export function ChartTooltip({
                                     backgroundColor: entry.color ?? CPH.teal,
                                 }}
                             />
-                            <span style={{ color: CPH.slate }}>
+                            <span
+                                style={{
+                                    color: CPH.slate,
+                                    flex: 1,
+                                    minWidth: 0,
+                                    direction: isRtl ? "rtl" : "ltr",
+                                    textAlign: isRtl ? "right" : "left",
+                                    unicodeBidi: isRtl ? "plaintext" : undefined,
+                                }}
+                            >
                                 {entry.name}
                             </span>
                             <span
                                 style={{
-                                    marginInlineStart: "auto",
+                                    flexShrink: 0,
                                     fontWeight: 500,
                                     fontVariantNumeric: "tabular-nums",
                                     color: CPH.ink,
+                                    direction: "ltr",
+                                    textAlign: isRtl ? "left" : "right",
+                                    unicodeBidi: "isolate",
                                 }}
                             >
                                 {display}

@@ -153,6 +153,7 @@ export function PortfolioHealthDailyChart({
                             <Tooltip
                                 content={
                                     <ChartTooltip
+                                        language={language}
                                         formatValue={(v) =>
                                             formatPct(v, language)
                                         }
