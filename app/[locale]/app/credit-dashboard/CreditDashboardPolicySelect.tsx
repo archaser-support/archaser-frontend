@@ -11,6 +11,8 @@ import { ToolbarDropdownFilter } from "@/shared/components/ToolbarDropdownFilter
 export type CreditDashboardPolicyItem = {
     id: number;
     policy_number: string | null;
+    status?: string | null;
+    policy_kind?: string | null;
 };
 
 type PolicyOption = {
