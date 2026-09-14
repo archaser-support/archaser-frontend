@@ -33,6 +33,7 @@ import type {
 } from "@/types/creditInsurance";
 
 import { CostsSectionView } from "./CostsSectionView";
+import { PolicySummarySectionView } from "./PolicySummarySectionView";
 import { CPH } from "./designTokens";
 import { spaceGrotesk } from "./fonts";
 import layout from "./islandLayout.module.css";
@@ -213,6 +214,10 @@ export function CreditPortfolioHealthScreen({
     }, []);
 
     const tabLabels = {
+        "policy-summary": t("credit_portfolio_health.tab_policy_summary", {
+            ...ns,
+            defaultValue: "Policy summary",
+        }),
         health: t("credit_portfolio_health.tab_health", {
             ...ns,
             defaultValue: "Portfolio Health",
@@ -634,21 +639,12 @@ export function CreditPortfolioHealthScreen({
                             ) : null}
                         </Box>
                     ) : null}
-                    {isError ? (
+                    {isError && error?.message === "forbidden" ? (
                         <Box sx={{ p: 3, width: "100%" }}>
                             <Typography color="error">
-                                {error?.message === "forbidden"
-                                    ? t("messages.credit_dashboard_forbidden", {
-                                          ns: "dashboard",
-                                      })
-                                    : t(
-                                          "credit_portfolio_health.load_failed",
-                                          {
-                                              ...ns,
-                                              defaultValue:
-                                                  "Failed to load portfolio health.",
-                                          }
-                                      )}
+                                {t("messages.credit_dashboard_forbidden", {
+                                    ns: "dashboard",
+                                })}
                             </Typography>
                         </Box>
                     ) : (
@@ -680,7 +676,9 @@ export function CreditPortfolioHealthScreen({
                                         )}
                                         isRtl={isRtl}
                                     />
-                                    {data != null && daysFootnote ? (
+                                    {activeTab !== "policy-summary" &&
+                                    data != null &&
+                                    daysFootnote ? (
                                         <div
                                             className={layout.daysMeta}
                                             title={t(
@@ -754,8 +752,26 @@ export function CreditPortfolioHealthScreen({
                                             : ` ${islandMotion.panelEnter}`
                                     }`}
                                 >
+                                    {activeTab === "policy-summary" ? (
+                                        <PolicySummarySectionView
+                                            policies={policies}
+                                            policyId={policyId}
+                                            onSelectPolicy={onPolicyScopeChange}
+                                        />
+                                    ) : null}
                                     {activeTab === "health" ? (
-                                        data?.portfolioHealth != null ? (
+                                        isError ? (
+                                            <Typography color="error">
+                                                {t(
+                                                    "credit_portfolio_health.load_failed",
+                                                    {
+                                                        ...ns,
+                                                        defaultValue:
+                                                            "Failed to load portfolio health.",
+                                                    }
+                                                )}
+                                            </Typography>
+                                        ) : data?.portfolioHealth != null ? (
                                             <PortfolioHealthSectionView
                                                 section={data.portfolioHealth}
                                                 fromYmd={data.from}
@@ -779,7 +795,18 @@ export function CreditPortfolioHealthScreen({
                                         )
                                     ) : null}
                                     {activeTab === "no-coverage" ? (
-                                        data?.noCoverage != null ? (
+                                        isError ? (
+                                            <Typography color="error">
+                                                {t(
+                                                    "credit_portfolio_health.load_failed",
+                                                    {
+                                                        ...ns,
+                                                        defaultValue:
+                                                            "Failed to load portfolio health.",
+                                                    }
+                                                )}
+                                            </Typography>
+                                        ) : data?.noCoverage != null ? (
                                             <NoCoverageSectionView
                                                 section={data.noCoverage}
                                             />
@@ -800,7 +827,18 @@ export function CreditPortfolioHealthScreen({
                                         )
                                     ) : null}
                                     {activeTab === "utilization" ? (
-                                        data?.utilization != null ? (
+                                        isError ? (
+                                            <Typography color="error">
+                                                {t(
+                                                    "credit_portfolio_health.load_failed",
+                                                    {
+                                                        ...ns,
+                                                        defaultValue:
+                                                            "Failed to load portfolio health.",
+                                                    }
+                                                )}
+                                            </Typography>
+                                        ) : data?.utilization != null ? (
                                             <UtilizationSectionView
                                                 section={data.utilization}
                                                 fromYmd={data.from}
@@ -830,7 +868,18 @@ export function CreditPortfolioHealthScreen({
                                         )
                                     ) : null}
                                     {activeTab === "costs" ? (
-                                        data?.costs != null ? (
+                                        isError ? (
+                                            <Typography color="error">
+                                                {t(
+                                                    "credit_portfolio_health.load_failed",
+                                                    {
+                                                        ...ns,
+                                                        defaultValue:
+                                                            "Failed to load portfolio health.",
+                                                    }
+                                                )}
+                                            </Typography>
+                                        ) : data?.costs != null ? (
                                             <CostsSectionView
                                                 section={data.costs}
                                                 fromYmd={data.from}

@@ -4,6 +4,7 @@ import type { KeyboardEvent } from "react";
 import {
     Activity,
     Award,
+    FileText,
     Shield,
     ShieldAlert,
     type LucideIcon,
@@ -13,6 +14,7 @@ import { CPH } from "./designTokens";
 import layout from "./islandLayout.module.css";
 
 export const PORTFOLIO_HEALTH_TAB_IDS = [
+    "policy-summary",
     "health",
     "no-coverage",
     "utilization",
@@ -22,6 +24,7 @@ export const PORTFOLIO_HEALTH_TAB_IDS = [
 export type PortfolioHealthTabId = (typeof PORTFOLIO_HEALTH_TAB_IDS)[number];
 
 const TAB_ICONS: Record<PortfolioHealthTabId, LucideIcon> = {
+    "policy-summary": FileText,
     health: Shield,
     "no-coverage": ShieldAlert,
     utilization: Activity,
@@ -32,6 +35,7 @@ export function parsePortfolioHealthTab(
     raw: string | null | undefined
 ): PortfolioHealthTabId {
     if (
+        raw === "policy-summary" ||
         raw === "health" ||
         raw === "no-coverage" ||
         raw === "utilization" ||
@@ -39,7 +43,7 @@ export function parsePortfolioHealthTab(
     ) {
         return raw;
     }
-    return "health";
+    return "policy-summary";
 }
 
 export type PillTabsProps = {
