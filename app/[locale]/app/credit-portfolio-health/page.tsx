@@ -82,7 +82,7 @@ function buildPortfolioHealthSearchParams(options: {
     if (!options.includeNoPolicyExposure) {
         params.set("includeNoPolicyExposure", "0");
     }
-    if (options.tab != null && options.tab !== "health") {
+    if (options.tab != null && options.tab !== "policy-summary") {
         params.set("tab", options.tab);
     }
     return params;
