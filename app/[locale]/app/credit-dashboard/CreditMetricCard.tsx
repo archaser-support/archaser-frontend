@@ -85,8 +85,11 @@ export function CreditMetricCard({
         ? theme.palette.success.main
         : theme.palette.error.main;
     const ChangeArrow = isPositive ? TrendingUpIcon : TrendingDownIcon;
+    // LRM keeps +/- to the left of the digits inside RTL copy (e.g. "… מהחודש שעבר").
     const formattedPct = showChange
-        ? `${isPositive ? "+" : ""}${changePct!.toFixed(1)}%`
+        ? `${isRtl ? "\u200E" : ""}${
+              isPositive ? "+" : "-"
+          }${Math.abs(changePct!).toFixed(1)}%`
         : null;
     const isPrimitiveValue = typeof value === "string" || typeof value === "number";
     const dualCurrencyValue = isDualCurrencyMetricValue(value);

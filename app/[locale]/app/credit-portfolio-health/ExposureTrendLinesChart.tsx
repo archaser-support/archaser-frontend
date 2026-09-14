@@ -93,6 +93,9 @@ export function ExposureTrendLinesChart({
                         }
                     />
                     <Tooltip
+                        wrapperStyle={{
+                            direction: language.startsWith("he") ? "rtl" : "ltr",
+                        }}
                         content={(props) => (
                             <ChartTooltip
                                 active={props.active}
@@ -112,6 +115,7 @@ export function ExposureTrendLinesChart({
                                           }>
                                         | undefined
                                 }
+                                language={language}
                                 formatValue={(v) =>
                                     formatPortfolioMoney(
                                         v,

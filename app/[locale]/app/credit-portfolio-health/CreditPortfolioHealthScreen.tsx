@@ -79,16 +79,40 @@ export type CreditPortfolioHealthScreenProps = {
     generateDaysInRange: number;
 };
 
-function formatEstimatedSecondsRemaining(seconds: number): string {
+function formatEstimatedSecondsRemaining(
+    seconds: number,
+    t: (key: string, options?: Record<string, unknown>) => string
+): string {
+    const ns = { ns: "dashboard" as const };
     if (seconds < 60) {
-        return `~${Math.max(1, Math.round(seconds))} sec`;
+        return t("credit_portfolio_health.generate_eta_seconds", {
+            ...ns,
+            defaultValue: "~{{count}} sec",
+            count: Math.max(1, Math.round(seconds)),
+        });
     }
     if (seconds < 3600) {
-        return `~${Math.max(1, Math.round(seconds / 60))} min`;
+        return t("credit_portfolio_health.generate_eta_minutes", {
+            ...ns,
+            defaultValue: "~{{count}} min",
+            count: Math.max(1, Math.round(seconds / 60)),
+        });
     }
     const hours = Math.floor(seconds / 3600);
     const mins = Math.round((seconds % 3600) / 60);
-    return mins > 0 ? `~${hours} hr ${mins} min` : `~${hours} hr`;
+    if (mins > 0) {
+        return t("credit_portfolio_health.generate_eta_hours_minutes", {
+            ...ns,
+            defaultValue: "~{{hours}} hr {{mins}} min",
+            hours,
+            mins,
+        });
+    }
+    return t("credit_portfolio_health.generate_eta_hours", {
+        ...ns,
+        defaultValue: "~{{hours}} hr",
+        hours,
+    });
 }
 
 export function CreditPortfolioHealthScreen({
@@ -332,7 +356,8 @@ export function CreditPortfolioHealthScreen({
         backfillJob?.estimatedSecondsRemaining != null &&
         backfillJob.estimatedSecondsRemaining > 0
             ? formatEstimatedSecondsRemaining(
-                  backfillJob.estimatedSecondsRemaining
+                  backfillJob.estimatedSecondsRemaining,
+                  t
               )
             : null;
 
@@ -577,6 +602,8 @@ export function CreditPortfolioHealthScreen({
                                 display: "flex",
                                 flexDirection: "column",
                                 gap: 0.75,
+                                direction: isRtl ? "rtl" : "ltr",
+                                textAlign: isRtl ? "right" : "left",
                             }}
                         >
                             <Box
@@ -623,15 +650,23 @@ export function CreditPortfolioHealthScreen({
                                     </Typography>
                                 ) : null}
                             </Box>
-                            <LinearProgress
-                                variant={
-                                    showIndeterminateProgress
-                                        ? "indeterminate"
-                                        : "determinate"
-                                }
-                                value={progressPct}
-                                sx={{ height: 8, borderRadius: 4 }}
-                            />
+                            <Box sx={{ direction: isRtl ? "rtl" : "ltr" }}>
+                                <LinearProgress
+                                    variant={
+                                        showIndeterminateProgress
+                                            ? "indeterminate"
+                                            : "determinate"
+                                    }
+                                    value={progressPct}
+                                    sx={{
+                                        height: 8,
+                                        borderRadius: 4,
+                                        ...(isRtl && {
+                                            transform: "scaleX(-1)",
+                                        }),
+                                    }}
+                                />
+                            </Box>
                             {backfillJob?.lastError ? (
                                 <Typography variant="body2" color="error">
                                     {backfillJob.lastError}

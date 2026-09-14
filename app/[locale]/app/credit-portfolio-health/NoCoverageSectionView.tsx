@@ -284,6 +284,7 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                                                           | number;
                                                   }>
                                                 | undefined}
+                                            language={language}
                                             formatValue={(v) =>
                                                 formatPortfolioMoney(
                                                     v,

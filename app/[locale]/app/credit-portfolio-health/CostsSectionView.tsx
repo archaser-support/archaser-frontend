@@ -358,6 +358,7 @@ export function CostsSectionView({
                                                         dataKey: "totalCost",
                                                     },
                                                 ]}
+                                                language={language}
                                                 formatValue={(v) =>
                                                     formatPortfolioMoney(
                                                         v,
