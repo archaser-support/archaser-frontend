@@ -331,6 +331,56 @@ export function CostsSectionView({
                 className={`${layout.span6} ${layout.mdSpan4} ${layout.cardPad}`}
             >
                 <Eyebrow
+                    icon={Users}
+                    help={t(
+                        "credit_portfolio_health.kpi_annual_credit_assessment_cost_help",
+                        {
+                            ...ns,
+                            defaultValue:
+                                "Shows the Annual Credit Assessment Fee burden for Named customers in the selected range. Uses each policy’s current fee × customers named anytime in the range × whole years (ceil days÷365, minimum 1). Separate from Policy cost.",
+                        }
+                    )}
+                >
+                    {t(
+                        "credit_portfolio_health.kpi_annual_credit_assessment_cost",
+                        {
+                            ...ns,
+                            defaultValue: "Annual credit assessment",
+                        }
+                    )}
+                </Eyebrow>
+                <div
+                    className="text-3xl font-semibold tracking-tight"
+                    style={{
+                        color: CPH.ink,
+                        fontFamily: SPACE_GROTESK_FONT_FAMILY,
+                    }}
+                >
+                    {formatPortfolioMoney(
+                        section.annualCreditAssessmentCost ?? 0,
+                        currency,
+                        language
+                    )}
+                </div>
+                <div className="mt-1 text-sm" style={{ color: CPH.slate }}>
+                    {t(
+                        "credit_portfolio_health.kpi_annual_credit_assessment_cost_label",
+                        {
+                            ...ns,
+                            defaultValue:
+                                "{{count}} named · ×{{years}} year(s)",
+                            count: section.namedCustomerCountInRange ?? 0,
+                            years: section.yearMultiplier ?? 1,
+                        }
+                    )}
+                </div>
+            </IslandCard>
+
+            <IslandCard
+                accent="violet"
+                className={`${layout.span6} ${layout.mdSpan4} ${layout.cardPad}`}
+            >
+                <Eyebrow
                     icon={Layers}
                     help={t("credit_portfolio_health.kpi_deductible_help", {
                         ...ns,

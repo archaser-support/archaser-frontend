@@ -276,6 +276,9 @@ export function PolicySummarySectionView({
     const dclCover = dclSdlCoverAmount(detail);
     const costPercent = toFiniteNumber(detail.cost_percent);
     const registrationFee = toFiniteNumber(detail.registration_fee_percent);
+    const annualCreditAssessmentFee = toFiniteNumber(
+        detail.annual_credit_assessment_fee
+    );
     const method = costMethodLabel(detail.cost_calculation_method, t);
     const start = formatPolicyDate(detail.start_date, language);
     const end = formatPolicyDate(detail.end_date, language);
@@ -461,7 +464,9 @@ export function PolicySummarySectionView({
                     >
                         {formatPercent(costPercent, language, empty)}
                     </div>
-                    {method || registrationFee != null ? (
+                    {method ||
+                    registrationFee != null ||
+                    annualCreditAssessmentFee != null ? (
                         <ul
                             className="m-0 mt-2 list-disc ps-5 text-sm"
                             style={{ color: CPH.slate }}
@@ -488,6 +493,23 @@ export function PolicySummarySectionView({
                                         }
                                     )}
                                     {`: ${formatPercent(registrationFee, language, empty)}`}
+                                </li>
+                            ) : null}
+                            {annualCreditAssessmentFee != null ? (
+                                <li>
+                                    {t(
+                                        "credit_portfolio_health.policy_summary_annual_credit_assessment_fee",
+                                        {
+                                            ...ns,
+                                            defaultValue:
+                                                "Annual credit assessment fee",
+                                        }
+                                    )}
+                                    {`: ${formatPortfolioMoney(
+                                        annualCreditAssessmentFee,
+                                        currency,
+                                        language
+                                    )}`}
                                 </li>
                             ) : null}
                         </ul>
