@@ -276,7 +276,15 @@ export default function CreditDashboardReportPage() {
                                     onChange={setPolicyScope}
                                 />
                             </Box>
-                            {summary && type !== "utilization_bin" && (
+                            {summary &&
+                                type !== "utilization_bin" &&
+                                type !== "ar_extreme_moves" &&
+                                type !== "utilization_overshoot" &&
+                                type !== "limit_capped" &&
+                                type !== "negative_daily_cost" &&
+                                type !== "exposure_reconciliation" &&
+                                type !== "policy_concentration" &&
+                                type !== "limit_breach_forecast" && (
                                 <CreditReportSummaryCards
                                     type={type}
                                     summary={summary}

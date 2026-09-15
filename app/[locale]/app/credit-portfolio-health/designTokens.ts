@@ -25,6 +25,8 @@ export const CPH = {
     /** Critical / negative — violations, uncovered exposure, over-100% bars. */
     critical: "#DC2626",
     criticalTint: "#FDECEC",
+    /** Chart area fill under critical series (darker than criticalTint). */
+    criticalArea: "#FCA5A5",
     criticalText: "#991B1B",
 
     /** Positive / good status — fully covered, approved footprint. */
