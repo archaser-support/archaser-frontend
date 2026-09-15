@@ -372,7 +372,17 @@ export function PolicySummarySectionView({
                     accent="teal"
                     className={`${layout.span6} ${layout.mdSpan4} ${layout.cardPad}`}
                 >
-                    <Eyebrow icon={Landmark}>
+                    <Eyebrow
+                        icon={Landmark}
+                        help={t(
+                            "credit_portfolio_health.policy_summary_max_cover_help",
+                            {
+                                ...ns,
+                                defaultValue:
+                                    "Shows the policy’s maximum total cover so you know the insurer’s overall capacity ceiling for this policy.",
+                            }
+                        )}
+                    >
                         {t("credit_portfolio_health.policy_summary_max_cover", {
                             ...ns,
                             defaultValue: "Max total cover",
@@ -394,7 +404,17 @@ export function PolicySummarySectionView({
                     accent="teal"
                     className={`${layout.span6} ${layout.mdSpan4} ${layout.cardPad}`}
                 >
-                    <Eyebrow icon={Shield}>
+                    <Eyebrow
+                        icon={Shield}
+                        help={t(
+                            "credit_portfolio_health.policy_summary_dcl_cover_help",
+                            {
+                                ...ns,
+                                defaultValue:
+                                    "Shows the max DCL/SDL cover band so you can judge discretionary-limit capacity under this policy.",
+                            }
+                        )}
+                    >
                         {t("credit_portfolio_health.policy_summary_dcl_cover", {
                             ...ns,
                             defaultValue: "Max DCL/SDL cover",
@@ -416,7 +436,17 @@ export function PolicySummarySectionView({
                     accent="teal"
                     className={`${layout.span6} ${layout.mdSpan4} ${layout.cardPad}`}
                 >
-                    <Eyebrow icon={BadgePercent}>
+                    <Eyebrow
+                        icon={BadgePercent}
+                        help={t(
+                            "credit_portfolio_health.policy_summary_cost_help",
+                            {
+                                ...ns,
+                                defaultValue:
+                                    "Shows the insurance fee rate (and related cost method) so you can understand premium economics for this policy.",
+                            }
+                        )}
+                    >
                         {t("credit_portfolio_health.policy_summary_cost", {
                             ...ns,
                             defaultValue: "Insurance fee rate",

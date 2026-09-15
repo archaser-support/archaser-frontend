@@ -3,6 +3,7 @@
 import {
     Box,
     Button,
+    CircularProgress,
     FormControlLabel,
     LinearProgress,
     Switch,
@@ -12,6 +13,7 @@ import {
 } from "@mui/material";
 import { useSession } from "next-auth/react";
 import { CalendarDays } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -24,6 +26,7 @@ import {
 import { CreditDashboardExcludedCustomersFilter } from "@/app/[locale]/app/credit-dashboard/CreditDashboardExcludedCustomersFilter";
 import BusinessUnitDashboardFilter from "@/shared/components/BusinessUnitDashboardFilter";
 import { PORTFOLIO_HEALTH_LARGE_RANGE_DAYS } from "@/shared/creditInsurance/portfolioHealthDateRange";
+import { appendDashboardBusinessUnitId } from "@/shared/dashboard/dashboardBusinessUnitParams";
 import DeleteDialog from "@/shared/layout-components/modal/DeleteDialog";
 import Seo from "@/shared/layout-components/seo/seo";
 import { getRTLTooltipProps } from "@/utils/reportFieldUtils";
@@ -32,10 +35,12 @@ import type {
     CreditPortfolioHealthResponse,
 } from "@/types/creditInsurance";
 
+import { applyCreditReportDocumentTitle } from "../credit-dashboard/report/creditReportTitles";
 import { CostsSectionView } from "./CostsSectionView";
 import { PolicySummarySectionView } from "./PolicySummarySectionView";
 import { CPH } from "./designTokens";
 import { spaceGrotesk } from "./fonts";
+import { formatPortfolioMoney } from "./formatPortfolioMoney";
 import layout from "./islandLayout.module.css";
 import islandMotion from "./islandMotion.module.css";
 import { NoCoverageSectionView } from "./NoCoverageSectionView";
@@ -65,6 +70,8 @@ export type CreditPortfolioHealthScreenProps = {
     activeTab: PortfolioHealthTabId;
     onTabChange: (tab: PortfolioHealthTabId) => void;
     data: CreditPortfolioHealthResponse | undefined;
+    isLoading: boolean;
+    isFetching: boolean;
     isError: boolean;
     error: Error | null;
     backfillJob: CreditAsOfBackfillJobView | undefined;
@@ -131,6 +138,8 @@ export function CreditPortfolioHealthScreen({
     activeTab,
     onTabChange,
     data,
+    isLoading,
+    isFetching,
     isError,
     error,
     backfillJob,
@@ -147,6 +156,10 @@ export function CreditPortfolioHealthScreen({
     const { t, i18n } = useTranslation(["dashboard"]);
     const { data: session } = useSession();
     const theme = useTheme();
+    const router = useRouter();
+    const params = useParams();
+    const routeLocale =
+        typeof params?.locale === "string" ? params.locale : "en";
     const isRtl = i18n.language === "he" || i18n.language.startsWith("he-");
     const prefersReducedMotion = usePrefersReducedMotion();
     const ns = { ns: "dashboard" as const };
@@ -309,6 +322,75 @@ export function CreditPortfolioHealthScreen({
               })
             : null;
 
+    const staleFootnote =
+        data?.portfolioHealth?.staleSlopeVolatility != null &&
+        data.portfolioHealth.staleSlopeVolatility.staleCarriedForwardDayCount >
+            0
+            ? t("credit_portfolio_health.stale_carried_forward_footnote", {
+                  ...ns,
+                  defaultValue:
+                      "{{count}} snapshot-days were carried forward with no new activity.",
+                  count: data.portfolioHealth.staleSlopeVolatility
+                      .staleCarriedForwardDayCount,
+              })
+            : null;
+
+    const recon = data?.portfolioHealth?.exposureReconciliation ?? null;
+    const reconCurrency = recon?.accountCurrency || accountCurrency || "USD";
+    const reconFootnote =
+        recon != null && recon.failingRowCount > 0
+            ? t("credit_portfolio_health.exposure_reconciliation_footnote", {
+                  ...ns,
+                  defaultValue:
+                      "{{count}} snapshot rows failed exposure reconciliation (max discrepancy {{maxDelta}}).",
+                  count: recon.failingRowCount,
+                  maxDelta: formatPortfolioMoney(
+                      recon.maxAbsDelta ?? 0,
+                      reconCurrency,
+                      i18n.language
+                  ),
+              })
+            : null;
+    const atRiskExceedsFootnote =
+        recon != null && recon.atRiskExceedsTotalRowCount > 0
+            ? t(
+                  "credit_portfolio_health.at_risk_exceeds_total_footnote",
+                  {
+                      ...ns,
+                      defaultValue:
+                          "{{count}} rows have at-risk exposure greater than total AR (max excess {{maxExcess}}).",
+                      count: recon.atRiskExceedsTotalRowCount,
+                      maxExcess: formatPortfolioMoney(
+                          recon.maxAtRiskExcess ?? 0,
+                          reconCurrency,
+                          i18n.language
+                      ),
+                  }
+              )
+            : null;
+
+    const openExposureReconciliationReport = () => {
+        if (data == null) {
+            return;
+        }
+        const sp = new URLSearchParams({
+            type: "exposure_reconciliation",
+            from: data.from,
+            to: data.to,
+        });
+        if (policyId != null) {
+            sp.set("policyId", String(policyId));
+        }
+        if (!includeNoPolicyExposure) {
+            sp.set("includeNoPolicyExposure", "0");
+        }
+        appendDashboardBusinessUnitId(sp, selectedBusinessUnitId);
+        applyCreditReportDocumentTitle(t, "exposure_reconciliation");
+        router.push(
+            `/${routeLocale}/app/credit-dashboard/report?${sp.toString()}`
+        );
+    };
+
     const backfillStatus = backfillJob?.status ?? "idle";
     const isBackfillRunning = backfillStatus === "running";
     const showProgress =
@@ -338,6 +420,8 @@ export function CreditPortfolioHealthScreen({
         backfillStatus === "paused" ||
         backfillStatus === "failed" ||
         generatePending;
+    const showDataRefreshSpinner =
+        activeTab !== "policy-summary" && (isLoading || isFetching);
 
     const handleGenerateClick = () => {
         if (isLargeGenerateRange) {
@@ -712,6 +796,7 @@ export function CreditPortfolioHealthScreen({
                                         isRtl={isRtl}
                                     />
                                     {activeTab !== "policy-summary" &&
+                                    !showDataRefreshSpinner &&
                                     data != null &&
                                     daysFootnote ? (
                                         <div
@@ -774,6 +859,136 @@ export function CreditPortfolioHealthScreen({
                                             </div>
                                         </div>
                                     ) : null}
+                                    {activeTab !== "policy-summary" &&
+                                    staleFootnote ? (
+                                        <div
+                                            className={layout.daysMeta}
+                                            title={staleFootnote}
+                                            aria-label={staleFootnote}
+                                        >
+                                            <div className={layout.daysMetaCopy}>
+                                                <span
+                                                    className={
+                                                        layout.daysMetaLabel
+                                                    }
+                                                >
+                                                    {t(
+                                                        "credit_portfolio_health.stale_carried_forward_label",
+                                                        {
+                                                            ...ns,
+                                                            defaultValue:
+                                                                "Carried forward",
+                                                        }
+                                                    )}
+                                                </span>
+                                                <span
+                                                    className={
+                                                        layout.daysMetaRatio
+                                                    }
+                                                >
+                                                    {
+                                                        data?.portfolioHealth
+                                                            ?.staleSlopeVolatility
+                                                            ?.staleCarriedForwardDayCount
+                                                    }
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                    {activeTab !== "policy-summary" &&
+                                    reconFootnote ? (
+                                        <button
+                                            type="button"
+                                            className={layout.daysMeta}
+                                            title={reconFootnote}
+                                            aria-label={reconFootnote}
+                                            onClick={
+                                                openExposureReconciliationReport
+                                            }
+                                            style={{
+                                                cursor: "pointer",
+                                                border: "none",
+                                                background: "transparent",
+                                                padding: 0,
+                                                textAlign: "inherit",
+                                            }}
+                                        >
+                                            <div className={layout.daysMetaCopy}>
+                                                <span
+                                                    className={
+                                                        layout.daysMetaLabel
+                                                    }
+                                                >
+                                                    {t(
+                                                        "credit_portfolio_health.exposure_reconciliation_label",
+                                                        {
+                                                            ...ns,
+                                                            defaultValue:
+                                                                "Reconciliation",
+                                                        }
+                                                    )}
+                                                </span>
+                                                <span
+                                                    className={
+                                                        layout.daysMetaRatio
+                                                    }
+                                                    style={{
+                                                        color: CPH.critical,
+                                                    }}
+                                                >
+                                                    {recon?.failingRowCount}
+                                                </span>
+                                            </div>
+                                        </button>
+                                    ) : null}
+                                    {activeTab !== "policy-summary" &&
+                                    atRiskExceedsFootnote ? (
+                                        <button
+                                            type="button"
+                                            className={layout.daysMeta}
+                                            title={atRiskExceedsFootnote}
+                                            aria-label={atRiskExceedsFootnote}
+                                            onClick={
+                                                openExposureReconciliationReport
+                                            }
+                                            style={{
+                                                cursor: "pointer",
+                                                border: "none",
+                                                background: "transparent",
+                                                padding: 0,
+                                                textAlign: "inherit",
+                                            }}
+                                        >
+                                            <div className={layout.daysMetaCopy}>
+                                                <span
+                                                    className={
+                                                        layout.daysMetaLabel
+                                                    }
+                                                >
+                                                    {t(
+                                                        "credit_portfolio_health.at_risk_exceeds_total_label",
+                                                        {
+                                                            ...ns,
+                                                            defaultValue:
+                                                                "At-risk > total",
+                                                        }
+                                                    )}
+                                                </span>
+                                                <span
+                                                    className={
+                                                        layout.daysMetaRatio
+                                                    }
+                                                    style={{
+                                                        color: CPH.critical,
+                                                    }}
+                                                >
+                                                    {
+                                                        recon?.atRiskExceedsTotalRowCount
+                                                    }
+                                                </span>
+                                            </div>
+                                        </button>
+                                    ) : null}
                                 </div>
 
                                 <div
@@ -794,7 +1009,26 @@ export function CreditPortfolioHealthScreen({
                                             onSelectPolicy={onPolicyScopeChange}
                                         />
                                     ) : null}
-                                    {activeTab === "health" ? (
+                                    {showDataRefreshSpinner ? (
+                                        <Box
+                                            sx={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                minHeight: {
+                                                    xs: "300px",
+                                                    sm: "400px",
+                                                },
+                                            }}
+                                        >
+                                            <CircularProgress
+                                                color="primary"
+                                                size={48}
+                                            />
+                                        </Box>
+                                    ) : null}
+                                    {!showDataRefreshSpinner &&
+                                    activeTab === "health" ? (
                                         isError ? (
                                             <Typography color="error">
                                                 {t(
@@ -812,6 +1046,13 @@ export function CreditPortfolioHealthScreen({
                                                 fromYmd={data.from}
                                                 toYmd={data.to}
                                                 accountCurrency={accountCurrency}
+                                                policyId={policyId}
+                                                includeNoPolicyExposure={
+                                                    includeNoPolicyExposure
+                                                }
+                                                businessUnitId={
+                                                    selectedBusinessUnitId
+                                                }
                                             />
                                         ) : (
                                             <p
@@ -829,7 +1070,8 @@ export function CreditPortfolioHealthScreen({
                                             </p>
                                         )
                                     ) : null}
-                                    {activeTab === "no-coverage" ? (
+                                    {!showDataRefreshSpinner &&
+                                    activeTab === "no-coverage" ? (
                                         isError ? (
                                             <Typography color="error">
                                                 {t(
@@ -861,7 +1103,8 @@ export function CreditPortfolioHealthScreen({
                                             </p>
                                         )
                                     ) : null}
-                                    {activeTab === "utilization" ? (
+                                    {!showDataRefreshSpinner &&
+                                    activeTab === "utilization" ? (
                                         isError ? (
                                             <Typography color="error">
                                                 {t(
@@ -902,7 +1145,8 @@ export function CreditPortfolioHealthScreen({
                                             </p>
                                         )
                                     ) : null}
-                                    {activeTab === "costs" ? (
+                                    {!showDataRefreshSpinner &&
+                                    activeTab === "costs" ? (
                                         isError ? (
                                             <Typography color="error">
                                                 {t(
@@ -919,6 +1163,13 @@ export function CreditPortfolioHealthScreen({
                                                 section={data.costs}
                                                 fromYmd={data.from}
                                                 toYmd={data.to}
+                                                policyId={policyId}
+                                                businessUnitId={
+                                                    selectedBusinessUnitId
+                                                }
+                                                includeNoPolicyExposure={
+                                                    includeNoPolicyExposure
+                                                }
                                             />
                                         ) : (
                                             <p

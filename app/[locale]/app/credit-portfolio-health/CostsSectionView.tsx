@@ -1,8 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useTranslation } from "react-i18next";
 import {
+    AlertTriangle,
     Award,
     ChevronRight,
     Gauge,
@@ -21,6 +24,13 @@ import {
 
 import type { PortfolioCostsSection } from "@/types/creditInsurance";
 import { padSeriesByUtcMonth } from "@/shared/creditInsurance/portfolioHealthDateRange";
+import { appendDashboardBusinessUnitId } from "@/shared/dashboard/dashboardBusinessUnitParams";
+import {
+    formatDateForDisplay,
+    getUserDateLocale,
+    getUserTimezone,
+} from "@/utils/datetimeOperations";
+import { applyCreditReportDocumentTitle } from "../credit-dashboard/report/creditReportTitles";
 
 import { ChartTooltip } from "./ChartTooltip";
 import { Eyebrow } from "./Eyebrow";
@@ -39,6 +49,9 @@ export type CostsSectionViewProps = {
     section: PortfolioCostsSection;
     fromYmd: string;
     toYmd: string;
+    policyId?: number | null;
+    businessUnitId?: number | null;
+    includeNoPolicyExposure?: boolean;
 };
 
 type MonthlyCostChartRow = {
@@ -66,6 +79,9 @@ export function CostsSectionView({
     section,
     fromYmd,
     toYmd,
+    policyId = null,
+    businessUnitId = null,
+    includeNoPolicyExposure = true,
 }: CostsSectionViewProps) {
     const { t, i18n } = useTranslation(["dashboard"]);
     const language = i18n.language;
@@ -73,6 +89,43 @@ export function CostsSectionView({
     const prefersReducedMotion = usePrefersReducedMotion();
     const animDuration = prefersReducedMotion ? 0 : 1200;
     const currency = section.accountCurrency || "USD";
+    const router = useRouter();
+    const params = useParams();
+    const { data: session } = useSession();
+    const routeLocale = String(params?.locale ?? "en");
+    const dateLocale = useMemo(() => {
+        const fallback = language?.startsWith("he") ? "he-IL" : "en-US";
+        return getUserDateLocale(session, fallback);
+    }, [language, session]);
+    const timezone = useMemo(() => getUserTimezone(session), [session]);
+    const negativeCost = section.negativeCost ?? null;
+
+    const openNegativeCostReport = () => {
+        const sp = new URLSearchParams({
+            type: "negative_daily_cost",
+            from: fromYmd,
+            to: toYmd,
+        });
+        if (policyId != null) {
+            sp.set("policyId", String(policyId));
+        }
+        if (!includeNoPolicyExposure) {
+            sp.set("includeNoPolicyExposure", "0");
+        }
+        appendDashboardBusinessUnitId(sp, businessUnitId);
+        applyCreditReportDocumentTitle(t, "negative_daily_cost");
+        router.push(
+            `/${routeLocale}/app/credit-dashboard/report?${sp.toString()}`
+        );
+    };
+
+    const formatEntryDate = (ymd: string) => {
+        const date = new Date(`${ymd}T12:00:00.000Z`);
+        if (Number.isNaN(date.getTime())) {
+            return ymd;
+        }
+        return formatDateForDisplay(date, "date", dateLocale, timezone);
+    };
 
     const monthlyChartData = useMemo(
         () =>
@@ -128,6 +181,97 @@ export function CostsSectionView({
                         defaultValue: "Total, incl. top-ups",
                     })}
                 </div>
+            </IslandCard>
+
+            <IslandCard
+                accent="critical"
+                className={`${layout.span6} ${layout.mdSpan4} ${layout.cardPad}`}
+            >
+                <Eyebrow
+                    icon={AlertTriangle}
+                    help={t("credit_portfolio_health.kpi_negative_cost_help", {
+                        ...ns,
+                        defaultValue:
+                            "Surfaces negative daily cost rows so credits/refunds do not hide inside the period total. Only entries at or above the minimum magnitude are flagged; the Policy cost total above is unchanged.",
+                    })}
+                >
+                    {t("credit_portfolio_health.kpi_negative_cost", {
+                        ...ns,
+                        defaultValue: "Negative cost entries",
+                    })}
+                </Eyebrow>
+                {negativeCost == null ||
+                negativeCost.negativeEntryCount === 0 ? (
+                    <div
+                        className="text-3xl font-semibold tracking-tight"
+                        style={{
+                            color: CPH.muted,
+                            fontFamily: SPACE_GROTESK_FONT_FAMILY,
+                        }}
+                    >
+                        {t("credit_portfolio_health.kpi_negative_cost_none", {
+                            ...ns,
+                            defaultValue: "None",
+                        })}
+                    </div>
+                ) : (
+                    <>
+                        <div
+                            className="text-3xl font-semibold tracking-tight"
+                            style={{
+                                color: CPH.critical,
+                                fontFamily: SPACE_GROTESK_FONT_FAMILY,
+                            }}
+                        >
+                            {t(
+                                "credit_portfolio_health.kpi_negative_cost_value",
+                                {
+                                    ...ns,
+                                    defaultValue: "{{count}} (sum {{sum}})",
+                                    count: negativeCost.negativeEntryCount,
+                                    sum: formatPortfolioMoney(
+                                        negativeCost.negativeEntrySum,
+                                        currency,
+                                        language
+                                    ),
+                                }
+                            )}
+                        </div>
+                        <div
+                            className="mt-1 text-sm"
+                            style={{ color: CPH.slate }}
+                        >
+                            {t(
+                                "credit_portfolio_health.kpi_negative_cost_label",
+                                {
+                                    ...ns,
+                                    defaultValue:
+                                        "Flagged at ≥ {{min}} magnitude · {{customers}} customers",
+                                    min: formatPortfolioMoney(
+                                        negativeCost.minMagnitude,
+                                        currency,
+                                        language
+                                    ),
+                                    customers: negativeCost.customersAffected,
+                                }
+                            )}
+                        </div>
+                        <button
+                            type="button"
+                            className="mt-3 text-sm font-medium underline-offset-2 hover:underline"
+                            style={{ color: CPH.teal }}
+                            onClick={openNegativeCostReport}
+                        >
+                            {t(
+                                "credit_portfolio_health.kpi_negative_cost_open_report",
+                                {
+                                    ...ns,
+                                    defaultValue: "Open negative cost report",
+                                }
+                            )}
+                        </button>
+                    </>
+                )}
             </IslandCard>
 
             <IslandCard
@@ -218,6 +362,120 @@ export function CostsSectionView({
                     })}
                 </div>
             </IslandCard>
+
+            {negativeCost != null &&
+            negativeCost.negativeEntryCount > 0 &&
+            negativeCost.previewEntries.length > 0 ? (
+                <IslandCard
+                    accent="critical"
+                    className={`${layout.span12} ${layout.cardPad}`}
+                >
+                    <Eyebrow
+                        icon={AlertTriangle}
+                        help={t(
+                            "credit_portfolio_health.negative_cost_table_help",
+                            {
+                                ...ns,
+                                defaultValue:
+                                    "Flagged negative daily cost rows (customer, date, amount), sorted by magnitude. Export opens the full customer cohort report.",
+                            }
+                        )}
+                    >
+                        {t(
+                            "credit_portfolio_health.negative_cost_table_title",
+                            {
+                                ...ns,
+                                defaultValue: "Negative cost drill-down",
+                            }
+                        )}
+                    </Eyebrow>
+                    <div className="mt-2 overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr style={{ color: CPH.slate }}>
+                                    <th className="py-1 text-start font-medium">
+                                        {t(
+                                            "credit_portfolio_health.negative_cost_col_customer",
+                                            {
+                                                ...ns,
+                                                defaultValue: "Customer",
+                                            }
+                                        )}
+                                    </th>
+                                    <th className="py-1 text-start font-medium">
+                                        {t(
+                                            "credit_portfolio_health.negative_cost_col_date",
+                                            {
+                                                ...ns,
+                                                defaultValue: "Date",
+                                            }
+                                        )}
+                                    </th>
+                                    <th className="py-1 text-end font-medium">
+                                        {t(
+                                            "credit_portfolio_health.negative_cost_col_amount",
+                                            {
+                                                ...ns,
+                                                defaultValue: "Amount",
+                                            }
+                                        )}
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {negativeCost.previewEntries.map((row) => (
+                                    <tr
+                                        key={`${row.customerId}-${row.snapshotDate}-${row.amount}`}
+                                        style={{ color: CPH.ink }}
+                                    >
+                                        <td className="py-1.5 text-start">
+                                            <button
+                                                type="button"
+                                                className="text-start font-medium underline-offset-2 hover:underline"
+                                                style={{ color: CPH.teal }}
+                                                onClick={() =>
+                                                    router.push(
+                                                        `/${routeLocale}/app/customers/${row.customerId}`
+                                                    )
+                                                }
+                                            >
+                                                {row.customerName}
+                                            </button>
+                                        </td>
+                                        <td className="py-1.5 text-start">
+                                            {formatEntryDate(row.snapshotDate)}
+                                        </td>
+                                        <td
+                                            className="py-1.5 text-end font-medium"
+                                            style={{ color: CPH.critical }}
+                                        >
+                                            {formatPortfolioMoney(
+                                                row.amount,
+                                                currency,
+                                                language
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <button
+                        type="button"
+                        className="mt-3 text-sm font-medium underline-offset-2 hover:underline"
+                        style={{ color: CPH.teal }}
+                        onClick={openNegativeCostReport}
+                    >
+                        {t(
+                            "credit_portfolio_health.kpi_negative_cost_open_report",
+                            {
+                                ...ns,
+                                defaultValue: "Open negative cost report",
+                            }
+                        )}
+                    </button>
+                </IslandCard>
+            ) : null}
 
             {showMonthlyBars ? (
                 <IslandCard
