@@ -276,6 +276,9 @@ export function PolicySummarySectionView({
     const dclCover = dclSdlCoverAmount(detail);
     const costPercent = toFiniteNumber(detail.cost_percent);
     const registrationFee = toFiniteNumber(detail.registration_fee_percent);
+    const annualCreditAssessmentFee = toFiniteNumber(
+        detail.annual_credit_assessment_fee
+    );
     const method = costMethodLabel(detail.cost_calculation_method, t);
     const start = formatPolicyDate(detail.start_date, language);
     const end = formatPolicyDate(detail.end_date, language);
@@ -372,7 +375,17 @@ export function PolicySummarySectionView({
                     accent="teal"
                     className={`${layout.span6} ${layout.mdSpan4} ${layout.cardPad}`}
                 >
-                    <Eyebrow icon={Landmark}>
+                    <Eyebrow
+                        icon={Landmark}
+                        help={t(
+                            "credit_portfolio_health.policy_summary_max_cover_help",
+                            {
+                                ...ns,
+                                defaultValue:
+                                    "Shows the policy’s maximum total cover so you know the insurer’s overall capacity ceiling for this policy.",
+                            }
+                        )}
+                    >
                         {t("credit_portfolio_health.policy_summary_max_cover", {
                             ...ns,
                             defaultValue: "Max total cover",
@@ -394,7 +407,17 @@ export function PolicySummarySectionView({
                     accent="teal"
                     className={`${layout.span6} ${layout.mdSpan4} ${layout.cardPad}`}
                 >
-                    <Eyebrow icon={Shield}>
+                    <Eyebrow
+                        icon={Shield}
+                        help={t(
+                            "credit_portfolio_health.policy_summary_dcl_cover_help",
+                            {
+                                ...ns,
+                                defaultValue:
+                                    "Shows the max DCL/SDL cover band so you can judge discretionary-limit capacity under this policy.",
+                            }
+                        )}
+                    >
                         {t("credit_portfolio_health.policy_summary_dcl_cover", {
                             ...ns,
                             defaultValue: "Max DCL/SDL cover",
@@ -416,7 +439,17 @@ export function PolicySummarySectionView({
                     accent="teal"
                     className={`${layout.span6} ${layout.mdSpan4} ${layout.cardPad}`}
                 >
-                    <Eyebrow icon={BadgePercent}>
+                    <Eyebrow
+                        icon={BadgePercent}
+                        help={t(
+                            "credit_portfolio_health.policy_summary_cost_help",
+                            {
+                                ...ns,
+                                defaultValue:
+                                    "Shows the insurance fee rate (and related cost method) so you can understand premium economics for this policy.",
+                            }
+                        )}
+                    >
                         {t("credit_portfolio_health.policy_summary_cost", {
                             ...ns,
                             defaultValue: "Insurance fee rate",
@@ -431,7 +464,9 @@ export function PolicySummarySectionView({
                     >
                         {formatPercent(costPercent, language, empty)}
                     </div>
-                    {method || registrationFee != null ? (
+                    {method ||
+                    registrationFee != null ||
+                    annualCreditAssessmentFee != null ? (
                         <ul
                             className="m-0 mt-2 list-disc ps-5 text-sm"
                             style={{ color: CPH.slate }}
@@ -458,6 +493,23 @@ export function PolicySummarySectionView({
                                         }
                                     )}
                                     {`: ${formatPercent(registrationFee, language, empty)}`}
+                                </li>
+                            ) : null}
+                            {annualCreditAssessmentFee != null ? (
+                                <li>
+                                    {t(
+                                        "credit_portfolio_health.policy_summary_annual_credit_assessment_fee",
+                                        {
+                                            ...ns,
+                                            defaultValue:
+                                                "Annual credit assessment fee",
+                                        }
+                                    )}
+                                    {`: ${formatPortfolioMoney(
+                                        annualCreditAssessmentFee,
+                                        currency,
+                                        language
+                                    )}`}
                                 </li>
                             ) : null}
                         </ul>

@@ -4,9 +4,10 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Activity } from "lucide-react";
 import {
+    Area,
     CartesianGrid,
+    ComposedChart,
     Line,
-    LineChart,
     ReferenceLine,
     ResponsiveContainer,
     Tooltip,
@@ -76,8 +77,14 @@ export function PortfolioHealthDailyChart({
             ).map(({ ymd, point }) => ({
                 label: formatDayLabel(ymd, language),
                 health: point?.healthIndex ?? null,
+                stale: Boolean(point?.isStaleCarriedForward),
             })),
         [daily, fromYmd, toYmd, language]
+    );
+
+    const staleCount = useMemo(
+        () => data.filter((d) => d.stale && d.health != null).length,
+        [data]
     );
 
     const avgLabel = t("credit_portfolio_health.chart_avg_health_ref", {
@@ -89,6 +96,9 @@ export function PortfolioHealthDailyChart({
         defaultValue: "Threshold {{pct}}%",
         pct: belowThresholdPct,
     });
+    /** Red under-curve fill only when period average health is below 100%. */
+    const avgBelow100 =
+        Number.isFinite(averageHealthPct) && averageHealthPct < 100;
 
     return (
         <IslandCard accent="teal" className={layout.cardPad}>
@@ -97,7 +107,7 @@ export function PortfolioHealthDailyChart({
                 help={t("credit_portfolio_health.daily_health_chart_help", {
                     ...ns,
                     defaultValue:
-                        "Daily portfolio health (compliant AR ÷ total open AR × 100). Violet line: period average. Red line: below-threshold cut-off ({{pct}}%).",
+                        "Daily portfolio health (compliant AR ÷ total open AR × 100). Violet line: period average. Red line: below-threshold cut-off ({{pct}}%). Red fill under the health line when period average is below 100%.",
                     pct: belowThresholdPct,
                 })}
             >
@@ -123,7 +133,7 @@ export function PortfolioHealthDailyChart({
             ) : (
                 <div style={{ width: "100%", height: 260 }}>
                     <ResponsiveContainer width="100%" height="100%">
-                        <LineChart
+                        <ComposedChart
                             data={data}
                             margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
                         >
@@ -184,6 +194,19 @@ export function PortfolioHealthDailyChart({
                                     position: "insideTopRight",
                                 }}
                             />
+                            {avgBelow100 ? (
+                                <Area
+                                    type="monotone"
+                                    dataKey="health"
+                                    fill={CPH.criticalArea}
+                                    fillOpacity={0.55}
+                                    stroke="none"
+                                    connectNulls={false}
+                                    isAnimationActive={false}
+                                    legendType="none"
+                                    tooltipType="none"
+                                />
+                            ) : null}
                             <Line
                                 type="monotone"
                                 dataKey="health"
@@ -196,14 +219,63 @@ export function PortfolioHealthDailyChart({
                                 )}
                                 stroke={CPH.teal}
                                 strokeWidth={2.5}
-                                dot={false}
+                                dot={(props: {
+                                    cx?: number;
+                                    cy?: number;
+                                    payload?: { stale?: boolean };
+                                }) => {
+                                    const { cx, cy, payload } = props;
+                                    if (
+                                        cx == null ||
+                                        cy == null ||
+                                        !payload?.stale
+                                    ) {
+                                        return (
+                                            <circle
+                                                key={`${cx}-${cy}-n`}
+                                                cx={cx}
+                                                cy={cy}
+                                                r={0}
+                                            />
+                                        );
+                                    }
+                                    return (
+                                        <circle
+                                            key={`${cx}-${cy}-s`}
+                                            cx={cx}
+                                            cy={cy}
+                                            r={3.5}
+                                            fill={CPH.slate}
+                                            stroke={CPH.border}
+                                            strokeWidth={1}
+                                            strokeDasharray="2 2"
+                                            opacity={0.55}
+                                        />
+                                    );
+                                }}
                                 connectNulls={false}
                                 animationDuration={animDuration}
                             />
-                        </LineChart>
+                        </ComposedChart>
                     </ResponsiveContainer>
                 </div>
             )}
+            {staleCount > 0 ? (
+                <p
+                    style={{
+                        margin: "8px 0 0",
+                        fontSize: 12,
+                        color: CPH.slate,
+                    }}
+                >
+                    {t("credit_portfolio_health.chart_stale_days_note", {
+                        ...ns,
+                        defaultValue:
+                            "{{count}} carried-forward snapshot days marked (muted).",
+                        count: staleCount,
+                    })}
+                </p>
+            ) : null}
         </IslandCard>
     );
 }
