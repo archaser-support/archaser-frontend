@@ -1597,8 +1597,11 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                                   capacityGapDisplay.secondary
                                               )
                                     }
+                                    tooltip={t(
+                                        "tooltips.customer_credit_metric_capacity_gap",
+                                        { ns: "dashboard" }
+                                    )}
                                     compactValueFontSize={headerCompactValueFontSize}
-                                    forceSecondaryLineBelow
                                     sx={{ minHeight: 105 }}
                                 />
                                 <CreditMetricCard
@@ -1627,6 +1630,10 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                                   creditKpiCards.termsBreachInvoiceCount
                                               )
                                     }
+                                    tooltip={t(
+                                        "tooltips.customer_credit_metric_terms_breach",
+                                        { ns: "dashboard" }
+                                    )}
                                     compactValueFontSize={headerCompactValueFontSize}
                                     forceSecondaryLineBelow
                                     sx={{ minHeight: 105 }}

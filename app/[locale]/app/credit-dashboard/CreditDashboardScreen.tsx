@@ -704,16 +704,35 @@ export function CreditDashboardScreen({
                                         s.limitWarnings.customerCount,
                                         language
                                     )}
-                                    footnote={t(
-                                        "credit_insurance_dashboard.limit_warnings_subtitle",
-                                        {
-                                            ns: "dashboard",
-                                            threshold_pct:
-                                                s.limitWarnings.thresholdPct,
-                                            score_warn_days:
-                                                s.limitWarnings.scoreWarnDays,
-                                        }
-                                    )}
+                                    footnote={
+                                        [
+                                            t(
+                                                "credit_insurance_dashboard.limit_warnings_subtitle",
+                                                {
+                                                    ns: "dashboard",
+                                                    threshold_pct:
+                                                        s.limitWarnings.thresholdPct,
+                                                    score_warn_days:
+                                                        s.limitWarnings.scoreWarnDays,
+                                                }
+                                            ),
+                                            (s.limitWarnings.projectedCustomerCount ??
+                                                0) > 0
+                                                ? t(
+                                                      "credit_insurance_dashboard.limit_warnings_projected_footnote",
+                                                      {
+                                                          ns: "dashboard",
+                                                          count: s.limitWarnings
+                                                              .projectedCustomerCount,
+                                                          defaultValue:
+                                                              "{{count}} projected utilization crossings (150%/200%).",
+                                                      }
+                                                  )
+                                                : null,
+                                        ]
+                                            .filter(Boolean)
+                                            .join(" ")
+                                    }
                                     tooltip={t(
                                         "tooltips.credit_insurance_metric_limit_warnings",
                                         { ns: "dashboard" }
