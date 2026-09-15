@@ -1,6 +1,8 @@
 "use client";
 
+import { useMemo } from "react";
 import {
+    Area,
     CartesianGrid,
     ComposedChart,
     Legend,
@@ -45,6 +47,7 @@ export type ExposureTrendLinesChartProps = {
 /**
  * Shared three-line exposure chart (covered / uncovered / total AR)
  * used by portfolio-health monthly trend and credit-dashboard history trend.
+ * Uncovered is shown as a tinted band between the covered and total lines.
  */
 export function ExposureTrendLinesChart({
     data,
@@ -59,11 +62,36 @@ export function ExposureTrendLinesChart({
     const animDuration = prefersReducedMotion ? 0 : 1200;
     const currencyCode = currency || "USD";
 
+    const chartData = useMemo(
+        () =>
+            data.map((point) => {
+                const canBand =
+                    point.covered != null &&
+                    point.total != null &&
+                    Number.isFinite(point.covered) &&
+                    Number.isFinite(point.total);
+                return {
+                    ...point,
+                    /** Light-green fill under covered; stack base for the uncovered tint. */
+                    bandBase: canBand ? (point.covered as number) : null,
+                    /** Gap to total — fills between covered and total lines. */
+                    bandGap: canBand
+                        ? Math.max(
+                              0,
+                              (point.total as number) -
+                                  (point.covered as number)
+                          )
+                        : null,
+                };
+            }),
+        [data]
+    );
+
     return (
         <div style={{ width: "100%", height }}>
             <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart
-                    data={data}
+                    data={chartData}
                     margin={{
                         top: 10,
                         right: 12,
@@ -96,35 +124,64 @@ export function ExposureTrendLinesChart({
                         wrapperStyle={{
                             direction: language.startsWith("he") ? "rtl" : "ltr",
                         }}
-                        content={(props) => (
-                            <ChartTooltip
-                                active={props.active}
-                                label={
-                                    typeof props.label === "string" ||
-                                    typeof props.label === "number"
-                                        ? String(props.label)
-                                        : undefined
-                                }
-                                payload={
-                                    props.payload as unknown as
-                                        | ReadonlyArray<{
-                                              name?: string;
-                                              value?: number | string;
-                                              color?: string;
-                                              dataKey?: string | number;
-                                          }>
-                                        | undefined
-                                }
-                                language={language}
-                                formatValue={(v) =>
-                                    formatPortfolioMoney(
-                                        v,
-                                        currencyCode,
-                                        language
-                                    )
-                                }
-                            />
-                        )}
+                        content={(props) => {
+                            const raw = props.payload?.[0]?.payload as
+                                | {
+                                      covered?: number | null;
+                                      uncovered?: number | null;
+                                      total?: number | null;
+                                  }
+                                | undefined;
+                            const items = [
+                                {
+                                    name: seriesLabels.covered,
+                                    value:
+                                        raw?.covered != null
+                                            ? raw.covered
+                                            : undefined,
+                                    color: CPH.good,
+                                    dataKey: "covered",
+                                },
+                                {
+                                    name: seriesLabels.uncovered,
+                                    value:
+                                        raw?.uncovered != null
+                                            ? raw.uncovered
+                                            : undefined,
+                                    color: CPH.criticalArea,
+                                    dataKey: "uncovered",
+                                },
+                                {
+                                    name: seriesLabels.total,
+                                    value:
+                                        raw?.total != null
+                                            ? raw.total
+                                            : undefined,
+                                    color: CPH.seriesSlate,
+                                    dataKey: "total",
+                                },
+                            ];
+                            return (
+                                <ChartTooltip
+                                    active={props.active}
+                                    label={
+                                        typeof props.label === "string" ||
+                                        typeof props.label === "number"
+                                            ? String(props.label)
+                                            : undefined
+                                    }
+                                    items={items}
+                                    language={language}
+                                    formatValue={(v) =>
+                                        formatPortfolioMoney(
+                                            v,
+                                            currencyCode,
+                                            language
+                                        )
+                                    }
+                                />
+                            );
+                        }}
                     />
                     {showLegend ? (
                         <Legend
@@ -137,6 +194,30 @@ export function ExposureTrendLinesChart({
                             }}
                         />
                     ) : null}
+                    <Area
+                        stackId="uncoveredBand"
+                        type="monotone"
+                        dataKey="bandBase"
+                        fill={CPH.goodTint}
+                        stroke="none"
+                        connectNulls={false}
+                        isAnimationActive={false}
+                        legendType="none"
+                        tooltipType="none"
+                    />
+                    <Area
+                        stackId="uncoveredBand"
+                        type="monotone"
+                        dataKey="bandGap"
+                        name={seriesLabels.uncovered}
+                        fill={CPH.criticalArea}
+                        fillOpacity={0.55}
+                        stroke="none"
+                        connectNulls={false}
+                        isAnimationActive={!prefersReducedMotion}
+                        animationDuration={animDuration}
+                        animationBegin={prefersReducedMotion ? 0 : 150}
+                    />
                     <Line
                         type="monotone"
                         dataKey="covered"
@@ -146,17 +227,6 @@ export function ExposureTrendLinesChart({
                         dot={false}
                         connectNulls={false}
                         animationDuration={animDuration}
-                    />
-                    <Line
-                        type="monotone"
-                        dataKey="uncovered"
-                        name={seriesLabels.uncovered}
-                        stroke={CPH.critical}
-                        strokeWidth={2}
-                        dot={false}
-                        connectNulls={false}
-                        animationDuration={animDuration}
-                        animationBegin={prefersReducedMotion ? 0 : 150}
                     />
                     <Line
                         type="monotone"

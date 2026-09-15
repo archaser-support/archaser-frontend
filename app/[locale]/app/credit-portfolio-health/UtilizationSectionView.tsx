@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { LinearProgress } from "@mui/material";
 import {
     Activity,
     AlertTriangle,
@@ -66,6 +67,33 @@ function riskZoneForBin(bin: UtilizationDistributionBinKey): UtilizationRiskZone
         return "warning";
     }
     return "danger";
+}
+
+function averageTopCustomersUtilization(customers: {
+    utilizationPct: number | null;
+    openAr?: number;
+}[]): {
+    averagePct: number | null;
+    count: number;
+    total: number;
+    openArTotal: number;
+} {
+    const total = customers.length;
+    const openArTotal = customers.reduce(
+        (sum, row) => sum + Math.max(0, Number(row.openAr) || 0),
+        0
+    );
+    const withPct = customers.filter(
+        (row): row is { utilizationPct: number; openAr?: number } =>
+            row.utilizationPct != null && Number.isFinite(row.utilizationPct)
+    );
+    const count = withPct.length;
+    if (count === 0) {
+        return { averagePct: null, count, total, openArTotal };
+    }
+    const averagePct =
+        withPct.reduce((sum, row) => sum + row.utilizationPct, 0) / count;
+    return { averagePct, count, total, openArTotal };
 }
 
 function seriesFillForRisk(
@@ -346,6 +374,15 @@ export function UtilizationSectionView({
         [section.topCustomers]
     );
 
+    const topCustomersChartDomainMax = useMemo(() => {
+        const peak = topCustomersChartData.reduce(
+            (max, row) => Math.max(max, row.utilization),
+            0
+        );
+        // Allow over-limit bars to extend past 100% (old domain [0, 100] clipped them).
+        return Math.max(100, Math.ceil(peak / 10) * 10);
+    }, [topCustomersChartData]);
+
     const distributionChartData = useMemo(
         () =>
             section.distribution.map((item) => {
@@ -393,6 +430,88 @@ export function UtilizationSectionView({
         router.push(`/${locale}/app/credit-dashboard/report?${sp.toString()}`);
     };
 
+    const overshoot = section.overshoot ?? null;
+    const concentration = section.concentration ?? null;
+
+    const openOvershootReport = () => {
+        const sp = new URLSearchParams({
+            type: "utilization_overshoot",
+            from: fromYmd,
+            to: toYmd,
+        });
+        if (policyId != null) {
+            sp.set("policyId", String(policyId));
+        }
+        if (!includeNoPolicyExposure) {
+            sp.set("includeNoPolicyExposure", "0");
+        }
+        appendDashboardBusinessUnitId(sp, businessUnitId);
+        applyCreditReportDocumentTitle(t, "utilization_overshoot");
+        router.push(`/${locale}/app/credit-dashboard/report?${sp.toString()}`);
+    };
+
+    const openLimitCappedReport = () => {
+        const sp = new URLSearchParams({
+            type: "limit_capped",
+            from: fromYmd,
+            to: toYmd,
+        });
+        if (policyId != null) {
+            sp.set("policyId", String(policyId));
+        }
+        if (!includeNoPolicyExposure) {
+            sp.set("includeNoPolicyExposure", "0");
+        }
+        appendDashboardBusinessUnitId(sp, businessUnitId);
+        applyCreditReportDocumentTitle(t, "limit_capped");
+        router.push(`/${locale}/app/credit-dashboard/report?${sp.toString()}`);
+    };
+
+    const openConcentrationReport = () => {
+        const sp = new URLSearchParams({
+            type: "policy_concentration",
+            from: fromYmd,
+            to: toYmd,
+        });
+        if (policyId != null) {
+            sp.set("policyId", String(policyId));
+        }
+        if (!includeNoPolicyExposure) {
+            sp.set("includeNoPolicyExposure", "0");
+        }
+        appendDashboardBusinessUnitId(sp, businessUnitId);
+        applyCreditReportDocumentTitle(t, "policy_concentration");
+        router.push(`/${locale}/app/credit-dashboard/report?${sp.toString()}`);
+    };
+
+    const rankingPreview = useMemo(
+        () => (overshoot?.ranking ?? []).slice(0, 10),
+        [overshoot?.ranking]
+    );
+
+    const top10AvgUtilization = useMemo(
+        () => averageTopCustomersUtilization(section.topCustomers),
+        [section.topCustomers]
+    );
+
+    const concentrationCard = useMemo(() => {
+        const policies = concentration?.policies ?? [];
+        if (policies.length === 0) {
+            return null;
+        }
+        // Prefer scoped / first alert / first policy.
+        return (
+            policies.find((p) => p.concentrationAlert) ??
+            policies[0] ??
+            null
+        );
+    }, [concentration?.policies]);
+
+    const concentrationBars = useMemo(
+        () => (concentrationCard?.ranking ?? []).slice(0, 8),
+        [concentrationCard?.ranking]
+    );
+
     const topChartHeight = Math.max(220, topCustomersChartData.length * 28);
     const distChartHeight = 280;
 
@@ -431,6 +550,99 @@ export function UtilizationSectionView({
                     color={CPH.teal}
                     locale={language}
                 />
+            </IslandCard>
+
+            <IslandCard
+                accent={
+                    top10AvgUtilization.averagePct != null &&
+                    top10AvgUtilization.averagePct > 100
+                        ? "critical"
+                        : "teal"
+                }
+                className={`${layout.span6} ${layout.mdSpan3} ${layout.cardPad}`}
+            >
+                <Eyebrow
+                    icon={Users}
+                    tone={
+                        top10AvgUtilization.averagePct != null &&
+                        top10AvgUtilization.averagePct > 100
+                            ? CPH.critical
+                            : undefined
+                    }
+                    help={t(
+                        "credit_portfolio_health.kpi_avg_utilization_top10_help",
+                        {
+                            ...ns,
+                            defaultValue:
+                                "Shows average utilization of the largest customers by open AR so you can see concentration risk among the biggest names.\n\nUnweighted mean of each of those customers’ period-average utilization %. Customers without an effective limit are excluded.",
+                        }
+                    )}
+                >
+                    {t("credit_portfolio_health.kpi_avg_utilization_top10", {
+                        ...ns,
+                        defaultValue: "Avg. utilization (top 10)",
+                    })}
+                </Eyebrow>
+                {top10AvgUtilization.averagePct == null ? (
+                    <div>
+                        <span style={{ color: CPH.muted }}>—</span>
+                        {top10AvgUtilization.total > 0 ? (
+                            <div
+                                style={{
+                                    marginTop: 8,
+                                    fontSize: 12,
+                                    color: CPH.muted,
+                                }}
+                            >
+                                {t(
+                                    "credit_portfolio_health.kpi_avg_utilization_top10_open_ar",
+                                    {
+                                        ...ns,
+                                        defaultValue: "Open AR {{amount}}",
+                                        amount: formatPortfolioMoney(
+                                            top10AvgUtilization.openArTotal,
+                                            currency,
+                                            language
+                                        ),
+                                    }
+                                )}
+                            </div>
+                        ) : null}
+                    </div>
+                ) : (
+                    <BigNumber
+                        value={top10AvgUtilization.averagePct}
+                        suffix="%"
+                        label={t(
+                            "credit_portfolio_health.kpi_avg_utilization_top10_label",
+                            {
+                                ...ns,
+                                defaultValue:
+                                    "Across {{count}} of {{total}} largest customers",
+                                count: top10AvgUtilization.count,
+                                total: top10AvgUtilization.total,
+                            }
+                        )}
+                        color={
+                            top10AvgUtilization.averagePct > 100
+                                ? CPH.critical
+                                : CPH.teal
+                        }
+                        locale={language}
+                        sub={t(
+                            "credit_portfolio_health.kpi_avg_utilization_top10_open_ar",
+                            {
+                                ...ns,
+                                defaultValue: "Open AR {{amount}}",
+                                amount: formatPortfolioMoney(
+                                    top10AvgUtilization.openArTotal,
+                                    currency,
+                                    language
+                                ),
+                            }
+                        )}
+                    />
+                )}
             </IslandCard>
 
             <IslandCard
@@ -532,6 +744,427 @@ export function UtilizationSectionView({
                         color={CPH.violet}
                         locale={language}
                     />
+                )}
+            </IslandCard>
+
+            <IslandCard
+                accent="critical"
+                className={`${layout.span6} ${layout.mdSpan3} ${layout.cardPad}`}
+            >
+                <Eyebrow
+                    icon={AlertTriangle}
+                    tone={CPH.critical}
+                    help={t("credit_portfolio_health.kpi_avg_overshoot_help", {
+                        ...ns,
+                        defaultValue:
+                            "Mean of each approved customer’s average overshoot % above 100% (max(0, usage % − 100)). Customers without an effective limit are excluded.",
+                    })}
+                >
+                    {t("credit_portfolio_health.kpi_avg_overshoot", {
+                        ...ns,
+                        defaultValue: "Avg utilization overshoot",
+                    })}
+                </Eyebrow>
+                {overshoot == null || overshoot.avgOvershootPts == null ? (
+                    <span style={{ color: CPH.muted }}>
+                        {t("credit_portfolio_health.kpi_avg_overshoot_no_data", {
+                            ...ns,
+                            defaultValue: "No data",
+                        })}
+                    </span>
+                ) : (
+                    <BigNumber
+                        value={overshoot.avgOvershootPts}
+                        decimals={1}
+                        suffix="%"
+                        label={t(
+                            "credit_portfolio_health.kpi_avg_overshoot_label",
+                            {
+                                ...ns,
+                                defaultValue:
+                                    "Across {{count}} customers with effective-limit days",
+                                count: overshoot.customersWithData,
+                            }
+                        )}
+                        color={CPH.critical}
+                        locale={language}
+                    />
+                )}
+                <button
+                    type="button"
+                    onClick={openOvershootReport}
+                    style={{
+                        marginTop: 8,
+                        padding: 0,
+                        border: "none",
+                        background: "none",
+                        color: CPH.teal,
+                        fontSize: 13,
+                        fontWeight: 500,
+                        cursor: "pointer",
+                        textAlign: "inherit",
+                    }}
+                >
+                    {t("credit_portfolio_health.kpi_overshoot_open_report", {
+                        ...ns,
+                        defaultValue: "Open overshoot ranking report",
+                    })}
+                </button>
+            </IslandCard>
+
+            <IslandCard
+                accent="violet"
+                className={`${layout.span6} ${layout.mdSpan3} ${layout.cardPad}`}
+            >
+                <Eyebrow
+                    icon={AlertTriangle}
+                    tone={CPH.violet}
+                    help={t(
+                        "credit_portfolio_health.kpi_limit_capped_count_help",
+                        {
+                            ...ns,
+                            defaultValue:
+                                "Customers whose compliant exposure is flat while total AR grows. Short windows (<14 available days) are suppressed.",
+                        }
+                    )}
+                >
+                    {t("credit_portfolio_health.kpi_limit_capped_count", {
+                        ...ns,
+                        defaultValue: "Limit-capped customers",
+                    })}
+                </Eyebrow>
+                <BigNumber
+                    value={overshoot?.limitCappedCustomerCount ?? 0}
+                    decimals={0}
+                    suffix=""
+                    label={t("credit_portfolio_health.kpi_limit_capped_count", {
+                        ...ns,
+                        defaultValue: "Limit-capped customers",
+                    })}
+                    color={CPH.violet}
+                    locale={language}
+                />
+                <button
+                    type="button"
+                    onClick={openLimitCappedReport}
+                    style={{
+                        marginTop: 8,
+                        padding: 0,
+                        border: "none",
+                        background: "none",
+                        color: CPH.teal,
+                        fontSize: 13,
+                        fontWeight: 500,
+                        cursor: "pointer",
+                        textAlign: "inherit",
+                    }}
+                >
+                    {t("credit_portfolio_health.kpi_limit_capped_open_report", {
+                        ...ns,
+                        defaultValue: "Open limit-capped cohort",
+                    })}
+                </button>
+            </IslandCard>
+
+            <IslandCard
+                accent="critical"
+                className={`${layout.span12} ${layout.cardPad}`}
+            >
+                <Eyebrow
+                    icon={Users}
+                    tone={CPH.critical}
+                    help={t("credit_portfolio_health.overshoot_ranking_help", {
+                        ...ns,
+                        defaultValue:
+                            "Customers ranked by average utilization above 100%. Click a row to open the customer; export opens the full sortable report.",
+                    })}
+                >
+                    {t("credit_portfolio_health.overshoot_ranking_title", {
+                        ...ns,
+                        defaultValue: "Customers above 100% utilization",
+                    })}
+                </Eyebrow>
+                {rankingPreview.length === 0 ? (
+                    <p className="m-0 text-sm" style={{ color: CPH.muted }}>
+                        {t("credit_portfolio_health.overshoot_ranking_empty", {
+                            ...ns,
+                            defaultValue:
+                                "No customers with effective-limit days in this range.",
+                        })}
+                    </p>
+                ) : (
+                    <div className="mt-3 overflow-x-auto">
+                        <table
+                            className="w-full text-sm"
+                            style={{
+                                borderCollapse: "collapse",
+                                color: CPH.ink,
+                            }}
+                        >
+                            <thead>
+                                <tr style={{ color: CPH.slate, textAlign: "start" }}>
+                                    <th className="pb-2 pe-3 font-medium">
+                                        {t(
+                                            "credit_portfolio_health.overshoot_ranking_col_customer",
+                                            {
+                                                ...ns,
+                                                defaultValue: "Customer",
+                                            }
+                                        )}
+                                    </th>
+                                    <th className="pb-2 pe-3 font-medium">
+                                        {t(
+                                            "credit_portfolio_health.overshoot_ranking_col_avg",
+                                            {
+                                                ...ns,
+                                                defaultValue: "Avg overshoot",
+                                            }
+                                        )}
+                                    </th>
+                                    <th className="pb-2 pe-3 font-medium">
+                                        {t(
+                                            "credit_portfolio_health.overshoot_ranking_col_peak",
+                                            {
+                                                ...ns,
+                                                defaultValue: "Peak usage",
+                                            }
+                                        )}
+                                    </th>
+                                    <th className="pb-2 pe-3 font-medium">
+                                        {t(
+                                            "credit_portfolio_health.overshoot_ranking_col_days_above",
+                                            {
+                                                ...ns,
+                                                defaultValue:
+                                                    "Days above limit",
+                                            }
+                                        )}
+                                    </th>
+                                    <th className="pb-2 font-medium">
+                                        {t(
+                                            "credit_portfolio_health.overshoot_ranking_col_longest",
+                                            {
+                                                ...ns,
+                                                defaultValue:
+                                                    "Longest above limit",
+                                            }
+                                        )}
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {rankingPreview.map((row) => (
+                                    <tr
+                                        key={row.customerId}
+                                        className="cursor-pointer"
+                                        style={{ borderTop: `1px solid ${CPH.border}` }}
+                                        onClick={() =>
+                                            router.push(
+                                                `/${locale}/app/customers/${row.customerId}`
+                                            )
+                                        }
+                                    >
+                                        <td className="py-2 pe-3">
+                                            {row.customerName}
+                                        </td>
+                                        <td className="py-2 pe-3">
+                                            +
+                                            {formatPct(
+                                                row.avgOvershootPts,
+                                                language
+                                            )}
+                                        </td>
+                                        <td className="py-2 pe-3">
+                                            {row.peakUsagePct == null
+                                                ? "—"
+                                                : formatPct(
+                                                      row.peakUsagePct,
+                                                      language
+                                                  )}
+                                        </td>
+                                        <td className="py-2 pe-3">
+                                            {row.daysAboveLimit ?? 0}
+                                        </td>
+                                        <td className="py-2">
+                                            {row.longestAboveLimitDays ?? 0}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        <button
+                            type="button"
+                            className="mt-3 text-xs underline"
+                            style={{ color: CPH.teal, background: "none", border: 0, cursor: "pointer", padding: 0 }}
+                            onClick={openOvershootReport}
+                        >
+                            {t(
+                                "credit_portfolio_health.kpi_overshoot_open_report",
+                                {
+                                    ...ns,
+                                    defaultValue: "Open overshoot ranking report",
+                                }
+                            )}
+                        </button>
+                    </div>
+                )}
+            </IslandCard>
+
+            <IslandCard
+                accent="violet"
+                className={`${layout.span12} ${layout.mdSpan6} ${layout.cardPad}`}
+            >
+                <Eyebrow
+                    icon={Layers}
+                    tone={CPH.violet}
+                    help={t("credit_portfolio_health.kpi_concentration_top1_help", {
+                        ...ns,
+                        defaultValue:
+                            "Largest customer’s open AR ÷ policy total open AR on the latest snapshot. Single-customer policies may show 100% for context but never raise a concentration alert.",
+                    })}
+                >
+                    {t("credit_portfolio_health.kpi_concentration_top1", {
+                        ...ns,
+                        defaultValue: "Top-1 policy share",
+                    })}
+                </Eyebrow>
+                {concentrationCard == null ||
+                concentrationCard.top1SharePct == null ? (
+                    <span style={{ color: CPH.muted }}>
+                        {t("credit_portfolio_health.kpi_concentration_empty", {
+                            ...ns,
+                            defaultValue:
+                                "No policy concentration data in this range.",
+                        })}
+                    </span>
+                ) : (
+                    <>
+                        <BigNumber
+                            value={concentrationCard.top1SharePct}
+                            decimals={1}
+                            suffix="%"
+                            label={
+                                concentrationCard.top1CustomerName
+                                    ? t(
+                                          "credit_portfolio_health.kpi_concentration_top1_label",
+                                          {
+                                              ...ns,
+                                              defaultValue:
+                                                  "Top customer {{name}}",
+                                              name: concentrationCard.top1CustomerName,
+                                          }
+                                      )
+                                    : undefined
+                            }
+                            color={
+                                concentrationCard.concentrationAlert
+                                    ? CPH.critical
+                                    : CPH.violet
+                            }
+                            locale={language}
+                        />
+                        <p
+                            className="m-0 mt-2 text-sm"
+                            style={{ color: CPH.slate }}
+                        >
+                            {t("credit_portfolio_health.kpi_concentration_top3", {
+                                ...ns,
+                                defaultValue: "Top-3 cumulative {{pct}}%",
+                                pct:
+                                    concentrationCard.top3SharePct != null
+                                        ? concentrationCard.top3SharePct.toLocaleString(
+                                              language.startsWith("he")
+                                                  ? "he-IL"
+                                                  : "en-US",
+                                              { maximumFractionDigits: 1 }
+                                          )
+                                        : "—",
+                            })}
+                        </p>
+                        <p
+                            className="m-0 mt-1 text-xs"
+                            style={{ color: CPH.muted }}
+                        >
+                            {concentrationCard.alertEligible
+                                ? concentrationCard.concentrationAlert
+                                    ? t(
+                                          "credit_portfolio_health.kpi_concentration_alert",
+                                          {
+                                              ...ns,
+                                              defaultValue:
+                                                  "Concentration alert",
+                                          }
+                                      )
+                                    : null
+                                : t(
+                                      "credit_portfolio_health.kpi_concentration_no_alert_single",
+                                      {
+                                          ...ns,
+                                          defaultValue:
+                                              "Single-customer policy — context only",
+                                      }
+                                  )}
+                            {concentrationCard.asOfDate
+                                ? ` · ${t(
+                                      "credit_portfolio_health.kpi_concentration_as_of",
+                                      {
+                                          ...ns,
+                                          defaultValue: "As of {{date}}",
+                                          date: concentrationCard.asOfDate,
+                                      }
+                                  )}`
+                                : null}
+                        </p>
+                        <div className="mt-3 flex flex-col gap-2">
+                            {concentrationBars.map((row) => (
+                                <div key={row.customerId}>
+                                    <div
+                                        className="mb-1 flex justify-between text-xs"
+                                        style={{ color: CPH.slate }}
+                                    >
+                                        <span>{row.customerName}</span>
+                                        <span>
+                                            {row.sharePct.toLocaleString(
+                                                language.startsWith("he")
+                                                    ? "he-IL"
+                                                    : "en-US",
+                                                { maximumFractionDigits: 1 }
+                                            )}
+                                            %
+                                        </span>
+                                    </div>
+                                    <LinearProgress
+                                        variant="determinate"
+                                        value={Math.min(100, row.sharePct)}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={openConcentrationReport}
+                            style={{
+                                marginTop: 8,
+                                padding: 0,
+                                border: "none",
+                                background: "none",
+                                color: CPH.teal,
+                                fontSize: 13,
+                                fontWeight: 500,
+                                cursor: "pointer",
+                                textAlign: "inherit",
+                            }}
+                        >
+                            {t(
+                                "credit_portfolio_health.kpi_concentration_open_report",
+                                {
+                                    ...ns,
+                                    defaultValue:
+                                        "Open concentration ranking report",
+                                }
+                            )}
+                        </button>
+                    </>
                 )}
             </IslandCard>
 
@@ -942,7 +1575,7 @@ export function UtilizationSectionView({
                         help={t("credit_portfolio_health.top_customers_help", {
                             ...ns,
                             defaultValue:
-                                "Top 10 by mean daily usage in the range. Bars show mean daily effective utilization %.",
+                                "Top 10 by mean daily open AR in the range. Bars show mean daily effective utilization %.",
                         })}
                     >
                         {t("credit_portfolio_health.top_customers_title", {
@@ -971,7 +1604,7 @@ export function UtilizationSectionView({
                                 />
                                 <XAxis
                                     type="number"
-                                    domain={[0, 100]}
+                                    domain={[0, topCustomersChartDomainMax]}
                                     tick={{ fill: CPH.slate, fontSize: 11 }}
                                     axisLine={false}
                                     tickLine={false}
@@ -1030,6 +1663,18 @@ export function UtilizationSectionView({
                                             }
                                         />
                                     ))}
+                                    <LabelList
+                                        dataKey="utilization"
+                                        position="right"
+                                        formatter={(v: number) =>
+                                            formatPct(v, language, 0)
+                                        }
+                                        style={{
+                                            fill: CPH.slate,
+                                            fontSize: 11,
+                                            fontVariantNumeric: "tabular-nums",
+                                        }}
+                                    />
                                 </Bar>
                             </BarChart>
                         </ResponsiveContainer>

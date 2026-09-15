@@ -81,7 +81,7 @@ export function PortfolioHealthMonthlyChart({
                 help={t("credit_portfolio_health.monthly_chart_help", {
                     ...ns,
                     defaultValue:
-                        "Average daily open AR, compliant (covered), and at-risk (uncovered) amounts per calendar month in the selected range.",
+                        "Average daily open AR, compliant (covered), and at-risk (uncovered) amounts per calendar month in the selected range. Light red fill between the covered and total lines.",
                 })}
             >
                 {t("credit_portfolio_health.monthly_chart_title", {
