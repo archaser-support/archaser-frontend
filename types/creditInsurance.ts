@@ -422,35 +422,6 @@ export type PortfolioUtilizationOvershootSection = {
     ranking: PortfolioUtilizationOvershootCustomer[];
 };
 
-export type PortfolioPolicyConcentrationCustomer = {
-    customerId: number;
-    customerName: string;
-    openAr: number;
-    sharePct: number;
-};
-
-export type PortfolioPolicyConcentrationCard = {
-    policyId: number;
-    policyNumber: string | null;
-    asOfDate: string;
-    customerCount: number;
-    customersWithOpenAr: number;
-    totalOpenAr: number;
-    top1SharePct: number | null;
-    top3SharePct: number | null;
-    top1CustomerId: number | null;
-    top1CustomerName: string | null;
-    alertEligible: boolean;
-    concentrationAlert: boolean;
-    ranking: PortfolioPolicyConcentrationCustomer[];
-};
-
-export type PortfolioConcentrationSection = {
-    asOfDate: string | null;
-    alertPolicyCount: number;
-    policies: PortfolioPolicyConcentrationCard[];
-};
-
 export type PortfolioUtilizationDistributionBin = {
     bin: UtilizationDistributionBinKey;
     customerCount: number;
@@ -496,10 +467,25 @@ export type PortfolioUtilizationSection = {
     daily: PortfolioUtilizationDailyPoint[];
     /** Snapshot day kept for API compatibility; distribution/top customers use the full range. */
     asOfDate: string | null;
+    /**
+     * Named customers with open AR = 0 on every day they were Named in range.
+     * DCL excluded.
+     */
+    idleNamedCustomerCount?: number;
+    /**
+     * Distinct Named customers named anytime in the range (Costs denominator).
+     */
+    namedCustomerCountInRange?: number;
+    /** Idle named share of named-in-range (0–100). */
+    idleNamedCustomerPct?: number;
+    /**
+     * Σ (current fee × idle named × year multiplier). Null fee → $0.
+     */
+    idleNamedAnnualCreditAssessmentCost?: number;
+    /** `max(1, ceil(inclusiveDaysInRange / 365))`. */
+    yearMultiplier?: number;
     /** Utilization overshoot ranking + limit-capped count (Bucket 1 #2 / #3). */
     overshoot?: PortfolioUtilizationOvershootSection | null;
-    /** Policy concentration on latest snapshot (Bucket 1 #9). */
-    concentration?: PortfolioConcentrationSection | null;
 };
 
 export type PortfolioCostDailyPoint = {
@@ -544,6 +530,16 @@ export type PortfolioCostsSection = {
     deductiblePct: null;
     /** Anomalous negative daily-cost visibility (Bucket 1 KPI #8). */
     negativeCost?: PortfolioNegativeCostSection | null;
+    /**
+     * Σ over policies of (current Annual Credit Assessment Fee × distinct
+     * Named customers named anytime in range × year multiplier). Standalone
+     * from Policy cost / monthly / effective cost.
+     */
+    annualCreditAssessmentCost?: number;
+    /** Sum of per-policy distinct Named customers named anytime in the range. */
+    namedCustomerCountInRange?: number;
+    /** `max(1, ceil(inclusiveDaysInRange / 365))`. */
+    yearMultiplier?: number;
 };
 
 export type PortfolioNegativeCostPreviewEntry = {
