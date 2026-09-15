@@ -58,7 +58,13 @@ export type CustomerCreditKpiCards = {
 export type RiskExposureTrendSeries = {
     policyId: number;
     policyLabel: string;
-    series: Array<{ snapshotDate: string; amount: number }>;
+    series: Array<{
+        snapshotDate: string;
+        amount: number;
+        openArAmount?: number;
+        capacityGapAmount?: number;
+        termsBreachAmount?: number;
+    }>;
 };
 
 export type TermsBreachReasonSlice = {

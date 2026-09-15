@@ -6,17 +6,23 @@ import GavelIcon from "@mui/icons-material/Gavel";
 import PolicyIcon from "@mui/icons-material/Policy";
 import SecurityIcon from "@mui/icons-material/Security";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
+import ShowChartIcon from "@mui/icons-material/ShowChart";
+import TrendingDownIcon from "@mui/icons-material/TrendingDown";
+import TrendingFlatIcon from "@mui/icons-material/TrendingFlat";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import {
+    Alert,
     Box,
     MenuItem,
     Stack,
     TextField,
+    Tooltip,
     Typography,
     useTheme,
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -31,6 +37,11 @@ import { resolveCapacityGapDisplayAmounts } from "@/shared/creditInsurance/invoi
 import { resolveCustomerDetailDashboardUx } from "@/shared/customerDetailDashboardUx";
 import { currencies } from "@/shared/data/common/currencies";
 import { Customer } from "@/types/Customer";
+import {
+    formatDateForDisplay,
+    getUserDateLocale,
+    getUserTimezone,
+} from "@/utils/datetimeOperations";
 import { formatAmountWithoutSymbolWhole } from "@/utils/stringFormatters";
 
 import {
@@ -204,11 +215,17 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
     onTimelineRefresh,
 }) => {
     const { t, i18n } = useTranslation(["customers", "common", "dashboard"]);
+    const { data: session } = useSession();
     const searchParams = useSearchParams();
     const router = useRouter();
     const pathname = usePathname();
     const isRtl = i18n.language === "he";
     const locale = isRtl ? "he-IL" : "en-US";
+    const dateLocale = useMemo(() => {
+        const fallback = isRtl ? "he-IL" : "en-US";
+        return getUserDateLocale(session, fallback);
+    }, [isRtl, session]);
+    const timezone = useMemo(() => getUserTimezone(session), [session]);
 
     const selectedPolicyIdFromUrl = useMemo(() => {
         const raw = searchParams?.get("policyId");
@@ -443,6 +460,252 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
         ]
     );
 
+    const periodKpiCards = kpiQuery.data?.cards ?? null;
+
+    const healthMomentumLine = useMemo(() => {
+        if (periodKpiCards == null) {
+            return undefined;
+        }
+        const classification = periodKpiCards.healthMomentumClassification;
+        const suppressed = periodKpiCards.healthMomentumSuppressed !== false;
+        const peak = periodKpiCards.healthPeakValue;
+        const peakDate = periodKpiCards.healthPeakDate;
+        const current = periodKpiCards.healthCurrentValue;
+        if (peak == null || current == null || !peakDate) {
+            return suppressed
+                ? t("tooltips.customer_credit_health_momentum_insufficient", {
+                      ns: "dashboard",
+                      defaultValue: "Insufficient days for trend",
+                  })
+                : undefined;
+        }
+        const peakLabel = formatDateForDisplay(
+            new Date(`${peakDate}T12:00:00.000Z`),
+            "date",
+            dateLocale,
+            timezone
+        );
+        const peakCurrent = t("tooltips.customer_credit_health_peak_current", {
+            ns: "dashboard",
+            defaultValue: "Peaked at {{peak}}% on {{date}}, now {{current}}%",
+            peak: peak.toFixed(1),
+            date: peakLabel,
+            current: current.toFixed(1),
+        });
+        if (suppressed || classification == null) {
+            return `${peakCurrent} · ${t(
+                "tooltips.customer_credit_health_momentum_insufficient",
+                {
+                    ns: "dashboard",
+                    defaultValue: "Insufficient days for trend",
+                }
+            )}`;
+        }
+        const badge = t(
+            `tooltips.customer_credit_health_momentum_${classification}`,
+            {
+                ns: "dashboard",
+                defaultValue: classification,
+            }
+        );
+        return `${badge} · ${peakCurrent}`;
+    }, [dateLocale, periodKpiCards, t, timezone]);
+
+    const healthMomentumTooltip = useMemo(() => {
+        const base = t("tooltips.customer_credit_metric_health_index", {
+            ns: "dashboard",
+        });
+        const parts = [base];
+        const slope = periodKpiCards?.healthMomentumSlope;
+        if (slope != null && Number.isFinite(slope)) {
+            parts.push(
+                t("tooltips.customer_credit_health_slope_value", {
+                    ns: "dashboard",
+                    defaultValue: "Trailing slope: {{slope}} pts/day",
+                    slope: slope.toFixed(3),
+                })
+            );
+        }
+        if (
+            periodKpiCards?.breachDilutionClassification === "diluted" ||
+            periodKpiCards?.breachDilutionClassification === "resolved"
+        ) {
+            parts.push(
+                t("tooltips.customer_credit_metric_breach_dilution", {
+                    ns: "dashboard",
+                })
+            );
+        }
+        return parts.join("\n\n");
+    }, [
+        periodKpiCards?.breachDilutionClassification,
+        periodKpiCards?.healthMomentumSlope,
+        t,
+    ]);
+
+    const MomentumIcon =
+        periodKpiCards?.healthMomentumClassification === "improving"
+            ? TrendingUpIcon
+            : periodKpiCards?.healthMomentumClassification === "deteriorating"
+              ? TrendingDownIcon
+              : TrendingFlatIcon;
+
+    const arVolatilitySparkline = useMemo(() => {
+        const points = periodKpiCards?.arVolatilityDailyPctChanges ?? [];
+        if (points.length === 0) {
+            return null;
+        }
+        const width = 120;
+        const height = 28;
+        const maxAbs = Math.max(
+            ...points.map((p) => Math.abs(p.pctChange)),
+            0.01
+        );
+        const mid = height / 2;
+        const barW = Math.max(1, width / points.length - 1);
+        return (
+            <svg
+                width="100%"
+                height={height}
+                viewBox={`0 0 ${width} ${height}`}
+                preserveAspectRatio="none"
+                aria-hidden
+                style={{ display: "block" }}
+            >
+                <line
+                    x1={0}
+                    y1={mid}
+                    x2={width}
+                    y2={mid}
+                    stroke="currentColor"
+                    strokeOpacity={0.35}
+                    strokeWidth={1}
+                />
+                {points.map((p, i) => {
+                    const x = (i / points.length) * width;
+                    const h = (Math.abs(p.pctChange) / maxAbs) * (mid - 1);
+                    const y = p.pctChange >= 0 ? mid - h : mid;
+                    return (
+                        <rect
+                            key={p.snapshotDate}
+                            x={x}
+                            y={y}
+                            width={barW}
+                            height={Math.max(1, h)}
+                            fill={
+                                p.extreme
+                                    ? "currentColor"
+                                    : "currentColor"
+                            }
+                            opacity={p.extreme ? 1 : 0.55}
+                        />
+                    );
+                })}
+            </svg>
+        );
+    }, [periodKpiCards?.arVolatilityDailyPctChanges]);
+
+    const overshootSparkline = useMemo(() => {
+        const points = periodKpiCards?.overshootDailyPts ?? [];
+        if (points.length === 0) {
+            return null;
+        }
+        const width = 120;
+        const height = 28;
+        const maxVal = Math.max(...points.map((p) => p.overshootPts), 0.01);
+        const barW = Math.max(1, width / points.length - 1);
+        return (
+            <svg
+                width="100%"
+                height={height}
+                viewBox={`0 0 ${width} ${height}`}
+                preserveAspectRatio="none"
+                aria-hidden
+                style={{ display: "block" }}
+            >
+                {points.map((p, i) => {
+                    const x = (i / points.length) * width;
+                    const h = (p.overshootPts / maxVal) * (height - 2);
+                    return (
+                        <rect
+                            key={p.snapshotDate}
+                            x={x}
+                            y={height - h}
+                            width={barW}
+                            height={Math.max(1, h)}
+                            fill="currentColor"
+                            opacity={0.7}
+                        />
+                    );
+                })}
+            </svg>
+        );
+    }, [periodKpiCards?.overshootDailyPts]);
+
+    const overshootSecondaryLine = useMemo(() => {
+        if (periodKpiCards == null) {
+            return undefined;
+        }
+        if ((periodKpiCards.overshootDaysWithLimit ?? 0) <= 0) {
+            return undefined;
+        }
+        const avg = periodKpiCards.avgUsagePctPeriod;
+        const peak = periodKpiCards.peakUsagePctPeriod;
+        if (avg == null || peak == null) {
+            return undefined;
+        }
+        return t("tooltips.customer_credit_overshoot_usage_subtext", {
+            ns: "dashboard",
+            defaultValue: "Avg usage {{avg}}% · Peak {{peak}}%",
+            avg: avg.toFixed(1),
+            peak: peak.toFixed(1),
+        });
+    }, [periodKpiCards, t]);
+
+    const limitCappedBanner = useMemo(() => {
+        if (periodKpiCards?.limitCapped !== true) {
+            return null;
+        }
+        const arGrowth = periodKpiCards.limitCappedTotalArGrowthPct;
+        const compliantGrowth = periodKpiCards.limitCappedCompliantGrowthPct;
+        if (arGrowth == null || compliantGrowth == null) {
+            return null;
+        }
+        return t("tooltips.customer_credit_limit_capped_banner", {
+            ns: "dashboard",
+            defaultValue:
+                "Compliant exposure is capped near the limit — AR growth (+{{arGrowth}}%) is flowing into at-risk exposure, not compliant (+{{compliantGrowth}}%).",
+            arGrowth: (arGrowth * 100).toFixed(1),
+            compliantGrowth: (compliantGrowth * 100).toFixed(1),
+        });
+    }, [periodKpiCards, t]);
+
+    const breachStreakLine = useMemo(() => {
+        const status = periodKpiCards?.breachStreakStatus;
+        if (status == null) {
+            return undefined;
+        }
+        if (status === "none") {
+            return t("tooltips.customer_credit_breach_streak_none", {
+                ns: "dashboard",
+                defaultValue: "No breach on record",
+            });
+        }
+        const days = periodKpiCards?.breachStreakDays ?? 0;
+        if (status === "open") {
+            return t("tooltips.customer_credit_breach_streak_open", {
+                ns: "dashboard",
+                defaultValue: "In breach for {{days}} days",
+                days,
+            });
+        }
+        return t("tooltips.customer_credit_breach_streak_clean", {
+            ns: "dashboard",
+            defaultValue: "Breach-free for {{days}} days",
+            days,
+        });
+    }, [periodKpiCards, t]);
+
     const capacityGapCardLoading =
         selectedPolicyIdFromUrl != null
             ? overallKpiQuery.isLoading || overallCapacityGapCards == null
@@ -462,6 +725,39 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
         },
         [accountCurrency, isRtl, locale]
     );
+
+    const breachDilutionBanner = useMemo(() => {
+        const classification = periodKpiCards?.breachDilutionClassification;
+        if (classification !== "diluted" && classification !== "resolved") {
+            return null;
+        }
+        const breachFirst = periodKpiCards?.breachDilutionBreachFirst;
+        const breachLast = periodKpiCards?.breachDilutionBreachLast;
+        const arGrowth = periodKpiCards?.breachDilutionArGrowthPct;
+        const breachChange = periodKpiCards?.breachDilutionBreachChangePct;
+        if (classification === "diluted") {
+            return t("tooltips.customer_credit_breach_diluted_banner", {
+                ns: "dashboard",
+                defaultValue:
+                    "Health rose while breach $ stayed elevated ({{breachFirst}} → {{breachLast}}) and AR grew +{{arGrowth}}% — improvement looks diluted, not resolved.",
+                breachFirst: formatAmount(breachFirst),
+                breachLast: formatAmount(breachLast),
+                arGrowth:
+                    arGrowth == null ? "—" : (arGrowth * 100).toFixed(1),
+            });
+        }
+        return t("tooltips.customer_credit_breach_resolved_banner", {
+            ns: "dashboard",
+            defaultValue:
+                "Health rose as breach $ fell sharply ({{breachFirst}} → {{breachLast}}, {{breachChange}}%) — recovery looks resolved, not diluted by AR growth.",
+            breachFirst: formatAmount(breachFirst),
+            breachLast: formatAmount(breachLast),
+            breachChange:
+                breachChange == null
+                    ? "—"
+                    : (breachChange * 100).toFixed(1),
+        });
+    }, [formatAmount, periodKpiCards, t]);
 
     const formatCreditInsuranceAmount = useMemo(
         () => (
@@ -625,22 +921,47 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
 
                     <Box sx={METRIC_GRID_SX}>
                         <CreditMetricCard
-                            icon={<FavoriteIcon />}
+                            icon={
+                                periodKpiCards?.healthMomentumClassification !=
+                                    null &&
+                                periodKpiCards.healthMomentumSuppressed ===
+                                    false ? (
+                                    <MomentumIcon />
+                                ) : (
+                                    <FavoriteIcon />
+                                )
+                            }
                             iconAccent="healthIndex"
                             label={creditInsuranceLabels.healthIndex}
                             value={
                                 kpiCardsLoading || !creditKpis
                                     ? t("messages.loading", { ns: "common" })
                                     : formatHealthIndexPercent(
-                                        creditKpis.healthIndex,
-                                        locale
-                                    )
+                                          creditKpis.healthIndex,
+                                          locale
+                                      )
                             }
-                            tooltip={t(
-                                "tooltips.customer_credit_metric_health_index",
-                                { ns: "dashboard" }
-                            )}
+                            secondaryLine={healthMomentumLine}
+                            forceSecondaryLineBelow
+                            tooltip={healthMomentumTooltip}
                         />
+                        {breachDilutionBanner ? (
+                            <Alert
+                                severity={
+                                    periodKpiCards?.breachDilutionClassification ===
+                                    "diluted"
+                                        ? "warning"
+                                        : "success"
+                                }
+                                icon={<WarningAmberIcon fontSize="inherit" />}
+                                sx={{
+                                    gridColumn: "1 / -1",
+                                    width: "100%",
+                                }}
+                            >
+                                {breachDilutionBanner}
+                            </Alert>
+                        ) : null}
                         <CreditMetricCard
                             icon={<WarningAmberIcon />}
                             iconAccent="atRisk"
@@ -667,6 +988,47 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                     ? t("messages.loading", { ns: "common" })
                                     : formatUsagePct(creditKpis.policyUsagePct)
                             }
+                            secondaryLine={
+                                kpiQuery.data?.cards?.policyOpenArSharePct !=
+                                    null &&
+                                kpiQuery.data.cards.policyOpenArSharePolicyNumber
+                                    ? t(
+                                          "tooltips.customer_credit_policy_ar_share",
+                                          {
+                                              ns: "dashboard",
+                                              pct: kpiQuery.data.cards.policyOpenArSharePct.toLocaleString(
+                                                  locale,
+                                                  { maximumFractionDigits: 1 }
+                                              ),
+                                              policy:
+                                                  kpiQuery.data.cards
+                                                      .policyOpenArSharePolicyNumber,
+                                              defaultValue:
+                                                  "{{pct}}% of policy {{policy}} open AR",
+                                          }
+                                      )
+                                    : kpiQuery.data?.cards
+                                            ?.limitBreachForecastStatus ===
+                                          "projected" &&
+                                      kpiQuery.data.cards
+                                          .limitBreachForecastProjectedDate !=
+                                          null
+                                    ? t(
+                                          "tooltips.customer_credit_forecast_projected",
+                                          {
+                                              ns: "dashboard",
+                                              threshold:
+                                                  kpiQuery.data.cards
+                                                      .limitBreachForecastThresholdPct,
+                                              date: kpiQuery.data.cards
+                                                  .limitBreachForecastProjectedDate,
+                                              defaultValue:
+                                                  "Projected to reach {{threshold}}% by {{date}}",
+                                          }
+                                      )
+                                    : undefined
+                            }
+                            forceSecondaryLineBelow
                             tooltip={t(
                                 "tooltips.customer_credit_metric_policy_usage",
                                 { ns: "dashboard" }
@@ -702,6 +1064,8 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                 "tooltips.customer_credit_metric_terms_breach",
                                 { ns: "dashboard" }
                             )}
+                            secondaryLine={breachStreakLine}
+                            forceSecondaryLineBelow
                         />
                         <CreditMetricCard
                             icon={<AttachMoneyIcon />}
@@ -722,6 +1086,159 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                 { ns: "dashboard" }
                             )}
                         />
+                        <CreditMetricCard
+                            icon={<ShowChartIcon />}
+                            iconAccent="atRisk"
+                            label={t(
+                                "credit_insurance_dashboard.ar_volatility",
+                                {
+                                    ns: "dashboard",
+                                    defaultValue: "AR volatility",
+                                }
+                            )}
+                            value={
+                                kpiCardsLoading || periodKpiCards == null
+                                    ? t("messages.loading", { ns: "common" })
+                                    : periodKpiCards.arVolatilitySigmaPct ==
+                                        null
+                                      ? t(
+                                            "tooltips.customer_credit_ar_volatility_no_data",
+                                            {
+                                                ns: "dashboard",
+                                                defaultValue: "No data",
+                                            }
+                                        )
+                                      : t(
+                                            "tooltips.customer_credit_ar_volatility_sigma",
+                                            {
+                                                ns: "dashboard",
+                                                defaultValue:
+                                                    "σ {{sigma}}% daily swing",
+                                                sigma: (
+                                                    periodKpiCards.arVolatilitySigmaPct *
+                                                    100
+                                                ).toFixed(1),
+                                            }
+                                        )
+                            }
+                            secondaryLine={
+                                periodKpiCards != null &&
+                                (periodKpiCards.arVolatilityExtremeMoveCount ??
+                                    0) > 0
+                                    ? t(
+                                          "tooltips.customer_credit_ar_volatility_extreme",
+                                          {
+                                              ns: "dashboard",
+                                              defaultValue:
+                                                  "{{count}} extreme single-day moves (±10%+)",
+                                              count: periodKpiCards.arVolatilityExtremeMoveCount,
+                                          }
+                                      )
+                                    : undefined
+                            }
+                            forceSecondaryLineBelow
+                            footnote={
+                                arVolatilitySparkline ? (
+                                    <Tooltip
+                                        title={t(
+                                            "tooltips.customer_credit_ar_volatility_sparkline",
+                                            {
+                                                ns: "dashboard",
+                                                defaultValue:
+                                                    "Day-over-day % change (stale days excluded)",
+                                            }
+                                        )}
+                                        placement="bottom"
+                                        arrow
+                                    >
+                                        <Box
+                                            component="span"
+                                            sx={{
+                                                display: "block",
+                                                width: "100%",
+                                                color: "text.secondary",
+                                            }}
+                                        >
+                                            {arVolatilitySparkline}
+                                        </Box>
+                                    </Tooltip>
+                                ) : undefined
+                            }
+                            tooltip={t(
+                                "tooltips.customer_credit_metric_ar_volatility",
+                                { ns: "dashboard" }
+                            )}
+                        />
+                        <CreditMetricCard
+                            icon={<TrendingUpIcon />}
+                            iconAccent="reporting"
+                            label={t(
+                                "credit_insurance_dashboard.utilization_overshoot",
+                                {
+                                    ns: "dashboard",
+                                    defaultValue: "Utilization overshoot",
+                                }
+                            )}
+                            value={
+                                kpiCardsLoading || periodKpiCards == null
+                                    ? t("messages.loading", { ns: "common" })
+                                    : (periodKpiCards.overshootDaysWithLimit ??
+                                            0) <= 0 ||
+                                        periodKpiCards.avgOvershootPts == null
+                                      ? t(
+                                            "tooltips.customer_credit_overshoot_no_data",
+                                            {
+                                                ns: "dashboard",
+                                                defaultValue:
+                                                    "No effective-limit days in range",
+                                            }
+                                        )
+                                      : t(
+                                            "tooltips.customer_credit_overshoot_avg",
+                                            {
+                                                ns: "dashboard",
+                                                defaultValue:
+                                                    "+{{pts}} pts avg over 100%",
+                                                pts: periodKpiCards.avgOvershootPts.toFixed(
+                                                    1
+                                                ),
+                                            }
+                                        )
+                            }
+                            secondaryLine={overshootSecondaryLine}
+                            forceSecondaryLineBelow
+                            footnote={
+                                overshootSparkline ? (
+                                    <Tooltip
+                                        title={t(
+                                            "tooltips.customer_credit_overshoot_sparkline",
+                                            {
+                                                ns: "dashboard",
+                                                defaultValue:
+                                                    "Daily overshoot points (floored at 0 under 100%)",
+                                            }
+                                        )}
+                                        placement="bottom"
+                                        arrow
+                                    >
+                                        <Box
+                                            component="span"
+                                            sx={{
+                                                display: "block",
+                                                width: "100%",
+                                                color: "text.secondary",
+                                            }}
+                                        >
+                                            {overshootSparkline}
+                                        </Box>
+                                    </Tooltip>
+                                ) : undefined
+                            }
+                            tooltip={t(
+                                "tooltips.customer_credit_metric_utilization_overshoot",
+                                { ns: "dashboard" }
+                            )}
+                        />
                         {showTopUpMetrics && (
                             <>
                                 <CreditMetricCard
@@ -735,6 +1252,10 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                                 creditKpis.topUpTotal
                                             )
                                     }
+                                    tooltip={t(
+                                        "tooltips.customer_credit_metric_top_up_value",
+                                        { ns: "dashboard" }
+                                    )}
                                 />
                                 <CreditMetricCard
                                     icon={<TrendingUpIcon />}
@@ -747,6 +1268,10 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                                 creditKpis.topUpUsagePct
                                             )
                                     }
+                                    tooltip={t(
+                                        "tooltips.customer_credit_metric_top_up_usage",
+                                        { ns: "dashboard" }
+                                    )}
                                 />
                                 <CreditMetricCard
                                     icon={<TrendingUpIcon />}
@@ -759,6 +1284,10 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                                 creditKpis.effectiveUsagePct
                                             )
                                     }
+                                    tooltip={t(
+                                        "tooltips.customer_credit_metric_effective_usage",
+                                        { ns: "dashboard" }
+                                    )}
                                 />
                             </>
                         )}
@@ -766,6 +1295,15 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
 
                     {!kpiCardsLoading && !kpiCardsError && (
                         <>
+                            {limitCappedBanner ? (
+                                <Alert
+                                    severity="warning"
+                                    icon={<WarningAmberIcon fontSize="inherit" />}
+                                    sx={{ width: "100%" }}
+                                >
+                                    {limitCappedBanner}
+                                </Alert>
+                            ) : null}
                             <CustomerDashboardCreditCharts
                                 riskExposureByPolicy={vm.riskExposureByPolicy}
                                 termsBreachReasonSlices={termsBreachReasonSlices}
@@ -786,6 +1324,11 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                 )}
                                 termsBreachSupplementaryLine={
                                     termsBreachSupplementaryLine
+                                }
+                                limitCappedNormalizedSeries={
+                                    periodKpiCards?.limitCapped
+                                        ? periodKpiCards.limitCappedNormalizedSeries
+                                        : undefined
                                 }
                                 isRtl={isRtl}
                             />

@@ -16,6 +16,62 @@ const GaugeComponent = dynamic(() => import("react-gauge-component"), {
     ssr: false,
 });
 
+/**
+ * react-gauge-component `gradient: true` paints a horizontal linearGradient, not along the
+ * arc. Near 100% that compresses high-end stops, so 90–100 reads orange/red instead of green.
+ * Build real arc wedges with a short blend at each threshold instead.
+ */
+function buildCreditProtectionSubArcs(red: string, orange: string, green: string) {
+    const blend = (from: string, to: string, t: number) => {
+        const parse = (hex: string) => {
+            const h = hex.replace("#", "");
+            const full =
+                h.length === 3
+                    ? h
+                          .split("")
+                          .map((c) => c + c)
+                          .join("")
+                    : h;
+            return [
+                Number.parseInt(full.slice(0, 2), 16),
+                Number.parseInt(full.slice(2, 4), 16),
+                Number.parseInt(full.slice(4, 6), 16),
+            ] as const;
+        };
+        const [r1, g1, b1] = parse(from);
+        const [r2, g2, b2] = parse(to);
+        const toHex = (n: number) =>
+            Math.round(n).toString(16).padStart(2, "0");
+        return `#${toHex(r1 + (r2 - r1) * t)}${toHex(g1 + (g2 - g1) * t)}${toHex(b1 + (b2 - b1) * t)}`;
+    };
+
+    const subArcs: Array<{
+        limit: number;
+        color: string;
+        showTick?: boolean;
+    }> = [];
+
+    for (let limit = 1; limit <= 100; limit += 1) {
+        let color = green;
+        if (limit <= 80) {
+            color = red;
+        } else if (limit <= 85) {
+            color = blend(red, orange, (limit - 80) / 5);
+        } else if (limit <= 87) {
+            color = orange;
+        } else if (limit <= 90) {
+            color = blend(orange, green, (limit - 87) / 3);
+        }
+
+        subArcs.push({
+            limit,
+            color,
+        });
+    }
+
+    return subArcs;
+}
+
 export type CreditHealthIndexGaugeProps = {
     healthIndex: number;
     /** Narrower layout next to the daily trend chart */
@@ -128,7 +184,8 @@ export function CreditHealthIndexGauge({
                     sx={{
                         width: "100%",
                         position: "relative",
-                        overflow: "hidden",
+                        // Outer tick labels sit outside the arc; do not clip them.
+                        overflow: "visible",
                         ...(compact
                             ? {
                                   flex: 1,
@@ -155,6 +212,7 @@ export function CreditHealthIndexGauge({
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
+                            overflow: "visible",
                             ...(loading
                                 ? {
                                       animation: "gaugePulse 1.2s ease-in-out infinite",
@@ -170,13 +228,24 @@ export function CreditHealthIndexGauge({
                         <GaugeComponent
                             value={loading ? 0 : safeHealthIndex}
                             type="radial"
+                            style={{ overflow: "visible" }}
+                            // Leave room so outer tick labels clear the arc band.
+                            marginInPercent={{
+                                top: 0.12,
+                                bottom: 0.04,
+                                left: 0.14,
+                                right: 0.14,
+                            }}
                             arc={{
-                                gradient: true,
+                                // Do not use library gradient mode — see buildCreditProtectionSubArcs.
+                                gradient: false,
                                 width: 0.15,
                                 padding: 0,
-                                subArcs: [],
-                                colorArray: ["#5BE12C", "#F5CD19", "#EA4228"],
-                                nbSubArcs: 3,
+                                subArcs: buildCreditProtectionSubArcs(
+                                    theme.palette.error.main,
+                                    theme.palette.warning.main,
+                                    theme.palette.success.main
+                                ),
                             }}
                             pointer={{
                                 type: "arrow",
@@ -213,9 +282,9 @@ export function CreditHealthIndexGauge({
                                         },
                                     },
                                     defaultTickLineConfig: {
-                                        distanceFromArc: 4,
+                                        distanceFromArc: 6,
                                         length: 7,
-                                        distanceFromText: 9,
+                                        distanceFromText: 14,
                                     },
                                 },
                             }}

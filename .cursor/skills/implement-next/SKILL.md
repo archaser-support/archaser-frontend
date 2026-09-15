@@ -1,6 +1,6 @@
 ---
 name: implement-next
-description: Orchestrate AFK implementation of `.scratch/<feature-slug>/issues/` slices in blocker order — claim, spawn a fresh agent per slice, verify acceptance (existing tests only; never add tests unless asked), flip Status, chain until blocked or done.
+description: Orchestrate AFK implementation of `.scratch/<feature-slug>/issues/` slices in blocker order — claim, spawn a fresh agent per slice, run automated seam tests, flip Status, chain until blocked or done.
 disable-model-invocation: true
 argument-hint: "<feature-slug>"
 ---
@@ -19,39 +19,33 @@ Require a **feature slug** (e.g. `ask-me-any-record`). Resolve issues at:
 
 If the user omitted the slug, stop and ask for it (do not invent a multi-feature queue).
 
-If the user passes a **PRD/plan path** instead (e.g. `.cursor/plans/billing-account-extensions.prd.md`), derive the slug from the filename (strip `.prd.md` / `.plan.md`) and continue — do not treat a PRD path as “no queue.”
-
 ## Locked behavior
 
 | Rule | Behavior |
 |------|----------|
 | Chain | Keep going until no unblocked `ready-for-agent` issues remain (or stop on failure) |
 | Isolation | **Fresh agent per slice** — this chat is the orchestrator; implementers are separate Task/subagents |
-| Done gate | Acceptance criteria met **and** `Status: done`. Run **existing** automated tests that already cover touched seams when present; if none exist, do **not** invent tests to satisfy the gate |
-| Tests | **Do not add, expand, or update tests** unless the user **explicitly asks** in this chat (same as critical project rules). Prefer TDD / `tdd` skill **only** when the user asked for tests. Existing automated checks only if already in the tree; skip live-org / Lightning UI steps and list them in the final report |
+| Done gate | Automated seam tests green **and** `Status: done` |
+| Tests | Automated only (Hub/unit, Apex if runnable locally). Skip live-org / Lightning UI steps; list them in the final report |
 | Blockers | Trust each issue’s `## Blocked by` (not the PRD summary table) |
 | Frontier order | One at a time; lowest `NN` first |
 | Git | Do **not** commit or push unless the user explicitly asks in this chat |
 | Repos | Implementers may edit **backend and portal** as the issue needs |
-| i18n | When a slice adds or changes user-facing copy, implementers **must** update **both English and Hebrew** locale files in the same change (identical keys — see `.cursor/rules/translations.mdc`). Do **not** leave English-only `defaultValue` gaps or defer HE to a follow-up |
 | Failure | Leave `Status: in-progress`, stop the chain, report |
 | Resume | If any issue is `in-progress`, resume that issue (do not pick a different frontier item) |
 | End | Stop and report only — no auto-commit, no auto-PR |
-| Scratch I/O | **Always** list/read/write `.scratch/` via **Shell** (`ls`, `cat`, `python3`, etc.). Never use Glob/Read/Grep alone for the queue — `.scratch/` is **gitignored** and those tools often return empty |
 
 ## Process
 
 ### 1. Load the queue
 
-**Hard rule:** `.scratch/` is gitignored. Indexed search (`Glob`, workspace `Read`, `Grep`) routinely misses it. **First action** must be a Shell listing — never conclude “queue missing” from Glob/0 matches alone.
-
-1. Via Shell: `ls -la .scratch/<feature-slug>/issues/` (and `OVERVIEW.md` if present). If the directory is missing, then (and only then) report empty queue / suggest `/to-issues`.
-2. Via Shell: read each `*.md` (`cat` or equivalent). Capture `Status:` and `## Blocked by` / `**Blocked by:**`.
+1. List `.scratch/<feature-slug>/issues/*.md`.
+2. Read each file’s `Status:` line and `## Blocked by` section.
 3. Build the set of paths whose Status is `done`.
-4. An issue is **unblocked** when every Blocked-by path is `done` (or Blocked by is “None” / `—`).
+4. An issue is **unblocked** when every Blocked-by path is `done` (or Blocked by is “None”).
 5. **Frontier** = issues with `Status: ready-for-agent` that are unblocked.
 
-Completion criterion: you can name every issue’s Status and whether it is blocked — from **on-disk** Shell output, not from search tools.
+Completion criterion: you can name every issue’s Status and whether it is blocked.
 
 ### 2. Choose the next slice
 
@@ -72,7 +66,7 @@ Set the selected issue’s first line to:
 Status: in-progress
 ```
 
-Do this **before** spawning the implementer. Update Status via Shell (same gitignore rule as step 1).
+Do this **before** spawning the implementer.
 
 ### 4. Spawn a fresh implementer
 
@@ -82,12 +76,11 @@ Give the implementer:
 
 - Absolute or repo-relative path to the issue file
 - Parent PRD/plan path from `## Parent` (read it if present)
-- Instruction to satisfy **Acceptance criteria** and automated parts of **How to test** using **existing** coverage only
+- Instruction to satisfy **Acceptance criteria** and automated parts of **How to test**
 - Permission to edit backend **and** portal when the slice needs both
-- **i18n:** if the slice introduces or changes user-facing strings, update **both** `locales/en` and `locales/he` (same keys/structure) in that slice — no English-only `defaultValue` gaps
 - **Do not commit, push, or open a PR**
-- **Do not add, expand, or update tests** (unit/integration/e2e or otherwise) unless the user explicitly asked for tests in this chat — project critical rule; do **not** use TDD / create seam tests “for the done gate”
-- Return a short result: what changed, which **existing** automated commands (if any) to re-run, any blockers, leftover manual checks, and whether EN+HE locale keys were added/updated
+- Prefer TDD when adding behavior (`.cursor/skills/tdd/SKILL.md` if useful)
+- Return a short result: what changed, suggested automated test commands, any blockers, leftover manual checks
 
 Wait until the Task finishes before continuing.
 
@@ -95,17 +88,14 @@ Completion criterion: implementer returned; working tree may be dirty.
 
 ### 5. Done gate (orchestrator verifies)
 
-1. Confirm acceptance criteria look implemented from the implementer’s report + spot-check of key files when needed.
-2. If the slice added user-facing copy: confirm matching keys exist in **both** English and Hebrew locale files (fail the done gate if HE is missing).
-3. If **existing** automated tests already cover the touched seams, **run those yourself** — do not trust the implementer’s word alone. Do **not** add tests to create a gate.
-4. If no relevant existing tests: skip the automated run; still mark done when acceptance criteria are satisfied (manual How-to-test steps go in the end report).
-5. If an existing test run is **red**:
+1. Derive automated test commands from the issue’s How to test / PRD seams (unit/integration only).
+2. **Run them yourself** in the shell — do not trust the implementer’s word alone.
+3. If **red**:
    - Leave `Status: in-progress`
    - **Stop the chain**
    - Report: issue path, failing commands/output summary, that the user can re-run `/implement-next <slug>` to resume
-   - Fix production code on resume if appropriate — still **do not** add/expand tests unless the user asked
    - End turn
-6. If **green** (or no existing tests to run):
+4. If **green**:
    - Set `Status: done`
    - Optionally check off completed Acceptance criteria boxes in the issue file
    - Loop to **step 2** (next slice)
@@ -132,7 +122,7 @@ See `docs/agents/triage-labels.md`:
 |--------|-------------------------|
 | `ready-for-agent` | Eligible for frontier when unblocked |
 | `in-progress` | Claimed; resume target |
-| `done` | Passed done gate; unblocks dependents |
+| `done` | Passed automated done gate; unblocks dependents |
 
 Ignore `needs-triage` / `needs-info` / `ready-for-human` / `wontfix` for frontier selection unless the user explicitly overrides.
 
