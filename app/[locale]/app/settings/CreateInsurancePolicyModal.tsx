@@ -39,6 +39,7 @@ import {
     validateMonthEndCutoffFormFields,
 } from "@/shared/creditInsurance/monthEndCutoffFields";
 import { MonthEndFieldLabelWithTooltip } from "@/shared/creditInsurance/MonthEndFieldLabelWithTooltip";
+import { validateAnnualCreditAssessmentFeeFormField } from "@/shared/creditInsurance/annualCreditAssessmentFee";
 import { validateRegistrationFeePercentFormField } from "@/shared/creditInsurance/registrationFeePercent";
 import { getDatePickerFormat } from "@/utils/datetimeOperations";
 import { CurrencySelect } from "@/components/LocationSelects";
@@ -156,6 +157,15 @@ export function CreateInsurancePolicyModal({
             isRtl={isRTL}
         />
     );
+    const annualCreditAssessmentFeeLabel = (
+        <MonthEndFieldLabelWithTooltip
+            label={tCi("credit_insurance.fields.annual_credit_assessment_fee")}
+            tooltip={tCi(
+                "credit_insurance.tooltips.annual_credit_assessment_fee"
+            )}
+            isRtl={isRTL}
+        />
+    );
 
     const [policyNumber, setPolicyNumber] = useState("");
     const [startDate, setStartDate] = useState("");
@@ -196,6 +206,8 @@ export function CreateInsurancePolicyModal({
     >("");
     const [costPercent, setCostPercent] = useState("");
     const [registrationFeePercent, setRegistrationFeePercent] = useState("");
+    const [annualCreditAssessmentFee, setAnnualCreditAssessmentFee] =
+        useState("");
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
     const { data: availablePolicies } = useQuery({
@@ -270,6 +282,7 @@ export function CreateInsurancePolicyModal({
         setCostCalculationMethod("");
         setCostPercent("");
         setRegistrationFeePercent("");
+        setAnnualCreditAssessmentFee("");
         setFieldErrors({});
     }, [open, policyId]);
 
@@ -370,6 +383,9 @@ export function CreateInsurancePolicyModal({
         setCostPercent(decimalToInputString(policyDetail.cost_percent));
         setRegistrationFeePercent(
             decimalToInputString(policyDetail.registration_fee_percent)
+        );
+        setAnnualCreditAssessmentFee(
+            decimalToInputString(policyDetail.annual_credit_assessment_fee)
         );
         setFieldErrors({});
     }, [open, policyId, policyDetail]);
@@ -531,6 +547,11 @@ export function CreateInsurancePolicyModal({
                 registrationFeePercent,
                 policyKind
             );
+            const annualAssessmentFee =
+                validateAnnualCreditAssessmentFeeFormField(
+                    annualCreditAssessmentFee,
+                    policyKind
+                );
 
             if (policyKind === "Primary") {
                 if (!maxTotalCover.trim()) {
@@ -641,6 +662,15 @@ export function CreateInsurancePolicyModal({
                     "credit_insurance.validation.registration_fee_out_of_range"
                 );
             }
+            if (annualAssessmentFee.error === "invalid_number") {
+                errors.annual_credit_assessment_fee = tCi(
+                    "credit_insurance.validation.invalid_number"
+                );
+            } else if (annualAssessmentFee.error === "negative") {
+                errors.annual_credit_assessment_fee = tCi(
+                    "credit_insurance.validation.annual_credit_assessment_fee_negative"
+                );
+            }
 
             if (Object.keys(errors).length > 0) {
                 setFieldErrors(errors);
@@ -694,6 +724,8 @@ export function CreateInsurancePolicyModal({
                     policyKind === "TopUp" || !costCalculationMethod ? null : costPct,
                 registration_fee_percent:
                     policyKind === "TopUp" ? null : registrationFee.value,
+                annual_credit_assessment_fee:
+                    policyKind === "TopUp" ? null : annualAssessmentFee.value,
                 auto_activate_on_term_start:
                     policyKind === "Primary" ? autoActivateOnTermStart : false,
             };
@@ -916,9 +948,13 @@ export function CreateInsurancePolicyModal({
                                             setCostCalculationMethod("");
                                             setCostPercent("");
                                             setRegistrationFeePercent("");
+                                            setAnnualCreditAssessmentFee("");
                                             clearFieldError("currency");
                                             clearFieldError("cost_percent");
                                             clearFieldError("registration_fee_percent");
+                                            clearFieldError(
+                                                "annual_credit_assessment_fee"
+                                            );
                                         } else {
                                             setParentInsurancePolicyId(null);
                                         }
@@ -1209,6 +1245,29 @@ export function CreateInsurancePolicyModal({
                                             }
                                             helperText={
                                                 fieldErrors.registration_fee_percent
+                                            }
+                                            fullWidth
+                                            sx={textFieldDirSx}
+                                        />
+                                        <TextField
+                                            {...textFieldRtlProps}
+                                            label={annualCreditAssessmentFeeLabel}
+                                            value={annualCreditAssessmentFee}
+                                            onChange={(e) => {
+                                                setAnnualCreditAssessmentFee(
+                                                    e.target.value
+                                                );
+                                                clearFieldError(
+                                                    "annual_credit_assessment_fee"
+                                                );
+                                            }}
+                                            inputMode="decimal"
+                                            inputProps={{ min: 0, step: "any" }}
+                                            error={
+                                                !!fieldErrors.annual_credit_assessment_fee
+                                            }
+                                            helperText={
+                                                fieldErrors.annual_credit_assessment_fee
                                             }
                                             fullWidth
                                             sx={textFieldDirSx}

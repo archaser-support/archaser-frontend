@@ -37,6 +37,7 @@ export type PolicyGeneralInfoPolicyData = {
     cost_calculation_method?: "ActualSales" | "Limit" | null;
     cost_percent?: string | number | null;
     registration_fee_percent?: string | number | null;
+    annual_credit_assessment_fee?: string | number | null;
     ParentInsurancePolicy?: { policy_number: string } | null;
 };
 
@@ -67,6 +68,8 @@ export interface PolicyGeneralInfoProps {
     setCostPercentInput: (value: string) => void;
     registrationFeePercentInput: string;
     setRegistrationFeePercentInput: (value: string) => void;
+    annualCreditAssessmentFeeInput: string;
+    setAnnualCreditAssessmentFeeInput: (value: string) => void;
     policyKindInput: "Primary" | "TopUp";
     setPolicyKindInput: (value: "Primary" | "TopUp") => void;
     parentInsurancePolicyIdInput: number | null;
@@ -151,6 +154,8 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
         setCostPercentInput,
         registrationFeePercentInput,
         setRegistrationFeePercentInput,
+        annualCreditAssessmentFeeInput,
+        setAnnualCreditAssessmentFeeInput,
         policyKindInput,
         setPolicyKindInput,
         parentInsurancePolicyIdInput,
@@ -475,6 +480,33 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                             }
                                             helperText={
                                                 policyFormErrors.registration_fee_percent
+                                            }
+                                            disabled={policyFormDisabled}
+                                            sx={editFieldSx}
+                                        />
+                                        <TextField
+                                            {...modalTextFieldProps}
+                                            label={fieldLabel(
+                                                "annual_credit_assessment_fee"
+                                            )}
+                                            value={annualCreditAssessmentFeeInput}
+                                            onChange={(e) => {
+                                                setAnnualCreditAssessmentFeeInput(
+                                                    e.target.value
+                                                );
+                                                clearPolicyFormError(
+                                                    "annual_credit_assessment_fee"
+                                                );
+                                            }}
+                                            inputMode="decimal"
+                                            inputProps={{ min: 0, step: "any" }}
+                                            size="small"
+                                            fullWidth
+                                            error={
+                                                !!policyFormErrors.annual_credit_assessment_fee
+                                            }
+                                            helperText={
+                                                policyFormErrors.annual_credit_assessment_fee
                                             }
                                             disabled={policyFormDisabled}
                                             sx={editFieldSx}
@@ -1126,6 +1158,21 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         ? `${decimalToInputString(
                                               data.registration_fee_percent
                                           )}%`
+                                        : undefined
+                                }
+                            />
+                            <CreditInsuranceReadonlyField
+                                label={fieldLabel(
+                                    "annual_credit_assessment_fee"
+                                )}
+                                value={
+                                    data?.annual_credit_assessment_fee != null &&
+                                    String(
+                                        data.annual_credit_assessment_fee
+                                    ).trim() !== ""
+                                        ? decimalToInputString(
+                                              data.annual_credit_assessment_fee
+                                          )
                                         : undefined
                                 }
                             />

@@ -9,6 +9,25 @@ type TooltipPayloadItem = {
     dataKey?: string | number;
 };
 
+/** Area+Line composed series share a dataKey; keep the last payload row (usually the Line). */
+function uniqueTooltipItems(
+    entries: ReadonlyArray<TooltipPayloadItem>
+): TooltipPayloadItem[] {
+    const withValue = entries.filter(
+        (entry) => entry.value != null && entry.value !== ""
+    );
+    const byDataKey = new Map<string, TooltipPayloadItem>();
+    const withoutKey: TooltipPayloadItem[] = [];
+    for (const entry of withValue) {
+        if (entry.dataKey == null || entry.dataKey === "") {
+            withoutKey.push(entry);
+            continue;
+        }
+        byDataKey.set(String(entry.dataKey), entry);
+    }
+    return [...byDataKey.values(), ...withoutKey];
+}
+
 export type ChartTooltipProps = {
     active?: boolean;
     label?: string;
@@ -31,9 +50,7 @@ export function ChartTooltip({
     formatValue,
     language,
 }: ChartTooltipProps) {
-    const items = (explicitItems ?? payload ?? []).filter(
-        (entry) => entry.value != null && entry.value !== ""
-    );
+    const items = uniqueTooltipItems(explicitItems ?? payload ?? []);
     if (!active || items.length === 0) {
         return null;
     }
@@ -93,7 +110,7 @@ export function ChartTooltip({
                             : String(entry.value ?? "");
                     return (
                         <li
-                            key={`${entry.dataKey ?? entry.name ?? index}`}
+                            key={`${String(entry.dataKey ?? entry.name ?? "item")}-${index}`}
                             style={{
                                 display: "flex",
                                 flexDirection: "row",

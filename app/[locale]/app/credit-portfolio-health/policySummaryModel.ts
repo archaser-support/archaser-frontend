@@ -16,6 +16,7 @@ export type PolicySummaryDetail = {
     cost_calculation_method?: "ActualSales" | "Limit" | string | null;
     cost_percent?: string | number | null;
     registration_fee_percent?: string | number | null;
+    annual_credit_assessment_fee?: string | number | null;
     InsurancePolicyCountry?: unknown[] | null;
     NamedPolicy?: unknown[] | null;
 };
