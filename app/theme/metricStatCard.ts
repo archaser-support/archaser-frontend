@@ -233,7 +233,9 @@ function buildMetricStatCardStyles(): MetricStatCardThemeStyles {
             flex: 1,
             display: "flex",
             flexDirection: "column",
-            justifyContent: "space-between",
+            // Keep the metric value directly under the label so numbers in a
+            // stretched grid row share one baseline even when footnotes wrap.
+            justifyContent: "flex-start",
             alignItems: "stretch",
             minHeight: 0,
             minWidth: 0,

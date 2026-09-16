@@ -588,6 +588,8 @@ export type CreditAsOfBackfillJobView = {
     skipReportingBreach: boolean;
     avgSecondsPerDay?: number | null;
     estimatedSecondsRemaining?: number | null;
+    /** Pending rewrite queue window only; null when processing/done/missing. */
+    pendingRewrite?: { from: string; to: string } | null;
 };
 
 export type CreditPortfolioHealthResponse = {
