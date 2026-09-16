@@ -45,6 +45,7 @@
         "activity_automated_step_sent": "שלב אוטומטי {{step}} נשלח ל-{{contacts}} אנשי קשר ב-{{time}}",
         "activity_automated_step_failed": "שלב אוטומטי {{step}} נכשל עבור {{contacts}} אנשי קשר",
         "activity_automated_step_scheduled": "שלב אוטומטי {{step}} מתוזמן עבור {{contacts}} אנשי קשר ב-{{time}}",
+        "activity_automated_scheduled": "שלב אוטומטי {{step}} מתוזמן עבור {{contacts}} אנשי קשר ב-{{time}}",
         "activity_automated_step_canceled": "שלב אוטומטי {{step}} בוטל",
         "activity_automated_step_partially_sent": "שלב אוטומטי {{step}} - נשלח חלקית",
         "activity_promise_to_pay_logged": "הבטחת תשלום נרשמה",

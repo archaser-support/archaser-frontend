@@ -45,6 +45,7 @@
         "activity_automated_step_sent": "Automated step {{step}} sent to {{contacts}} contact(s) at {{time}}",
         "activity_automated_step_failed": "Automated step {{step}} failed for {{contacts}} contact(s)",
         "activity_automated_step_scheduled": "Automated step {{step}} scheduled for {{contacts}} contact(s) at {{time}}",
+        "activity_automated_scheduled": "Automated step {{step}} scheduled for {{contacts}} contact(s) at {{time}}",
         "activity_automated_step_canceled": "Automated step {{step}} canceled",
         "activity_automated_step_partially_sent": "Automated step {{step}} - partially sent",
         "activity_promise_to_pay_logged": "Promise to pay logged",
