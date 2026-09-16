@@ -24,7 +24,7 @@ import { Trans, useTranslation } from "react-i18next";
 
 import PageHeader from "@/components/PageHeader";
 import BusinessUnitDashboardFilter from "@/shared/components/BusinessUnitDashboardFilter";
-import type { CreditDashboardHistoryDelta, CreditDashboardHistoryInterval, CreditDashboardHistoryPoint, CreditDashboardMonthPct } from "@/types/creditInsurance";
+import type { CreditDashboardHistoryDelta, CreditDashboardHistoryPoint, CreditDashboardMonthPct } from "@/types/creditInsurance";
 import type { CustomerPolicyUsageTrendResponse } from "@/types/creditInsurance";
 import type { CreditDashboardSummary } from "@/types/creditInsurance";
 import Seo from "@/shared/layout-components/seo/seo";
@@ -75,8 +75,6 @@ export type CreditDashboardScreenProps = {
     historyDelta: CreditDashboardHistoryDelta;
     historyLoadFailed: boolean;
     historyDays: number;
-    trendInterval: CreditDashboardHistoryInterval;
-    onTrendIntervalChange: (interval: CreditDashboardHistoryInterval) => void;
     monthPct: CreditDashboardMonthPct | null;
     topCustomerUsage: CustomerPolicyUsageTrendResponse | undefined;
     isTopCustomerUsageLoading: boolean;
@@ -101,8 +99,6 @@ export function CreditDashboardScreen({
     historyDelta,
     historyLoadFailed,
     historyDays,
-    trendInterval,
-    onTrendIntervalChange,
     monthPct,
     topCustomerUsage,
     isTopCustomerUsageLoading,
@@ -641,12 +637,10 @@ export function CreditDashboardScreen({
                                         compact
                                         series={historySeries}
                                         delta={historyDelta}
-                                        interval={trendInterval}
                                         historyDays={historyDays}
                                         accountCurrency={
                                             s.accountCurrency || "USD"
                                         }
-                                        onIntervalChange={onTrendIntervalChange}
                                     />
                                 </Box>
                             </Box>
