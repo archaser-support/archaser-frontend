@@ -225,7 +225,7 @@ export type CreditDashboardMonthPct = {
     limitWarningsCustomerCount: number | null;
 };
 
-export type CreditDashboardHistoryInterval = "daily" | "weekly";
+export type CreditDashboardHistoryInterval = "daily";
 
 export type CreditDashboardSummaryHistory = {
     series: CreditDashboardHistoryPoint[];
