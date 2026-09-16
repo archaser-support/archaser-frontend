@@ -570,6 +570,11 @@ const DisputeContainer: React.FC<DisputeContainerProps> = ({
         >
             <Stack spacing={2}>
                 {data?.disputes
+                    ?.filter(
+                        (dispute: Dispute) =>
+                            dispute.dispute_status !== "Resolved" &&
+                            dispute.dispute_status !== "Cancelled"
+                    )
                     ?.sort((a: Dispute, b: Dispute) => a.id - b.id)
                     ?.map((dispute: Dispute) => {
                         const isExpanded = expandedDisputeId === dispute.id;
