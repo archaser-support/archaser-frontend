@@ -18,33 +18,10 @@ const GaugeComponent = dynamic(() => import("react-gauge-component"), {
 
 /**
  * react-gauge-component `gradient: true` paints a horizontal linearGradient, not along the
- * arc. Near 100% that compresses high-end stops, so 90–100 reads orange/red instead of green.
- * Build real arc wedges with a short blend at each threshold instead.
+ * arc. Near 100% that compresses high-end stops, so high values can read orange/red instead
+ * of green. Build discrete arc wedges: red to 90%, orange 90–98%, green above 98%.
  */
 function buildCreditProtectionSubArcs(red: string, orange: string, green: string) {
-    const blend = (from: string, to: string, t: number) => {
-        const parse = (hex: string) => {
-            const h = hex.replace("#", "");
-            const full =
-                h.length === 3
-                    ? h
-                          .split("")
-                          .map((c) => c + c)
-                          .join("")
-                    : h;
-            return [
-                Number.parseInt(full.slice(0, 2), 16),
-                Number.parseInt(full.slice(2, 4), 16),
-                Number.parseInt(full.slice(4, 6), 16),
-            ] as const;
-        };
-        const [r1, g1, b1] = parse(from);
-        const [r2, g2, b2] = parse(to);
-        const toHex = (n: number) =>
-            Math.round(n).toString(16).padStart(2, "0");
-        return `#${toHex(r1 + (r2 - r1) * t)}${toHex(g1 + (g2 - g1) * t)}${toHex(b1 + (b2 - b1) * t)}`;
-    };
-
     const subArcs: Array<{
         limit: number;
         color: string;
@@ -53,14 +30,10 @@ function buildCreditProtectionSubArcs(red: string, orange: string, green: string
 
     for (let limit = 1; limit <= 100; limit += 1) {
         let color = green;
-        if (limit <= 80) {
+        if (limit <= 90) {
             color = red;
-        } else if (limit <= 85) {
-            color = blend(red, orange, (limit - 80) / 5);
-        } else if (limit <= 87) {
+        } else if (limit <= 98) {
             color = orange;
-        } else if (limit <= 90) {
-            color = blend(orange, green, (limit - 87) / 3);
         }
 
         subArcs.push({
@@ -274,6 +247,7 @@ export function CreditHealthIndexGauge({
                                         { value: 40 },
                                         { value: 60 },
                                         { value: 80 },
+                                        { value: 90 },
                                     ],
                                     defaultTickValueConfig: {
                                         style: {
