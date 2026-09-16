@@ -298,6 +298,16 @@ const formatActivityTitle = (
     session?: Session | null
 ): string => {
     const params = withResolvedActor(parseTitleParams(detail.title_params));
+    const titleParams =
+        params?.time == null && detail.time
+            ? {
+                  ...params,
+                  time:
+                      detail.time instanceof Date
+                          ? detail.time.toISOString()
+                          : detail.time,
+              }
+            : params;
     if (!detail.title) {
         // Pre-fix call rows were written without a title. Without this the row
         // renders as a blank line with only a timestamp and an icon.
@@ -305,7 +315,7 @@ const formatActivityTitle = (
             ? t("fields.activity_call_activity", { ns: "activities" })
             : "";
     }
-    return translateStoredI18nKey(String(detail.title), t, params, {
+    return translateStoredI18nKey(String(detail.title), t, titleParams, {
         formatDate: (date, kind) =>
             formatDateForDisplay(
                 date,
