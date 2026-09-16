@@ -2103,9 +2103,7 @@ const BillingIntegrationSettings = forwardRef<
     );
 
     const circuitBreakerActive = useMemo(
-        () =>
-            config?.status === "Error" ||
-            (config?.consecutive_auth_failures ?? 0) >= 3,
+        () => (config?.consecutive_auth_failures ?? 0) >= 3,
         [config]
     );
 
