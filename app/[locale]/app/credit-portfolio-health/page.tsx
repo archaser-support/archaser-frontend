@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useDebounce } from "use-debounce";
 
 import { parseDashboardBusinessUnitIdFromUrl } from "@/shared/dashboard/dashboardBusinessUnitParams";
 import {
@@ -159,13 +160,16 @@ export default function CreditPortfolioHealthPage() {
 
     const fromYmd = toYmdLocal(startDate);
     const toYmd = toYmdLocal(endDate);
+    const [debouncedFromYmd] = useDebounce(fromYmd, 400);
+    const [debouncedToYmd] = useDebounce(toYmd, 400);
+    const todayYmd = toYmdLocal(new Date());
     const requestToYmd = clampPortfolioHealthRangeEnd(
-        fromYmd,
-        toYmd,
-        toYmdLocal(new Date())
+        debouncedFromYmd,
+        debouncedToYmd,
+        todayYmd
     );
     const generateDaysInRange = countInclusiveCalendarDays(
-        fromYmd,
+        debouncedFromYmd,
         requestToYmd
     );
 
@@ -242,6 +246,33 @@ export default function CreditPortfolioHealthPage() {
         replacePortfolioHealthUrl,
     ]);
 
+    // Debounced URL sync for date-range edits (picker updates immediately).
+    useEffect(() => {
+        const urlFrom = searchParams?.get("from") ?? "";
+        const urlTo = searchParams?.get("to") ?? "";
+        if (!urlFrom || !urlTo) {
+            return;
+        }
+        if (urlFrom === debouncedFromYmd && urlTo === debouncedToYmd) {
+            return;
+        }
+        replacePortfolioHealthUrl({
+            from: debouncedFromYmd,
+            to: debouncedToYmd,
+            policyId: selectedPolicyId,
+            businessUnitId: selectedBusinessUnitId,
+            includeNoPolicyExposure,
+        });
+    }, [
+        debouncedFromYmd,
+        debouncedToYmd,
+        selectedPolicyId,
+        selectedBusinessUnitId,
+        includeNoPolicyExposure,
+        replacePortfolioHealthUrl,
+        searchParams,
+    ]);
+
     useEffect(() => {
         if (policies.length === 0) {
             return;
@@ -306,25 +337,11 @@ export default function CreditPortfolioHealthPage() {
         const nextStart = new Date(date);
         nextStart.setHours(0, 0, 0, 0);
         setStartDate(nextStart);
-        replacePortfolioHealthUrl({
-            from: toYmdLocal(nextStart),
-            to: toYmd,
-            policyId: selectedPolicyId,
-            businessUnitId: selectedBusinessUnitId,
-            includeNoPolicyExposure,
-        });
     };
 
     const handleEndDateChange = (date: Date) => {
         const nextEnd = endOfLocalDay(date);
         setEndDate(nextEnd);
-        replacePortfolioHealthUrl({
-            from: fromYmd,
-            to: toYmdLocal(nextEnd),
-            policyId: selectedPolicyId,
-            businessUnitId: selectedBusinessUnitId,
-            includeNoPolicyExposure,
-        });
     };
 
     const handleDateRangeChange = (start: Date, end: Date) => {
@@ -333,13 +350,6 @@ export default function CreditPortfolioHealthPage() {
         const nextEnd = endOfLocalDay(end);
         setStartDate(nextStart);
         setEndDate(nextEnd);
-        replacePortfolioHealthUrl({
-            from: toYmdLocal(nextStart),
-            to: toYmdLocal(nextEnd),
-            policyId: selectedPolicyId,
-            businessUnitId: selectedBusinessUnitId,
-            includeNoPolicyExposure,
-        });
     };
 
     const handleTabChange = (tab: PortfolioHealthTabId) => {
@@ -358,7 +368,7 @@ export default function CreditPortfolioHealthPage() {
         queryKey: [
             "credit-insurance",
             "portfolio-health",
-            fromYmd,
+            debouncedFromYmd,
             requestToYmd,
             selectedPolicyId,
             selectedBusinessUnitId,
@@ -366,7 +376,7 @@ export default function CreditPortfolioHealthPage() {
         ],
         queryFn: async () => {
             const params = buildPortfolioHealthSearchParams({
-                from: fromYmd,
+                from: debouncedFromYmd,
                 to: requestToYmd,
                 policyId: selectedPolicyId,
                 businessUnitId: selectedBusinessUnitId,
@@ -383,8 +393,8 @@ export default function CreditPortfolioHealthPage() {
             return (await res.json()) as CreditPortfolioHealthResponse;
         },
         retry: false,
-        staleTime: 0,
-        refetchOnMount: "always",
+        staleTime: 60_000,
+        refetchOnMount: true,
         refetchOnWindowFocus: false,
         placeholderData: (previousData) => previousData,
     });
@@ -440,7 +450,7 @@ export default function CreditPortfolioHealthPage() {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        from: fromYmd,
+                        from: debouncedFromYmd,
                         to: requestToYmd,
                         skipReportingBreach: ignoreReportingBreach,
                     }),
@@ -474,6 +484,53 @@ export default function CreditPortfolioHealthPage() {
                     : t("credit_portfolio_health.generate_failed", {
                           ns: "dashboard",
                           defaultValue: "Could not generate snapshots.",
+                      });
+            showError(message);
+        },
+    });
+
+    const generateRecentMutation = useMutation({
+        mutationFn: async () => {
+            const res = await apiFetch(
+                "/api/credit-insurance/asof-backfill-start",
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        mode: "recent",
+                        skipReportingBreach: ignoreReportingBreach,
+                    }),
+                }
+            );
+            if (res.status === 403) {
+                throw new Error("forbidden");
+            }
+            if (res.status === 409) {
+                throw new Error("already_running");
+            }
+            if (!res.ok) {
+                throw new Error("generate_recent_failed");
+            }
+            return (await res.json()) as CreditAsOfBackfillJobView;
+        },
+        onSuccess: (job) => {
+            queryClient.setQueryData(
+                ["credit-insurance", "asof-backfill-status"],
+                job
+            );
+        },
+        onError: (error) => {
+            const message =
+                error instanceof Error && error.message === "already_running"
+                    ? t("credit_portfolio_health.generate_already_running", {
+                          ns: "dashboard",
+                          defaultValue:
+                              "A generate job is already running. Use Stop, then Retry to resume, or wait for it to finish.",
+                      })
+                    : t("credit_portfolio_health.generate_recent_failed", {
+                          ns: "dashboard",
+                          defaultValue:
+                              "Could not generate recent snapshots.",
                       });
             showError(message);
         },
@@ -570,9 +627,11 @@ export default function CreditPortfolioHealthPage() {
             generateDaysInRange={generateDaysInRange}
             backfillJob={backfillJob}
             onGenerateSnapshots={() => generateMutation.mutate()}
+            onGenerateRecentSnapshots={() => generateRecentMutation.mutate()}
             onStopGenerate={() => stopMutation.mutate()}
             onRetryGenerate={() => retryMutation.mutate()}
             generatePending={generateMutation.isPending}
+            generateRecentPending={generateRecentMutation.isPending}
             stopPending={stopMutation.isPending}
             retryPending={retryMutation.isPending}
             ignoreReportingBreach={ignoreReportingBreach}
