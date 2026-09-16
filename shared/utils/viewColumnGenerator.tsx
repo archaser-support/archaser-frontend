@@ -116,6 +116,28 @@ function resolveReportAmountCurrency(
         );
     }
 
+    // Credit dashboard / customer money columns use policy currency.
+    if (
+        table === "Customer" &&
+        (field.includes("amount") ||
+            field.includes("debt") ||
+            field.includes("outstanding") ||
+            field.includes("exposure") ||
+            field.includes("cost") ||
+            field === "approved_limit" ||
+            field === "effective_approved_limit" ||
+            field === "capacity_gap_amount" ||
+            field === "policy_risk_allocated" ||
+            field === "terms_breach_outstanding" ||
+            field === "top_up_resolved_amount" ||
+            field === "top_up_value" ||
+            field === "at_risk_exposure")
+    ) {
+        return (
+            pick("Customer.approved_limit_currency") ?? accountCurrency
+        );
+    }
+
     return accountCurrency;
 }
 
