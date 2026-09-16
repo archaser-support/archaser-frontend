@@ -376,43 +376,6 @@ export function CostsSectionView({
                 </div>
             </IslandCard>
 
-            <IslandCard
-                accent="violet"
-                className={`${layout.span6} ${layout.mdSpan4} ${layout.cardPad}`}
-            >
-                <Eyebrow
-                    icon={Layers}
-                    help={t("credit_portfolio_health.kpi_deductible_help", {
-                        ...ns,
-                        defaultValue: "Not configured yet",
-                    })}
-                >
-                    {t("credit_portfolio_health.kpi_deductible", {
-                        ...ns,
-                        defaultValue: "Deductible",
-                    })}
-                </Eyebrow>
-                <div
-                    className="text-3xl font-semibold tracking-tight"
-                    style={{
-                        color: CPH.muted,
-                        fontFamily: SPACE_GROTESK_FONT_FAMILY,
-                    }}
-                    title={t("credit_portfolio_health.kpi_deductible_help", {
-                        ...ns,
-                        defaultValue: "Not configured yet",
-                    })}
-                >
-                    —
-                </div>
-                <div className="mt-1 text-sm" style={{ color: CPH.slate }}>
-                    {t("credit_portfolio_health.kpi_deductible_help", {
-                        ...ns,
-                        defaultValue: "Not configured yet",
-                    })}
-                </div>
-            </IslandCard>
-
             {negativeCost != null &&
             negativeCost.negativeEntryCount > 0 &&
             negativeCost.previewEntries.length > 0 ? (
