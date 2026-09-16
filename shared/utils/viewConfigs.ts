@@ -243,6 +243,8 @@ export const VIEW_CONFIGS: Record<string, ViewContextConfig> = {
                 "Customer.number_of_overdue_invoices",
             ],
         },
+        /** Loaded with money columns for amount+currency display; not shown as its own column. */
+        excludedFieldNames: ["approved_limit_currency"],
     },
     /** Credit dashboard invoice detail lists (not on main Reports menu). */
     dashboard_credit_invoices: {
@@ -254,6 +256,8 @@ export const VIEW_CONFIGS: Record<string, ViewContextConfig> = {
             customer: (id: number) => AppUrls.Customer_DETAILS(id),
             invoice: (id: number) => `${AppUrls.CUSTOMERS}/invoices/${id}`,
         },
+        /** Loaded with outstanding for amount+currency display; not shown as its own column. */
+        excludedFieldNames: ["customer_currency"],
         currencyColumns: {
             customer_outstanding_debt: {
                 amountField: "customer_outstanding_debt_value",

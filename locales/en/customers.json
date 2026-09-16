@@ -70,6 +70,7 @@
         "insurance_policy": "Insurance Policy",
         "customer_number_policy": "Policy Customer Number",
         "approved_limit": "Approved Limit",
+        "approved_limit_currency": "Approved Limit Currency",
         "approved_limit_expiration_date": "Approved Limit Expiration Date",
         "limit_type": "Limit Type",
         "limit_type_dcl": "DCL",
