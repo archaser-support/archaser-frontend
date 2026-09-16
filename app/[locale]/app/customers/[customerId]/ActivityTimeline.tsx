@@ -276,6 +276,10 @@ const isOpaqueActor = (value: unknown): boolean => {
         actor === "system" ||
         actor === "system_user" ||
         actor === "portal_user" ||
+        actor === "{{users.values.portal_user}}" ||
+        actor === "users.values.portal_user" ||
+        actor === "{{activities.values.system}}" ||
+        actor === "activities.values.system" ||
         (actor.includes("-") && actor.length > 20)
     );
 };
@@ -283,22 +287,71 @@ const isOpaqueActor = (value: unknown): boolean => {
 /**
  * Titles interpolate `{{userId}}`, but the stored id is a UUID. `title_params`
  * also carries `userName`, so swap it in rather than showing the raw id.
+ * Portal/system actors may arrive as sentinel ids or already-wrapped i18n keys.
  */
 const withResolvedActor = (
-    params: Record<string, unknown> | undefined
+    params: Record<string, unknown> | undefined,
+    t: (_key: string, _params?: Record<string, unknown>) => string
 ): Record<string, unknown> | undefined => {
-    if (!params?.userName || !isOpaqueActor(params.userId)) {
+    if (!params) {
         return params;
     }
-    return { ...params, userId: params.userName };
+    const rawUserId = optionalTrimmedActor(params.userId);
+    if (!rawUserId) {
+        return params;
+    }
+
+    const lower = rawUserId.toLowerCase();
+    if (
+        lower === "portal_user" ||
+        lower === "portal user" ||
+        lower === "{{users.values.portal_user}}" ||
+        lower === "users.values.portal_user"
+    ) {
+        return {
+            ...params,
+            userId: t("values.portal_user", {
+                ns: "users",
+                defaultValue: "Portal User",
+            }),
+        };
+    }
+    if (
+        lower === "system" ||
+        lower === "system_user" ||
+        lower === "system user" ||
+        lower === "{{activities.values.system}}" ||
+        lower === "activities.values.system"
+    ) {
+        return {
+            ...params,
+            userId: t("values.system", {
+                ns: "activities",
+                defaultValue: "System",
+            }),
+        };
+    }
+
+    if (params.userName && isOpaqueActor(params.userId)) {
+        return { ...params, userId: params.userName };
+    }
+    return params;
 };
+
+function optionalTrimmedActor(value: unknown): string | null {
+    if (value == null) {
+        return null;
+    }
+    const trimmed = String(value).trim();
+    return trimmed || null;
+}
 
 const formatActivityTitle = (
     detail: TimelineDetail,
     t: (_key: string, _params?: Record<string, unknown>) => string,
     session?: Session | null
 ): string => {
-    const params = withResolvedActor(parseTitleParams(detail.title_params));
+    const params = withResolvedActor(parseTitleParams(detail.title_params), t);
     const titleParams =
         params?.time == null && detail.time
             ? {
