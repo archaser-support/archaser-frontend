@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter , usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useEffect, useRef, useCallback } from "react";
 
@@ -21,7 +21,6 @@ export function useIdleTimeout({
 }: UseIdleTimeoutOptions = {}) {
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastActivityRef = useRef<number>(Date.now());
-    const router = useRouter();
     const pathname = usePathname();
 
     // Get timeout from environment variable (in minutes) or use default
@@ -63,17 +62,19 @@ export function useIdleTimeout({
             onIdle();
         }
 
-        // Logout user
+        // Logout user — hard navigate so /app does not re-render
+        // unauthenticated (soft router.push flashed error.tsx).
         try {
             await signOut({ redirect: false });
 
-            // Get current locale from pathname or default to 'en'
             const locale = pathname?.split("/")[1] || "en";
-            router.push(`/${locale}/login`);
+            window.location.assign(`/${locale}/login`);
         } catch (error) {
             console.error("Error during automatic logout:", error);
+            const locale = pathname?.split("/")[1] || "en";
+            window.location.assign(`/${locale}/login`);
         }
-    }, [pathname, router, onIdle]);
+    }, [pathname, onIdle]);
 
     // Function to reset the idle timer
     // Defined after handleIdle so it can reference it
