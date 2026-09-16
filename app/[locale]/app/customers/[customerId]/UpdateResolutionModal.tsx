@@ -212,12 +212,12 @@ const UpdateResolutionModal: React.FC<Props> = ({
             const requestBody = isCancelMode
                 ? {
                     dispute_status: "Cancelled",
-                    dispute_comment: resolutionComment,
+                    resolution_comment: resolutionComment,
                     dispute_resolution: resolutionValue,
                 }
                 : {
                     dispute_resolution: resolutionValue,
-                    comment: resolutionComment,
+                    resolution_comment: resolutionComment,
                 };
 
             if (isCancelMode) {

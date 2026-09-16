@@ -8,6 +8,7 @@ import { CreditMetricCard } from "@/app/[locale]/app/credit-dashboard/CreditMetr
 import { useDashboardBusinessUnitId } from "@/shared/dashboard/DashboardBusinessUnitContext";
 import { appendDashboardBusinessUnitId } from "@/shared/dashboard/dashboardBusinessUnitParams";
 import AppUrls from "@/utils/appUrls";
+import { pushFinancialChartDetails } from "@/shared/dashboard/financialChartDetailsTitle";
 import { formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
 
 type OverdueAmountCardProps = {
@@ -38,8 +39,11 @@ const OverdueAmountCard = ({
                 }),
                 businessUnitId
             );
-            router.push(
-                `/${locale}${AppUrls.DASHBOARD}/chart-details?${searchParams.toString()}`
+            pushFinancialChartDetails(
+                router,
+                `/${locale}${AppUrls.DASHBOARD}/chart-details?${searchParams.toString()}`,
+                t,
+                locale
             );
         }, 0);
     };
@@ -53,7 +57,8 @@ const OverdueAmountCard = ({
                 count || 0,
                 currency,
                 locale,
-                i18n.language
+                i18n.language,
+                { wholeNumbers: true }
             )}
             tooltip={t("tooltips.financial_metric_overdue_amount")}
             onClick={handleCardClick}

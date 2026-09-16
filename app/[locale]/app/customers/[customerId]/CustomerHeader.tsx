@@ -544,7 +544,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
             setShowNotification(false);
             setNotificationData(null);
         }
-    }, [customer, session?.user?.locale, session?.user?.timezone]);
+    }, [customer, session]);
 
     const extractCustomerName = (customer: Customer) => {
         if (!customer) return t("fields.unknown");
@@ -1180,10 +1180,16 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                         },
                                     }}
                                 >
-                                    {extractCustomerName(customer)}
+                                    <Box
+                                        component="span"
+                                        sx={{ unicodeBidi: "isolate" }}
+                                    >
+                                        {extractCustomerName(customer)}
+                                    </Box>
                                     {customer.customer_number ? (
                                         <Box
                                             component="span"
+                                            dir="ltr"
                                             sx={{
                                                 fontSize: {
                                                     xs: "0.75rem",
@@ -1193,9 +1199,10 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                                 fontWeight: 400,
                                                 color: "text.secondary",
                                                 ml: 0.75,
+                                                unicodeBidi: "isolate",
                                             }}
                                         >
-                                            {" "}({customer.customer_number})
+                                            ({customer.customer_number})
                                         </Box>
                                     ) : null}
                                 </Typography>
@@ -1590,8 +1597,11 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                                   capacityGapDisplay.secondary
                                               )
                                     }
+                                    tooltip={t(
+                                        "tooltips.customer_credit_metric_capacity_gap",
+                                        { ns: "dashboard" }
+                                    )}
                                     compactValueFontSize={headerCompactValueFontSize}
-                                    forceSecondaryLineBelow
                                     sx={{ minHeight: 105 }}
                                 />
                                 <CreditMetricCard
@@ -1620,6 +1630,10 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                                   creditKpiCards.termsBreachInvoiceCount
                                               )
                                     }
+                                    tooltip={t(
+                                        "tooltips.customer_credit_metric_terms_breach",
+                                        { ns: "dashboard" }
+                                    )}
                                     compactValueFontSize={headerCompactValueFontSize}
                                     forceSecondaryLineBelow
                                     sx={{ minHeight: 105 }}

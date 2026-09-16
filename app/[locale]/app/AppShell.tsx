@@ -909,12 +909,15 @@ const AppLayout = ({ children }: any) => {
     const handleLogout = async () => {
         const { clearNestAccessToken } = await import("@/utils/nestAuth");
         clearNestAccessToken();
+        const loginPath = `/${currentLocale}/login`;
         try {
             await signOut({ redirect: false });
         } catch {
             // NextAuth may be unavailable depending on deploy mode
         }
-        router.push(`/${currentLocale}/login`);
+        // Hard navigate so /app does not re-render unauthenticated (soft
+        // router.push left the shell mounted and flashed error.tsx).
+        window.location.assign(loginPath);
     };
 
     const sidebarSections = useMemo(() => {

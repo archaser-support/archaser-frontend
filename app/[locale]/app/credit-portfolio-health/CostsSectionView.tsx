@@ -1,8 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useTranslation } from "react-i18next";
 import {
+    AlertTriangle,
     Award,
     ChevronRight,
     Gauge,
@@ -21,10 +24,20 @@ import {
 
 import type { PortfolioCostsSection } from "@/types/creditInsurance";
 import { padSeriesByUtcMonth } from "@/shared/creditInsurance/portfolioHealthDateRange";
-import { formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
+import { appendDashboardBusinessUnitId } from "@/shared/dashboard/dashboardBusinessUnitParams";
+import {
+    formatDateForDisplay,
+    getUserDateLocale,
+    getUserTimezone,
+} from "@/utils/datetimeOperations";
+import { applyCreditReportDocumentTitle } from "../credit-dashboard/report/creditReportTitles";
 
 import { ChartTooltip } from "./ChartTooltip";
 import { Eyebrow } from "./Eyebrow";
+import {
+    formatPortfolioAxisMoney,
+    formatPortfolioMoney,
+} from "./formatPortfolioMoney";
 import { IslandCard } from "./IslandCard";
 import { StatNumber } from "./StatNumber";
 import { CPH } from "./designTokens";
@@ -36,21 +49,19 @@ export type CostsSectionViewProps = {
     section: PortfolioCostsSection;
     fromYmd: string;
     toYmd: string;
+    policyId?: number | null;
+    businessUnitId?: number | null;
+    includeNoPolicyExposure?: boolean;
 };
 
-function formatMoney(
-    amount: number,
-    currencyCode: string,
-    language: string
-): string {
-    const locale = language.startsWith("he") ? "he-IL" : "en-US";
-    return formatCurrencyWithRTLSupport(
-        amount,
-        currencyCode,
-        locale,
-        language.startsWith("he") ? "he" : language
-    );
-}
+type MonthlyCostChartRow = {
+    label: string;
+    cost: number | null;
+    insuranceCost: number | null;
+    registrationFeeCost: number | null;
+    topUpCost: number | null;
+    totalCost: number | null;
+};
 
 function formatMonthLabel(month: string, language: string): string {
     const [y, m] = month.split("-").map(Number);
@@ -68,6 +79,9 @@ export function CostsSectionView({
     section,
     fromYmd,
     toYmd,
+    policyId = null,
+    businessUnitId = null,
+    includeNoPolicyExposure = true,
 }: CostsSectionViewProps) {
     const { t, i18n } = useTranslation(["dashboard"]);
     const language = i18n.language;
@@ -75,6 +89,43 @@ export function CostsSectionView({
     const prefersReducedMotion = usePrefersReducedMotion();
     const animDuration = prefersReducedMotion ? 0 : 1200;
     const currency = section.accountCurrency || "USD";
+    const router = useRouter();
+    const params = useParams();
+    const { data: session } = useSession();
+    const routeLocale = String(params?.locale ?? "en");
+    const dateLocale = useMemo(() => {
+        const fallback = language?.startsWith("he") ? "he-IL" : "en-US";
+        return getUserDateLocale(session, fallback);
+    }, [language, session]);
+    const timezone = useMemo(() => getUserTimezone(session), [session]);
+    const negativeCost = section.negativeCost ?? null;
+
+    const openNegativeCostReport = () => {
+        const sp = new URLSearchParams({
+            type: "negative_daily_cost",
+            from: fromYmd,
+            to: toYmd,
+        });
+        if (policyId != null) {
+            sp.set("policyId", String(policyId));
+        }
+        if (!includeNoPolicyExposure) {
+            sp.set("includeNoPolicyExposure", "0");
+        }
+        appendDashboardBusinessUnitId(sp, businessUnitId);
+        applyCreditReportDocumentTitle(t, "negative_daily_cost");
+        router.push(
+            `/${routeLocale}/app/credit-dashboard/report?${sp.toString()}`
+        );
+    };
+
+    const formatEntryDate = (ymd: string) => {
+        const date = new Date(`${ymd}T12:00:00.000Z`);
+        if (Number.isNaN(date.getTime())) {
+            return ymd;
+        }
+        return formatDateForDisplay(date, "date", dateLocale, timezone);
+    };
 
     const monthlyChartData = useMemo(
         () =>
@@ -83,9 +134,13 @@ export function CostsSectionView({
                 fromYmd,
                 toYmd,
                 (point) => point.month
-            ).map(({ month, point }) => ({
+            ).map(({ month, point }): MonthlyCostChartRow => ({
                 label: formatMonthLabel(month, language),
                 cost: point?.totalCost ?? null,
+                insuranceCost: point?.insuranceCost ?? null,
+                registrationFeeCost: point?.registrationFeeCost ?? null,
+                topUpCost: point?.topUpCost ?? null,
+                totalCost: point?.totalCost ?? null,
             })),
         [section.monthly, fromYmd, toYmd, language]
     );
@@ -95,7 +150,7 @@ export function CostsSectionView({
     return (
         <div className={layout.grid12}>
             <IslandCard
-                accent="jade"
+                accent="teal"
                 className={`${layout.span6} ${layout.mdSpan4} ${layout.cardPad}`}
             >
                 <Eyebrow
@@ -103,7 +158,7 @@ export function CostsSectionView({
                     help={t("credit_portfolio_health.kpi_period_cost_help", {
                         ...ns,
                         defaultValue:
-                            "Issued sales × cost % (Actual Sales) + annualized limit cost (Limit) + amortized top-ups over the selected range.",
+                            "Issued sales × cost % (Actual Sales) + annualized limit cost (Limit), plus registration as a percent of that insurance premium, plus amortized top-ups over the selected range.",
                     })}
                 >
                     {t("credit_portfolio_health.kpi_period_cost", {
@@ -118,7 +173,7 @@ export function CostsSectionView({
                         fontFamily: SPACE_GROTESK_FONT_FAMILY,
                     }}
                 >
-                    {formatMoney(section.periodCost, currency, language)}
+                    {formatPortfolioMoney(section.periodCost, currency, language)}
                 </div>
                 <div className="mt-1 text-sm" style={{ color: CPH.slate }}>
                     {t("credit_portfolio_health.kpi_period_cost_label", {
@@ -129,7 +184,98 @@ export function CostsSectionView({
             </IslandCard>
 
             <IslandCard
-                accent="jade"
+                accent="critical"
+                className={`${layout.span6} ${layout.mdSpan4} ${layout.cardPad}`}
+            >
+                <Eyebrow
+                    icon={AlertTriangle}
+                    help={t("credit_portfolio_health.kpi_negative_cost_help", {
+                        ...ns,
+                        defaultValue:
+                            "Surfaces negative daily cost rows so credits/refunds do not hide inside the period total. Only entries at or above the minimum magnitude are flagged; the Policy cost total above is unchanged.",
+                    })}
+                >
+                    {t("credit_portfolio_health.kpi_negative_cost", {
+                        ...ns,
+                        defaultValue: "Negative cost entries",
+                    })}
+                </Eyebrow>
+                {negativeCost == null ||
+                negativeCost.negativeEntryCount === 0 ? (
+                    <div
+                        className="text-3xl font-semibold tracking-tight"
+                        style={{
+                            color: CPH.muted,
+                            fontFamily: SPACE_GROTESK_FONT_FAMILY,
+                        }}
+                    >
+                        {t("credit_portfolio_health.kpi_negative_cost_none", {
+                            ...ns,
+                            defaultValue: "None",
+                        })}
+                    </div>
+                ) : (
+                    <>
+                        <div
+                            className="text-3xl font-semibold tracking-tight"
+                            style={{
+                                color: CPH.critical,
+                                fontFamily: SPACE_GROTESK_FONT_FAMILY,
+                            }}
+                        >
+                            {t(
+                                "credit_portfolio_health.kpi_negative_cost_value",
+                                {
+                                    ...ns,
+                                    defaultValue: "{{count}} (sum {{sum}})",
+                                    count: negativeCost.negativeEntryCount,
+                                    sum: formatPortfolioMoney(
+                                        negativeCost.negativeEntrySum,
+                                        currency,
+                                        language
+                                    ),
+                                }
+                            )}
+                        </div>
+                        <div
+                            className="mt-1 text-sm"
+                            style={{ color: CPH.slate }}
+                        >
+                            {t(
+                                "credit_portfolio_health.kpi_negative_cost_label",
+                                {
+                                    ...ns,
+                                    defaultValue:
+                                        "Flagged at ≥ {{min}} magnitude · {{customers}} customers",
+                                    min: formatPortfolioMoney(
+                                        negativeCost.minMagnitude,
+                                        currency,
+                                        language
+                                    ),
+                                    customers: negativeCost.customersAffected,
+                                }
+                            )}
+                        </div>
+                        <button
+                            type="button"
+                            className="mt-3 text-sm font-medium underline-offset-2 hover:underline"
+                            style={{ color: CPH.teal }}
+                            onClick={openNegativeCostReport}
+                        >
+                            {t(
+                                "credit_portfolio_health.kpi_negative_cost_open_report",
+                                {
+                                    ...ns,
+                                    defaultValue: "Open negative cost report",
+                                }
+                            )}
+                        </button>
+                    </>
+                )}
+            </IslandCard>
+
+            <IslandCard
+                accent="teal"
                 className={`${layout.span6} ${layout.mdSpan4} ${layout.cardPad}`}
             >
                 <Eyebrow
@@ -154,11 +300,11 @@ export function CostsSectionView({
                         <div
                             className="text-3xl font-semibold tracking-tight"
                             style={{
-                                color: CPH.jade,
+                                color: CPH.teal,
                                 fontFamily: SPACE_GROTESK_FONT_FAMILY,
                             }}
                         >
-                            {formatMoney(
+                            {formatPortfolioMoney(
                                 section.effectiveCost,
                                 currency,
                                 language
@@ -181,45 +327,172 @@ export function CostsSectionView({
             </IslandCard>
 
             <IslandCard
-                accent="copper"
+                accent="violet"
                 className={`${layout.span6} ${layout.mdSpan4} ${layout.cardPad}`}
             >
                 <Eyebrow
-                    icon={Layers}
-                    help={t("credit_portfolio_health.kpi_deductible_help", {
-                        ...ns,
-                        defaultValue: "Not configured yet",
-                    })}
+                    icon={Users}
+                    help={t(
+                        "credit_portfolio_health.kpi_annual_credit_assessment_cost_help",
+                        {
+                            ...ns,
+                            defaultValue:
+                                "Shows the Annual Credit Assessment Fee burden for Named customers in the selected range. Uses each policy’s current fee × customers named anytime in the range × whole years (ceil days÷365, minimum 1). Separate from Policy cost.",
+                        }
+                    )}
                 >
-                    {t("credit_portfolio_health.kpi_deductible", {
-                        ...ns,
-                        defaultValue: "Deductible",
-                    })}
+                    {t(
+                        "credit_portfolio_health.kpi_annual_credit_assessment_cost",
+                        {
+                            ...ns,
+                            defaultValue: "Annual credit assessment",
+                        }
+                    )}
                 </Eyebrow>
                 <div
                     className="text-3xl font-semibold tracking-tight"
                     style={{
-                        color: CPH.muted,
+                        color: CPH.ink,
                         fontFamily: SPACE_GROTESK_FONT_FAMILY,
                     }}
-                    title={t("credit_portfolio_health.kpi_deductible_help", {
-                        ...ns,
-                        defaultValue: "Not configured yet",
-                    })}
                 >
-                    —
+                    {formatPortfolioMoney(
+                        section.annualCreditAssessmentCost ?? 0,
+                        currency,
+                        language
+                    )}
                 </div>
                 <div className="mt-1 text-sm" style={{ color: CPH.slate }}>
-                    {t("credit_portfolio_health.kpi_deductible_help", {
-                        ...ns,
-                        defaultValue: "Not configured yet",
-                    })}
+                    {t(
+                        "credit_portfolio_health.kpi_annual_credit_assessment_cost_label",
+                        {
+                            ...ns,
+                            defaultValue:
+                                "{{count}} named · ×{{years}} year(s)",
+                            count: section.namedCustomerCountInRange ?? 0,
+                            years: section.yearMultiplier ?? 1,
+                        }
+                    )}
                 </div>
             </IslandCard>
 
+            {negativeCost != null &&
+            negativeCost.negativeEntryCount > 0 &&
+            negativeCost.previewEntries.length > 0 ? (
+                <IslandCard
+                    accent="critical"
+                    className={`${layout.span12} ${layout.cardPad}`}
+                >
+                    <Eyebrow
+                        icon={AlertTriangle}
+                        help={t(
+                            "credit_portfolio_health.negative_cost_table_help",
+                            {
+                                ...ns,
+                                defaultValue:
+                                    "Flagged negative daily cost rows (customer, date, amount), sorted by magnitude. Export opens the full customer cohort report.",
+                            }
+                        )}
+                    >
+                        {t(
+                            "credit_portfolio_health.negative_cost_table_title",
+                            {
+                                ...ns,
+                                defaultValue: "Negative cost drill-down",
+                            }
+                        )}
+                    </Eyebrow>
+                    <div className="mt-2 overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr style={{ color: CPH.slate }}>
+                                    <th className="py-1 text-start font-medium">
+                                        {t(
+                                            "credit_portfolio_health.negative_cost_col_customer",
+                                            {
+                                                ...ns,
+                                                defaultValue: "Customer",
+                                            }
+                                        )}
+                                    </th>
+                                    <th className="py-1 text-start font-medium">
+                                        {t(
+                                            "credit_portfolio_health.negative_cost_col_date",
+                                            {
+                                                ...ns,
+                                                defaultValue: "Date",
+                                            }
+                                        )}
+                                    </th>
+                                    <th className="py-1 text-end font-medium">
+                                        {t(
+                                            "credit_portfolio_health.negative_cost_col_amount",
+                                            {
+                                                ...ns,
+                                                defaultValue: "Amount",
+                                            }
+                                        )}
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {negativeCost.previewEntries.map((row) => (
+                                    <tr
+                                        key={`${row.customerId}-${row.snapshotDate}-${row.amount}`}
+                                        style={{ color: CPH.ink }}
+                                    >
+                                        <td className="py-1.5 text-start">
+                                            <button
+                                                type="button"
+                                                className="text-start font-medium underline-offset-2 hover:underline"
+                                                style={{ color: CPH.teal }}
+                                                onClick={() =>
+                                                    router.push(
+                                                        `/${routeLocale}/app/customers/${row.customerId}`
+                                                    )
+                                                }
+                                            >
+                                                {row.customerName}
+                                            </button>
+                                        </td>
+                                        <td className="py-1.5 text-start">
+                                            {formatEntryDate(row.snapshotDate)}
+                                        </td>
+                                        <td
+                                            className="py-1.5 text-end font-medium"
+                                            style={{ color: CPH.critical }}
+                                        >
+                                            {formatPortfolioMoney(
+                                                row.amount,
+                                                currency,
+                                                language
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <button
+                        type="button"
+                        className="mt-3 text-sm font-medium underline-offset-2 hover:underline"
+                        style={{ color: CPH.teal }}
+                        onClick={openNegativeCostReport}
+                    >
+                        {t(
+                            "credit_portfolio_health.kpi_negative_cost_open_report",
+                            {
+                                ...ns,
+                                defaultValue: "Open negative cost report",
+                            }
+                        )}
+                    </button>
+                </IslandCard>
+            ) : null}
+
             {showMonthlyBars ? (
                 <IslandCard
-                    accent="jade"
+                    accent="teal"
                     className={`${layout.span12} ${layout.cardPad}`}
                 >
                     <Eyebrow
@@ -229,7 +502,7 @@ export function CostsSectionView({
                             {
                                 ...ns,
                                 defaultValue:
-                                    "Same as period Policy cost, scoped to each calendar month (issued sales, annualized limit days, and amortized top-ups).",
+                                    "Same as period Policy cost, scoped to each calendar month (issued sales, annualized limit days, registration as a percent of the insurance premium, and amortized top-ups).",
                             }
                         )}
                     >
@@ -242,7 +515,7 @@ export function CostsSectionView({
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart
                                 data={monthlyChartData}
-                                margin={{ top: 10, left: -10, right: 10 }}
+                                margin={{ top: 10, left: 8, right: 10 }}
                             >
                                 <CartesianGrid
                                     strokeDasharray="3 6"
@@ -256,35 +529,117 @@ export function CostsSectionView({
                                     tickLine={false}
                                 />
                                 <YAxis
-                                    tick={{ fill: CPH.slate, fontSize: 12 }}
+                                    tick={{ fill: CPH.slate, fontSize: 11 }}
                                     axisLine={false}
                                     tickLine={false}
-                                    width={64}
-                                    tickFormatter={(v: number) => {
-                                        const locale = language.startsWith(
-                                            "he"
+                                    width={84}
+                                    tickFormatter={(v: number) =>
+                                        formatPortfolioAxisMoney(
+                                            v,
+                                            currency,
+                                            language
                                         )
-                                            ? "he-IL"
-                                            : "en-US";
-                                        return v.toLocaleString(locale, {
-                                            maximumFractionDigits: 0,
-                                            notation: "compact",
-                                        });
-                                    }}
+                                    }
                                 />
                                 <Tooltip
                                     cursor={{ fill: CPH.surfaceMuted }}
-                                    content={
-                                        <ChartTooltip
-                                            formatValue={(v) =>
-                                                formatMoney(
-                                                    v,
-                                                    currency,
-                                                    language
-                                                )
-                                            }
-                                        />
-                                    }
+                                    content={(props) => {
+                                        const row = (
+                                            props.payload as unknown as
+                                                | ReadonlyArray<{
+                                                      payload?: MonthlyCostChartRow;
+                                                  }>
+                                                | undefined
+                                        )?.[0]?.payload;
+                                        if (
+                                            row == null ||
+                                            row.totalCost == null
+                                        ) {
+                                            return null;
+                                        }
+                                        return (
+                                            <ChartTooltip
+                                                active={props.active}
+                                                label={
+                                                    typeof props.label ===
+                                                        "string" ||
+                                                    typeof props.label ===
+                                                        "number"
+                                                        ? String(props.label)
+                                                        : undefined
+                                                }
+                                                items={[
+                                                    {
+                                                        name: t(
+                                                            "credit_portfolio_health.chart_monthly_cost_insurance",
+                                                            {
+                                                                ...ns,
+                                                                defaultValue:
+                                                                    "Insurance fee",
+                                                            }
+                                                        ),
+                                                        value:
+                                                            row.insuranceCost ??
+                                                            0,
+                                                        color: CPH.teal,
+                                                        dataKey:
+                                                            "insuranceCost",
+                                                    },
+                                                    {
+                                                        name: t(
+                                                            "credit_portfolio_health.chart_monthly_cost_registration",
+                                                            {
+                                                                ...ns,
+                                                                defaultValue:
+                                                                    "Registration fee",
+                                                            }
+                                                        ),
+                                                        value:
+                                                            row.registrationFeeCost ??
+                                                            0,
+                                                        color: CPH.teal,
+                                                        dataKey:
+                                                            "registrationFeeCost",
+                                                    },
+                                                    {
+                                                        name: t(
+                                                            "credit_portfolio_health.chart_monthly_cost_top_ups",
+                                                            {
+                                                                ...ns,
+                                                                defaultValue:
+                                                                    "Top-ups",
+                                                            }
+                                                        ),
+                                                        value:
+                                                            row.topUpCost ?? 0,
+                                                        color: CPH.teal,
+                                                        dataKey: "topUpCost",
+                                                    },
+                                                    {
+                                                        name: t(
+                                                            "credit_portfolio_health.chart_monthly_cost_total",
+                                                            {
+                                                                ...ns,
+                                                                defaultValue:
+                                                                    "Total",
+                                                            }
+                                                        ),
+                                                        value: row.totalCost,
+                                                        color: CPH.teal,
+                                                        dataKey: "totalCost",
+                                                    },
+                                                ]}
+                                                language={language}
+                                                formatValue={(v) =>
+                                                    formatPortfolioMoney(
+                                                        v,
+                                                        currency,
+                                                        language
+                                                    )
+                                                }
+                                            />
+                                        );
+                                    }}
                                 />
                                 <Bar
                                     dataKey="cost"
@@ -295,7 +650,7 @@ export function CostsSectionView({
                                             defaultValue: "Policy cost",
                                         }
                                     )}
-                                    fill={CPH.jade}
+                                    fill={CPH.teal}
                                     radius={[8, 8, 0, 0]}
                                     animationDuration={animDuration}
                                 />
@@ -306,12 +661,12 @@ export function CostsSectionView({
             ) : null}
 
             <IslandCard
-                accent="jade"
+                accent="good"
                 className={`${layout.span12} ${layout.mdSpan6} ${layout.cardPad}`}
             >
                 <Eyebrow
                     icon={Layers}
-                    tone={CPH.jade}
+                    tone={CPH.good}
                     help={t(
                         "credit_portfolio_health.kpi_approved_footprint_help",
                         {
@@ -331,7 +686,7 @@ export function CostsSectionView({
                         <div
                             className="text-3xl font-semibold"
                             style={{
-                                color: CPH.jade,
+                                color: CPH.good,
                                 fontFamily: SPACE_GROTESK_FONT_FAMILY,
                             }}
                         >
@@ -340,7 +695,7 @@ export function CostsSectionView({
                                 decimals={0}
                                 suffix="%"
                                 locale={language}
-                                color={CPH.jade}
+                                color={CPH.good}
                                 className="text-3xl"
                             />
                         </div>
@@ -359,7 +714,7 @@ export function CostsSectionView({
                         <div
                             className="text-3xl font-semibold"
                             style={{
-                                color: CPH.jade,
+                                color: CPH.good,
                                 fontFamily: SPACE_GROTESK_FONT_FAMILY,
                             }}
                         >
@@ -368,7 +723,7 @@ export function CostsSectionView({
                                 decimals={0}
                                 suffix="%"
                                 locale={language}
-                                color={CPH.jade}
+                                color={CPH.good}
                                 className="text-3xl"
                             />
                         </div>
@@ -387,11 +742,11 @@ export function CostsSectionView({
                     <div
                         className="text-2xl font-semibold tracking-tight"
                         style={{
-                            color: CPH.jade,
+                            color: CPH.good,
                             fontFamily: SPACE_GROTESK_FONT_FAMILY,
                         }}
                     >
-                        {formatMoney(
+                        {formatPortfolioMoney(
                             section.approvedAverageAr,
                             currency,
                             language
@@ -493,7 +848,7 @@ export function CostsSectionView({
                             fontFamily: SPACE_GROTESK_FONT_FAMILY,
                         }}
                     >
-                        {formatMoney(
+                        {formatPortfolioMoney(
                             section.selfUnderwrittenAverageAr,
                             currency,
                             language

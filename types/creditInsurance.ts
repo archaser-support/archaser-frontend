@@ -2,7 +2,6 @@
  * Response shapes for the Nest credit-insurance endpoints consumed by the
  * dashboard, portfolio health and customer trend screens.
  */
-import type { cost_calculation_method } from "@/types/db";
 
 export const PORTFOLIO_HEALTH_BELOW_THRESHOLD_PCT = 85;
 export const INSURER_DECLINED_REASON = "Insurer declined";
@@ -11,11 +10,14 @@ export const NO_COVERAGE_REASON_KEYS = [
     "pending_review",
     "credit_hold",
     "insurer_declined",
-    "other",
     "no_linked_policy",
 ] as const;
 
-export type NoCoverageReasonKey = (typeof NO_COVERAGE_REASON_KEYS)[number];
+export type CanonicalNoCoverageReasonKey =
+    (typeof NO_COVERAGE_REASON_KEYS)[number];
+
+/** Canonical slug, or raw policy_exclusion_reason text from the API. */
+export type NoCoverageReasonKey = CanonicalNoCoverageReasonKey | string;
 
 export const UTILIZATION_DISTRIBUTION_BIN_KEYS = [
     "0_20",
@@ -154,6 +156,8 @@ export type CreditDashboardSummary = {
         totalAmount: number;
         thresholdPct: number;
         scoreWarnDays: number;
+        /** Distinct customers with a projected 150%/200% utilization crossing. */
+        projectedCustomerCount?: number;
     };
     zeroLimitWarnings: {
         customerCount: number;
@@ -249,6 +253,8 @@ export type PortfolioHealthDailyPoint = {
     compliantExposure: number;
     atRiskExposure: number;
     healthIndex: number;
+    /** True when portfolio total AR was carried forward (identical non-zero). */
+    isStaleCarriedForward?: boolean;
 };
 
 export type PortfolioHealthMonthlyPoint = {
@@ -265,6 +271,57 @@ export type PortfolioHealthSection = {
     dailyB: PortfolioHealthDailyPoint[];
     monthlyA: PortfolioHealthMonthlyPoint[];
     monthlyB: PortfolioHealthMonthlyPoint[];
+    /** Chronic over-limit streak (Bucket 1). */
+    overLimitGap?: PortfolioOverLimitGapSection | null;
+    /** Health slope, AR volatility, stale snapshots (Bucket 1 KPIs #5 / #6 / #7). */
+    staleSlopeVolatility?: PortfolioStaleSlopeVolatilitySection | null;
+    /** AR / exposure reconciliation (Bucket 1 KPI #13). */
+    exposureReconciliation?: PortfolioExposureReconciliationSection | null;
+    /** Breach dilution + clean-streak (Bucket 1 KPIs #11 / #12). */
+    breachDilutionStreak?: PortfolioBreachDilutionStreakSection | null;
+};
+
+export type PortfolioOverLimitGapSection = {
+    customersWithData: number;
+    longestStreakDays: number;
+    longestStreakStart: string | null;
+    longestStreakEnd: string | null;
+    longestStreakCustomerId: number | null;
+    longestStreakCustomerName: string | null;
+    accountCurrency: string;
+};
+
+export type HealthMomentumClassification =
+    | "improving"
+    | "flat"
+    | "deteriorating";
+
+export type PortfolioStaleSlopeVolatilitySection = {
+    staleCarriedForwardDayCount: number;
+    customersWithStaleDays: number;
+    customersWithExtremeMoves: number;
+    customersWithData: number;
+    portfolioHealthSlope: number | null;
+    portfolioHealthClassification: HealthMomentumClassification | null;
+    portfolioHealthSlopeSuppressed: boolean;
+    portfolioHealthDaysUsed: number;
+    portfolioPeakHealth: number | null;
+    portfolioPeakDate: string | null;
+    portfolioCurrentHealth: number | null;
+    portfolioCurrentDate: string | null;
+    avgCustomerArSigmaPct: number | null;
+    accountCurrency: string;
+};
+
+export type PortfolioBreachDilutionStreakSection = {
+    customersWithData: number;
+    dilutedCustomerCount: number;
+    resolvedCustomerCount: number;
+    customersWithBreachHistory: number;
+    customersCurrentlyInBreach: number;
+    customersBreachFree: number;
+    customersNeverBreached: number;
+    accountCurrency: string;
 };
 
 export type PortfolioNoCoverageDailyPoint = {
@@ -274,15 +331,15 @@ export type PortfolioNoCoverageDailyPoint = {
     uncoveredAmount: number;
     approvedTotalReceivables: number;
     approvedTermsBreachAmount: number;
-    amountByReason: Partial<Record<NoCoverageReasonKey, number>>;
-    customerCountByReason: Partial<Record<NoCoverageReasonKey, number>>;
+    amountByReason: Partial<Record<string, number>>;
+    customerCountByReason: Partial<Record<string, number>>;
     breachAmountByReason: Partial<
         Record<TermsBreachByReasonSnapshotKey | string, number>
     >;
 };
 
 export type PortfolioNoCoverageReasonItem = {
-    reason: NoCoverageReasonKey;
+    reason: string;
     averageAmount: number;
     averageCustomerCount: number;
 };
@@ -296,6 +353,8 @@ export type PortfolioNoCoverageSection = {
     mainViolationReason: string | null;
     mainViolationReasonSharePct: number;
     totalBreachAmount: number;
+    /** ISO currency code from the account (e.g. ILS, USD). */
+    accountCurrency: string;
 };
 
 export type PortfolioUtilizationDailyPoint = {
@@ -323,9 +382,44 @@ export type PortfolioUtilizationDailyPoint = {
 export type PortfolioUtilizationTopCustomer = {
     customerId: number;
     customerName: string;
+    /** Mean daily usage_amount over available snapshot days in the range. */
     usageAmount: number;
-    /** Coverage/utilization % vs effective limit; null when limit ≤ 0. */
+    /** Mean daily total_receivables (open AR) over available snapshot days. */
+    openAr: number;
+    /**
+     * Mean daily effective utilization % over days with a positive effective
+     * limit; null when no such day exists.
+     */
     utilizationPct: number | null;
+};
+
+/** Per-customer utilization overshoot ranking (Bucket 1 KPI #2). */
+export type PortfolioUtilizationOvershootCustomer = {
+    customerId: number;
+    customerName: string;
+    avgOvershootPts: number;
+    maxOvershootPts: number | null;
+    maxOvershootDate: string | null;
+    avgUsagePct: number | null;
+    peakUsagePct: number | null;
+    peakUsageDate: string | null;
+    daysWithLimit: number;
+    daysAvailable: number;
+    /** Available days with utilization strictly above 100%. */
+    daysAboveLimit: number;
+    /** Longest consecutive available-day streak above 100%. */
+    longestAboveLimitDays: number;
+    limitCapped: boolean;
+};
+
+export type PortfolioUtilizationOvershootSection = {
+    customersWithData: number;
+    avgOvershootPts: number | null;
+    topAvgOvershootPts: number | null;
+    topAvgOvershootCustomerId: number | null;
+    topAvgOvershootCustomerName: string | null;
+    limitCappedCustomerCount: number;
+    ranking: PortfolioUtilizationOvershootCustomer[];
 };
 
 export type PortfolioUtilizationDistributionBin = {
@@ -371,8 +465,27 @@ export type PortfolioUtilizationSection = {
     accountCurrency: string;
     /** Daily portfolio / DCL / Named utilization for the Utilization chart. */
     daily: PortfolioUtilizationDailyPoint[];
-    /** Snapshot day used for top customers and distribution; null when none. */
+    /** Snapshot day kept for API compatibility; distribution/top customers use the full range. */
     asOfDate: string | null;
+    /**
+     * Named customers with open AR = 0 on every day they were Named in range.
+     * DCL excluded.
+     */
+    idleNamedCustomerCount?: number;
+    /**
+     * Distinct Named customers named anytime in the range (Costs denominator).
+     */
+    namedCustomerCountInRange?: number;
+    /** Idle named share of named-in-range (0–100). */
+    idleNamedCustomerPct?: number;
+    /**
+     * Σ (current fee × idle named × year multiplier). Null fee → $0.
+     */
+    idleNamedAnnualCreditAssessmentCost?: number;
+    /** `max(1, ceil(inclusiveDaysInRange / 365))`. */
+    yearMultiplier?: number;
+    /** Utilization overshoot ranking + limit-capped count (Bucket 1 #2 / #3). */
+    overshoot?: PortfolioUtilizationOvershootSection | null;
 };
 
 export type PortfolioCostDailyPoint = {
@@ -383,6 +496,13 @@ export type PortfolioCostDailyPoint = {
 
 export type PortfolioCostMonthlyPoint = {
     month: string;
+    /** Insurance premium for the month (Actual Sales + Limit day-slices). */
+    insuranceCost: number;
+    /** Registration markup on insurance premiums (not top-ups). */
+    registrationFeeCost: number;
+    /** Amortized top-up premiums for the month. */
+    topUpCost: number;
+    /** insuranceCost + registrationFeeCost + topUpCost. */
     totalCost: number;
 };
 
@@ -408,6 +528,45 @@ export type PortfolioCostsSection = {
     approvedAverageAr: number;
     /** Always null until a policy-level deductible field exists. */
     deductiblePct: null;
+    /** Anomalous negative daily-cost visibility (Bucket 1 KPI #8). */
+    negativeCost?: PortfolioNegativeCostSection | null;
+    /**
+     * Σ over policies of (current Annual Credit Assessment Fee × distinct
+     * Named customers named anytime in range × year multiplier). Standalone
+     * from Policy cost / monthly / effective cost.
+     */
+    annualCreditAssessmentCost?: number;
+    /** Sum of per-policy distinct Named customers named anytime in the range. */
+    namedCustomerCountInRange?: number;
+    /** `max(1, ceil(inclusiveDaysInRange / 365))`. */
+    yearMultiplier?: number;
+};
+
+export type PortfolioNegativeCostPreviewEntry = {
+    customerId: number;
+    customerName: string;
+    snapshotDate: string;
+    amount: number;
+};
+
+export type PortfolioNegativeCostSection = {
+    negativeEntryCount: number;
+    negativeEntrySum: number;
+    customersAffected: number;
+    minMagnitude: number;
+    previewEntries: PortfolioNegativeCostPreviewEntry[];
+    accountCurrency: string;
+};
+
+export type PortfolioExposureReconciliationSection = {
+    failingRowCount: number;
+    maxAbsDelta: number | null;
+    customersAffected: number;
+    atRiskExceedsTotalRowCount: number;
+    atRiskExceedsTotalCustomers: number;
+    maxAtRiskExcess: number | null;
+    epsilon: number;
+    accountCurrency: string;
 };
 
 export type CreditAsOfBackfillJobStatus =
@@ -472,44 +631,16 @@ export type CustomerPolicyUsageTrendResponse = {
     topCustomers: CustomerPolicyTrendTopRow[];
 };
 
-export type CustomerPolicyDailyCostChangeFields = {
-    policyDailyCostChange: number | null;
-    policyCostCurrency: string | null;
-    topUpDailyCostChange: number | null;
-    topUpCostCurrency: string | null;
-    totalDailyCostChange: number | null;
-    costCalculationMethod: cost_calculation_method | null;
-    costPercent: number | null;
-};
-
-export type CustomerPolicyDailyCostKpiMetadata = {
-    priorSnapshotDate: string | null;
-    gapFillDaysApplied?: number;
-};
-
-export type CustomerPolicyCustomerTrendPoint = {
-    snapshotDate: string;
-    usageAmount: number;
-    approvedLimit: number | null;
-    usagePct: number | null;
-} & CustomerPolicyDailyCostChangeFields;
-
-export type CustomerPolicyCustomerTrendLatestPoint =
-    CustomerPolicyCustomerTrendPoint & CustomerPolicyDailyCostKpiMetadata;
-
-export type CustomerPolicyCustomerTrendResponse = {
-    customerId: number;
-    policyId: number | null;
-    fromDate: string | null;
-    toDate: string | null;
-    latest: CustomerPolicyCustomerTrendLatestPoint | null;
-    series: CustomerPolicyCustomerTrendPoint[];
-};
-
 export type RiskExposurePolicySeries = {
     policyId: number;
     policyLabel: string;
-    series: Array<{ snapshotDate: string; amount: number }>;
+    series: Array<{
+        snapshotDate: string;
+        amount: number;
+        openArAmount?: number;
+        capacityGapAmount?: number;
+        termsBreachAmount?: number;
+    }>;
 };
 
 export type CustomerDashboardKpiCards = {
@@ -539,6 +670,90 @@ export type CustomerDashboardKpiCards = {
     topUpUsagePct?: number | null;
     effectiveLimit?: number | null;
     effectiveUsagePct?: number | null;
+    overLimitDays?: number;
+    overLimitDaysAvailable?: number;
+    overLimitPctDays?: number | null;
+    currentOverLimitStreakDays?: number;
+    currentOverLimitStreakStart?: string | null;
+    currentOverLimitStreakEnd?: string | null;
+    longestOverLimitStreakDays?: number;
+    longestOverLimitStreakStart?: string | null;
+    longestOverLimitStreakEnd?: string | null;
+    healthMomentumClassification?: HealthMomentumClassification | null;
+    healthMomentumSlope?: number | null;
+    healthMomentumDaysUsed?: number;
+    healthMomentumSuppressed?: boolean;
+    healthPeakValue?: number | null;
+    healthPeakDate?: string | null;
+    healthCurrentValue?: number | null;
+    healthCurrentDate?: string | null;
+    arVolatilitySigmaPct?: number | null;
+    arVolatilityPairCount?: number;
+    arVolatilityMinPctChange?: number | null;
+    arVolatilityMinPctChangeDate?: string | null;
+    arVolatilityMaxPctChange?: number | null;
+    arVolatilityMaxPctChangeDate?: string | null;
+    arVolatilityExtremeMoveCount?: number;
+    arVolatilityDailyPctChanges?: Array<{
+        snapshotDate: string;
+        pctChange: number;
+        extreme: boolean;
+    }>;
+    arVolatilityExtremeMoves?: Array<{
+        snapshotDate: string;
+        priorDate: string;
+        pctChange: number;
+    }>;
+    arNewActivityEventCount?: number;
+    staleDayCount?: number;
+    staleDates?: string[];
+    avgOvershootPts?: number | null;
+    maxOvershootPts?: number | null;
+    maxOvershootDate?: string | null;
+    avgUsagePctPeriod?: number | null;
+    peakUsagePctPeriod?: number | null;
+    peakUsagePctDate?: string | null;
+    overshootDaysWithLimit?: number;
+    overshootDaysAvailable?: number;
+    overshootDailyPts?: Array<{ snapshotDate: string; overshootPts: number }>;
+    limitCapped?: boolean;
+    limitCappedSuppressed?: boolean;
+    limitCappedCompliantCv?: number | null;
+    limitCappedTotalArCv?: number | null;
+    limitCappedTotalArGrowthPct?: number | null;
+    limitCappedCompliantGrowthPct?: number | null;
+    limitCappedNormalizedSeries?: Array<{
+        snapshotDate: string;
+        totalArNormalized: number;
+        compliantNormalized: number;
+    }>;
+    policyOpenArSharePct?: number | null;
+    policyOpenArSharePolicyId?: number | null;
+    policyOpenArSharePolicyNumber?: string | null;
+    policyOpenArShareAsOfDate?: string | null;
+    limitBreachForecastStatus?: string | null;
+    limitBreachForecastThresholdPct?: number | null;
+    limitBreachForecastProjectedDate?: string | null;
+    limitBreachForecastDaysToThreshold?: number | null;
+    limitBreachForecastCurrentUsagePct?: number | null;
+    limitBreachForecastSlopePerDay?: number | null;
+    limitBreachForecastRSquared?: number | null;
+    limitBreachForecastSuppressed?: boolean;
+    breachDilutionClassification?: "diluted" | "resolved" | "na" | null;
+    breachDilutionSuppressed?: boolean;
+    breachDilutionHealthRisePts?: number | null;
+    breachDilutionBreachFirst?: number | null;
+    breachDilutionBreachLast?: number | null;
+    breachDilutionBreachChangePct?: number | null;
+    breachDilutionArFirst?: number | null;
+    breachDilutionArLast?: number | null;
+    breachDilutionArGrowthPct?: number | null;
+    breachStreakStatus?: "none" | "clean" | "open";
+    breachStreakDays?: number;
+    breachStreakStart?: string | null;
+    breachStreakEnd?: string | null;
+    breachEpisodeCount?: number;
+    breachHasHistory?: boolean;
 };
 
 export type CustomerDashboardKpisResponse = {

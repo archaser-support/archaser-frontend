@@ -40,6 +40,15 @@ export const CREDIT_DASHBOARD_CUSTOMER_REPORT_TYPES = [
     "top_up_expiring",
     "no_policy_exposure",
     "utilization_bin",
+    "ar_extreme_moves",
+    "utilization_overshoot",
+    "limit_capped",
+    "negative_daily_cost",
+    "exposure_reconciliation",
+    "policy_concentration",
+    "limit_breach_forecast",
+    "breach_dilution",
+    "breach_episodes",
 ] as const;
 
 export const CREDIT_DASHBOARD_INVOICE_REPORT_TYPES = [
@@ -68,6 +77,16 @@ export const CREDIT_DASHBOARD_CUSTOMER_SYSTEM_REPORT_UNIQUE_NAMES = {
     top_up_expiring: "dashboard_credit_customers_top_up_expiring",
     no_policy_exposure: "dashboard_credit_customers_no_policy_exposure",
     utilization_bin: "dashboard_credit_customers_utilization_bin",
+    ar_extreme_moves: "dashboard_credit_customers_ar_extreme_moves",
+    utilization_overshoot: "dashboard_credit_customers_utilization_overshoot",
+    limit_capped: "dashboard_credit_customers_limit_capped",
+    negative_daily_cost: "dashboard_credit_customers_negative_daily_cost",
+    exposure_reconciliation:
+        "dashboard_credit_customers_exposure_reconciliation",
+    policy_concentration: "dashboard_credit_customers_policy_concentration",
+    limit_breach_forecast: "dashboard_credit_customers_limit_breach_forecast",
+    breach_dilution: "dashboard_credit_customers_breach_dilution",
+    breach_episodes: "dashboard_credit_customers_breach_episodes",
 } as const;
 
 export const CREDIT_DASHBOARD_INVOICE_SYSTEM_REPORT_UNIQUE_NAMES = {
@@ -87,7 +106,15 @@ export interface CreditDashboardReportFilterInput {
     topUpReason?: string | null;
     /** utilization_bin key, e.g. 100_110 */
     utilizationBin?: string | null;
-    /** YYYY-MM-DD as-of snapshot for utilization_bin */
+    /**
+     * YYYY-MM-DD range for utilization_bin / ar_extreme_moves /
+     * utilization_overshoot / limit_capped / negative_daily_cost / exposure_reconciliation
+     * (period average).
+     * Legacy callers may still pass only asOfDate (treated as from=to).
+     */
+    fromDate?: string | null;
+    toDate?: string | null;
+    /** @deprecated Prefer fromDate/toDate. Single-day snapshot for utilization_bin. */
     asOfDate?: string | null;
 }
 
@@ -243,10 +270,95 @@ export function encodeNoPolicyExposureMembershipValue(
 
 export function encodeUtilizationBinMembershipValue(options: {
     bin: string;
-    asOfDate: string;
+    fromDate: string;
+    toDate: string;
+    /** @deprecated Prefer fromDate/toDate. */
+    asOfDate?: string;
     includeNoPolicyExposure?: boolean;
 }): string {
-    const base = `utilization_bin:${options.bin}:${options.asOfDate}`;
+    const fromDate = options.fromDate || options.asOfDate || "";
+    const toDate = options.toDate || options.asOfDate || fromDate;
+    const base = `utilization_bin:${options.bin}:${fromDate}:${toDate}`;
+    return options.includeNoPolicyExposure === false ? `${base}:0` : base;
+}
+
+export function encodeArExtremeMovesMembershipValue(options: {
+    fromDate: string;
+    toDate: string;
+    includeNoPolicyExposure?: boolean;
+}): string {
+    const base = `ar_extreme_moves:${options.fromDate}:${options.toDate}`;
+    return options.includeNoPolicyExposure === false ? `${base}:0` : base;
+}
+
+export function encodeUtilizationOvershootMembershipValue(options: {
+    fromDate: string;
+    toDate: string;
+    includeNoPolicyExposure?: boolean;
+}): string {
+    const base = `utilization_overshoot:${options.fromDate}:${options.toDate}`;
+    return options.includeNoPolicyExposure === false ? `${base}:0` : base;
+}
+
+export function encodeLimitCappedMembershipValue(options: {
+    fromDate: string;
+    toDate: string;
+    includeNoPolicyExposure?: boolean;
+}): string {
+    const base = `limit_capped:${options.fromDate}:${options.toDate}`;
+    return options.includeNoPolicyExposure === false ? `${base}:0` : base;
+}
+
+export function encodeNegativeDailyCostMembershipValue(options: {
+    fromDate: string;
+    toDate: string;
+    includeNoPolicyExposure?: boolean;
+}): string {
+    const base = `negative_daily_cost:${options.fromDate}:${options.toDate}`;
+    return options.includeNoPolicyExposure === false ? `${base}:0` : base;
+}
+
+export function encodeExposureReconciliationMembershipValue(options: {
+    fromDate: string;
+    toDate: string;
+    includeNoPolicyExposure?: boolean;
+}): string {
+    const base = `exposure_reconciliation:${options.fromDate}:${options.toDate}`;
+    return options.includeNoPolicyExposure === false ? `${base}:0` : base;
+}
+
+export function encodePolicyConcentrationMembershipValue(options: {
+    fromDate: string;
+    toDate: string;
+    includeNoPolicyExposure?: boolean;
+}): string {
+    const base = `policy_concentration:${options.fromDate}:${options.toDate}`;
+    return options.includeNoPolicyExposure === false ? `${base}:0` : base;
+}
+
+export function encodeLimitBreachForecastMembershipValue(options?: {
+    includeNoPolicyExposure?: boolean;
+}): string {
+    return options?.includeNoPolicyExposure === false
+        ? "limit_breach_forecast:0"
+        : "limit_breach_forecast";
+}
+
+export function encodeBreachDilutionMembershipValue(options: {
+    fromDate: string;
+    toDate: string;
+    includeNoPolicyExposure?: boolean;
+}): string {
+    const base = `breach_dilution:${options.fromDate}:${options.toDate}`;
+    return options.includeNoPolicyExposure === false ? `${base}:0` : base;
+}
+
+export function encodeBreachEpisodesMembershipValue(options: {
+    fromDate: string;
+    toDate: string;
+    includeNoPolicyExposure?: boolean;
+}): string {
+    const base = `breach_episodes:${options.fromDate}:${options.toDate}`;
     return options.includeNoPolicyExposure === false ? `${base}:0` : base;
 }
 
@@ -262,12 +374,33 @@ export function parseCreditDashboardCustomerMembershipValue(
         | "top_up"
         | "top_up_expiring"
         | "utilization_bin"
+        | "ar_extreme_moves"
+        | "utilization_overshoot"
+        | "limit_capped"
+        | "negative_daily_cost"
+        | "exposure_reconciliation"
+        | "policy_concentration"
+        | "limit_breach_forecast"
+        | "breach_dilution"
+        | "breach_episodes"
         | null;
     includeNoPolicyExposure: boolean;
     withinDays: number | null;
     utilizationBin: string | null;
+    fromDate: string | null;
+    toDate: string | null;
+    /** Same as toDate for utilization_bin (legacy field). */
     asOfDate: string | null;
 } {
+    const empty = {
+        type: null as null,
+        includeNoPolicyExposure: true,
+        withinDays: null as number | null,
+        utilizationBin: null as string | null,
+        fromDate: null as string | null,
+        toDate: null as string | null,
+        asOfDate: null as string | null,
+    };
     const raw = value == null ? "" : String(value);
     if (
         raw === "capacity" ||
@@ -276,71 +409,318 @@ export function parseCreditDashboardCustomerMembershipValue(
         raw === "zero_limit_warning" ||
         raw === "top_up"
     ) {
-        return {
-            type: raw,
-            includeNoPolicyExposure: true,
-            withinDays: null,
-            utilizationBin: null,
-            asOfDate: null,
-        };
+        return { ...empty, type: raw };
     }
     if (raw === "no_policy_exposure") {
-        return {
-            type: "no_policy_exposure",
-            includeNoPolicyExposure: true,
-            withinDays: null,
-            utilizationBin: null,
-            asOfDate: null,
-        };
+        return { ...empty, type: "no_policy_exposure" };
     }
     if (raw === "no_policy_exposure:0") {
         return {
+            ...empty,
             type: "no_policy_exposure",
             includeNoPolicyExposure: false,
-            withinDays: null,
-            utilizationBin: null,
-            asOfDate: null,
         };
     }
     if (raw === "top_up_expiring") {
-        return {
-            type: "top_up_expiring",
-            includeNoPolicyExposure: true,
-            withinDays: 30,
-            utilizationBin: null,
-            asOfDate: null,
-        };
+        return { ...empty, type: "top_up_expiring", withinDays: 30 };
     }
     if (raw.startsWith("top_up_expiring:")) {
         const days = Number.parseInt(raw.slice("top_up_expiring:".length), 10);
         return {
+            ...empty,
             type: "top_up_expiring",
-            includeNoPolicyExposure: true,
             withinDays: Number.isFinite(days) ? Math.max(1, days) : 30,
-            utilizationBin: null,
-            asOfDate: null,
         };
     }
     if (raw.startsWith("utilization_bin:")) {
         const parts = raw.split(":");
         const bin = parts[1] ?? "";
-        const asOfDate = parts[2] ?? "";
-        const excludeFlag = parts[3];
+        const dateA = parts[2] ?? "";
+        const dateB = parts[3] ?? "";
+        const ymd = /^\d{4}-\d{2}-\d{2}$/;
+        // New: utilization_bin:<bin>:<from>:<to>[:0]
+        // Legacy: utilization_bin:<bin>:<asOf>[:0]
+        if (ymd.test(dateA) && ymd.test(dateB)) {
+            const excludeFlag = parts[4];
+            return {
+                type: "utilization_bin",
+                includeNoPolicyExposure: excludeFlag !== "0",
+                withinDays: null,
+                utilizationBin: bin || null,
+                fromDate: dateA,
+                toDate: dateB,
+                asOfDate: dateB,
+            };
+        }
+        if (ymd.test(dateA) && (dateB === "" || dateB === "0")) {
+            return {
+                type: "utilization_bin",
+                includeNoPolicyExposure: dateB !== "0",
+                withinDays: null,
+                utilizationBin: bin || null,
+                fromDate: dateA,
+                toDate: dateA,
+                asOfDate: dateA,
+            };
+        }
+        return { ...empty, type: "utilization_bin", utilizationBin: bin || null };
+    }
+    if (raw.startsWith("ar_extreme_moves:")) {
+        const parts = raw.split(":");
+        const dateA = parts[1] ?? "";
+        const dateB = parts[2] ?? "";
+        const ymd = /^\d{4}-\d{2}-\d{2}$/;
+        if (ymd.test(dateA) && ymd.test(dateB)) {
+            const excludeFlag = parts[3];
+            return {
+                type: "ar_extreme_moves",
+                includeNoPolicyExposure: excludeFlag !== "0",
+                withinDays: null,
+                utilizationBin: null,
+                fromDate: dateA,
+                toDate: dateB,
+                asOfDate: dateB,
+            };
+        }
+        if (ymd.test(dateA)) {
+            return {
+                type: "ar_extreme_moves",
+                includeNoPolicyExposure: dateB !== "0",
+                withinDays: null,
+                utilizationBin: null,
+                fromDate: dateA,
+                toDate: dateA,
+                asOfDate: dateA,
+            };
+        }
+        return { ...empty, type: "ar_extreme_moves" };
+    }
+    if (raw.startsWith("utilization_overshoot:")) {
+        const parts = raw.split(":");
+        const dateA = parts[1] ?? "";
+        const dateB = parts[2] ?? "";
+        const ymd = /^\d{4}-\d{2}-\d{2}$/;
+        if (ymd.test(dateA) && ymd.test(dateB)) {
+            const excludeFlag = parts[3];
+            return {
+                type: "utilization_overshoot",
+                includeNoPolicyExposure: excludeFlag !== "0",
+                withinDays: null,
+                utilizationBin: null,
+                fromDate: dateA,
+                toDate: dateB,
+                asOfDate: dateB,
+            };
+        }
+        if (ymd.test(dateA)) {
+            return {
+                type: "utilization_overshoot",
+                includeNoPolicyExposure: dateB !== "0",
+                withinDays: null,
+                utilizationBin: null,
+                fromDate: dateA,
+                toDate: dateA,
+                asOfDate: dateA,
+            };
+        }
+        return { ...empty, type: "utilization_overshoot" };
+    }
+    if (raw.startsWith("limit_capped:")) {
+        const parts = raw.split(":");
+        const dateA = parts[1] ?? "";
+        const dateB = parts[2] ?? "";
+        const ymd = /^\d{4}-\d{2}-\d{2}$/;
+        if (ymd.test(dateA) && ymd.test(dateB)) {
+            const excludeFlag = parts[3];
+            return {
+                type: "limit_capped",
+                includeNoPolicyExposure: excludeFlag !== "0",
+                withinDays: null,
+                utilizationBin: null,
+                fromDate: dateA,
+                toDate: dateB,
+                asOfDate: dateB,
+            };
+        }
+        if (ymd.test(dateA)) {
+            return {
+                type: "limit_capped",
+                includeNoPolicyExposure: dateB !== "0",
+                withinDays: null,
+                utilizationBin: null,
+                fromDate: dateA,
+                toDate: dateA,
+                asOfDate: dateA,
+            };
+        }
+        return { ...empty, type: "limit_capped" };
+    }
+    // negative_daily_cost:<from>:<to>[:0]
+    if (raw.startsWith("negative_daily_cost:")) {
+        const parts = raw.split(":");
+        const dateA = parts[1] ?? "";
+        const dateB = parts[2] ?? "";
+        const flag = parts[3];
+        const ymd = /^\d{4}-\d{2}-\d{2}$/;
+        if (ymd.test(dateA) && ymd.test(dateB)) {
+            return {
+                type: "negative_daily_cost",
+                includeNoPolicyExposure: flag !== "0",
+                withinDays: null,
+                utilizationBin: null,
+                fromDate: dateA,
+                toDate: dateB,
+                asOfDate: dateB,
+            };
+        }
+        if (ymd.test(dateA)) {
+            return {
+                type: "negative_daily_cost",
+                includeNoPolicyExposure: dateB !== "0",
+                withinDays: null,
+                utilizationBin: null,
+                fromDate: dateA,
+                toDate: dateA,
+                asOfDate: dateA,
+            };
+        }
+        return { ...empty, type: "negative_daily_cost" };
+    }
+    // exposure_reconciliation:<from>:<to>[:0]
+    if (raw.startsWith("exposure_reconciliation:")) {
+        const parts = raw.split(":");
+        const dateA = parts[1] ?? "";
+        const dateB = parts[2] ?? "";
+        const flag = parts[3];
+        const ymd = /^\d{4}-\d{2}-\d{2}$/;
+        if (ymd.test(dateA) && ymd.test(dateB)) {
+            return {
+                type: "exposure_reconciliation",
+                includeNoPolicyExposure: flag !== "0",
+                withinDays: null,
+                utilizationBin: null,
+                fromDate: dateA,
+                toDate: dateB,
+                asOfDate: dateB,
+            };
+        }
+        if (ymd.test(dateA)) {
+            return {
+                type: "exposure_reconciliation",
+                includeNoPolicyExposure: dateB !== "0",
+                withinDays: null,
+                utilizationBin: null,
+                fromDate: dateA,
+                toDate: dateA,
+                asOfDate: dateA,
+            };
+        }
+        return { ...empty, type: "exposure_reconciliation" };
+    }
+    // policy_concentration:<from>:<to>[:0]
+    if (raw.startsWith("policy_concentration:")) {
+        const parts = raw.split(":");
+        const dateA = parts[1] ?? "";
+        const dateB = parts[2] ?? "";
+        const flag = parts[3];
+        const ymd = /^\d{4}-\d{2}-\d{2}$/;
+        if (ymd.test(dateA) && ymd.test(dateB)) {
+            return {
+                type: "policy_concentration",
+                includeNoPolicyExposure: flag !== "0",
+                withinDays: null,
+                utilizationBin: null,
+                fromDate: dateA,
+                toDate: dateB,
+                asOfDate: dateB,
+            };
+        }
+        if (ymd.test(dateA)) {
+            return {
+                type: "policy_concentration",
+                includeNoPolicyExposure: dateB !== "0",
+                withinDays: null,
+                utilizationBin: null,
+                fromDate: dateA,
+                toDate: dateA,
+                asOfDate: dateA,
+            };
+        }
+        return { ...empty, type: "policy_concentration" };
+    }
+    if (raw === "limit_breach_forecast" || raw.startsWith("limit_breach_forecast:")) {
+        const parts = raw.split(":");
         return {
-            type: "utilization_bin",
-            includeNoPolicyExposure: excludeFlag !== "0",
+            type: "limit_breach_forecast",
+            includeNoPolicyExposure: parts[1] !== "0",
             withinDays: null,
-            utilizationBin: bin || null,
-            asOfDate: /^\d{4}-\d{2}-\d{2}$/.test(asOfDate) ? asOfDate : null,
+            utilizationBin: null,
+            fromDate: null,
+            toDate: null,
+            asOfDate: null,
         };
     }
-    return {
-        type: null,
-        includeNoPolicyExposure: true,
-        withinDays: null,
-        utilizationBin: null,
-        asOfDate: null,
-    };
+    if (raw.startsWith("breach_dilution:")) {
+        const parts = raw.split(":");
+        const dateA = parts[1] ?? "";
+        const dateB = parts[2] ?? "";
+        const ymd = /^\d{4}-\d{2}-\d{2}$/;
+        if (ymd.test(dateA) && ymd.test(dateB)) {
+            const excludeFlag = parts[3];
+            return {
+                type: "breach_dilution",
+                includeNoPolicyExposure: excludeFlag !== "0",
+                withinDays: null,
+                utilizationBin: null,
+                fromDate: dateA,
+                toDate: dateB,
+                asOfDate: dateB,
+            };
+        }
+        if (ymd.test(dateA)) {
+            return {
+                type: "breach_dilution",
+                includeNoPolicyExposure: dateB !== "0",
+                withinDays: null,
+                utilizationBin: null,
+                fromDate: dateA,
+                toDate: dateA,
+                asOfDate: dateA,
+            };
+        }
+        return { ...empty, type: "breach_dilution" };
+    }
+    if (raw.startsWith("breach_episodes:")) {
+        const parts = raw.split(":");
+        const dateA = parts[1] ?? "";
+        const dateB = parts[2] ?? "";
+        const ymd = /^\d{4}-\d{2}-\d{2}$/;
+        if (ymd.test(dateA) && ymd.test(dateB)) {
+            const excludeFlag = parts[3];
+            return {
+                type: "breach_episodes",
+                includeNoPolicyExposure: excludeFlag !== "0",
+                withinDays: null,
+                utilizationBin: null,
+                fromDate: dateA,
+                toDate: dateB,
+                asOfDate: dateB,
+            };
+        }
+        if (ymd.test(dateA)) {
+            return {
+                type: "breach_episodes",
+                includeNoPolicyExposure: dateB !== "0",
+                withinDays: null,
+                utilizationBin: null,
+                fromDate: dateA,
+                toDate: dateA,
+                asOfDate: dateA,
+            };
+        }
+        return { ...empty, type: "breach_episodes" };
+    }
+    return empty;
 }
 
 export function encodeTopUpExpiringMembershipValue(
@@ -536,8 +916,15 @@ export function buildCreditDashboardReportFilters(
 
     if (input.type === "utilization_bin") {
         const bin = input.utilizationBin?.trim() ?? "";
-        const asOfDate = input.asOfDate?.trim() ?? "";
-        if (!bin || !/^\d{4}-\d{2}-\d{2}$/.test(asOfDate)) {
+        const fromDate =
+            input.fromDate?.trim() || input.asOfDate?.trim() || "";
+        const toDate =
+            input.toDate?.trim() || input.asOfDate?.trim() || fromDate;
+        if (
+            !bin ||
+            !/^\d{4}-\d{2}-\d{2}$/.test(fromDate) ||
+            !/^\d{4}-\d{2}-\d{2}$/.test(toDate)
+        ) {
             return {
                 isCreditDashboard: false,
                 grain: null,
@@ -556,9 +943,279 @@ export function buildCreditDashboardReportFilters(
                 input,
                 encodeUtilizationBinMembershipValue({
                     bin,
-                    asOfDate,
+                    fromDate,
+                    toDate,
                     includeNoPolicyExposure: input.includeNoPolicyExposure,
                 })
+            ),
+            useViewBased: true,
+        };
+    }
+
+    if (input.type === "ar_extreme_moves") {
+        const fromDate =
+            input.fromDate?.trim() || input.asOfDate?.trim() || "";
+        const toDate =
+            input.toDate?.trim() || input.asOfDate?.trim() || fromDate;
+        if (
+            !/^\d{4}-\d{2}-\d{2}$/.test(fromDate) ||
+            !/^\d{4}-\d{2}-\d{2}$/.test(toDate)
+        ) {
+            return {
+                isCreditDashboard: false,
+                grain: null,
+                context: null,
+                systemReportUniqueName: null,
+                additionalFilters: [],
+                useViewBased: false,
+            };
+        }
+        return {
+            isCreditDashboard: true,
+            grain,
+            context,
+            systemReportUniqueName,
+            additionalFilters: customerMembershipFilters(
+                input,
+                encodeArExtremeMovesMembershipValue({
+                    fromDate,
+                    toDate,
+                    includeNoPolicyExposure: input.includeNoPolicyExposure,
+                })
+            ),
+            useViewBased: true,
+        };
+    }
+
+    if (input.type === "utilization_overshoot") {
+        const fromDate =
+            input.fromDate?.trim() || input.asOfDate?.trim() || "";
+        const toDate =
+            input.toDate?.trim() || input.asOfDate?.trim() || fromDate;
+        if (
+            !/^\d{4}-\d{2}-\d{2}$/.test(fromDate) ||
+            !/^\d{4}-\d{2}-\d{2}$/.test(toDate)
+        ) {
+            return {
+                isCreditDashboard: false,
+                grain: null,
+                context: null,
+                systemReportUniqueName: null,
+                additionalFilters: [],
+                useViewBased: false,
+            };
+        }
+        return {
+            isCreditDashboard: true,
+            grain,
+            context,
+            systemReportUniqueName,
+            additionalFilters: customerMembershipFilters(
+                input,
+                encodeUtilizationOvershootMembershipValue({
+                    fromDate,
+                    toDate,
+                    includeNoPolicyExposure: input.includeNoPolicyExposure,
+                })
+            ),
+            useViewBased: true,
+        };
+    }
+
+    if (input.type === "limit_capped") {
+        const fromDate =
+            input.fromDate?.trim() || input.asOfDate?.trim() || "";
+        const toDate =
+            input.toDate?.trim() || input.asOfDate?.trim() || fromDate;
+        if (
+            !/^\d{4}-\d{2}-\d{2}$/.test(fromDate) ||
+            !/^\d{4}-\d{2}-\d{2}$/.test(toDate)
+        ) {
+            return {
+                isCreditDashboard: false,
+                grain: null,
+                context: null,
+                systemReportUniqueName: null,
+                additionalFilters: [],
+                useViewBased: false,
+            };
+        }
+        return {
+            isCreditDashboard: true,
+            grain,
+            context,
+            systemReportUniqueName,
+            additionalFilters: customerMembershipFilters(
+                input,
+                encodeLimitCappedMembershipValue({
+                    fromDate,
+                    toDate,
+                    includeNoPolicyExposure: input.includeNoPolicyExposure,
+                })
+            ),
+            useViewBased: true,
+        };
+    }
+
+    if (input.type === "negative_daily_cost") {
+        const fromDate =
+            input.fromDate?.trim() || input.asOfDate?.trim() || "";
+        const toDate =
+            input.toDate?.trim() || input.asOfDate?.trim() || fromDate;
+        if (
+            !/^\d{4}-\d{2}-\d{2}$/.test(fromDate) ||
+            !/^\d{4}-\d{2}-\d{2}$/.test(toDate)
+        ) {
+            return {
+                isCreditDashboard: false,
+                grain: null,
+                context: null,
+                systemReportUniqueName: null,
+                additionalFilters: [],
+                useViewBased: false,
+            };
+        }
+        return {
+            isCreditDashboard: true,
+            grain,
+            context,
+            systemReportUniqueName,
+            additionalFilters: customerMembershipFilters(
+                input,
+                encodeNegativeDailyCostMembershipValue({
+                    fromDate,
+                    toDate,
+                    includeNoPolicyExposure: input.includeNoPolicyExposure,
+                })
+            ),
+            useViewBased: true,
+        };
+    }
+
+    if (input.type === "exposure_reconciliation") {
+        const fromDate =
+            input.fromDate?.trim() || input.asOfDate?.trim() || "";
+        const toDate =
+            input.toDate?.trim() || input.asOfDate?.trim() || fromDate;
+        if (
+            !/^\d{4}-\d{2}-\d{2}$/.test(fromDate) ||
+            !/^\d{4}-\d{2}-\d{2}$/.test(toDate)
+        ) {
+            return {
+                isCreditDashboard: false,
+                grain: null,
+                context: null,
+                systemReportUniqueName: null,
+                additionalFilters: [],
+                useViewBased: false,
+            };
+        }
+        return {
+            isCreditDashboard: true,
+            grain,
+            context,
+            systemReportUniqueName,
+            additionalFilters: customerMembershipFilters(
+                input,
+                encodeExposureReconciliationMembershipValue({
+                    fromDate,
+                    toDate,
+                    includeNoPolicyExposure: input.includeNoPolicyExposure,
+                })
+            ),
+            useViewBased: true,
+        };
+    }
+
+    if (input.type === "policy_concentration") {
+        const fromDate =
+            input.fromDate?.trim() || input.asOfDate?.trim() || "";
+        const toDate =
+            input.toDate?.trim() || input.asOfDate?.trim() || fromDate;
+        if (
+            !/^\d{4}-\d{2}-\d{2}$/.test(fromDate) ||
+            !/^\d{4}-\d{2}-\d{2}$/.test(toDate)
+        ) {
+            return {
+                isCreditDashboard: false,
+                grain: null,
+                context: null,
+                systemReportUniqueName: null,
+                additionalFilters: [],
+                useViewBased: false,
+            };
+        }
+        return {
+            isCreditDashboard: true,
+            grain,
+            context,
+            systemReportUniqueName,
+            additionalFilters: customerMembershipFilters(
+                input,
+                encodePolicyConcentrationMembershipValue({
+                    fromDate,
+                    toDate,
+                    includeNoPolicyExposure: input.includeNoPolicyExposure,
+                })
+            ),
+            useViewBased: true,
+        };
+    }
+
+    if (input.type === "limit_breach_forecast") {
+        return {
+            isCreditDashboard: true,
+            grain,
+            context,
+            systemReportUniqueName,
+            additionalFilters: customerMembershipFilters(
+                input,
+                encodeLimitBreachForecastMembershipValue({
+                    includeNoPolicyExposure: input.includeNoPolicyExposure,
+                })
+            ),
+            useViewBased: true,
+        };
+    }
+
+    if (input.type === "breach_dilution" || input.type === "breach_episodes") {
+        const fromDate =
+            input.fromDate?.trim() || input.asOfDate?.trim() || "";
+        const toDate =
+            input.toDate?.trim() || input.asOfDate?.trim() || fromDate;
+        if (
+            !/^\d{4}-\d{2}-\d{2}$/.test(fromDate) ||
+            !/^\d{4}-\d{2}-\d{2}$/.test(toDate)
+        ) {
+            return {
+                isCreditDashboard: false,
+                grain: null,
+                context: null,
+                systemReportUniqueName: null,
+                additionalFilters: [],
+                useViewBased: false,
+            };
+        }
+        const membershipValue =
+            input.type === "breach_dilution"
+                ? encodeBreachDilutionMembershipValue({
+                      fromDate,
+                      toDate,
+                      includeNoPolicyExposure: input.includeNoPolicyExposure,
+                  })
+                : encodeBreachEpisodesMembershipValue({
+                      fromDate,
+                      toDate,
+                      includeNoPolicyExposure: input.includeNoPolicyExposure,
+                  });
+        return {
+            isCreditDashboard: true,
+            grain,
+            context,
+            systemReportUniqueName,
+            additionalFilters: customerMembershipFilters(
+                input,
+                membershipValue
             ),
             useViewBased: true,
         };

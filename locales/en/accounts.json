@@ -221,7 +221,13 @@
     "billing_connector": {
         "mep_breach_start_date_label": "MEP breach start date",
         "mep_breach_start_date_helper": "Optional. Invoices issued before this day are excluded from MEP breach evaluation. Leave blank to evaluate all history.",
-        "mep_breach_start_date_locked": "Locked after backfill started. Reset backfill to change the MEP breach start date."
+        "mep_breach_start_date_locked": "Locked after backfill started. Reset backfill to change the MEP breach start date.",
+        "sync_mode_backfill": "Backfill",
+        "sync_mode_incremental": "Incremental",
+        "sync_mode_label": "Sync mode",
+        "last_sync_at_label": "Last sync (UTC)",
+        "last_sync_at_empty": "—",
+        "next_scheduled_sync_at_label": "Next scheduled sync (UTC)"
     },
     "as_of_backfill": {
         "open_button": "As-of history backfill",

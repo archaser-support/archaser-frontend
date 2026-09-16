@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { CreditMetricCard } from "@/app/[locale]/app/credit-dashboard/CreditMetricCard";
 import { useDashboardBusinessUnitId } from "@/shared/dashboard/DashboardBusinessUnitContext";
 
-import { buildOperationDashboardDetailsUrl } from "../operationDashboardDetailsUrl";
+import { pushOperationDashboardDetails } from "../operationDashboardDetailsUrl";
 
 type OverdueFollowUpsCardProps = {
     count?: number;
@@ -33,13 +33,15 @@ const OverdueFollowUpsCard = ({
             label={t("fields.overdue_follow_ups", { ns: "activities" })}
             value={count.toLocaleString()}
             onClick={() =>
-                router.push(
-                    buildOperationDashboardDetailsUrl("overdue-follow-ups", {
+                pushOperationDashboardDetails(
+                    router,
+                    t,
+                    "overdue-follow-ups", {
                         startDate,
                         endDate,
                         selectedUserId,
                         businessUnitId,
-                    })
+                    }
                 )
             }
         />

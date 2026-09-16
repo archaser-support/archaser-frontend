@@ -1,6 +1,19 @@
 "use client";
 
-import { Alert, Box, CircularProgress, Typography } from "@mui/material";
+import {
+    Alert,
+    Box,
+    Checkbox,
+    CircularProgress,
+    FormControl,
+    FormControlLabel,
+    InputLabel,
+    MenuItem,
+    Radio,
+    RadioGroup,
+    Select,
+    Typography,
+} from "@mui/material";
 import type { ConnectorAuthType, ImportType } from "@/types/db";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, forwardRef, type ReactNode } from "react";
@@ -8,6 +21,7 @@ import { useTranslation } from "react-i18next";
 
 import {
     fetchBillingConnectorConfig,
+    fetchBillingConnectorImportCacheCheck,
     fetchBillingConnectorSyncHistory,
     fetchBillingConnectorSyncRuns,
     cancelBillingConnectorSync,
@@ -20,6 +34,9 @@ import {
     saveBillingConnectorConfig,
     testBillingConnectorConnection,
     type BillingConnectorConfig,
+    type ImportCacheDaySummary,
+    type ImportCacheEntityType,
+    type ImportCacheRun,
     type PreviewSyncResponse,
     type PullFiltersMap,
     type SyncRunSummary,
@@ -56,15 +73,17 @@ import {
     listBillingExtensionPanelOptions,
 } from "@/shared/billing-extensions/registry";
 import {
+    buildPlannedBackfillStepKeys,
     canStartFirstBackfill,
-    createPendingBackfillRun,
-    createResetBackfillProgressRun,
+    createClearedBackfillProgressSession,
+    createOptimisticBackfillRun,
+    createSeedingBackfillProgressSession,
     entitiesMissingPreview,
-    findRunningBackfillRun,
     isPlaceholderBackfillProgressRun,
+    mergeSyncRunsPreservingOptimisticRunning,
     previewPassesFromSyncResult,
     readBackfillProgressSession,
-    resolveBackfillProgressRun,
+    resolveBackfillProgressSession,
     writeBackfillProgressSession,
     zeroBackfillProgressSyncStates,
     type BackfillProgressSession,
@@ -225,6 +244,42 @@ const BillingIntegrationSettings = forwardRef<
     const [resetDialogOpen, setResetDialogOpen] = useState(false);
     const [clearBeforeStartDialogOpen, setClearBeforeStartDialogOpen] =
         useState(false);
+    const [cacheSuggestionDialogOpen, setCacheSuggestionDialogOpen] =
+        useState(false);
+    const [cacheSuggestionRuns, setCacheSuggestionRuns] = useState<
+        ImportCacheRun[]
+    >([]);
+    const [cacheSuggestionDays, setCacheSuggestionDays] = useState<
+        ImportCacheDaySummary[]
+    >([]);
+    const [cacheSuggestionSelectedExecutionId, setCacheSuggestionSelectedExecutionId] =
+        useState<string | null>(null);
+    const [cacheSuggestionSelection, setCacheSuggestionSelection] = useState<
+        Partial<Record<ImportCacheEntityType, boolean>>
+    >({});
+    const [cacheSuggestionMode, setCacheSuggestionMode] = useState<
+        "backfill" | "incremental" | null
+    >(null);
+    const [cacheSuggestionCacheDay, setCacheSuggestionCacheDay] = useState<
+        string | null
+    >(null);
+    const [cacheSuggestionCustomerId, setCacheSuggestionCustomerId] = useState<
+        number | null
+    >(null);
+    const [cacheSuggestionTimeZone, setCacheSuggestionTimeZone] = useState<
+        string | null
+    >(null);
+    const [cacheSuggestionDayLoading, setCacheSuggestionDayLoading] =
+        useState(false);
+    const [cacheCheckPending, setCacheCheckPending] = useState(false);
+    /** Carried from cache dialog into Start / clear-before confirm. */
+    const pendingUseCachedImportRef = useRef<
+        | {
+              executionId: string;
+              entities: ImportCacheEntityType[];
+          }
+        | undefined
+    >(undefined);
     const [clearBeforeImportPrefs, setClearBeforeImportPrefs] =
         useState<ClearBeforeImportPrefs>(() =>
             readClearBeforeImportPrefs(accountId)
@@ -251,12 +306,6 @@ const BillingIntegrationSettings = forwardRef<
         useState<BackfillProgressSession | null>(() =>
             readBackfillProgressSession(accountId)
         );
-    /** Clears progress counters immediately on Start, before the new run polls in. */
-    const [pendingBackfillReset, setPendingBackfillReset] = useState(false);
-    /** Clears progress bars/counters after Run Preview until the next real import. */
-    const [progressUiReset, setProgressUiReset] = useState(false);
-    /** Start requested clear-before-import — keep Deleting… visible before purge stats arrive. */
-    const [expectDeletingStep, setExpectDeletingStep] = useState(false);
     const cutoverDirtyRef = useRef(false);
     /** Prevents config reload from clearing preview stale after local mapping/filter edits. */
     const previewStaleRef = useRef(false);
@@ -268,12 +317,26 @@ const BillingIntegrationSettings = forwardRef<
     >({});
     const entityTabsRef = useRef<HTMLDivElement | null>(null);
     const entityTabFocusPendingRef = useRef(true);
+    /** Keep last live progress run so a brief sync-runs gap does not clear the panel. */
+    const lastLiveProgressRunRef = useRef<SyncRunSummary | null>(null);
 
     useLayoutEffect(() => {
         skipClearBeforeImportPersistRef.current = true;
         setClearBeforeImportPrefs(readClearBeforeImportPrefs(accountId));
         setClearBeforeImportCustomerError(null);
         setClearBeforeStartDialogOpen(false);
+        setCacheSuggestionDialogOpen(false);
+        setCacheSuggestionRuns([]);
+        setCacheSuggestionDays([]);
+        setCacheSuggestionSelectedExecutionId(null);
+        setCacheSuggestionSelection({});
+        setCacheSuggestionMode(null);
+        setCacheSuggestionCacheDay(null);
+        setCacheSuggestionCustomerId(null);
+        setCacheSuggestionTimeZone(null);
+        setCacheSuggestionDayLoading(false);
+        setCacheCheckPending(false);
+        pendingUseCachedImportRef.current = undefined;
     }, [accountId]);
 
     useEffect(() => {
@@ -286,6 +349,7 @@ const BillingIntegrationSettings = forwardRef<
 
     useEffect(() => {
         setProgressSession(readBackfillProgressSession(accountId));
+        lastLiveProgressRunRef.current = null;
         setConnectionExpanded(null);
         setScheduleExpanded(null);
         setMappingExpanded(null);
@@ -538,12 +602,11 @@ const BillingIntegrationSettings = forwardRef<
                 customer_id: options?.customer_id,
             }),
         onMutate: () => {
-            // Clear previous import progress immediately when Preview starts.
-            setProgressUiReset(true);
-            setPendingBackfillReset(false);
-            setExpectDeletingStep(false);
-            setProgressSession(null);
-            writeBackfillProgressSession(accountId, null);
+            // D3 — Run preview clears the progress panel (empty / zeros).
+            const cleared = createClearedBackfillProgressSession();
+            setProgressSession(cleared);
+            writeBackfillProgressSession(accountId, cleared);
+            lastLiveProgressRunRef.current = null;
         },
         onSuccess: (result) => {
             setPreviewResult(result);
@@ -573,8 +636,33 @@ const BillingIntegrationSettings = forwardRef<
             if (result.go_no_go.passed) {
                 success("Preview sync passed go/no-go checks");
             } else {
+                setMappingExpanded(true);
+                const failingEntity =
+                    result.entities.find(
+                        (entity) => entity.validation_errors.length > 0
+                    ) ??
+                    result.entities.find(
+                        (entity) =>
+                            entity.import_type === "Invoice" &&
+                            entity.sample_rows.length > 0 &&
+                            !entity.sorted_preview
+                    );
+                if (failingEntity) {
+                    const tabIndex = ENTITY_OPTIONS.findIndex(
+                        (opt) => opt.value === failingEntity.import_type
+                    );
+                    if (tabIndex >= 0) {
+                        setMappingEntityTab(tabIndex);
+                    }
+                }
+                requestAnimationFrame(() => {
+                    entityTabsRef.current?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                    });
+                });
                 showError(
-                    "Preview sync completed with validation issues — open the Preview sample records tab"
+                    "Preview sync completed with validation issues"
                 );
             }
         },
@@ -703,22 +791,32 @@ const BillingIntegrationSettings = forwardRef<
                 "Customer" | "Contact" | "Invoice" | "Payment"
             >;
             customer_id?: number | null;
+            use_cached_import?: ImportCacheEntityType[];
+            use_cached_execution_id?: string;
         },
-        { expectPurge: boolean }
+        { expectPurge: boolean; plannedSteps: string[] }
     >({
         mutationFn: (options) =>
             runBillingConnectorBackfill(accountId, options),
         onMutate: (options) => {
-            // Reset counters immediately — do not wait for the new RUNNING run.
+            // Start / Resume → seeding with planned steps (no fake SyncRunSummary).
             const expectPurge =
                 (options?.clear_before_import?.length ?? 0) > 0;
-            setExpectDeletingStep(expectPurge);
-            setPendingBackfillReset(true);
-            setProgressUiReset(false);
-            setProgressSession(null);
-            writeBackfillProgressSession(accountId, null);
+            const plannedSteps = buildPlannedBackfillStepKeys(
+                enabledEntities,
+                expectPurge
+            );
+            const seeding = createSeedingBackfillProgressSession({
+                expectPurge,
+                plannedSteps,
+            });
+            setProgressSession(seeding);
+            writeBackfillProgressSession(accountId, seeding);
+            lastLiveProgressRunRef.current = null;
             setMappingExpanded(false);
-            return { expectPurge };
+            // Keep the progress accordion open so entity steps stay visible.
+            setProgressExpanded(true);
+            return { expectPurge, plannedSteps };
         },
         onSuccess: (result, _variables, context) => {
             success(
@@ -726,24 +824,19 @@ const BillingIntegrationSettings = forwardRef<
                     ? "Backfill started"
                     : "Backfill sync completed"
             );
-            // Bind progress immediately — don't wait for sync-runs poll (avoids a
-            // gap where pendingBackfillReset clears before the RUNNING run lands).
             const executionId =
                 typeof result?.execution_id === "string"
                     ? result.execution_id
                     : null;
+            const expectPurge = context?.expectPurge === true;
+            const plannedSteps = context?.plannedSteps;
             if (executionId) {
                 if (result?.status === "RUNNING") {
-                    const seeded = createPendingBackfillRun({
-                        expectPurge: context?.expectPurge === true,
+                    const seeded = createOptimisticBackfillRun({
+                        executionId,
+                        sync_mode: result.sync_mode,
+                        trigger: result.trigger,
                     });
-                    seeded.id = executionId;
-                    if (result.sync_mode) {
-                        seeded.sync_mode = result.sync_mode;
-                    }
-                    if (result.trigger) {
-                        seeded.trigger = result.trigger;
-                    }
                     queryClient.setQueryData<SyncRunSummary[]>(
                         billingConnectorSyncRunsQueryKey(accountId),
                         (runs) => {
@@ -754,44 +847,130 @@ const BillingIntegrationSettings = forwardRef<
                         }
                     );
                 }
-                const session = {
+                const session = createSeedingBackfillProgressSession({
+                    expectPurge,
                     executionId,
-                    dismissed: false,
-                };
+                    plannedSteps,
+                });
                 setProgressSession(session);
                 writeBackfillProgressSession(accountId, session);
-                setPendingBackfillReset(false);
+            } else if (result?.status !== "RUNNING") {
+                // Completed synchronously — leave seeding for resolver + sync-runs.
+                const cleared = createClearedBackfillProgressSession();
+                setProgressSession(cleared);
+                writeBackfillProgressSession(accountId, cleared);
             }
+            // Do not invalidate syncRuns here — preserve the seeded RUNNING row
+            // until the busy poller fetches live progress.
             void invalidateBillingConnectorQueries(queryClient, accountId, {
                 history: true,
+                syncRuns: false,
             });
         },
         onError: (err: unknown) => {
-            setPendingBackfillReset(false);
-            setExpectDeletingStep(false);
+            const cleared = createClearedBackfillProgressSession();
+            setProgressSession(cleared);
+            writeBackfillProgressSession(accountId, cleared);
             showError(axiosErrorMessage(err) ?? "Backfill sync failed");
         },
     });
 
-    const incrementalMutation = useMutation({
-        mutationFn: () => runBillingConnectorIncrementalSync(accountId),
-        onSuccess: (result: { status?: string } | undefined) => {
+    const incrementalMutation = useMutation<
+        | {
+              status?: string;
+              execution_id?: string;
+              sync_mode?: string;
+              trigger?: string;
+          }
+        | undefined,
+        unknown,
+        | {
+              use_cached_import?: ImportCacheEntityType[];
+              use_cached_execution_id?: string;
+          }
+        | undefined,
+        { plannedSteps: string[] }
+    >({
+        mutationFn: (options) =>
+            runBillingConnectorIncrementalSync(accountId, options),
+        onMutate: () => {
+            const plannedSteps = buildPlannedBackfillStepKeys(
+                enabledEntities,
+                false
+            );
+            const seeding = createSeedingBackfillProgressSession({
+                expectPurge: false,
+                plannedSteps,
+            });
+            setProgressSession(seeding);
+            writeBackfillProgressSession(accountId, seeding);
+            lastLiveProgressRunRef.current = null;
+            setMappingExpanded(false);
+            setProgressExpanded(true);
+            return { plannedSteps };
+        },
+        onSuccess: (result, _variables, context) => {
             success(
                 result?.status === "RUNNING"
                     ? "Incremental sync started"
                     : "Incremental sync completed"
             );
+            const executionId =
+                typeof result?.execution_id === "string"
+                    ? result.execution_id
+                    : null;
+            const plannedSteps = context?.plannedSteps;
+            if (executionId) {
+                if (result?.status === "RUNNING") {
+                    const seeded = createOptimisticBackfillRun({
+                        executionId,
+                        sync_mode: result.sync_mode ?? "INCREMENTAL",
+                        trigger: result.trigger ?? "manual",
+                    });
+                    queryClient.setQueryData<SyncRunSummary[]>(
+                        billingConnectorSyncRunsQueryKey(accountId),
+                        (runs) => {
+                            const rest = (runs ?? []).filter(
+                                (run) => run.id !== executionId
+                            );
+                            return [seeded, ...rest];
+                        }
+                    );
+                }
+                const session = createSeedingBackfillProgressSession({
+                    expectPurge: false,
+                    executionId,
+                    plannedSteps,
+                });
+                setProgressSession(session);
+                writeBackfillProgressSession(accountId, session);
+            } else if (result?.status !== "RUNNING") {
+                const cleared = createClearedBackfillProgressSession();
+                setProgressSession(cleared);
+                writeBackfillProgressSession(accountId, cleared);
+            }
             void invalidateBillingConnectorQueries(queryClient, accountId, {
                 history: true,
+                syncRuns: false,
             });
         },
         onError: (err: unknown) => {
+            const cleared = createClearedBackfillProgressSession();
+            setProgressSession(cleared);
+            writeBackfillProgressSession(accountId, cleared);
             showError(axiosErrorMessage(err) ?? "Incremental sync failed");
         },
     });
 
     const resetBackfillMutation = useMutation({
         mutationFn: () => resetBillingConnectorBackfill(accountId),
+        onMutate: () => {
+            // D3 — Reset clears the progress panel (empty / zeros, drop bound id).
+            const cleared = createClearedBackfillProgressSession();
+            setProgressSession(cleared);
+            writeBackfillProgressSession(accountId, cleared);
+            lastLiveProgressRunRef.current = null;
+        },
         onSuccess: () => {
             setResetDialogOpen(false);
             success("Backfill reset — start date is editable again");
@@ -806,6 +985,41 @@ const BillingIntegrationSettings = forwardRef<
 
     const cancelSyncMutation = useMutation({
         mutationFn: () => cancelBillingConnectorSync(accountId),
+        onMutate: () => {
+            // Leave seeding / fake Running immediately (D19) — do not wait for
+            // the cancel response while an optimistic RUNNING row is still cached.
+            const cancelledAt = new Date().toISOString();
+            queryClient.setQueryData<SyncRunSummary[]>(
+                billingConnectorSyncRunsQueryKey(accountId),
+                (runs) => {
+                    if (!runs?.length) {
+                        return runs;
+                    }
+                    return runs.map((run) =>
+                        run.status === "RUNNING" &&
+                        !isPlaceholderBackfillProgressRun(run)
+                            ? {
+                                  ...run,
+                                  status: "TIMEOUT",
+                                  error_type: "cancelled",
+                                  completed_at: cancelledAt,
+                                  error_message: "Sync stopped by operator",
+                              }
+                            : run
+                    );
+                }
+            );
+            // No real execution yet — drop to cleared. With an id, TIMEOUT above
+            // lets the resolver settle to finished/cancelled.
+            if (
+                progressSession?.phase === "seeding" &&
+                !progressSession.executionId
+            ) {
+                const cleared = createClearedBackfillProgressSession();
+                setProgressSession(cleared);
+                writeBackfillProgressSession(accountId, cleared);
+            }
+        },
         onSuccess: (result) => {
             success(
                 result.cancelled
@@ -813,7 +1027,6 @@ const BillingIntegrationSettings = forwardRef<
                     : "No running sync to cancel"
             );
             if (result.cancelled) {
-                setPendingBackfillReset(false);
                 const cancelledAt = new Date().toISOString();
                 queryClient.setQueryData<SyncRunSummary[]>(
                     billingConnectorSyncRunsQueryKey(accountId),
@@ -859,10 +1072,28 @@ const BillingIntegrationSettings = forwardRef<
         },
     });
 
-    const { data: syncRuns = [] } = useQuery({
+    const { data: syncRuns = [], isFetched: syncRunsFetched } = useQuery({
         queryKey: billingConnectorSyncRunsQueryKey(accountId),
-        queryFn: () => fetchBillingConnectorSyncRuns(accountId),
+        queryFn: async () => {
+            const previous = queryClient.getQueryData<SyncRunSummary[]>(
+                billingConnectorSyncRunsQueryKey(accountId)
+            );
+            const fetched = await fetchBillingConnectorSyncRuns(accountId);
+            return mergeSyncRunsPreservingOptimisticRunning(
+                fetched,
+                previous
+            );
+        },
         enabled: accountId > 0 && Boolean(config?.has_credentials),
+        refetchInterval: (query) => {
+            const runs = query.state.data ?? [];
+            const busy =
+                backfillMutation.isPending ||
+                progressSession?.phase === "seeding" ||
+                progressSession?.phase === "running" ||
+                runs.some(isActiveConnectorSyncRun);
+            return busy ? BILLING_CONNECTOR_BUSY_POLL_MS : false;
+        },
     });
 
     const {
@@ -888,38 +1119,71 @@ const BillingIntegrationSettings = forwardRef<
         wasSyncInProgressRef.current = syncInProgress;
     }, [accountId, queryClient, syncInProgress]);
 
-    const progressResolution = resolveBackfillProgressRun({
-        runs: syncRuns,
-        session: progressSession,
-    });
-    const progressRun = progressResolution.run;
-    const displayProgressRun = useMemo(() => {
-        if (pendingBackfillReset) {
-            return (
-                findRunningBackfillRun(syncRuns) ??
-                createPendingBackfillRun({ expectPurge: expectDeletingStep })
-            );
-        }
-        if (progressUiReset) {
-            return createResetBackfillProgressRun();
-        }
-        return progressRun;
-    }, [
-        pendingBackfillReset,
-        progressUiReset,
-        expectDeletingStep,
+    const progressResolution = resolveBackfillProgressSession({
         syncRuns,
+        syncRunsFetched,
+        sessionHint: progressSession,
+        seedingActive: backfillMutation.isPending,
+        seedingExpectPurge: progressSession?.expectPurge === true,
+        seedingExecutionId:
+            progressSession?.phase === "seeding"
+                ? progressSession.executionId
+                : null,
+        seedingPlannedSteps: progressSession?.plannedSteps,
+        pendingArPostIngestCustomers:
+            config?.pending_ar_post_ingest_customers,
+    });
+    const progressSessionResolved = progressResolution.session;
+    const progressRun = progressResolution.boundRun;
+    if (
+        progressRun &&
+        !isPlaceholderBackfillProgressRun(progressRun) &&
+        progressRun.id
+    ) {
+        lastLiveProgressRunRef.current = progressRun;
+    }
+
+    // Real sync-run only — seeding paints from session (no pending-backfill).
+    const displayProgressRun = useMemo(() => {
+        if (progressRun) {
+            return progressRun;
+        }
+        if (progressSessionResolved.phase === "cleared") {
+            return null;
+        }
+        if (progressSessionResolved.phase === "seeding") {
+            return null;
+        }
+        // Brief mid-import gap: reuse in-memory live snapshot only when phase
+        // is already running — never invent Running from idle storage.
+        if (
+            progressSessionResolved.phase === "running" &&
+            progressSessionResolved.executionId
+        ) {
+            const last = lastLiveProgressRunRef.current;
+            if (last?.id === progressSessionResolved.executionId) {
+                return last;
+            }
+        }
+        return null;
+    }, [
         progressRun,
+        progressSessionResolved.phase,
+        progressSessionResolved.executionId,
     ]);
     const displayProgressRunActive = Boolean(
         displayProgressRun &&
             isActiveConnectorSyncRun(displayProgressRun) &&
             !isPlaceholderBackfillProgressRun(displayProgressRun)
     );
-    const displaySyncStates =
-        pendingBackfillReset || progressUiReset
-            ? zeroBackfillProgressSyncStates(config?.sync_states)
-            : config?.sync_states;
+    const displaySyncStates = progressResolution.zeroCounts
+        ? zeroBackfillProgressSyncStates(config?.sync_states)
+        : config?.sync_states;
+    // Planned Record deletion for seeding only — never after bind (D5).
+    const showDeletingProgressStep =
+        progressSessionResolved.phase === "seeding" &&
+        (progressResolution.expectDeletingStep ||
+            progressSessionResolved.expectPurge === true);
     const deferredArPostIngestPending = hasPendingDeferredArPostIngest(
         config?.pending_ar_post_ingest_customers
     );
@@ -927,8 +1191,11 @@ const BillingIntegrationSettings = forwardRef<
         syncInProgress ||
         backfillMutation.isPending ||
         incrementalMutation.isPending ||
-        Boolean(progressRun && isActiveConnectorSyncRun(progressRun)) ||
-        pendingBackfillReset;
+        progressSessionResolved.phase === "seeding" ||
+        progressSessionResolved.phase === "running" ||
+        Boolean(
+            progressRun && isActiveConnectorSyncRun(progressRun)
+        );
     const progressRunStopping =
         displayProgressRun?.status === "TIMEOUT" &&
         displayProgressRun.error_type === "cancelled" &&
@@ -940,72 +1207,28 @@ const BillingIntegrationSettings = forwardRef<
         (displayProgressRun?.status === "RUNNING" || progressRunStopping);
 
     useEffect(() => {
-        if (!progressUiReset) {
-            return;
-        }
-        if (pendingBackfillReset) {
-            setProgressUiReset(false);
-            return;
-        }
-        // A real backfill started — drop the preview reset placeholder.
-        const running = findRunningBackfillRun(syncRuns);
-        if (running && !isPlaceholderBackfillProgressRun(running)) {
-            setProgressUiReset(false);
-        }
-    }, [progressUiReset, pendingBackfillReset, syncRuns]);
-
-    useEffect(() => {
-        if (!pendingBackfillReset) {
-            return;
-        }
-        // Keep the zeroed chips/counters until Start finishes and a real run exists.
-        if (backfillMutation.isPending) {
-            return;
-        }
-        const running = findRunningBackfillRun(syncRuns);
-        if (running && running.id !== "pending-backfill") {
-            setPendingBackfillReset(false);
-        }
-        // Do not clear on !syncInProgress alone — sync-runs can still be stale
-        // right after Start accepts, which used to drop the poller and hide bars
-        // until a full page refresh.
-    }, [pendingBackfillReset, syncRuns, backfillMutation.isPending]);
-
-    useEffect(() => {
-        if (!expectDeletingStep) {
-            return;
-        }
+        const next = progressSessionResolved;
         if (
-            !pendingBackfillReset &&
-            !backfillMutation.isPending &&
-            !findRunningBackfillRun(syncRuns)
-        ) {
-            setExpectDeletingStep(false);
-        }
-    }, [
-        expectDeletingStep,
-        pendingBackfillReset,
-        backfillMutation.isPending,
-        syncRuns,
-    ]);
-
-    useEffect(() => {
-        const next = progressResolution.session;
-        if (
+            next?.phase === progressSession?.phase &&
             next?.executionId === progressSession?.executionId &&
-            next?.dismissed === progressSession?.dismissed
+            next?.expectPurge === progressSession?.expectPurge &&
+            next?.dismissed === progressSession?.dismissed &&
+            JSON.stringify(next?.plannedSteps) ===
+                JSON.stringify(progressSession?.plannedSteps)
         ) {
             return;
         }
         setProgressSession(next);
         writeBackfillProgressSession(accountId, next);
-    }, [accountId, progressResolution.session, progressSession]);
+    }, [accountId, progressSessionResolved, progressSession]);
 
     // Single busy poller — replaces stacked refetchInterval + invalidate loops.
     useEffect(() => {
         const shouldPoll =
             backfillMutation.isPending ||
-            pendingBackfillReset ||
+            progressSessionResolved.phase === "seeding" ||
+            progressSessionResolved.phase === "running" ||
+            progressSessionResolved.phase === "deferred_drain" ||
             incrementalMutation.isPending ||
             previewMutation.isPending ||
             syncInProgress ||
@@ -1027,7 +1250,7 @@ const BillingIntegrationSettings = forwardRef<
         accountId,
         queryClient,
         backfillMutation.isPending,
-        pendingBackfillReset,
+        progressSessionResolved.phase,
         incrementalMutation.isPending,
         previewMutation.isPending,
         syncInProgress,
@@ -1042,8 +1265,10 @@ const BillingIntegrationSettings = forwardRef<
             ),
         [enabledEntities]
     );
-    const selectedMappingEntityTab =
-        mappingEntityTab ?? firstEnabledEntityTabIndex(enabledEntities);
+    const selectedMappingEntityTab = Math.min(
+        mappingEntityTab ?? firstEnabledEntityTabIndex(enabledEntities),
+        Math.max(0, ENTITY_OPTIONS.length - 1)
+    );
 
     const previewGateParams = {
         enabledEntities: entitiesForMapping,
@@ -1082,7 +1307,9 @@ const BillingIntegrationSettings = forwardRef<
     const showStopImport =
         canManage &&
         (showProgressStopButton ||
-            (syncInProgress && !progressRun && !pendingBackfillReset));
+            (syncInProgress &&
+                !progressRun &&
+                progressSessionResolved.phase !== "seeding"));
 
     const previewRequired = previewBlocked || !previewUpToDate;
 
@@ -1134,6 +1361,222 @@ const BillingIntegrationSettings = forwardRef<
         actionStage &&
         (actionStage.stage !== "import_running" || actionStage.showStop);
 
+    const takePendingUseCachedImport = useCallback(():
+        | {
+              executionId: string;
+              entities: ImportCacheEntityType[];
+          }
+        | undefined => {
+        const selected = pendingUseCachedImportRef.current;
+        pendingUseCachedImportRef.current = undefined;
+        return selected &&
+            selected.executionId &&
+            selected.entities.length > 0
+            ? selected
+            : undefined;
+    }, []);
+
+    const proceedBackfillStart = useCallback(
+        (options?: {
+            clear_before_import?: Array<
+                "Customer" | "Contact" | "Invoice" | "Payment"
+            >;
+            customer_id?: number | null;
+            use_cached_import?: ImportCacheEntityType[];
+            use_cached_execution_id?: string;
+        }) => {
+            const pending =
+                options && "use_cached_import" in options
+                    ? options.use_cached_import &&
+                      options.use_cached_import.length > 0 &&
+                      options.use_cached_execution_id
+                        ? {
+                              executionId: options.use_cached_execution_id,
+                              entities: options.use_cached_import,
+                          }
+                        : undefined
+                    : takePendingUseCachedImport();
+            if (options && "use_cached_import" in options) {
+                pendingUseCachedImportRef.current = undefined;
+            }
+            backfillMutation.mutate({
+                ...(options?.clear_before_import &&
+                options.clear_before_import.length > 0
+                    ? { clear_before_import: options.clear_before_import }
+                    : {}),
+                ...(typeof options?.customer_id === "number" &&
+                options.customer_id > 0
+                    ? { customer_id: options.customer_id }
+                    : {}),
+                ...(pending
+                    ? {
+                          use_cached_import: pending.entities,
+                          use_cached_execution_id: pending.executionId,
+                      }
+                    : {}),
+            });
+        },
+        [backfillMutation, takePendingUseCachedImport]
+    );
+
+    const proceedIncrementalStart = useCallback(
+        (options?: {
+            use_cached_import?: ImportCacheEntityType[];
+            use_cached_execution_id?: string;
+        }) => {
+            const pending =
+                options && "use_cached_import" in options
+                    ? options.use_cached_import &&
+                      options.use_cached_import.length > 0 &&
+                      options.use_cached_execution_id
+                        ? {
+                              executionId: options.use_cached_execution_id,
+                              entities: options.use_cached_import,
+                          }
+                        : undefined
+                    : takePendingUseCachedImport();
+            if (options && "use_cached_import" in options) {
+                pendingUseCachedImportRef.current = undefined;
+            }
+            incrementalMutation.mutate(
+                pending
+                    ? {
+                          use_cached_import: pending.entities,
+                          use_cached_execution_id: pending.executionId,
+                      }
+                    : undefined
+            );
+        },
+        [incrementalMutation, takePendingUseCachedImport]
+    );
+
+    const applyCacheRunSelection = useCallback(
+        (run: ImportCacheRun | undefined) => {
+            if (!run) {
+                setCacheSuggestionSelectedExecutionId(null);
+                setCacheSuggestionSelection({});
+                return;
+            }
+            setCacheSuggestionSelectedExecutionId(run.execution_id);
+            const selection: Partial<
+                Record<ImportCacheEntityType, boolean>
+            > = {};
+            for (const entity of run.entities) {
+                if (
+                    entity.available &&
+                    enabledEntities.includes(entity.import_type)
+                ) {
+                    selection[entity.import_type] = false;
+                }
+            }
+            setCacheSuggestionSelection(selection);
+        },
+        [enabledEntities]
+    );
+
+    const offerCacheOrStart = useCallback(
+        async (args: {
+            mode: "backfill" | "incremental";
+            customerId?: number | null;
+            onNoCache: () => void;
+        }) => {
+            setCacheCheckPending(true);
+            try {
+                const check = await fetchBillingConnectorImportCacheCheck(
+                    accountId,
+                    {
+                        mode: args.mode,
+                        customer_id: args.customerId,
+                    }
+                );
+                const days = check.days ?? [];
+                const runsWithEntities = (check.runs ?? []).filter((run) =>
+                    run.entities.some(
+                        (entity) =>
+                            entity.available &&
+                            enabledEntities.includes(entity.import_type)
+                    )
+                );
+                if (days.length === 0 || runsWithEntities.length === 0) {
+                    pendingUseCachedImportRef.current = undefined;
+                    args.onNoCache();
+                    return;
+                }
+                setCacheSuggestionDays(days);
+                setCacheSuggestionRuns(runsWithEntities);
+                setCacheSuggestionCacheDay(
+                    check.cache_day ?? days[0]?.cache_day ?? null
+                );
+                setCacheSuggestionCustomerId(
+                    typeof args.customerId === "number" ? args.customerId : null
+                );
+                setCacheSuggestionTimeZone(check.time_zone);
+                setCacheSuggestionMode(args.mode);
+                applyCacheRunSelection(runsWithEntities[0]);
+                setCacheSuggestionDialogOpen(true);
+            } catch {
+                // Cache suggestion is optional — backend may not expose
+                // /sync/cache-check yet. Proceed with a normal ERP pull.
+                pendingUseCachedImportRef.current = undefined;
+                args.onNoCache();
+            } finally {
+                setCacheCheckPending(false);
+            }
+        },
+        [accountId, enabledEntities, applyCacheRunSelection]
+    );
+
+    const handleCacheSuggestionDayChange = useCallback(
+        async (nextDay: string) => {
+            if (
+                !cacheSuggestionMode ||
+                !nextDay ||
+                nextDay === cacheSuggestionCacheDay
+            ) {
+                return;
+            }
+            setCacheSuggestionDayLoading(true);
+            setCacheSuggestionCacheDay(nextDay);
+            setCacheSuggestionRuns([]);
+            applyCacheRunSelection(undefined);
+            try {
+                const check = await fetchBillingConnectorImportCacheCheck(
+                    accountId,
+                    {
+                        mode: cacheSuggestionMode,
+                        customer_id: cacheSuggestionCustomerId,
+                        cache_day: nextDay,
+                    }
+                );
+                if (check.days?.length) {
+                    setCacheSuggestionDays(check.days);
+                }
+                const runsWithEntities = (check.runs ?? []).filter((run) =>
+                    run.entities.some(
+                        (entity) =>
+                            entity.available &&
+                            enabledEntities.includes(entity.import_type)
+                    )
+                );
+                setCacheSuggestionRuns(runsWithEntities);
+                applyCacheRunSelection(runsWithEntities[0]);
+            } catch {
+                setCacheSuggestionRuns([]);
+                applyCacheRunSelection(undefined);
+            } finally {
+                setCacheSuggestionDayLoading(false);
+            }
+        },
+        [
+            accountId,
+            cacheSuggestionMode,
+            cacheSuggestionCacheDay,
+            cacheSuggestionCustomerId,
+            enabledEntities,
+            applyCacheRunSelection,
+        ]
+    );
+
     const handlePrimaryAction = () => {
         if (!actionStage) {
             return;
@@ -1181,25 +1624,35 @@ const BillingIntegrationSettings = forwardRef<
                             }
                         }
                     }
-                    if (
-                        shouldConfirmStartBackfillClear({
-                            clearBeforeImport,
-                            customerId,
-                        })
-                    ) {
-                        setClearBeforeStartDialogOpen(true);
-                        return;
-                    }
-                    backfillMutation.mutate({});
+                    const continueStart = () => {
+                        if (
+                            shouldConfirmStartBackfillClear({
+                                clearBeforeImport,
+                                customerId,
+                            })
+                        ) {
+                            setClearBeforeStartDialogOpen(true);
+                            return;
+                        }
+                        proceedBackfillStart();
+                    };
+                    await offerCacheOrStart({
+                        mode: "backfill",
+                        customerId,
+                        onNoCache: continueStart,
+                    });
                 })();
                 break;
             }
             case "resume_backfill":
-                // Resume never sends clear_before_import or customer_id.
+                // Resume never sends clear_before_import, customer_id, or cache.
                 backfillMutation.mutate({});
                 break;
             case "incremental":
-                incrementalMutation.mutate();
+                void offerCacheOrStart({
+                    mode: "incremental",
+                    onNoCache: () => proceedIncrementalStart(),
+                });
                 break;
             case "stop":
                 cancelSyncMutation.mutate();
@@ -1208,6 +1661,296 @@ const BillingIntegrationSettings = forwardRef<
                 break;
         }
     };
+
+    const handleCacheSuggestionConfirm = useCallback(() => {
+        const selectedRun = cacheSuggestionRuns.find(
+            (run) => run.execution_id === cacheSuggestionSelectedExecutionId
+        );
+        const selected = selectedRun
+            ? selectedRun.entities
+                  .filter(
+                      (entity) =>
+                          entity.available &&
+                          cacheSuggestionSelection[entity.import_type]
+                  )
+                  .map((entity) => entity.import_type)
+            : [];
+        if (selected.length === 0 || !selectedRun) {
+            return;
+        }
+        pendingUseCachedImportRef.current = {
+            executionId: selectedRun.execution_id,
+            entities: selected,
+        };
+        const mode = cacheSuggestionMode;
+        setCacheSuggestionDialogOpen(false);
+        setCacheSuggestionMode(null);
+        if (mode === "incremental") {
+            proceedIncrementalStart({
+                use_cached_import: selected,
+                use_cached_execution_id: selectedRun.execution_id,
+            });
+            return;
+        }
+        if (mode !== "backfill") {
+            return;
+        }
+        const clearBeforeImport = resolveClearBeforeImportPayload({
+            session: clearBeforeImportSession,
+            enabledEntities,
+        });
+        const customerId = clearBeforeImportCustomerId;
+        if (
+            shouldConfirmStartBackfillClear({
+                clearBeforeImport,
+                customerId,
+            })
+        ) {
+            setClearBeforeStartDialogOpen(true);
+            return;
+        }
+        proceedBackfillStart({
+            ...(customerId != null ? { customer_id: customerId } : {}),
+            use_cached_import: selected,
+            use_cached_execution_id: selectedRun.execution_id,
+        });
+    }, [
+        cacheSuggestionRuns,
+        cacheSuggestionSelectedExecutionId,
+        cacheSuggestionSelection,
+        cacheSuggestionMode,
+        clearBeforeImportSession,
+        clearBeforeImportCustomerId,
+        enabledEntities,
+        proceedBackfillStart,
+        proceedIncrementalStart,
+    ]);
+
+    const cacheSuggestionContinueDisabled = useMemo(() => {
+        const selectedRun = cacheSuggestionRuns.find(
+            (run) => run.execution_id === cacheSuggestionSelectedExecutionId
+        );
+        if (!selectedRun) {
+            return true;
+        }
+        return !selectedRun.entities.some(
+            (entity) =>
+                entity.available &&
+                cacheSuggestionSelection[entity.import_type] === true
+        );
+    }, [
+        cacheSuggestionRuns,
+        cacheSuggestionSelectedExecutionId,
+        cacheSuggestionSelection,
+    ]);
+
+    const handleCacheSuggestionDismiss = useCallback(() => {
+        setCacheSuggestionDialogOpen(false);
+        setCacheSuggestionMode(null);
+        setCacheSuggestionRuns([]);
+        setCacheSuggestionDays([]);
+        setCacheSuggestionSelectedExecutionId(null);
+        setCacheSuggestionSelection({});
+        setCacheSuggestionCacheDay(null);
+        setCacheSuggestionCustomerId(null);
+        setCacheSuggestionTimeZone(null);
+        setCacheSuggestionDayLoading(false);
+        pendingUseCachedImportRef.current = undefined;
+    }, []);
+
+    const handleCacheSuggestionSkip = useCallback(() => {
+        // Skip cache → full ERP (H8). Same path as Continue with nothing checked.
+        const mode = cacheSuggestionMode;
+        handleCacheSuggestionDismiss();
+        if (mode === "incremental") {
+            proceedIncrementalStart({ use_cached_import: [] });
+            return;
+        }
+        if (mode !== "backfill") {
+            return;
+        }
+        const clearBeforeImport = resolveClearBeforeImportPayload({
+            session: clearBeforeImportSession,
+            enabledEntities,
+        });
+        const customerId = clearBeforeImportCustomerId;
+        if (
+            shouldConfirmStartBackfillClear({
+                clearBeforeImport,
+                customerId,
+            })
+        ) {
+            setClearBeforeStartDialogOpen(true);
+            return;
+        }
+        proceedBackfillStart({
+            ...(customerId != null ? { customer_id: customerId } : {}),
+            use_cached_import: [],
+        });
+    }, [
+        cacheSuggestionMode,
+        clearBeforeImportSession,
+        clearBeforeImportCustomerId,
+        enabledEntities,
+        handleCacheSuggestionDismiss,
+        proceedBackfillStart,
+        proceedIncrementalStart,
+    ]);
+
+    const selectedCacheRun = useMemo(
+        () =>
+            cacheSuggestionRuns.find(
+                (run) =>
+                    run.execution_id === cacheSuggestionSelectedExecutionId
+            ) ?? null,
+        [cacheSuggestionRuns, cacheSuggestionSelectedExecutionId]
+    );
+
+    const cacheSuggestionDescription = useMemo(() => {
+        const formatRunTime = (iso: string) => {
+            try {
+                return new Date(iso).toLocaleString(undefined, {
+                    timeZone: cacheSuggestionTimeZone ?? undefined,
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                });
+            } catch {
+                return new Date(iso).toLocaleTimeString();
+            }
+        };
+        const formatRunEntityCounts = (run: ImportCacheRun) =>
+            run.entities
+                .filter(
+                    (entity) =>
+                        entity.available &&
+                        enabledEntities.includes(entity.import_type)
+                )
+                .map(
+                    (entity) =>
+                        `${entity.import_type} ${entity.row_count.toLocaleString()}`
+                )
+                .join(" · ");
+
+        return (
+            <Box display="flex" flexDirection="column" gap={1.5}>
+                <Typography variant="body2">
+                    Import backups within the 6-month retention window are
+                    available. Pick a day, then a run, then select entities to
+                    load from that run&apos;s cache. Leave all unchecked (or
+                    cancel) to fetch everything from the ERP.
+                </Typography>
+                {cacheSuggestionDays.length > 0 ? (
+                    <FormControl fullWidth size="small">
+                        <InputLabel id="cache-suggestion-day-label">
+                            Cache day
+                        </InputLabel>
+                        <Select
+                            labelId="cache-suggestion-day-label"
+                            label="Cache day"
+                            value={cacheSuggestionCacheDay ?? ""}
+                            disabled={cacheSuggestionDayLoading}
+                            onChange={(e) => {
+                                void handleCacheSuggestionDayChange(
+                                    String(e.target.value)
+                                );
+                            }}
+                        >
+                            {cacheSuggestionDays.map((day) => (
+                                <MenuItem
+                                    key={day.cache_day}
+                                    value={day.cache_day}
+                                >
+                                    {day.cache_day}
+                                    {day.run_count > 0
+                                        ? ` (${day.run_count} run${day.run_count === 1 ? "" : "s"})`
+                                        : ""}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                ) : null}
+                {cacheSuggestionDayLoading ? (
+                    <Box display="flex" justifyContent="center" py={1}>
+                        <CircularProgress size={24} />
+                    </Box>
+                ) : (
+                    <RadioGroup
+                        value={cacheSuggestionSelectedExecutionId ?? ""}
+                        onChange={(e) => {
+                            const run = cacheSuggestionRuns.find(
+                                (item) => item.execution_id === e.target.value
+                            );
+                            applyCacheRunSelection(run);
+                        }}
+                    >
+                        {cacheSuggestionRuns.map((run) => (
+                            <FormControlLabel
+                                key={run.execution_id}
+                                value={run.execution_id}
+                                control={<Radio />}
+                                label={`${formatRunTime(run.created_at)} — ${formatRunEntityCounts(run) || "no entities"}`}
+                            />
+                        ))}
+                    </RadioGroup>
+                )}
+                {!cacheSuggestionDayLoading &&
+                cacheSuggestionRuns.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                        No selectable runs on this day.
+                    </Typography>
+                ) : null}
+                {selectedCacheRun ? (
+                    <Box display="flex" flexDirection="column" gap={0.5}>
+                        {selectedCacheRun.entities
+                            .filter(
+                                (entity) =>
+                                    entity.available &&
+                                    enabledEntities.includes(
+                                        entity.import_type
+                                    )
+                            )
+                            .map((entity) => (
+                                <FormControlLabel
+                                    key={entity.import_type}
+                                    control={
+                                        <Checkbox
+                                            checked={Boolean(
+                                                cacheSuggestionSelection[
+                                                    entity.import_type
+                                                ]
+                                            )}
+                                            onChange={(e) => {
+                                                setCacheSuggestionSelection(
+                                                    (prev) => ({
+                                                        ...prev,
+                                                        [entity.import_type]:
+                                                            e.target.checked,
+                                                    })
+                                                );
+                                            }}
+                                        />
+                                    }
+                                    label={`${entity.import_type} (${entity.row_count.toLocaleString()} rows)`}
+                                />
+                            ))}
+                    </Box>
+                ) : null}
+            </Box>
+        );
+    }, [
+        cacheSuggestionRuns,
+        cacheSuggestionDays,
+        cacheSuggestionSelectedExecutionId,
+        cacheSuggestionSelection,
+        cacheSuggestionCacheDay,
+        cacheSuggestionTimeZone,
+        cacheSuggestionDayLoading,
+        selectedCacheRun,
+        enabledEntities,
+        applyCacheRunSelection,
+        handleCacheSuggestionDayChange,
+    ]);
 
     const clearBeforeStartConfirmCopy = useMemo(() => {
         const clearBeforeImport = resolveClearBeforeImportPayload({
@@ -1242,6 +1985,7 @@ const BillingIntegrationSettings = forwardRef<
 
     const primaryPending =
         clearBeforeCustomerValidating ||
+        cacheCheckPending ||
         (actionStage?.primaryAction === "preview" &&
             previewMutation.isPending) ||
         (actionStage?.primaryAction === "incremental" &&
@@ -1303,6 +2047,13 @@ const BillingIntegrationSettings = forwardRef<
             actionStage.primaryAction === "start_backfill"
         ) {
             return "Validating customer…";
+        }
+        if (
+            cacheCheckPending &&
+            (actionStage.primaryAction === "start_backfill" ||
+                actionStage.primaryAction === "incremental")
+        ) {
+            return "Checking import cache…";
         }
         switch (actionStage.primaryAction) {
             case "preview":
@@ -1577,6 +2328,7 @@ const BillingIntegrationSettings = forwardRef<
                 onExpandedChange={setScheduleExpanded}
                 syncEnabled={syncEnabled}
                 onSyncEnabledChange={setSyncEnabled}
+                syncMode={config?.sync_mode}
                 scheduleSummary={config?.schedule_summary}
                 extensionKey={extensionKey}
                 onExtensionKeyChange={setExtensionKey}
@@ -1590,6 +2342,7 @@ const BillingIntegrationSettings = forwardRef<
                 onWeeklyDayChange={setWeeklyDay}
                 scheduleWarning={config?.schedule_warning}
                 nextScheduledSyncAtUtc={config?.next_scheduled_sync_at_utc}
+                lastSyncAt={config?.last_sync_at}
                 invoicePaidTolerance={invoicePaidTolerance}
                 onInvoicePaidToleranceChange={setInvoicePaidTolerance}
                 invoicePaidToleranceError={invoicePaidToleranceError}
@@ -1656,16 +2409,20 @@ const BillingIntegrationSettings = forwardRef<
             )}
 
             {config?.has_credentials &&
-                (allEnabledMappingsComplete || Boolean(displayProgressRun)) && (
+                (allEnabledMappingsComplete ||
+                    Boolean(displayProgressRun) ||
+                    progressSessionResolved.phase === "seeding" ||
+                    progressSessionResolved.phase === "deferred_drain") && (
                     <BillingProgressHost
                         canManage={canManage}
                         isHebrew={isHebrew}
                         displayProgressRun={displayProgressRun}
                         enabledEntities={enabledEntities}
                         displaySyncStates={displaySyncStates}
-                        expectDeletingStep={expectDeletingStep}
+                        expectDeletingStep={showDeletingProgressStep}
+                        sessionPhase={progressSessionResolved.phase}
                         pendingArPostIngestCustomers={
-                            progressUiReset || pendingBackfillReset
+                            progressResolution.zeroCounts
                                 ? 0
                                 : config?.pending_ar_post_ingest_customers
                         }
@@ -1720,7 +2477,10 @@ const BillingIntegrationSettings = forwardRef<
             />
             <DeleteDialog
                 isOpen={clearBeforeStartDialogOpen}
-                onClose={() => setClearBeforeStartDialogOpen(false)}
+                onClose={() => {
+                    setClearBeforeStartDialogOpen(false);
+                    pendingUseCachedImportRef.current = undefined;
+                }}
                 onConfirm={() => {
                     const clearBeforeImport = resolveClearBeforeImportPayload({
                         session: clearBeforeImportSession,
@@ -1728,7 +2488,7 @@ const BillingIntegrationSettings = forwardRef<
                     });
                     const customerId = clearBeforeImportCustomerId;
                     setClearBeforeStartDialogOpen(false);
-                    backfillMutation.mutate({
+                    proceedBackfillStart({
                         clear_before_import: clearBeforeImport,
                         ...(customerId != null
                             ? { customer_id: customerId }
@@ -1737,11 +2497,30 @@ const BillingIntegrationSettings = forwardRef<
                 }}
                 title={clearBeforeStartConfirmCopy.title}
                 description={clearBeforeStartConfirmDescription}
-                confirmLabel="Start backfill"
+                confirmLabel="Delete"
                 cancelLabel="Cancel"
                 isLoading={backfillMutation.isPending}
                 type="warning"
                 maxWidth="sm"
+                locale={i18n.language}
+            />
+            <DeleteDialog
+                isOpen={cacheSuggestionDialogOpen}
+                onClose={handleCacheSuggestionDismiss}
+                onConfirm={handleCacheSuggestionConfirm}
+                onSecondary={handleCacheSuggestionSkip}
+                title="Use import backup?"
+                description={cacheSuggestionDescription}
+                confirmLabel="Continue"
+                cancelLabel="Cancel"
+                secondaryLabel="Fetch from ERP"
+                confirmDisabled={cacheSuggestionContinueDisabled}
+                confirmDisabledTooltip="Select at least one entity to continue with the import backup."
+                isLoading={
+                    backfillMutation.isPending || incrementalMutation.isPending
+                }
+                type="info"
+                maxWidth="md"
                 locale={i18n.language}
             />
         </Box>

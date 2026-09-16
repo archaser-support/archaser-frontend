@@ -1221,12 +1221,12 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                     max_payment_term?: number | null;
                     max_allowed_mep?: number | null;
                     reporting_days?: number | null;
-                    mep_cutoff_day_of_month?: number | null;
-                    mep_substitute_day_of_month?: number | null;
-                    reporting_cutoff_day_of_month?: number | null;
-                    reporting_substitute_day_of_month?: number | null;
-                    payment_term_cutoff_day_of_month?: number | null;
-                    payment_term_substitute_day_of_month?: number | null;
+                    mep_cutoff_day?: number | null;
+                    mep_substitute_extra_days?: number | null;
+                    reporting_cutoff_day?: number | null;
+                    reporting_substitute_extra_days?: number | null;
+                    payment_term_cutoff_day?: number | null;
+                    payment_term_substitute_day?: number | null;
                     approved_limit?: unknown;
                     approved_limit_expiration_date?: string | null;
                     credit_score?: unknown;
@@ -1257,18 +1257,18 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                     if (data.reporting_days != null) {
                         next.reporting_days = data.reporting_days;
                     }
-                    next.mep_cutoff_day_of_month =
-                        data.mep_cutoff_day_of_month ?? null;
-                    next.mep_substitute_day_of_month =
-                        data.mep_substitute_day_of_month ?? null;
-                    next.reporting_cutoff_day_of_month =
-                        data.reporting_cutoff_day_of_month ?? null;
-                    next.reporting_substitute_day_of_month =
-                        data.reporting_substitute_day_of_month ?? null;
-                    next.payment_term_cutoff_day_of_month =
-                        data.payment_term_cutoff_day_of_month ?? null;
-                    next.payment_term_substitute_day_of_month =
-                        data.payment_term_substitute_day_of_month ?? null;
+                    next.mep_cutoff_day =
+                        data.mep_cutoff_day ?? null;
+                    next.mep_substitute_extra_days =
+                        data.mep_substitute_extra_days ?? null;
+                    next.reporting_cutoff_day =
+                        data.reporting_cutoff_day ?? null;
+                    next.reporting_substitute_extra_days =
+                        data.reporting_substitute_extra_days ?? null;
+                    next.payment_term_cutoff_day =
+                        data.payment_term_cutoff_day ?? null;
+                    next.payment_term_substitute_day =
+                        data.payment_term_substitute_day ?? null;
                     const isNamedLimit = data.limit_type === "Named";
                     if (isNamedLimit) {
                         if (
@@ -1423,14 +1423,14 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
 
                 // Keep month-end pairs consistent in customer policy edit:
                 // clearing cutoff should also clear substitute.
-                if (field === "payment_term_cutoff_day_of_month" && (value == null || value === "")) {
-                    next.payment_term_substitute_day_of_month = null;
+                if (field === "payment_term_cutoff_day" && (value == null || value === "")) {
+                    next.payment_term_substitute_day = null;
                 }
-                if (field === "mep_cutoff_day_of_month" && (value == null || value === "")) {
-                    next.mep_substitute_day_of_month = null;
+                if (field === "mep_cutoff_day" && (value == null || value === "")) {
+                    next.mep_substitute_extra_days = null;
                 }
-                if (field === "reporting_cutoff_day_of_month" && (value == null || value === "")) {
-                    next.reporting_substitute_day_of_month = null;
+                if (field === "reporting_cutoff_day" && (value == null || value === "")) {
+                    next.reporting_substitute_extra_days = null;
                 }
 
                 // Exclusion reason is the single source of truth sent to the
@@ -1568,32 +1568,33 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
             const ec = editedCustomer as Record<string, unknown>;
             const monthEndResult = validateMonthEndCutoffFormFields({
                 mepCutoffRaw:
-                    ec.mep_cutoff_day_of_month != null
-                        ? String(ec.mep_cutoff_day_of_month)
+                    ec.mep_cutoff_day != null
+                        ? String(ec.mep_cutoff_day)
                         : "",
                 mepSubstituteRaw:
-                    ec.mep_substitute_day_of_month != null
-                        ? String(ec.mep_substitute_day_of_month)
+                    ec.mep_substitute_extra_days != null
+                        ? String(ec.mep_substitute_extra_days)
                         : "",
                 reportingCutoffRaw:
-                    ec.reporting_cutoff_day_of_month != null
-                        ? String(ec.reporting_cutoff_day_of_month)
+                    ec.reporting_cutoff_day != null
+                        ? String(ec.reporting_cutoff_day)
                         : "",
                 reportingSubstituteRaw:
-                    ec.reporting_substitute_day_of_month != null
-                        ? String(ec.reporting_substitute_day_of_month)
+                    ec.reporting_substitute_extra_days != null
+                        ? String(ec.reporting_substitute_extra_days)
                         : "",
                 paymentTermCutoffRaw:
-                    ec.payment_term_cutoff_day_of_month != null
-                        ? String(ec.payment_term_cutoff_day_of_month)
+                    ec.payment_term_cutoff_day != null
+                        ? String(ec.payment_term_cutoff_day)
                         : "",
                 paymentTermSubstituteRaw:
-                    ec.payment_term_substitute_day_of_month != null
-                        ? String(ec.payment_term_substitute_day_of_month)
+                    ec.payment_term_substitute_day != null
+                        ? String(ec.payment_term_substitute_day)
                         : "",
             });
             const monthEndErrorMessage = (
-                code: MonthEndCutoffValidationErrorCode
+                code: MonthEndCutoffValidationErrorCode,
+                field?: string
             ): string => {
                 switch (code) {
                     case "invalid_integer":
@@ -1601,10 +1602,16 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                             ns: "settings",
                         });
                     case "out_of_range":
-                        return t(
-                            "credit_insurance.validation.day_of_month_out_of_range",
-                            { ns: "settings" }
-                        );
+                        return field === "mep_substitute_extra_days" ||
+                            field === "reporting_substitute_extra_days"
+                            ? t(
+                                  "credit_insurance.validation.substitute_extra_days_out_of_range",
+                                  { ns: "settings" }
+                              )
+                            : t(
+                                  "credit_insurance.validation.day_of_month_out_of_range",
+                                  { ns: "settings" }
+                              );
                     case "cutoff_requires_substitute":
                         return t(
                             "credit_insurance.validation.cutoff_requires_substitute",
@@ -1624,7 +1631,8 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
             for (const [field, code] of Object.entries(monthEndResult.errors)) {
                 if (code) {
                     newErrors[field] = monthEndErrorMessage(
-                        code as MonthEndCutoffValidationErrorCode
+                        code as MonthEndCutoffValidationErrorCode,
+                        field
                     );
                 }
             }

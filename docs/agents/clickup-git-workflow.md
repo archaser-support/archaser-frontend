@@ -17,7 +17,7 @@ Human-readable source of truth for how requirements and bugs move from ClickUp t
 
 Every piece of work starts as a **ClickUp task** (created in the ClickUp UI or by the agent **only when the developer explicitly asks**). Do not grill or short-path code without a task.
 
-When creating a task, always include a short **How to test** section unless the developer opts out. Use the default list, assignee, and MCP settings from `.cursorrules`.
+When creating a task, always include a short **How to test** section unless the developer opts out. Use the default list and MCP settings from `.cursorrules`. **Assignee defaults to the current authenticated ClickUp user** (`assignees: ["me"]`) unless the developer names someone else.
 
 ## Full path
 
@@ -57,10 +57,10 @@ When a new bug or requirement appears while another branch is in progress:
 ## Branch naming
 
 ```
-{type}/CU-{taskId}-{short-slug}
+{type}/{short-slug}-CU-{taskId}
 ```
 
-Examples: `fix/CU-abc123-login-typo`, `feat/CU-xyz789-portfolio-health`.
+Examples: `fix/login-typo-CU-abc123`, `feat/portfolio-health-CU-xyz789`.
 
 Use the **same branch name** in every repo you touch for that ClickUp task.
 

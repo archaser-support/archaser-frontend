@@ -11,9 +11,10 @@ import {
     Typography,
     useTheme,
 } from "@mui/material";
+import { useSession } from "next-auth/react";
 import { CalendarDays } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import PageHeader from "@/components/PageHeader";
 import DateRangePicker from "@/app/[locale]/app/operation-dashboard/(cards)/DateRangePicker";
@@ -24,6 +25,7 @@ import {
 import { CreditDashboardExcludedCustomersFilter } from "@/app/[locale]/app/credit-dashboard/CreditDashboardExcludedCustomersFilter";
 import BusinessUnitDashboardFilter from "@/shared/components/BusinessUnitDashboardFilter";
 import { PORTFOLIO_HEALTH_LARGE_RANGE_DAYS } from "@/shared/creditInsurance/portfolioHealthDateRange";
+import DeleteDialog from "@/shared/layout-components/modal/DeleteDialog";
 import Seo from "@/shared/layout-components/seo/seo";
 import { getRTLTooltipProps } from "@/utils/reportFieldUtils";
 import type {
@@ -32,6 +34,7 @@ import type {
 } from "@/types/creditInsurance";
 
 import { CostsSectionView } from "./CostsSectionView";
+import { PolicySummarySectionView } from "./PolicySummarySectionView";
 import { CPH } from "./designTokens";
 import { spaceGrotesk } from "./fonts";
 import layout from "./islandLayout.module.css";
@@ -41,8 +44,10 @@ import {
     PillTabs,
     type PortfolioHealthTabId,
 } from "./PillTabs";
+import { PortfolioHealthIntroOverlay } from "./PortfolioHealthIntroOverlay";
 import { PortfolioHealthSectionView } from "./PortfolioHealthSectionView";
 import { UtilizationSectionView } from "./UtilizationSectionView";
+import { usePortfolioHealthIntro } from "./usePortfolioHealthIntro";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
 export type CreditPortfolioHealthScreenProps = {
@@ -62,6 +67,7 @@ export type CreditPortfolioHealthScreenProps = {
     onTabChange: (tab: PortfolioHealthTabId) => void;
     data: CreditPortfolioHealthResponse | undefined;
     isLoading: boolean;
+    isFetching: boolean;
     isError: boolean;
     error: Error | null;
     backfillJob: CreditAsOfBackfillJobView | undefined;
@@ -76,16 +82,40 @@ export type CreditPortfolioHealthScreenProps = {
     generateDaysInRange: number;
 };
 
-function formatEstimatedSecondsRemaining(seconds: number): string {
+function formatEstimatedSecondsRemaining(
+    seconds: number,
+    t: (key: string, options?: Record<string, unknown>) => string
+): string {
+    const ns = { ns: "dashboard" as const };
     if (seconds < 60) {
-        return `~${Math.max(1, Math.round(seconds))} sec`;
+        return t("credit_portfolio_health.generate_eta_seconds", {
+            ...ns,
+            defaultValue: "~{{count}} sec",
+            count: Math.max(1, Math.round(seconds)),
+        });
     }
     if (seconds < 3600) {
-        return `~${Math.max(1, Math.round(seconds / 60))} min`;
+        return t("credit_portfolio_health.generate_eta_minutes", {
+            ...ns,
+            defaultValue: "~{{count}} min",
+            count: Math.max(1, Math.round(seconds / 60)),
+        });
     }
     const hours = Math.floor(seconds / 3600);
     const mins = Math.round((seconds % 3600) / 60);
-    return mins > 0 ? `~${hours} hr ${mins} min` : `~${hours} hr`;
+    if (mins > 0) {
+        return t("credit_portfolio_health.generate_eta_hours_minutes", {
+            ...ns,
+            defaultValue: "~{{hours}} hr {{mins}} min",
+            hours,
+            mins,
+        });
+    }
+    return t("credit_portfolio_health.generate_eta_hours", {
+        ...ns,
+        defaultValue: "~{{hours}} hr",
+        hours,
+    });
 }
 
 export function CreditPortfolioHealthScreen({
@@ -105,6 +135,7 @@ export function CreditPortfolioHealthScreen({
     onTabChange,
     data,
     isLoading,
+    isFetching,
     isError,
     error,
     backfillJob,
@@ -119,14 +150,30 @@ export function CreditPortfolioHealthScreen({
     generateDaysInRange,
 }: CreditPortfolioHealthScreenProps) {
     const { t, i18n } = useTranslation(["dashboard"]);
+    const { data: session } = useSession();
     const theme = useTheme();
     const isRtl = i18n.language === "he" || i18n.language.startsWith("he-");
     const prefersReducedMotion = usePrefersReducedMotion();
     const ns = { ns: "dashboard" as const };
+    const accountCurrency = useMemo(() => {
+        const fromApi =
+            data?.noCoverage?.accountCurrency ||
+            data?.utilization?.accountCurrency ||
+            data?.costs?.accountCurrency;
+        const fromSession = session?.user?.currency;
+        return (fromApi || fromSession || "USD").trim().toUpperCase() || "USD";
+    }, [
+        data?.noCoverage?.accountCurrency,
+        data?.utilization?.accountCurrency,
+        data?.costs?.accountCurrency,
+        session?.user?.currency,
+    ]);
     const [confirmingLargeGenerate, setConfirmingLargeGenerate] =
         useState(false);
     const isLargeGenerateRange =
         generateDaysInRange > PORTFOLIO_HEALTH_LARGE_RANGE_DAYS;
+    const titleClickCountRef = useRef(0);
+    const titleClickResetTimerRef = useRef<number | null>(null);
 
     useEffect(() => {
         if (!isLargeGenerateRange) {
@@ -144,7 +191,62 @@ export function CreditPortfolioHealthScreen({
             "Period analytics for portfolio health, coverage, utilization, and cost.",
     });
 
+    const introStatusLines = useMemo(
+        () => [
+            t("credit_portfolio_health.intro_status_health", {
+                ...ns,
+                defaultValue: "Loading portfolio health…",
+            }),
+            t("credit_portfolio_health.intro_status_utilisation", {
+                ...ns,
+                defaultValue: "Loading utilisation…",
+            }),
+            t("credit_portfolio_health.intro_status_coverage", {
+                ...ns,
+                defaultValue: "Loading coverage…",
+            }),
+            t("credit_portfolio_health.intro_status_costs", {
+                ...ns,
+                defaultValue: "Loading costs…",
+            }),
+        ],
+        [t, i18n.language]
+    );
+
+    const intro = usePortfolioHealthIntro({
+        prefersReducedMotion,
+        statusLines: introStatusLines,
+    });
+
+    const handlePageTitleClick = useCallback(() => {
+        if (titleClickResetTimerRef.current != null) {
+            window.clearTimeout(titleClickResetTimerRef.current);
+        }
+        titleClickCountRef.current += 1;
+        if (titleClickCountRef.current >= 3) {
+            titleClickCountRef.current = 0;
+            intro.replay();
+            return;
+        }
+        titleClickResetTimerRef.current = window.setTimeout(() => {
+            titleClickCountRef.current = 0;
+            titleClickResetTimerRef.current = null;
+        }, 3000);
+    }, [intro.replay]);
+
+    useEffect(() => {
+        return () => {
+            if (titleClickResetTimerRef.current != null) {
+                window.clearTimeout(titleClickResetTimerRef.current);
+            }
+        };
+    }, []);
+
     const tabLabels = {
+        "policy-summary": t("credit_portfolio_health.tab_policy_summary", {
+            ...ns,
+            defaultValue: "Policy summary",
+        }),
         health: t("credit_portfolio_health.tab_health", {
             ...ns,
             defaultValue: "Portfolio Health",
@@ -166,6 +268,7 @@ export function CreditPortfolioHealthScreen({
     const dashboardShellSx = {
         display: "flex",
         flexDirection: "column",
+        position: "relative",
         minHeight: "100vh",
         m: 0,
         p: 0,
@@ -240,12 +343,18 @@ export function CreditPortfolioHealthScreen({
         backfillStatus === "paused" ||
         backfillStatus === "failed" ||
         generatePending;
+    const showDataRefreshSpinner =
+        activeTab !== "policy-summary" && (isLoading || isFetching);
 
     const handleGenerateClick = () => {
-        if (isLargeGenerateRange && !confirmingLargeGenerate) {
+        if (isLargeGenerateRange) {
             setConfirmingLargeGenerate(true);
             return;
         }
+        onGenerateSnapshots();
+    };
+
+    const handleConfirmLargeGenerate = () => {
         setConfirmingLargeGenerate(false);
         onGenerateSnapshots();
     };
@@ -254,7 +363,8 @@ export function CreditPortfolioHealthScreen({
         backfillJob?.estimatedSecondsRemaining != null &&
         backfillJob.estimatedSecondsRemaining > 0
             ? formatEstimatedSecondsRemaining(
-                  backfillJob.estimatedSecondsRemaining
+                  backfillJob.estimatedSecondsRemaining,
+                  t
               )
             : null;
 
@@ -262,10 +372,74 @@ export function CreditPortfolioHealthScreen({
         <>
             <Seo title={pageTitle} />
             <Box sx={dashboardShellSx} className={spaceGrotesk.variable}>
+                {intro.isOverlayVisible ? (
+                    <PortfolioHealthIntroOverlay
+                        progress={intro.progress}
+                        statusLine={intro.statusLine}
+                        isFading={intro.isFading}
+                        isRtl={isRtl}
+                    />
+                ) : null}
                 <Box sx={stickyHeaderSx}>
                     <PageHeader
-                        title={pageTitle}
-                        description={pageDescription}
+                        title={
+                            <Box
+                                onClick={handlePageTitleClick}
+                                sx={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    width: "100%",
+                                    minWidth: 0,
+                                    cursor: "default",
+                                    userSelect: "none",
+                                    py: 0.5,
+                                    // Widen the hit target around the label block
+                                    mx: { xs: -0.5, sm: -1 },
+                                    px: { xs: 0.5, sm: 1 },
+                                    alignItems: isRtl
+                                        ? "flex-end"
+                                        : "flex-start",
+                                }}
+                            >
+                                <Typography
+                                    variant={
+                                        isRtl
+                                            ? "hebrewTitle"
+                                            : "listPageHeaderTitle"
+                                    }
+                                    sx={{
+                                        color: theme.palette.text.primary,
+                                        mb: pageDescription ? "2px" : 0,
+                                        width: "100%",
+                                        ...(!isRtl && {
+                                            textAlign: "left",
+                                            direction: "ltr",
+                                        }),
+                                    }}
+                                >
+                                    {pageTitle}
+                                </Typography>
+                                {pageDescription ? (
+                                    <Typography
+                                        variant={
+                                            isRtl
+                                                ? "hebrewSubtitle"
+                                                : "listPageHeaderDescription"
+                                        }
+                                        sx={{
+                                            color: theme.palette.text.secondary,
+                                            width: "100%",
+                                            ...(!isRtl && {
+                                                textAlign: "left",
+                                                direction: "ltr",
+                                            }),
+                                        }}
+                                    >
+                                        {pageDescription}
+                                    </Typography>
+                                ) : null}
+                            </Box>
+                        }
                         sticky={false}
                     />
                 </Box>
@@ -428,58 +602,6 @@ export function CreditPortfolioHealthScreen({
                             </Button>
                         ) : null}
                     </Box>
-                    {confirmingLargeGenerate ? (
-                        <Box
-                            sx={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 1,
-                            }}
-                        >
-                            <Typography variant="body2" color="text.secondary">
-                                {t(
-                                    "credit_portfolio_health.large_range_confirm",
-                                    {
-                                        ...ns,
-                                        defaultValue:
-                                            "Generate {{days}} days of snapshot history? This can take a while on large accounts.",
-                                        days: generateDaysInRange,
-                                    }
-                                )}
-                            </Typography>
-                            <Box sx={{ display: "flex", gap: 1 }}>
-                                <Button
-                                    variant="contained"
-                                    size="small"
-                                    disabled={generateDisabled}
-                                    onClick={handleGenerateClick}
-                                >
-                                    {t(
-                                        "credit_portfolio_health.large_range_confirm_button",
-                                        {
-                                            ...ns,
-                                            defaultValue: "Generate anyway",
-                                        }
-                                    )}
-                                </Button>
-                                <Button
-                                    variant="outlined"
-                                    size="small"
-                                    onClick={() =>
-                                        setConfirmingLargeGenerate(false)
-                                    }
-                                >
-                                    {t(
-                                        "credit_portfolio_health.large_range_cancel_button",
-                                        {
-                                            ...ns,
-                                            defaultValue: "Cancel",
-                                        }
-                                    )}
-                                </Button>
-                            </Box>
-                        </Box>
-                    ) : null}
                     {showProgress ? (
                         <Box
                             sx={{
@@ -487,6 +609,8 @@ export function CreditPortfolioHealthScreen({
                                 display: "flex",
                                 flexDirection: "column",
                                 gap: 0.75,
+                                direction: isRtl ? "rtl" : "ltr",
+                                textAlign: isRtl ? "right" : "left",
                             }}
                         >
                             <Box
@@ -533,15 +657,23 @@ export function CreditPortfolioHealthScreen({
                                     </Typography>
                                 ) : null}
                             </Box>
-                            <LinearProgress
-                                variant={
-                                    showIndeterminateProgress
-                                        ? "indeterminate"
-                                        : "determinate"
-                                }
-                                value={progressPct}
-                                sx={{ height: 8, borderRadius: 4 }}
-                            />
+                            <Box sx={{ direction: isRtl ? "rtl" : "ltr" }}>
+                                <LinearProgress
+                                    variant={
+                                        showIndeterminateProgress
+                                            ? "indeterminate"
+                                            : "determinate"
+                                    }
+                                    value={progressPct}
+                                    sx={{
+                                        height: 8,
+                                        borderRadius: 4,
+                                        ...(isRtl && {
+                                            transform: "scaleX(-1)",
+                                        }),
+                                    }}
+                                />
+                            </Box>
                             {backfillJob?.lastError ? (
                                 <Typography variant="body2" color="error">
                                     {backfillJob.lastError}
@@ -549,33 +681,12 @@ export function CreditPortfolioHealthScreen({
                             ) : null}
                         </Box>
                     ) : null}
-                    {isLoading ? (
-                        <Box
-                            sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                minHeight: { xs: "300px", sm: "400px" },
-                                width: "100%",
-                            }}
-                        >
-                            <CircularProgress color="primary" size={48} />
-                        </Box>
-                    ) : isError ? (
+                    {isError && error?.message === "forbidden" ? (
                         <Box sx={{ p: 3, width: "100%" }}>
                             <Typography color="error">
-                                {error?.message === "forbidden"
-                                    ? t("messages.credit_dashboard_forbidden", {
-                                          ns: "dashboard",
-                                      })
-                                    : t(
-                                          "credit_portfolio_health.load_failed",
-                                          {
-                                              ...ns,
-                                              defaultValue:
-                                                  "Failed to load portfolio health.",
-                                          }
-                                      )}
+                                {t("messages.credit_dashboard_forbidden", {
+                                    ns: "dashboard",
+                                })}
                             </Typography>
                         </Box>
                     ) : (
@@ -607,7 +718,10 @@ export function CreditPortfolioHealthScreen({
                                         )}
                                         isRtl={isRtl}
                                     />
-                                    {data != null && daysFootnote ? (
+                                    {activeTab !== "policy-summary" &&
+                                    !showDataRefreshSpinner &&
+                                    data != null &&
+                                    daysFootnote ? (
                                         <div
                                             className={layout.daysMeta}
                                             title={t(
@@ -681,12 +795,57 @@ export function CreditPortfolioHealthScreen({
                                             : ` ${islandMotion.panelEnter}`
                                     }`}
                                 >
-                                    {activeTab === "health" ? (
-                                        data?.portfolioHealth != null ? (
+                                    {activeTab === "policy-summary" ? (
+                                        <PolicySummarySectionView
+                                            policies={policies}
+                                            policyId={policyId}
+                                            onSelectPolicy={onPolicyScopeChange}
+                                        />
+                                    ) : null}
+                                    {showDataRefreshSpinner ? (
+                                        <Box
+                                            sx={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                minHeight: {
+                                                    xs: "300px",
+                                                    sm: "400px",
+                                                },
+                                            }}
+                                        >
+                                            <CircularProgress
+                                                color="primary"
+                                                size={48}
+                                            />
+                                        </Box>
+                                    ) : null}
+                                    {!showDataRefreshSpinner &&
+                                    activeTab === "health" ? (
+                                        isError ? (
+                                            <Typography color="error">
+                                                {t(
+                                                    "credit_portfolio_health.load_failed",
+                                                    {
+                                                        ...ns,
+                                                        defaultValue:
+                                                            "Failed to load portfolio health.",
+                                                    }
+                                                )}
+                                            </Typography>
+                                        ) : data?.portfolioHealth != null ? (
                                             <PortfolioHealthSectionView
                                                 section={data.portfolioHealth}
                                                 fromYmd={data.from}
                                                 toYmd={data.to}
+                                                accountCurrency={accountCurrency}
+                                                policyId={policyId}
+                                                includeNoPolicyExposure={
+                                                    includeNoPolicyExposure
+                                                }
+                                                businessUnitId={
+                                                    selectedBusinessUnitId
+                                                }
                                             />
                                         ) : (
                                             <p
@@ -704,8 +863,20 @@ export function CreditPortfolioHealthScreen({
                                             </p>
                                         )
                                     ) : null}
-                                    {activeTab === "no-coverage" ? (
-                                        data?.noCoverage != null ? (
+                                    {!showDataRefreshSpinner &&
+                                    activeTab === "no-coverage" ? (
+                                        isError ? (
+                                            <Typography color="error">
+                                                {t(
+                                                    "credit_portfolio_health.load_failed",
+                                                    {
+                                                        ...ns,
+                                                        defaultValue:
+                                                            "Failed to load portfolio health.",
+                                                    }
+                                                )}
+                                            </Typography>
+                                        ) : data?.noCoverage != null ? (
                                             <NoCoverageSectionView
                                                 section={data.noCoverage}
                                             />
@@ -725,8 +896,20 @@ export function CreditPortfolioHealthScreen({
                                             </p>
                                         )
                                     ) : null}
-                                    {activeTab === "utilization" ? (
-                                        data?.utilization != null ? (
+                                    {!showDataRefreshSpinner &&
+                                    activeTab === "utilization" ? (
+                                        isError ? (
+                                            <Typography color="error">
+                                                {t(
+                                                    "credit_portfolio_health.load_failed",
+                                                    {
+                                                        ...ns,
+                                                        defaultValue:
+                                                            "Failed to load portfolio health.",
+                                                    }
+                                                )}
+                                            </Typography>
+                                        ) : data?.utilization != null ? (
                                             <UtilizationSectionView
                                                 section={data.utilization}
                                                 fromYmd={data.from}
@@ -755,12 +938,31 @@ export function CreditPortfolioHealthScreen({
                                             </p>
                                         )
                                     ) : null}
-                                    {activeTab === "costs" ? (
-                                        data?.costs != null ? (
+                                    {!showDataRefreshSpinner &&
+                                    activeTab === "costs" ? (
+                                        isError ? (
+                                            <Typography color="error">
+                                                {t(
+                                                    "credit_portfolio_health.load_failed",
+                                                    {
+                                                        ...ns,
+                                                        defaultValue:
+                                                            "Failed to load portfolio health.",
+                                                    }
+                                                )}
+                                            </Typography>
+                                        ) : data?.costs != null ? (
                                             <CostsSectionView
                                                 section={data.costs}
                                                 fromYmd={data.from}
                                                 toYmd={data.to}
+                                                policyId={policyId}
+                                                businessUnitId={
+                                                    selectedBusinessUnitId
+                                                }
+                                                includeNoPolicyExposure={
+                                                    includeNoPolicyExposure
+                                                }
                                             />
                                         ) : (
                                             <p
@@ -785,6 +987,43 @@ export function CreditPortfolioHealthScreen({
                     </Box>
                 </Box>
             </Box>
+            <DeleteDialog
+                isOpen={confirmingLargeGenerate}
+                onClose={() => setConfirmingLargeGenerate(false)}
+                onConfirm={handleConfirmLargeGenerate}
+                title={t("credit_portfolio_health.large_range_confirm_title", {
+                    ...ns,
+                    defaultValue: "Generate snapshot history",
+                })}
+                description={t(
+                    "credit_portfolio_health.large_range_confirm",
+                    {
+                        ...ns,
+                        defaultValue:
+                            "Generate {{days}} days of snapshot history? This can take a while on large accounts.",
+                        days: generateDaysInRange,
+                    }
+                )}
+                confirmLabel={t(
+                    "credit_portfolio_health.large_range_confirm_button",
+                    {
+                        ...ns,
+                        defaultValue: "Generate anyway",
+                    }
+                )}
+                cancelLabel={t(
+                    "credit_portfolio_health.large_range_cancel_button",
+                    {
+                        ...ns,
+                        defaultValue: "Cancel",
+                    }
+                )}
+                isLoading={generatePending}
+                confirmDisabled={generateDisabled}
+                type="warning"
+                maxWidth="sm"
+                locale={i18n.language}
+            />
         </>
     );
 }

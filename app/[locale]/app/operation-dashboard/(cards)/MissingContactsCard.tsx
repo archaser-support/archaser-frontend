@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { CreditMetricCard } from "@/app/[locale]/app/credit-dashboard/CreditMetricCard";
 import { useDashboardBusinessUnitId } from "@/shared/dashboard/DashboardBusinessUnitContext";
 
-import { buildOperationDashboardDetailsUrl } from "../operationDashboardDetailsUrl";
+import { pushOperationDashboardDetails } from "../operationDashboardDetailsUrl";
 
 type MissingContactsCardProps = {
     count?: number;
@@ -33,13 +33,15 @@ const MissingContactsCard = ({
             label={t("fields.missing_contacts", { ns: "common" })}
             value={count.toLocaleString()}
             onClick={() =>
-                router.push(
-                    buildOperationDashboardDetailsUrl("missing-contacts", {
+                pushOperationDashboardDetails(
+                    router,
+                    t,
+                    "missing-contacts", {
                         startDate,
                         endDate,
                         selectedUserId,
                         businessUnitId,
-                    })
+                    }
                 )
             }
         />

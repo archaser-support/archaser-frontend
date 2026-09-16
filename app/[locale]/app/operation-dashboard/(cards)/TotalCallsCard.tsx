@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { CreditMetricCard } from "@/app/[locale]/app/credit-dashboard/CreditMetricCard";
 import { useDashboardBusinessUnitId } from "@/shared/dashboard/DashboardBusinessUnitContext";
 
-import { buildOperationDashboardDetailsUrl } from "../operationDashboardDetailsUrl";
+import { pushOperationDashboardDetails } from "../operationDashboardDetailsUrl";
 
 type TotalCallsCardProps = {
     total?: number;
@@ -41,13 +41,15 @@ const TotalCallsCard = ({
                     "Formula: (Completed Calls / Total Calls) × 100. Only calls with COMPLETED status are considered successful.",
             })}
             onClick={() =>
-                router.push(
-                    buildOperationDashboardDetailsUrl("total-calls", {
+                pushOperationDashboardDetails(
+                    router,
+                    t,
+                    "total-calls", {
                         startDate,
                         endDate,
                         selectedUserId,
                         businessUnitId,
-                    })
+                    }
                 )
             }
         />

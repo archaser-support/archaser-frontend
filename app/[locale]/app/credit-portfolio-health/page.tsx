@@ -82,7 +82,7 @@ function buildPortfolioHealthSearchParams(options: {
     if (!options.includeNoPolicyExposure) {
         params.set("includeNoPolicyExposure", "0");
     }
-    if (options.tab != null && options.tab !== "health") {
+    if (options.tab != null && options.tab !== "policy-summary") {
         params.set("tab", options.tab);
     }
     return params;
@@ -354,7 +354,7 @@ export default function CreditPortfolioHealthPage() {
         });
     };
 
-    const { data, isLoading, isError, error, refetch } = useQuery({
+    const { data, isError, error, refetch, isLoading, isFetching } = useQuery({
         queryKey: [
             "credit-insurance",
             "portfolio-health",
@@ -463,13 +463,19 @@ export default function CreditPortfolioHealthPage() {
                 job
             );
         },
-        onError: () => {
-            showError(
-                t("credit_portfolio_health.generate_failed", {
-                    ns: "dashboard",
-                    defaultValue: "Could not generate snapshots.",
-                })
-            );
+        onError: (error) => {
+            const message =
+                error instanceof Error && error.message === "already_running"
+                    ? t("credit_portfolio_health.generate_already_running", {
+                          ns: "dashboard",
+                          defaultValue:
+                              "A generate job is already running. Use Stop, then Retry to resume, or wait for it to finish.",
+                      })
+                    : t("credit_portfolio_health.generate_failed", {
+                          ns: "dashboard",
+                          defaultValue: "Could not generate snapshots.",
+                      });
+            showError(message);
         },
     });
 
@@ -552,6 +558,7 @@ export default function CreditPortfolioHealthPage() {
             onTabChange={handleTabChange}
             data={data}
             isLoading={isLoading}
+            isFetching={isFetching}
             isError={isError}
             error={
                 isError

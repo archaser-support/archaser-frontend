@@ -18,7 +18,7 @@ import {
     Typography
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { GridColDef, GridSortModel } from "@mui/x-data-grid";
+import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
@@ -48,6 +48,7 @@ import {
 import AppUrls from "@/utils/appUrls";
 import {
     formatDateForDisplay,
+    getUserDateLocale,
     getCountryTimezone,
     getCurrentTimeForCountry,
 } from "@/utils/datetimeOperations";
@@ -79,7 +80,7 @@ const formatLastCall = (
     return formatDateForDisplay(
         new Date(lastCall),
         "datetime",
-        session?.user?.locale,
+        getUserDateLocale(session),
         session?.user?.timezone
     );
 };
@@ -736,7 +737,7 @@ const LegalList: React.FC<LegalListProps> = ({
                             ? formatDateForDisplay(
                                 new Date(params.value),
                                 "datetime",
-                                session?.user?.locale,
+                                getUserDateLocale(session),
                                 session?.user?.timezone
                             )
                             : "-"}
@@ -816,7 +817,6 @@ const LegalList: React.FC<LegalListProps> = ({
             ) : (
                 <Box ref={tableContainerRef}>
                     <EndlessScrollDataGrid
-                    key={`${debouncedSearch}`}
                     rows={rows}
                     columns={columns}
                     totalRecords={totalRecords}

@@ -6,8 +6,10 @@ import {
     buildFinishedEntityProgressRows,
     buildRunningEntityProgressRows,
     isBackfillSyncRun,
+    mergeSyncRunsPreservingOptimisticRunning,
     orderEnabledBackfillEntities,
     resolveBackfillProgressRun,
+    resolveDisplayBackfillProgressRun,
     resolveRowLabelForActiveStep,
     canStartFirstBackfill,
 } from "@/shared/services/backfillImportProgress";
@@ -54,7 +56,7 @@ function waitingTailProgressRows(): Array<[string, string]> {
 }
 
 describe("backfillImportProgress", () => {
-    it("detects backfill runs by sync_mode or trigger", () => {
+    it("detects backfill and incremental runs for the progress panel", () => {
         expect(
             isBackfillSyncRun({ sync_mode: "BACKFILL", trigger: "scheduled" })
         ).toBe(true);
@@ -63,6 +65,9 @@ describe("backfillImportProgress", () => {
         ).toBe(true);
         expect(
             isBackfillSyncRun({ sync_mode: "INCREMENTAL", trigger: "manual" })
+        ).toBe(true);
+        expect(
+            isBackfillSyncRun({ sync_mode: "PREVIEW", trigger: "preview" })
         ).toBe(false);
     });
 
@@ -519,7 +524,7 @@ describe("backfillImportProgress", () => {
     it("maps active_step registry keys to row labels", () => {
         expect(resolveRowLabelForActiveStep("Payment")).toBe("Payment");
         expect(resolveRowLabelForActiveStep("_maturity")).toBe("Link payments");
-        expect(resolveRowLabelForActiveStep("_purge")).toBe("Deleting…");
+        expect(resolveRowLabelForActiveStep("_purge")).toBe("Record deletion");
     });
 
     it("marks Payment Done when sync_state frontier moved to Invoice but only Payment has live stats", () => {
@@ -893,6 +898,65 @@ describe("backfillImportProgress", () => {
                 runs: [finished],
                 session: { executionId: "done", dismissed: true },
             }).run
+        ).toBeNull();
+    });
+
+    it("preserves optimistic RUNNING when sync-runs refetch drops it", () => {
+        const seeded = run({ id: "exec-1", status: "RUNNING" });
+        expect(
+            mergeSyncRunsPreservingOptimisticRunning([], [seeded]).map(
+                (row) => row.id
+            )
+        ).toEqual(["exec-1"]);
+        expect(
+            mergeSyncRunsPreservingOptimisticRunning(undefined, [seeded]).map(
+                (row) => row.id
+            )
+        ).toEqual(["exec-1"]);
+
+        const live = run({
+            id: "exec-1",
+            status: "RUNNING",
+            entity_stats: {
+                Payment: { pulled: 500, success: 0, failed: 0, skipped: 0 },
+            },
+        });
+        expect(
+            mergeSyncRunsPreservingOptimisticRunning([live], [seeded])[0]
+                ?.entity_stats?.Payment?.pulled
+        ).toBe(500);
+
+        const finished = run({
+            id: "exec-1",
+            status: "TIMEOUT",
+            completed_at: "2026-09-07T12:00:00.000Z",
+        });
+        expect(
+            mergeSyncRunsPreservingOptimisticRunning([finished], [seeded])[0]
+                ?.status
+        ).toBe("TIMEOUT");
+    });
+
+    it("keeps held RUNNING for display when syncRuns briefly empty after Start", () => {
+        const held = run({ id: "exec-2", status: "RUNNING" });
+        expect(
+            resolveDisplayBackfillProgressRun({
+                syncRuns: [],
+                progressRun: null,
+                heldProgressRun: held,
+                pendingBackfillReset: false,
+                progressUiReset: false,
+            })?.id
+        ).toBe("exec-2");
+
+        expect(
+            resolveDisplayBackfillProgressRun({
+                syncRuns: [],
+                progressRun: null,
+                heldProgressRun: null,
+                pendingBackfillReset: false,
+                progressUiReset: false,
+            })
         ).toBeNull();
     });
 

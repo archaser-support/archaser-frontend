@@ -1,3 +1,8 @@
+import {
+    getFormulaOutputKey,
+    isFormulaFilterField,
+} from "@/shared/reportFormula/types";
+
 export interface Relationship {
     from: string;
     to: string;
@@ -210,6 +215,151 @@ export const getSelectedTableNames = (selectedFields: Field[]): string[] => {
 };
 
 /**
+ * Entity/dashboard context → forced primary table.
+ * Keep in sync with `CONTEXT_PRIMARY_TABLE` in reports `report.constants.ts`.
+ */
+export const CONTEXT_PRIMARY_TABLE: Record<string, string> = {
+    customers: "Customer",
+    invoices: "Invoice",
+    contacts: "Contact",
+    customer_contacts: "Contact",
+    customer_banks: "CustomerBanks",
+    customer_unpaid_invoices: "Invoice",
+    disputes: "Dispute",
+    activities: "Activity",
+    "customer-collection-period": "CustomerCollectionPeriod",
+    dashboard_customers: "Customer",
+    dashboard_invoices: "Invoice",
+    dashboard_payments: "InvoicePayment",
+    dashboard_activities: "Activity",
+    dashboard_disputes: "Dispute",
+    dashboard_promises: "CustomerCollectionPeriod",
+    dashboard_credit_customers: "Customer",
+    dashboard_credit_invoices: "Invoice",
+};
+
+/**
+ * Resolve report grain: context override → primaryTable → tables[0] → fallback.
+ * Same precedence as backend execution (`resolveReportPrimaryTable`).
+ */
+export function resolveReportPrimaryTable(options: {
+    context?: string | null;
+    /** @deprecated Prefer `context`; kept for call sites that already resolved context primary. */
+    contextPrimary?: string | null;
+    primaryTable?: string | null;
+    tables?: string[] | null;
+    fallback?: string;
+}): string {
+    const fromContext =
+        options.contextPrimary ||
+        CONTEXT_PRIMARY_TABLE[options.context || ""];
+    if (fromContext) {
+        return fromContext;
+    }
+    if (options.primaryTable) {
+        return options.primaryTable;
+    }
+    if (options.tables?.[0]) {
+        return options.tables[0];
+    }
+    return options.fallback ?? "Customer";
+}
+
+/**
+ * Keep `preferredPrimary` at `tables[0]` when it is still in the list so legacy
+ * readers of `tables[0]` stay aligned with explicit `primaryTable`.
+ * Column / field reorder callers must pass the saved primary — never invent one
+ * from the first column's table.
+ */
+export function syncReportTablesWithPrimary(
+    tables: string[],
+    preferredPrimary?: string | null
+): string[] {
+    if (!preferredPrimary || tables.length === 0) {
+        return [...tables];
+    }
+    if (!tables.includes(preferredPrimary)) {
+        return [...tables];
+    }
+    if (tables[0] === preferredPrimary) {
+        return [...tables];
+    }
+    return [
+        preferredPrimary,
+        ...tables.filter((table) => table !== preferredPrimary),
+    ];
+}
+
+/**
+ * Next explicit primary after membership changes: keep previous when still
+ * active; otherwise first remaining table (or undefined when none).
+ */
+export function resolveNextReportPrimaryTable(
+    previousPrimary: string | null | undefined,
+    nextTables: string[]
+): string | undefined {
+    if (nextTables.length === 0) {
+        return undefined;
+    }
+    if (previousPrimary && nextTables.includes(previousPrimary)) {
+        return previousPrimary;
+    }
+    return nextTables[0];
+}
+
+/**
+ * Rebuild report `tables` from fields currently in use, while preserving
+ * primary (`preferredPrimary` or previous `tables[0]`) when that table is
+ * still selected. When `preferredPrimary` is still active it is always
+ * forced to index 0 — membership sync never flips grain from column order.
+ *
+ * Column / field reorder must not change which table is primary — execution
+ * uses context → primaryTable → tables[0] as the Prisma root row type.
+ */
+export function resolveReportTablesPreservingPrimary(
+    previousTables: string[],
+    activeTables: Iterable<string>,
+    preferredPrimary?: string | null
+): string[] {
+    const active = new Set(
+        Array.from(activeTables).filter((table) => !!table)
+    );
+    if (active.size === 0) {
+        return [];
+    }
+
+    const next: string[] = [];
+    const used = new Set<string>();
+
+    // Prefer explicit primary first when still active, then previous order.
+    const grain =
+        preferredPrimary && active.has(preferredPrimary)
+            ? preferredPrimary
+            : previousTables.find((table) => active.has(table)) ?? null;
+
+    if (grain) {
+        next.push(grain);
+        used.add(grain);
+    }
+
+    for (const table of previousTables) {
+        if (active.has(table) && !used.has(table)) {
+            next.push(table);
+            used.add(table);
+        }
+    }
+
+    for (const table of active) {
+        if (!used.has(table)) {
+            next.push(table);
+            used.add(table);
+        }
+    }
+
+    return syncReportTablesWithPrimary(next, preferredPrimary ?? grain);
+}
+
+/**
  * Check if a table can connect to the selected fields' tables
  */
 export const canTableConnect = (
@@ -393,10 +543,21 @@ type ReportFilterTranslate = (
 export function validateReportFilters(
     filters: ReportFilterRow[],
     t: ReportFilterTranslate,
-    options?: { skipTableFieldCheck?: boolean }
+    options?: {
+        skipTableFieldCheck?: boolean;
+        formulas?: Array<{ id: string }>;
+    }
 ): Record<number, string> {
     const errors: Record<number, string> = {};
     const skipTableFieldCheck = options?.skipTableFieldCheck === true;
+    const formulaKeys =
+        options?.formulas != null
+            ? new Set(
+                  options.formulas.map((formula) =>
+                      getFormulaOutputKey(formula.id)
+                  )
+              )
+            : null;
 
     filters.forEach((filter, index) => {
         if (!skipTableFieldCheck) {
@@ -407,6 +568,18 @@ export function validateReportFilters(
                 });
                 return;
             }
+        }
+
+        if (
+            formulaKeys &&
+            isFormulaFilterField(filter.field) &&
+            !formulaKeys.has(filter.field as string)
+        ) {
+            errors[index] = t("validation.orphan_formula_filter", {
+                defaultValue:
+                    "A filter references a formula that is not on this report. Remove or update the filter.",
+            });
+            return;
         }
 
         if (!isReportFilterValueIncomplete(filter)) {

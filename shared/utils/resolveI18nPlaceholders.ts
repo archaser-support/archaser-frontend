@@ -1,4 +1,5 @@
 import type { TFunction } from "i18next";
+import { formatDateForDisplay, getUserDateLocale } from "@/utils/datetimeOperations";
 
 export type I18nTranslateFn = (
     key: string,
@@ -77,6 +78,55 @@ function normalizeNamespacedKey(rawKey: string): {
     return { ns, key: rest };
 }
 
+function formatParamValueIfDate(
+    name: string,
+    value: unknown,
+    formatters?: PlaceholderFormatters
+): unknown {
+    if (value == null) {
+        return value;
+    }
+    if (value instanceof Date && !isNaN(value.getTime())) {
+        return (formatters?.formatDate ?? defaultFormatDate)(value, "datetime");
+    }
+    if (typeof value !== "string") {
+        return value;
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+        return value;
+    }
+
+    const isIsoDateTime = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/i.test(trimmed);
+    const isIsoDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(trimmed);
+
+    if (isIsoDateTime || isIsoDateOnly) {
+        const parsed = parseEmbeddedDate(trimmed, isIsoDateOnly);
+        if (parsed) {
+            const kind = isIsoDateOnly ? "date" : "datetime";
+            return (formatters?.formatDate ?? defaultFormatDate)(parsed, kind);
+        }
+    }
+
+    const isDateName = /^(time|date|dateTime|timestamp|at|timeAt|scheduledAt|followUpTime|paymentDate)$/i.test(name);
+
+    if (isDateName && !isNaN(Date.parse(trimmed))) {
+        // If string contains letters (e.g. AM/PM) and is not ISO (Z), it is already formatted for display
+        if (/[a-zA-Z]/.test(trimmed) && !trimmed.endsWith("Z")) {
+            return value;
+        }
+        const parsed = new Date(trimmed);
+        if (!isNaN(parsed.getTime())) {
+            const hasTime = /[0-9]{1,2}:[0-9]{2}/.test(trimmed) || isDateName;
+            const kind = hasTime ? "datetime" : "date";
+            return (formatters?.formatDate ?? defaultFormatDate)(parsed, kind);
+        }
+    }
+
+    return value;
+}
+
 /**
  * Stored `title_params` values are frequently namespaced keys themselves
  * (e.g. `oldCategory: "customers.values.category_promise_to_pay"`), so they must
@@ -85,13 +135,15 @@ function normalizeNamespacedKey(rawKey: string): {
  */
 function resolveParamValues(
     params: Record<string, unknown> | undefined,
-    t: I18nTranslateFn
+    t: I18nTranslateFn,
+    formatters?: PlaceholderFormatters
 ): Record<string, unknown> | undefined {
     if (!params) {
         return params;
     }
     const resolved: Record<string, unknown> = {};
-    for (const [name, value] of Object.entries(params)) {
+    for (const [name, rawValue] of Object.entries(params)) {
+        const value = formatParamValueIfDate(name, rawValue, formatters);
         if (typeof value !== "string") {
             resolved[name] = value;
             continue;
@@ -99,7 +151,7 @@ function resolveParamValues(
         const wrapped = value.trim().match(WRAPPED_KEY_RE);
         const candidate = wrapped ? wrapped[1].trim() : value.trim();
         resolved[name] = NAMESPACED_KEY_RE.test(candidate.replace(/\s+/g, "_"))
-            ? (translateNamespaced(candidate, t) ?? value)
+            ? (translateNamespaced(candidate, t, undefined, formatters) ?? value)
             : value;
     }
     return resolved;
@@ -130,7 +182,8 @@ function stripUnresolvedPlaceholders(text: string): string {
 function translateNamespaced(
     fullKey: string,
     t: I18nTranslateFn,
-    params?: Record<string, unknown>
+    params?: Record<string, unknown>,
+    formatters?: PlaceholderFormatters
 ): string | null {
     const normalized = normalizeNamespacedKey(fullKey);
     if (!normalized) {
@@ -140,7 +193,7 @@ function translateNamespaced(
     const translated = t(key, {
         ns,
         defaultValue: "___NOT_FOUND___",
-        ...(resolveParamValues(params, t) || {}),
+        ...(resolveParamValues(params, t, formatters) || {}),
     });
     if (
         translated &&
@@ -161,7 +214,8 @@ function translateNamespaced(
 export function translateStoredI18nKey(
     raw: string,
     t: I18nTranslateFn,
-    params?: Record<string, unknown>
+    params?: Record<string, unknown>,
+    formatters?: PlaceholderFormatters
 ): string {
     if (!raw || typeof raw !== "string") {
         return raw || "";
@@ -171,7 +225,7 @@ export function translateStoredI18nKey(
     const wrapped = trimmed.match(WRAPPED_KEY_RE);
     const candidate = wrapped ? wrapped[1].trim() : trimmed;
 
-    const translated = translateNamespaced(candidate, t, params);
+    const translated = translateNamespaced(candidate, t, params, formatters);
     if (translated) {
         return translated;
     }
@@ -181,7 +235,7 @@ export function translateStoredI18nKey(
         const fromActivities = t(candidate, {
             ns: "activities",
             defaultValue: "___NOT_FOUND___",
-            ...(resolveParamValues(params, t) || {}),
+            ...(resolveParamValues(params, t, formatters) || {}),
         });
         if (
             fromActivities &&
@@ -214,12 +268,7 @@ function parseEmbeddedDate(value: string, dateOnly: boolean): Date | null {
 }
 
 function defaultFormatDate(date: Date, kind: "date" | "datetime"): string {
-    return date.toLocaleString(undefined, {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        ...(kind === "datetime" ? { hour: "2-digit", minute: "2-digit" } : {}),
-    });
+    return formatDateForDisplay(date, kind, getUserDateLocale(null));
 }
 
 /**
@@ -273,7 +322,7 @@ export function resolveI18nPlaceholders(
         if (prefixed !== null) {
             return prefixed;
         }
-        return translateStoredI18nKey(raw, t, params);
+        return translateStoredI18nKey(raw, t, params, formatters);
     }
 
     return raw.replace(PLACEHOLDER_RE, (match, inner: string) => {
@@ -283,13 +332,14 @@ export function resolveI18nPlaceholders(
             return prefixed;
         }
         if (NAMESPACED_KEY_RE.test(token.replace(/\s+/g, "_"))) {
-            const translated = translateNamespaced(token, t, params);
+            const translated = translateNamespaced(token, t, params, formatters);
             if (translated) {
                 return translated;
             }
         }
         if (params && Object.prototype.hasOwnProperty.call(params, token)) {
-            const value = params[token];
+            const rawValue = params[token];
+            const value = formatParamValueIfDate(token, rawValue, formatters);
             if (value == null) {
                 return "";
             }
@@ -301,7 +351,7 @@ export function resolveI18nPlaceholders(
                 typeof value === "string" &&
                 NAMESPACED_KEY_RE.test(value.replace(/\s+/g, "_"))
             ) {
-                return translateStoredI18nKey(value, t) || String(value);
+                return translateStoredI18nKey(value, t, undefined, formatters) || String(value);
             }
             return String(value);
         }

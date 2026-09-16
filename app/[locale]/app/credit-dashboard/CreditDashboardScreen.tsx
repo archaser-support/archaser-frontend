@@ -24,7 +24,6 @@ import { Trans, useTranslation } from "react-i18next";
 
 import PageHeader from "@/components/PageHeader";
 import BusinessUnitDashboardFilter from "@/shared/components/BusinessUnitDashboardFilter";
-import { CreditInsuranceNavIcon } from "@/shared/components/CreditInsuranceNavIcon";
 import type { CreditDashboardHistoryDelta, CreditDashboardHistoryInterval, CreditDashboardHistoryPoint, CreditDashboardMonthPct } from "@/types/creditInsurance";
 import type { CustomerPolicyUsageTrendResponse } from "@/types/creditInsurance";
 import type { CreditDashboardSummary } from "@/types/creditInsurance";
@@ -47,6 +46,9 @@ import { CreditMetricCard } from "./CreditMetricCard";
 import { CreditPolicyUsageChart } from "./CreditPolicyUsageChart";
 import { CreditTermsBreachBarChart } from "./CreditTermsBreachBarChart";
 import { CreditPolicyLimitUsageTrendChart } from "./CreditPolicyLimitUsageTrendChart";
+import { formatPortfolioMoney } from "../credit-portfolio-health/formatPortfolioMoney";
+import { applyCreditReportDocumentTitle } from "./report/creditReportTitles";
+import { isCreditReportType } from "./report/creditReportTypes";
 
 function fmt(n: number, language: string): string {
     return new Intl.NumberFormat(
@@ -121,6 +123,22 @@ export function CreditDashboardScreen({
     const pageDescription = t("credit_insurance_dashboard.page_description", {
         ns: "dashboard",
     });
+
+    const navigateToReport = (path: string) => {
+        // Safari records the session-history title at navigation time; set it
+        // before router.push so back-list entries are not stuck on "ARchaser".
+        try {
+            const typeParam = new URL(path, "http://local").searchParams.get(
+                "type"
+            );
+            if (typeParam && isCreditReportType(typeParam)) {
+                applyCreditReportDocumentTitle(t, typeParam);
+            }
+        } catch {
+            // ignore URL parse errors; navigation still proceeds
+        }
+        onNavigateReport(path);
+    };
 
     const dashboardShellSx = {
         display: "flex",
@@ -262,6 +280,7 @@ export function CreditDashboardScreen({
     };
 
     const showTopUpMetrics = s.hasTopUpPolicies && s.topUp != null;
+    const currency = s.accountCurrency || "USD";
 
     const notificationBannerSx = {
         display: "flex",
@@ -514,8 +533,9 @@ export function CreditDashboardScreen({
                                         "credit_insurance_dashboard.total_receivables",
                                         { ns: "dashboard" }
                                     )}
-                                    value={fmt(
+                                    value={formatPortfolioMoney(
                                         s.totalReceivables,
+                                        currency,
                                         language
                                     )}
                                     tooltip={t(
@@ -532,8 +552,9 @@ export function CreditDashboardScreen({
                                         "credit_insurance_dashboard.compliant_exposure",
                                         { ns: "dashboard" }
                                     )}
-                                    value={fmt(
+                                    value={formatPortfolioMoney(
                                         s.compliantExposure,
+                                        currency,
                                         language
                                     )}
                                     tooltip={t(
@@ -550,8 +571,9 @@ export function CreditDashboardScreen({
                                         "credit_insurance_dashboard.at_risk_exposure",
                                         { ns: "dashboard" }
                                     )}
-                                    value={fmt(
+                                    value={formatPortfolioMoney(
                                         s.atRiskExposure,
+                                        currency,
                                         language
                                     )}
                                     tooltip={t(
@@ -621,6 +643,9 @@ export function CreditDashboardScreen({
                                         delta={historyDelta}
                                         interval={trendInterval}
                                         historyDays={historyDays}
+                                        accountCurrency={
+                                            s.accountCurrency || "USD"
+                                        }
                                         onIntervalChange={onTrendIntervalChange}
                                     />
                                 </Box>
@@ -665,7 +690,7 @@ export function CreditDashboardScreen({
                                     changePct={monthPct?.reportingCountdownInvoiceCount}
                                     changePolarity="up-is-bad"
                                     onClick={() =>
-                                        onNavigateReport(reportHref("reporting"))
+                                        navigateToReport(reportHref("reporting"))
                                     }
                                 />
                                 <CreditMetricCard
@@ -679,16 +704,35 @@ export function CreditDashboardScreen({
                                         s.limitWarnings.customerCount,
                                         language
                                     )}
-                                    footnote={t(
-                                        "credit_insurance_dashboard.limit_warnings_subtitle",
-                                        {
-                                            ns: "dashboard",
-                                            threshold_pct:
-                                                s.limitWarnings.thresholdPct,
-                                            score_warn_days:
-                                                s.limitWarnings.scoreWarnDays,
-                                        }
-                                    )}
+                                    footnote={
+                                        [
+                                            t(
+                                                "credit_insurance_dashboard.limit_warnings_subtitle",
+                                                {
+                                                    ns: "dashboard",
+                                                    threshold_pct:
+                                                        s.limitWarnings.thresholdPct,
+                                                    score_warn_days:
+                                                        s.limitWarnings.scoreWarnDays,
+                                                }
+                                            ),
+                                            (s.limitWarnings.projectedCustomerCount ??
+                                                0) > 0
+                                                ? t(
+                                                      "credit_insurance_dashboard.limit_warnings_projected_footnote",
+                                                      {
+                                                          ns: "dashboard",
+                                                          count: s.limitWarnings
+                                                              .projectedCustomerCount,
+                                                          defaultValue:
+                                                              "{{count}} projected utilization crossings (150%/200%).",
+                                                      }
+                                                  )
+                                                : null,
+                                        ]
+                                            .filter(Boolean)
+                                            .join(" ")
+                                    }
                                     tooltip={t(
                                         "tooltips.credit_insurance_metric_limit_warnings",
                                         { ns: "dashboard" }
@@ -696,7 +740,7 @@ export function CreditDashboardScreen({
                                     changePct={monthPct?.limitWarningsCustomerCount}
                                     changePolarity="up-is-bad"
                                     onClick={() =>
-                                        onNavigateReport(
+                                        navigateToReport(
                                             reportHref("limit_warning")
                                         )
                                     }
@@ -710,8 +754,9 @@ export function CreditDashboardScreen({
                                                 "credit_insurance_dashboard.active_top_up_cover",
                                                 { ns: "dashboard" }
                                             )}
-                                            value={fmt(
+                                            value={formatPortfolioMoney(
                                                 s.topUp.activeCoverTotal,
+                                                currency,
                                                 language
                                             )}
                                             footnote={
@@ -724,10 +769,11 @@ export function CreditDashboardScreen({
                                                             count: s.topUp
                                                                 .coverDeclinedDueToLimit
                                                                 .customerCount,
-                                                            amount: fmt(
+                                                            amount: formatPortfolioMoney(
                                                                 s.topUp
                                                                     .coverDeclinedDueToLimit
                                                                     .coverLostTotal,
+                                                                currency,
                                                                 language
                                                             ),
                                                         }
@@ -752,7 +798,7 @@ export function CreditDashboardScreen({
                                                 { ns: "dashboard" }
                                             )}
                                             onClick={() =>
-                                                onNavigateReport(
+                                                navigateToReport(
                                                     reportHref(
                                                         "top_up",
                                                         (s.topUp
@@ -789,7 +835,7 @@ export function CreditDashboardScreen({
                                         { ns: "dashboard" }
                                     )}
                                     onClick={() =>
-                                        onNavigateReport(
+                                        navigateToReport(
                                             reportHref("zero_limit_warning")
                                         )
                                     }
@@ -810,7 +856,7 @@ export function CreditDashboardScreen({
                                 <CreditTermsBreachBarChart
                                     countByReason={s.termsBreach.countByReason}
                                     onOpenReport={() =>
-                                        onNavigateReport(reportHref("terms"))
+                                        navigateToReport(reportHref("terms"))
                                     }
                                 />
                                 <Box
@@ -831,8 +877,9 @@ export function CreditDashboardScreen({
                                             "credit_insurance_dashboard.capacity_gap",
                                             { ns: "dashboard" }
                                         )}
-                                        value={fmt(
+                                        value={formatPortfolioMoney(
                                             s.capacityGap.totalAmount,
+                                            currency,
                                             language
                                         )}
                                         secondaryLine={t(
@@ -850,7 +897,7 @@ export function CreditDashboardScreen({
                                         changePct={monthPct?.capacityGapTotalAmount}
                                         changePolarity="up-is-bad"
                                         onClick={() =>
-                                            onNavigateReport(reportHref("capacity"))
+                                            navigateToReport(reportHref("capacity"))
                                         }
                                     />
                                     <CreditMetricCard
@@ -876,7 +923,7 @@ export function CreditDashboardScreen({
                                         changePct={monthPct?.overdueBlockCustomerCount}
                                         changePolarity="up-is-bad"
                                         onClick={() =>
-                                            onNavigateReport(reportHref("overdue"))
+                                            navigateToReport(reportHref("overdue"))
                                         }
                                     />
                                     <CreditMetricCard
@@ -886,8 +933,9 @@ export function CreditDashboardScreen({
                                             "credit_insurance_dashboard.terms_breach",
                                             { ns: "dashboard" }
                                         )}
-                                        value={fmt(
+                                        value={formatPortfolioMoney(
                                             s.termsBreach.totalAmount,
+                                            currency,
                                             language
                                         )}
                                         secondaryLine={t(
@@ -904,7 +952,7 @@ export function CreditDashboardScreen({
                                         changePct={monthPct?.termsBreachTotalAmount}
                                         changePolarity="up-is-bad"
                                         onClick={() =>
-                                            onNavigateReport(reportHref("terms"))
+                                            navigateToReport(reportHref("terms"))
                                         }
                                     />
                                     <CreditMetricCard
@@ -914,8 +962,9 @@ export function CreditDashboardScreen({
                                             "credit_insurance_dashboard.no_policy_exposure",
                                             { ns: "dashboard" }
                                         )}
-                                        value={fmt(
+                                        value={formatPortfolioMoney(
                                             s.withoutPolicy.totalAmount,
+                                            currency,
                                             language
                                         )}
                                         secondaryLine={t(
@@ -938,7 +987,7 @@ export function CreditDashboardScreen({
                                         }
                                         changePolarity="up-is-bad"
                                         onClick={() =>
-                                            onNavigateReport(
+                                            navigateToReport(
                                                 reportHref("no_policy_exposure")
                                             )
                                         }

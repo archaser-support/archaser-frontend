@@ -15,6 +15,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
 import AppUrls from "@/utils/appUrls";
+import { pushFinancialChartDetails } from "@/shared/dashboard/financialChartDetailsTitle";
 import { useDashboardBusinessUnitId } from "@/shared/dashboard/DashboardBusinessUnitContext";
 import { appendDashboardBusinessUnitId } from "@/shared/dashboard/dashboardBusinessUnitParams";
 
@@ -140,8 +141,11 @@ const ReceivablesMaturitySchedule = ({
             }),
             businessUnitId
         );
-        router.push(
-            `${AppUrls.DASHBOARD}/chart-details?${searchParams.toString()}`
+        pushFinancialChartDetails(
+            router,
+            `${AppUrls.DASHBOARD}/chart-details?${searchParams.toString()}`,
+            t,
+            locale
         );
     };
 
@@ -371,17 +375,19 @@ const ReceivablesMaturitySchedule = ({
                                             >
                                                 {Number(row.amount) === 0
                                                     ? formatCurrencyWithRTLSupport(
-                                                        0,
-                                                        currency,
-                                                        locale,
-                                                        i18n.language
-                                                    )
+                                                          0,
+                                                          currency,
+                                                          locale,
+                                                          i18n.language,
+                                                          { wholeNumbers: true }
+                                                      )
                                                     : formatCurrencyWithRTLSupport(
-                                                        Number(row.amount),
-                                                        currency,
-                                                        locale,
-                                                        i18n.language
-                                                    )}
+                                                          Number(row.amount),
+                                                          currency,
+                                                          locale,
+                                                          i18n.language,
+                                                          { wholeNumbers: true }
+                                                      )}
                                             </TableCell>
                                             <TableCell
                                                 sx={{

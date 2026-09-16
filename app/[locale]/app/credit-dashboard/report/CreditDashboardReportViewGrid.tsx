@@ -13,7 +13,7 @@ import {
     MenuItem,
     Popover,
 } from "@mui/material";
-import type { GridRenderCellParams } from "@mui/x-data-grid";
+import type { GridRenderCellParams } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -41,6 +41,9 @@ interface CreditDashboardReportViewGridProps {
     withinDays?: number | null;
     topUpReason?: string | null;
     utilizationBin?: string | null;
+    fromDate?: string | null;
+    toDate?: string | null;
+    /** @deprecated Prefer fromDate/toDate. */
     asOfDate?: string | null;
     viewportRecalcDependency?: unknown;
 }
@@ -63,6 +66,8 @@ export const CreditDashboardReportViewGrid: React.FC<
     withinDays,
     topUpReason,
     utilizationBin = null,
+    fromDate = null,
+    toDate = null,
     asOfDate = null,
     viewportRecalcDependency,
 }) => {
@@ -98,6 +103,8 @@ export const CreditDashboardReportViewGrid: React.FC<
                 withinDays,
                 topUpReason,
                 utilizationBin,
+                fromDate,
+                toDate,
                 asOfDate,
             }),
         [
@@ -110,6 +117,8 @@ export const CreditDashboardReportViewGrid: React.FC<
             withinDays,
             topUpReason,
             utilizationBin,
+            fromDate,
+            toDate,
             asOfDate,
         ]
     );

@@ -49,13 +49,8 @@ export default defineConfig({
             "../tests/frontend/unit/portal/components/PortalHeader.test.tsx", // EMFILE: too many open files
             "../tests/frontend/unit/utils/amplifyBuildGuards.test.ts",
             "../tests/frontend/unit/utils/authUtils.test.ts",
-            "../tests/frontend/unit/app/customers/customerDashboardDailyCostViewModel.test.ts",
         ],
-        poolOptions: {
-            forks: {
-                singleFork: true,
-            },
-        },
+        maxWorkers: 1,
         // Reduce file system operations
         maxConcurrency: 1,
         fileParallelism: false,
@@ -78,7 +73,7 @@ export default defineConfig({
             "@/utils": fileURLToPath(new URL("./utils", import.meta.url)),
             "@/types": fileURLToPath(new URL("./types", import.meta.url)),
             "@/test": fileURLToPath(new URL("../tests/frontend", import.meta.url)),
-                        "@archaser/openapi-client": path.resolve(
+            "@archaser/openapi-client": path.resolve(
                 path.dirname(fileURLToPath(import.meta.url)),
                 "../backend/packages/openapi-client/src/index.ts",
             ),

@@ -1,4 +1,4 @@
-﻿import api from "@/app/api";
+import api from "@/app/api";
 import type { ConnectorAuthType, BillingProvider, ImportType } from "@/types/db";
 
 import type { MappingRule } from "@/shared/constants/importEntityFields";
@@ -121,6 +121,8 @@ export interface BillingConnectorConfig {
     daily_time_utc?: string;
     weekly_day?: number;
     next_scheduled_sync_at_utc?: string | null;
+    /** Oldest enabled-entity last_successful_run_at (account-wide freshness). */
+    last_sync_at?: string | null;
     schedule_warning?: string | null;
     sync_states?: ConnectorSyncStatePublic[];
 }
@@ -163,6 +165,10 @@ export interface SyncRunSummary {
                 step: string;
                 processed?: number;
                 total?: number;
+                customer_id?: number;
+                customer_label?: string;
+                customer_index?: number;
+                customer_total?: number;
             };
         }
     >;
@@ -427,6 +433,73 @@ export async function fetchBillingConnectorPreviewResult(
     return response.data;
 }
 
+export type ImportCacheEntityType = Extract<
+    ImportType,
+    "Customer" | "Contact" | "Invoice" | "Payment"
+>;
+
+export interface ImportCacheRunEntity {
+    import_type: ImportCacheEntityType;
+    row_count: number;
+    available: boolean;
+}
+
+export interface ImportCacheRun {
+    execution_id: string;
+    created_at: string;
+    sync_mode: "BACKFILL" | "INCREMENTAL";
+    cache_day: string;
+    customer_scope: string;
+    entities: ImportCacheRunEntity[];
+}
+
+export interface ImportCacheDaySummary {
+    cache_day: string;
+    run_count: number;
+}
+
+export interface ImportCacheCheckResponse {
+    sync_mode: "BACKFILL" | "INCREMENTAL";
+    /** Selected / default day for `runs[]` (null when no TTL days). */
+    cache_day: string | null;
+    customer_scope: string;
+    time_zone: string;
+    days: ImportCacheDaySummary[];
+    runs: ImportCacheRun[];
+}
+
+/** Mongo import-cache days + runs for manual Start suggestion (TTL window). */
+export async function fetchBillingConnectorImportCacheCheck(
+    accountId: number,
+    options: {
+        mode: "backfill" | "incremental";
+        customer_id?: number | null;
+        cache_day?: string | null;
+    }
+): Promise<ImportCacheCheckResponse> {
+    const params: Record<string, string | number> = {
+        mode: options.mode,
+    };
+    if (
+        typeof options.customer_id === "number" &&
+        Number.isFinite(options.customer_id) &&
+        options.customer_id > 0
+    ) {
+        params.customer_id = Math.trunc(options.customer_id);
+    }
+    if (
+        typeof options.cache_day === "string" &&
+        /^\d{4}-\d{2}-\d{2}$/.test(options.cache_day.trim())
+    ) {
+        params.cache_day = options.cache_day.trim();
+    }
+    const response = await api.get<ImportCacheCheckResponse>(
+        `${basePath(accountId)}/sync/cache-check`,
+        { params }
+    );
+    return response.data;
+}
+
 export async function runBillingConnectorBackfill(
     accountId: number,
     options?: {
@@ -434,6 +507,8 @@ export async function runBillingConnectorBackfill(
             "Customer" | "Contact" | "Invoice" | "Payment"
         >;
         customer_id?: number | null;
+        use_cached_import?: ImportCacheEntityType[];
+        use_cached_execution_id?: string;
     }
 ) {
     const body: Record<string, unknown> = {};
@@ -446,6 +521,14 @@ export async function runBillingConnectorBackfill(
         options.customer_id > 0
     ) {
         body.customer_id = Math.trunc(options.customer_id);
+    }
+    if (
+        options?.use_cached_import &&
+        options.use_cached_import.length > 0 &&
+        options.use_cached_execution_id
+    ) {
+        body.use_cached_import = options.use_cached_import;
+        body.use_cached_execution_id = options.use_cached_execution_id;
     }
     const response = await api.post(`${basePath(accountId)}/sync`, body, {
         params: { mode: "backfill" },
@@ -489,8 +572,23 @@ export async function searchBillingConnectorCustomers(
     return response.data.items ?? [];
 }
 
-export async function runBillingConnectorIncrementalSync(accountId: number) {
-    const response = await api.post(`${basePath(accountId)}/sync`, {}, {
+export async function runBillingConnectorIncrementalSync(
+    accountId: number,
+    options?: {
+        use_cached_import?: ImportCacheEntityType[];
+        use_cached_execution_id?: string;
+    }
+) {
+    const body: Record<string, unknown> = {};
+    if (
+        options?.use_cached_import &&
+        options.use_cached_import.length > 0 &&
+        options.use_cached_execution_id
+    ) {
+        body.use_cached_import = options.use_cached_import;
+        body.use_cached_execution_id = options.use_cached_execution_id;
+    }
+    const response = await api.post(`${basePath(accountId)}/sync`, body, {
         params: { mode: "incremental" },
     });
     return response.data.result;
@@ -504,7 +602,7 @@ export async function fetchBillingConnectorSyncRuns(
         `${basePath(accountId)}/sync-runs`,
         { params: { limit } }
     );
-    return response.data.runs;
+    return response.data.runs ?? [];
 }
 
 /** Durable Mongo sync history (last 90 days). Live progress stays on `/sync-runs`. */

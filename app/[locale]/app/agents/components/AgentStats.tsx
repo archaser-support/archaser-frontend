@@ -76,8 +76,9 @@ const AgentStats: React.FC<AgentStatsProps> = ({ statsData, statsLoading }) => {
                           Number(counts?.total_outstanding_amount ?? 0),
                           currency,
                           locale,
-                          i18n.language
-                      ),
+                          i18n.language,
+                          { wholeNumbers: true }
+                        ),
         },
     ];
 
