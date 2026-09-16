@@ -52,13 +52,6 @@ export const attachment_category = {
 } as const;
 export type attachment_category = (typeof attachment_category)[keyof typeof attachment_category];
 
-export const BillingConnectorStatus = {
-    Active: "Active",
-    Disabled: "Disabled",
-    Error: "Error",
-} as const;
-export type BillingConnectorStatus = (typeof BillingConnectorStatus)[keyof typeof BillingConnectorStatus];
-
 export const BillingProvider = {
     PRIORITY: "PRIORITY",
     SAP_BUSINESS_ONE: "SAP_BUSINESS_ONE",
@@ -693,7 +686,6 @@ export type BillingConnector = {
     id: number;
     account_id: number;
     provider: BillingProvider;
-    status: BillingConnectorStatus;
     base_url: string | null;
     auth_type: ConnectorAuthType;
     credentials_encrypted: string | null;

@@ -24,7 +24,10 @@ import {
 } from "@/app/[locale]/app/credit-dashboard/CreditDashboardPolicySelect";
 import { CreditDashboardExcludedCustomersFilter } from "@/app/[locale]/app/credit-dashboard/CreditDashboardExcludedCustomersFilter";
 import BusinessUnitDashboardFilter from "@/shared/components/BusinessUnitDashboardFilter";
-import { PORTFOLIO_HEALTH_LARGE_RANGE_DAYS } from "@/shared/creditInsurance/portfolioHealthDateRange";
+import {
+    countInclusiveCalendarDays,
+    PORTFOLIO_HEALTH_LARGE_RANGE_DAYS,
+} from "@/shared/creditInsurance/portfolioHealthDateRange";
 import DeleteDialog from "@/shared/layout-components/modal/DeleteDialog";
 import Seo from "@/shared/layout-components/seo/seo";
 import { getRTLTooltipProps } from "@/utils/reportFieldUtils";
@@ -72,9 +75,11 @@ export type CreditPortfolioHealthScreenProps = {
     error: Error | null;
     backfillJob: CreditAsOfBackfillJobView | undefined;
     onGenerateSnapshots: () => void;
+    onGenerateRecentSnapshots: () => void;
     onStopGenerate: () => void;
     onRetryGenerate: () => void;
     generatePending: boolean;
+    generateRecentPending: boolean;
     stopPending: boolean;
     retryPending: boolean;
     ignoreReportingBreach: boolean;
@@ -140,9 +145,11 @@ export function CreditPortfolioHealthScreen({
     error,
     backfillJob,
     onGenerateSnapshots,
+    onGenerateRecentSnapshots,
     onStopGenerate,
     onRetryGenerate,
     generatePending,
+    generateRecentPending,
     stopPending,
     retryPending,
     ignoreReportingBreach,
@@ -168,18 +175,13 @@ export function CreditPortfolioHealthScreen({
         data?.costs?.accountCurrency,
         session?.user?.currency,
     ]);
-    const [confirmingLargeGenerate, setConfirmingLargeGenerate] =
-        useState(false);
+    const [confirmingLargeGenerate, setConfirmingLargeGenerate] = useState<
+        null | "full" | "recent"
+    >(null);
     const isLargeGenerateRange =
         generateDaysInRange > PORTFOLIO_HEALTH_LARGE_RANGE_DAYS;
     const titleClickCountRef = useRef(0);
     const titleClickResetTimerRef = useRef<number | null>(null);
-
-    useEffect(() => {
-        if (!isLargeGenerateRange) {
-            setConfirmingLargeGenerate(false);
-        }
-    }, [isLargeGenerateRange, generateDaysInRange]);
 
     const pageTitle = t("credit_portfolio_health.page_title", {
         ...ns,
@@ -329,8 +331,33 @@ export function CreditPortfolioHealthScreen({
             : 0;
     const showIndeterminateProgress =
         isBackfillRunning && (backfillJob?.daysDone ?? 0) === 0;
+    const startActionsPending = generatePending || generateRecentPending;
     const generateDisabled =
-        isBackfillRunning || generatePending || stopPending || retryPending;
+        isBackfillRunning ||
+        startActionsPending ||
+        stopPending ||
+        retryPending;
+    const pendingRewrite = backfillJob?.pendingRewrite ?? null;
+    const pendingRewriteDays = pendingRewrite
+        ? countInclusiveCalendarDays(pendingRewrite.from, pendingRewrite.to)
+        : 0;
+    const isLargeRecentRange =
+        pendingRewriteDays > PORTFOLIO_HEALTH_LARGE_RANGE_DAYS;
+    const generateRecentDisabled =
+        generateDisabled || pendingRewrite == null;
+    const generateRecentTooltip = pendingRewrite
+        ? t("credit_portfolio_health.generate_recent_snapshots_tooltip", {
+              ...ns,
+              from: pendingRewrite.from,
+              to: pendingRewrite.to,
+              defaultValue:
+                  "Rebuilds portfolio health for the pending rewrite window ({{from}} – {{to}}). Does not use the page date range. Ignore reporting breach applies only to this run; nightly may rewrite the same days later with reporting-late counted.",
+          })
+        : t("credit_portfolio_health.generate_recent_disabled_reason", {
+              ...ns,
+              defaultValue:
+                  "No pending rewrite window. Generate recent is available after an import enqueues days for nightly rewrite.",
+          });
     const backfillUpdatedAtMs = backfillJob?.updatedAt
         ? Date.parse(backfillJob.updatedAt)
         : 0;
@@ -342,22 +369,59 @@ export function CreditPortfolioHealthScreen({
         backfillStatus === "running" ||
         backfillStatus === "paused" ||
         backfillStatus === "failed" ||
-        generatePending;
+        startActionsPending;
     const showDataRefreshSpinner =
         activeTab !== "policy-summary" && (isLoading || isFetching);
 
+    useEffect(() => {
+        if (
+            (confirmingLargeGenerate === "full" && !isLargeGenerateRange) ||
+            (confirmingLargeGenerate === "recent" && !isLargeRecentRange)
+        ) {
+            setConfirmingLargeGenerate(null);
+        }
+    }, [
+        confirmingLargeGenerate,
+        isLargeGenerateRange,
+        isLargeRecentRange,
+        generateDaysInRange,
+        pendingRewriteDays,
+    ]);
+
     const handleGenerateClick = () => {
         if (isLargeGenerateRange) {
-            setConfirmingLargeGenerate(true);
+            setConfirmingLargeGenerate("full");
             return;
         }
         onGenerateSnapshots();
     };
 
+    const handleGenerateRecentClick = () => {
+        if (isLargeRecentRange) {
+            setConfirmingLargeGenerate("recent");
+            return;
+        }
+        onGenerateRecentSnapshots();
+    };
+
     const handleConfirmLargeGenerate = () => {
-        setConfirmingLargeGenerate(false);
+        const mode = confirmingLargeGenerate;
+        setConfirmingLargeGenerate(null);
+        if (mode === "recent") {
+            onGenerateRecentSnapshots();
+            return;
+        }
         onGenerateSnapshots();
     };
+
+    const largeConfirmDays =
+        confirmingLargeGenerate === "recent"
+            ? pendingRewriteDays
+            : generateDaysInRange;
+    const largeConfirmPending =
+        confirmingLargeGenerate === "recent"
+            ? generateRecentPending
+            : generatePending;
 
     const estimatedRemainingLabel =
         backfillJob?.estimatedSecondsRemaining != null &&
@@ -501,7 +565,7 @@ export function CreditPortfolioHealthScreen({
                                 {
                                     ...ns,
                                     defaultValue:
-                                        "Only this Generate. Snapshots treat reporting-late as off. Invoice records and the nightly job stay unchanged.",
+                                        "Only this Generate or Generate recent run. Snapshots treat reporting-late as off. Invoice records stay unchanged. After Generate recent, nightly drain may still rewrite the same days later with reporting-late counted while the queue stays pending.",
                                 }
                             )}
                             {...getRTLTooltipProps(i18n)}
@@ -562,6 +626,27 @@ export function CreditPortfolioHealthScreen({
                                 </Button>
                             </span>
                         </Tooltip>
+                        <Tooltip
+                            title={generateRecentTooltip}
+                            {...getRTLTooltipProps(i18n)}
+                        >
+                            <span>
+                                <Button
+                                    variant="contained"
+                                    size="small"
+                                    disabled={generateRecentDisabled}
+                                    onClick={handleGenerateRecentClick}
+                                >
+                                    {t(
+                                        "credit_portfolio_health.generate_recent_snapshots",
+                                        {
+                                            ...ns,
+                                            defaultValue: "Generate recent",
+                                        }
+                                    )}
+                                </Button>
+                            </span>
+                        </Tooltip>
                         {isBackfillRunning ? (
                             <Button
                                 variant="outlined"
@@ -581,7 +666,7 @@ export function CreditPortfolioHealthScreen({
                             <Button
                                 variant="outlined"
                                 size="small"
-                                disabled={retryPending || generatePending}
+                                disabled={retryPending || startActionsPending}
                                 onClick={onRetryGenerate}
                             >
                                 {isStaleRunning
@@ -988,8 +1073,8 @@ export function CreditPortfolioHealthScreen({
                 </Box>
             </Box>
             <DeleteDialog
-                isOpen={confirmingLargeGenerate}
-                onClose={() => setConfirmingLargeGenerate(false)}
+                isOpen={confirmingLargeGenerate != null}
+                onClose={() => setConfirmingLargeGenerate(null)}
                 onConfirm={handleConfirmLargeGenerate}
                 title={t("credit_portfolio_health.large_range_confirm_title", {
                     ...ns,
@@ -1001,7 +1086,7 @@ export function CreditPortfolioHealthScreen({
                         ...ns,
                         defaultValue:
                             "Generate {{days}} days of snapshot history? This can take a while on large accounts.",
-                        days: generateDaysInRange,
+                        days: largeConfirmDays,
                     }
                 )}
                 confirmLabel={t(
@@ -1018,8 +1103,12 @@ export function CreditPortfolioHealthScreen({
                         defaultValue: "Cancel",
                     }
                 )}
-                isLoading={generatePending}
-                confirmDisabled={generateDisabled}
+                isLoading={largeConfirmPending}
+                confirmDisabled={
+                    confirmingLargeGenerate === "recent"
+                        ? generateRecentDisabled
+                        : generateDisabled
+                }
                 type="warning"
                 maxWidth="sm"
                 locale={i18n.language}

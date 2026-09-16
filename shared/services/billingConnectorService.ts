@@ -50,7 +50,6 @@ export interface BillingConnectorConfig {
     id: number;
     account_id: number;
     provider: BillingProvider;
-    status: string;
     base_url: string | null;
     auth_type: ConnectorAuthType;
     has_credentials: boolean;
