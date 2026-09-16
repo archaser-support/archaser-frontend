@@ -74,11 +74,6 @@ const nextConfig = {
         ignoreBuildErrors: isAmplifySsr,
     },
 
-    // Disable ESLint during build to ignore ESLint-related TypeScript errors
-    eslint: {
-        ignoreDuringBuilds: true,
-    },
-
     // Optimize images
     images: {
         unoptimized: true, // For static export
@@ -94,7 +89,6 @@ const nextConfig = {
             const reportsNote = isReportsNestRewriteEnabled()
                 ? `; /api/reports → ${getReportsNestRewriteTarget()}`
                 : "";
-            // eslint-disable-next-line no-console
             console.info(
                 `[nest-api-rewrite] Proxying /api/* → ${getNestApiRewriteTarget()} (excluding auth, ws)${reportsNote}`
             );
@@ -161,6 +155,9 @@ const nextConfig = {
         config.resolve.alias = {
             ...config.resolve.alias,
             "@": path.resolve(__dirname),
+            // unzipper@0.12 (via exceljs override) optionally imports S3 Open;
+            // we never use that path, and resolving it breaks Amplify builds.
+            "@aws-sdk/client-s3": false,
         };
 
         return config;
@@ -185,7 +182,7 @@ const nextConfig = {
     // in individual API route files using: export const config = { api: { bodyParser: { sizeLimit: '10mb' } } }
     // Request size limits are handled by utils/requestLimits.ts
 
-    // Security headers (fallback if middleware doesn't apply)
+    // Security headers (fallback if proxy doesn't apply)
     async headers() {
         const isProduction = process.env.NODE_ENV === "production";
         const isHttps =

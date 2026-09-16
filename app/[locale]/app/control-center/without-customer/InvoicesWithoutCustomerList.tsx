@@ -9,7 +9,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import { useTheme } from "@mui/material/styles";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import { GridColDef, GridSortModel } from "@mui/x-data-grid";
+import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
@@ -273,7 +273,7 @@ const InvoicesWithoutCustomerList: React.FC = () => {
                 status: invoice.status || "Unknown",
                 raw: invoice,
             })),
-        [invoices, selectedRows, session?.user?.locale, session?.user?.timezone]
+        [invoices, selectedRows, session]
     );
 
     // Export handler for invoices without customer
@@ -324,7 +324,7 @@ const InvoicesWithoutCustomerList: React.FC = () => {
                 throw _error;
             }
         },
-        [invoices, session?.user?.locale, session?.user?.timezone]
+        [invoices, session]
     );
 
     const columns: GridColDef[] = useMemo(

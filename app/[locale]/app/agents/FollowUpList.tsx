@@ -10,7 +10,7 @@ import {
     Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+import { GridColDef, GridRenderCellParams } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery } from "@tanstack/react-query";
 import { Country } from "countries-and-timezones";
 import moment from "moment";
@@ -32,6 +32,7 @@ import AppUrls from "@/utils/appUrls";
 import { formatCallOutcome } from "@/utils/callFormatters";
 import {
     formatDateForDisplay,
+    getUserDateLocale,
     getCountryTimezone,
     getCurrentTimeForCountry,
 } from "@/utils/datetimeOperations";
@@ -174,7 +175,7 @@ const FollowUpList: React.FC = () => {
                             ? formatDateForDisplay(
                                 agent.last_call,
                                 "datetime",
-                                session?.user?.locale,
+                                getUserDateLocale(session),
                                 session?.user?.timezone
                             )
                             : null;
@@ -189,7 +190,7 @@ const FollowUpList: React.FC = () => {
                             ? formatDateForDisplay(
                                 agent.follow_up_time,
                                 "datetime",
-                                session?.user?.locale,
+                                getUserDateLocale(session),
                                 session?.user?.timezone
                             )
                             : null;
@@ -525,7 +526,7 @@ const FollowUpList: React.FC = () => {
                             ? formatDateForDisplay(
                                 row.last_call,
                                 "datetime",
-                                session?.user?.locale,
+                                getUserDateLocale(session),
                                 session?.user?.timezone
                             )
                             : ""}
@@ -566,7 +567,7 @@ const FollowUpList: React.FC = () => {
                             ? formatDateForDisplay(
                                 row.follow_up_time,
                                 "datetime",
-                                session?.user?.locale,
+                                getUserDateLocale(session),
                                 session?.user?.timezone
                             )
                             : "-"}

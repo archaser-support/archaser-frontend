@@ -249,3 +249,56 @@
     outline: 2px solid #0f9d74;
     outline-offset: 1px;
 }
+
+.thresholdSlider {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+}
+
+.thresholdSliderLabel {
+    font-size: 12px;
+    font-weight: 600;
+    color: #991b1b;
+    font-variant-numeric: tabular-nums;
+}
+
+.thresholdRange {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 999px;
+    background: #fdecec;
+    outline: none;
+    cursor: pointer;
+}
+
+.thresholdRange::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #dc2626;
+    border: 2px solid #ffffff;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.2);
+    cursor: pointer;
+}
+
+.thresholdRange::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #dc2626;
+    border: 2px solid #ffffff;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.2);
+    cursor: pointer;
+}
+
+.thresholdRange:focus-visible {
+    outline: 2px solid #dc2626;
+    outline-offset: 3px;
+}

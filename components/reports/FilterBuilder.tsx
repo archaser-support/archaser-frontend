@@ -45,6 +45,11 @@ import api from "@/app/api";
 import { useSessionState } from "@/hooks/useSessionState";
 import { currencies, Currency } from "@/shared/data/common/currencies";
 import {
+    FORMULA_FILTER_TABLE,
+    getFormulaOutputKey,
+    type ReportFormula,
+} from "@/shared/reportFormula/types";
+import {
     type DatePreset,
     isDatePresetValue,
     resolveDatePreset,
@@ -402,6 +407,8 @@ interface FilterBuilderProps {
             translationNamespace?: string;
         }>;
     }>;
+    /** Report formulas available as filter fields (label shown; `formula:<id>` stored). */
+    formulas?: ReportFormula[];
     filters: Filter[];
     onFiltersChange: (filters: Filter[]) => void;
     validationErrors?: Record<number, string>;
@@ -427,6 +434,7 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
     mode = "builder",
     selectedTables,
     tables,
+    formulas = [],
     filters,
     onFiltersChange,
     validationErrors = {},
@@ -744,6 +752,14 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
         []
     );
 
+    const filterTableOptions = React.useMemo(() => {
+        const options = [...selectedTables];
+        if (formulas.length > 0 && !options.includes(FORMULA_FILTER_TABLE)) {
+            options.push(FORMULA_FILTER_TABLE);
+        }
+        return options;
+    }, [selectedTables, formulas.length]);
+
     // Normalize field names (remove Company. prefix for Customer table)
     const normalizeFieldName = React.useCallback(
         (tableName: string, fieldName: string): string => {
@@ -932,6 +948,25 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
 
     const getTableFields = React.useCallback(
         (tableName: string) => {
+            if (tableName === FORMULA_FILTER_TABLE) {
+                return formulas.map((formula) => {
+                    let type: string = "number";
+                    if (formula.format === "yes_no") {
+                        type = "yes_no";
+                    } else if (formula.format === "percentage") {
+                        type = "percentage";
+                    }
+                    return {
+                        name: getFormulaOutputKey(formula.id),
+                        type,
+                        label: formula.label || formula.id,
+                        options: undefined as string[] | undefined,
+                        translationKey: undefined as string | undefined,
+                        translationNamespace: undefined as string | undefined,
+                    };
+                });
+            }
+
             const table = tables.find((t) => t.name === tableName);
             // Filter out ID fields from base table fields (except owner/owner_id which are user references)
             let fields = (table?.fields || [])
@@ -1047,11 +1082,18 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                 return labelA.localeCompare(labelB);
             });
         },
-        [tables, t, getTranslatedFieldLabel]
+        [tables, t, getTranslatedFieldLabel, formulas]
     );
 
     const getTableLabel = React.useCallback(
         (tableName: string) => {
+            if (tableName === FORMULA_FILTER_TABLE) {
+                return t("formulas.formulas_object", {
+                    ns: "reports",
+                    defaultValue: "Formulas",
+                });
+            }
+
             const table = tables.find((t) => t.name === tableName);
             if (!table) return tableName;
 
@@ -1465,6 +1507,7 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                 ];
             case "number":
             case "decimal":
+            case "percentage":
                 return [
                     {
                         value: "equals",
@@ -1600,6 +1643,37 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                         }),
                     },
                 ];
+            case "yes_no":
+                return [
+                    {
+                        value: "equals",
+                        label: t("values.operator_equals", {
+                            ns: "reports",
+                            defaultValue: "Equals",
+                        }),
+                    },
+                    {
+                        value: "not_equals",
+                        label: t("values.operator_not_equals", {
+                            ns: "reports",
+                            defaultValue: "Not Equals",
+                        }),
+                    },
+                    {
+                        value: "is_empty",
+                        label: t("values.operator_is_empty", {
+                            ns: "reports",
+                            defaultValue: "Is Empty",
+                        }),
+                    },
+                    {
+                        value: "is_not_empty",
+                        label: t("values.operator_is_not_empty", {
+                            ns: "reports",
+                            defaultValue: "Is Not Empty",
+                        }),
+                    },
+                ];
             case "enum":
                 return [
                     {
@@ -1708,6 +1782,8 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
         normalizedField: string
     ) {
         const base = getOperatorsForType(fieldType);
+        // Formula filters: Yes/No uses yes_no ops; Number/Currency/Percentage
+        // use the full number operator set from getOperatorsForType.
         if (PICK_LIST_ONLY_FIELD_KEYS.has(normalizedField)) {
             // Value is a set of codes, so single-value comparison is meaningless.
             return base.filter((op) =>
@@ -1735,9 +1811,9 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
     }
 
     const handleAddFilter = () => {
-        if (selectedTables.length === 0) return;
+        if (filterTableOptions.length === 0) return;
 
-        const firstTable = selectedTables[0];
+        const firstTable = filterTableOptions[0];
         const tableFields = getTableFields(firstTable);
         if (tableFields.length === 0) return;
 
@@ -1757,7 +1833,7 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                 table: firstTable,
                 field: firstField.name,
                 operator: operators[0].value,
-                value: "",
+                value: firstField.type === "yes_no" ? 1 : "",
             },
         ]);
     };
@@ -1769,6 +1845,41 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
     ) => {
         const updated = [...filters];
         updated[index] = { ...updated[index], [field]: value };
+
+        // If table changed, reset field/operator/value to the first available field.
+        if (field === "table") {
+            const tableFields = getTableFields(value || "").filter((f) => {
+                const fieldNameLower = f.name.toLowerCase();
+                if (
+                    fieldNameLower === "owner" ||
+                    fieldNameLower === "owner_id"
+                ) {
+                    return true;
+                }
+                return (
+                    fieldNameLower !== "id" && !fieldNameLower.endsWith("_id")
+                );
+            });
+            const firstField = tableFields[0];
+            if (firstField) {
+                const normalizedFirst = normalizeFieldName(
+                    value || "",
+                    firstField.name
+                );
+                const operators = getOperatorsForFilterField(
+                    firstField.type,
+                    normalizedFirst
+                );
+                updated[index].field = firstField.name;
+                updated[index].operator = operators[0]?.value || "equals";
+                updated[index].value =
+                    firstField.type === "yes_no" ? 1 : "";
+            } else {
+                updated[index].field = "";
+                updated[index].operator = "equals";
+                updated[index].value = "";
+            }
+        }
 
         // If field changed, validate and reset operator to match field type
         if (field === "field") {
@@ -1800,6 +1911,11 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                     // Reset to first valid operator
                     updated[index].operator = validOperators[0].value;
                 }
+                if (fieldInfo.type === "yes_no") {
+                    const op = updated[index].operator;
+                    updated[index].value =
+                        op === "is_empty" || op === "is_not_empty" ? null : 1;
+                }
             }
         } else if (field === "operator") {
             // Initialize value based on operator type
@@ -1825,7 +1941,24 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                     updated[index].value = currentVal[0] || "";
                 } else if (!isDatePresetValue(currentVal)) {
                     // Only reset if not a preset - preserve preset when changing operator
-                    updated[index].value = "";
+                    const fieldInfo = getFieldInfo(
+                        updated[index].table,
+                        normalizeFieldName(
+                            updated[index].table,
+                            updated[index].field
+                        )
+                    );
+                    if (fieldInfo?.type === "yes_no") {
+                        updated[index].value =
+                            currentVal === 0 ||
+                            currentVal === 1 ||
+                            currentVal === "0" ||
+                            currentVal === "1"
+                                ? Number(currentVal)
+                                : 1;
+                    } else {
+                        updated[index].value = "";
+                    }
                 }
             }
         }
@@ -2043,6 +2176,30 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                 
                 if (typeof value === "boolean") {
                     return value ? t("values.true", "True") : t("values.false", "False");
+                }
+                if (fieldInfo?.type === "yes_no") {
+                    if (
+                        value === 1 ||
+                        value === "1" ||
+                        value === true ||
+                        value === "true"
+                    ) {
+                        return t("values.yes", {
+                            ns: "reports",
+                            defaultValue: "Yes",
+                        });
+                    }
+                    if (
+                        value === 0 ||
+                        value === "0" ||
+                        value === false ||
+                        value === "false"
+                    ) {
+                        return t("values.no", {
+                            ns: "reports",
+                            defaultValue: "No",
+                        });
+                    }
                 }
                 if (typeof value === "string" && value.length > 50) {
                     return `${value.substring(0, 50)  }...`;
@@ -2850,6 +3007,65 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                         }}
                     />
                 );
+
+            case "yes_no": {
+                const yesNoValue =
+                    filter.value === 0 ||
+                    filter.value === "0" ||
+                    filter.value === false ||
+                    filter.value === "false"
+                        ? 0
+                        : 1;
+                return (
+                    <FormControl
+                        sx={{
+                            ...filterFormControlStyles,
+                            minWidth: 120,
+                        }}
+                        size="small"
+                    >
+                        <InputLabel
+                            id={`filter-yes-no-label-${index}`}
+                            {...(isHebrew && { "data-hebrew": true })}
+                        >
+                            {t("values.filter_yes_no", {
+                                ns: "reports",
+                                defaultValue: "Yes/No",
+                            })}
+                        </InputLabel>
+                        <Select
+                            labelId={`filter-yes-no-label-${index}`}
+                            value={yesNoValue}
+                            label={t("values.filter_yes_no", {
+                                ns: "reports",
+                                defaultValue: "Yes/No",
+                            })}
+                            onChange={(e) =>
+                                handleUpdateFilter(
+                                    index,
+                                    "value",
+                                    Number(e.target.value)
+                                )
+                            }
+                            {...(isHebrew && { "data-hebrew": true })}
+                            dir={isRTL ? "rtl" : "ltr"}
+                        >
+                            <MenuItem value={1} sx={rtlMenuItemStyles}>
+                                {t("values.yes", {
+                                    ns: "reports",
+                                    defaultValue: "Yes",
+                                })}
+                            </MenuItem>
+                            <MenuItem value={0} sx={rtlMenuItemStyles}>
+                                {t("values.no", {
+                                    ns: "reports",
+                                    defaultValue: "No",
+                                })}
+                            </MenuItem>
+                        </Select>
+                    </FormControl>
+                );
+            }
 
             case "enum":
                 if (fieldInfo.options && fieldInfo.options.length > 0) {
@@ -3757,6 +3973,17 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
 
             case "number":
             case "decimal":
+            case "percentage": {
+                const useDecimalStep =
+                    fieldType === "decimal" || fieldType === "percentage";
+                const percentageHint =
+                    fieldType === "percentage"
+                        ? t("values.filter_percentage_raw_hint", {
+                              ns: "reports",
+                              defaultValue:
+                                  "Enter a fraction (0.15 = 15%), not a whole percent.",
+                          })
+                        : undefined;
                 if (isBetween) {
                     const [startValue, endValue] = getBetweenValues();
                     return (
@@ -3777,10 +4004,11 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                                 size="small"
                                 required
                                 error={startValue === ""}
+                                helperText={percentageHint}
                                 {...(isHebrew && { "data-hebrew": true })}
                                 dir={isRTL ? "rtl" : "ltr"}
                                 inputProps={{
-                                    step: fieldType === "decimal" ? 0.01 : 1,
+                                    step: useDecimalStep ? 0.01 : 1,
                                 }}
                             />
                             <TextField
@@ -3802,7 +4030,7 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                                 {...(isHebrew && { "data-hebrew": true })}
                                 dir={isRTL ? "rtl" : "ltr"}
                                 inputProps={{
-                                    step: fieldType === "decimal" ? 0.01 : 1,
+                                    step: useDecimalStep ? 0.01 : 1,
                                 }}
                             />
                         </Box>
@@ -3822,13 +4050,15 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                         }
                         fullWidth
                         size="small"
+                        helperText={percentageHint}
                         {...(isHebrew && { "data-hebrew": true })}
                         dir={isRTL ? "rtl" : "ltr"}
                         inputProps={{
-                            step: fieldType === "decimal" ? 0.01 : 1,
+                            step: useDecimalStep ? 0.01 : 1,
                         }}
                     />
                 );
+            }
 
             case "user": {
                 // Check if this is created_by, modified_by, assigned_to, or owner/owner_id field
@@ -4132,7 +4362,7 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                             startIcon={isRTL ? undefined : <Add />}
                             endIcon={isRTL ? <Add /> : undefined}
                             onClick={handleAddFilter}
-                            disabled={selectedTables.length === 0}
+                            disabled={filterTableOptions.length === 0}
                             sx={{
                                 direction: isRTL ? "rtl" : "ltr",
                                 "& .MuiButton-endIcon": {
@@ -4181,7 +4411,7 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                             startIcon={isRTL ? undefined : <Add />}
                             endIcon={isRTL ? <Add /> : undefined}
                             onClick={handleAddFilter}
-                            disabled={selectedTables.length === 0}
+                            disabled={filterTableOptions.length === 0}
                             sx={{
                                 direction: isRTL ? "rtl" : "ltr",
                                 "& .MuiButton-endIcon": {
@@ -4293,7 +4523,7 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                                         {/* Table Selector */}
                                         <Autocomplete
                                             size="small"
-                                            options={selectedTables}
+                                            options={filterTableOptions}
                                             value={filter.table}
                                             onChange={(_, newValue) =>
                                                 handleUpdateFilter(

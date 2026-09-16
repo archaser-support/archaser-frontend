@@ -46,7 +46,7 @@ export function CreditInsuranceReadonlyField({
     value,
     multiline,
 }: {
-    label: string;
+    label: React.ReactNode;
     value: React.ReactNode;
     multiline?: boolean;
 }) {

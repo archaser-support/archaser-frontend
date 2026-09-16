@@ -7,7 +7,7 @@ import {
     GridSortModel,
     GridColDef,
     GridRenderCellParams,
-} from "@mui/x-data-grid";
+} from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -242,7 +242,7 @@ const PromiseToPayList: React.FC<PromiseToPayListProps> = ({
                     amount_overdue_formatted: formatCurrencyWithRTLSupport(
                         amount,
                         currency,
-                        session?.user?.locale || "en-US",
+                        getUserDateLocale(session),
                         i18n.language
                     ),
                     days_past_due: daysPastDue,
@@ -530,7 +530,6 @@ const PromiseToPayList: React.FC<PromiseToPayListProps> = ({
                     }}
                 >
                     <EndlessScrollDataGrid
-                        key={`${debouncedSearch}`}
                         rows={rows}
                         columns={columns}
                         totalRecords={totalRecords}

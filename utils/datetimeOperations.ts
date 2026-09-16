@@ -304,20 +304,19 @@ export function formatDateForDisplay(
             return "Invalid Date";
         }
 
-        // CRITICAL FIX: Use Intl.DateTimeFormat with timeZone option
-        // This properly respects both user locale (for date format) and timezone (for time conversion)
-        // Intl.DateTimeFormat automatically formats dates according to the locale (e.g., MM/DD/YYYY for en-US, DD.MM.YYYY for de-DE)
+        const effectiveLocale = locale || "en-US";
+
         const formatOptions: Intl.DateTimeFormatOptions = {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-            ...(format === "time" && { hour: "2-digit", minute: "2-digit" }),
-            ...(format === "datetime" && {
+            ...(format !== "time" && {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+            }),
+            ...(format !== "date" && {
                 hour: "2-digit",
                 minute: "2-digit",
             }),
-            ...(format === "title" && { hour: "2-digit", minute: "2-digit" }),
-            hour12: locale !== "he-IL",
+            hour12: effectiveLocale !== "he-IL",
             // Use timeZone option to convert UTC date to user's timezone
             // This ensures the time is displayed in the correct timezone while respecting locale for date format
             ...(timezone && isValidIANATimezone(timezone)
@@ -325,7 +324,7 @@ export function formatDateForDisplay(
                 : {}),
         };
 
-        const result = dateObj.toLocaleString(locale || "en-US", formatOptions);
+        const result = dateObj.toLocaleString(effectiveLocale, formatOptions);
 
         return result;
     } catch (_error) {
@@ -343,7 +342,7 @@ export function formatUserTime(
     format: "time" | "date" | "datetime" | "title" = "time"
 ): string {
     const timezone = getUserTimezone(session);
-    const userLocale = session?.user?.locale;
+    const userLocale = getUserDateLocale(session);
 
     return formatDateForDisplay(utcDate, format, userLocale, timezone);
 }
@@ -358,7 +357,7 @@ export function formatUserDate(
     format: "date" = "date"
 ): string {
     const timezone = getUserTimezone(session);
-    const userLocale = session?.user?.locale;
+    const userLocale = getUserDateLocale(session);
 
     return formatDateForDisplay(utcDate, format, userLocale, timezone);
 }
@@ -373,7 +372,7 @@ export function formatUserDateTime(
     includeTime: boolean = false
 ): string {
     const timezone = getUserTimezone(session);
-    const userLocale = session?.user?.locale;
+    const userLocale = getUserDateLocale(session);
     const format = includeTime ? "datetime" : "date";
 
     return formatDateForDisplay(utcDate, format, userLocale, timezone);
@@ -749,7 +748,7 @@ export function formatDateOnlyYmdForSession(
 export function getUserDateFormatOptions(
     session: Session | null
 ): Intl.DateTimeFormatOptions {
-    const userLocale = session?.user?.locale;
+    const userLocale = getUserDateLocale(session);
     const userLanguage = session?.user?.language;
 
     // Special case: If language is English but locale is Hebrew, use dd/MM/yyyy format
@@ -777,7 +776,7 @@ export function getUserDateFormatOptions(
 export function getUserDateTimeFormatOptions(
     session: Session | null
 ): Intl.DateTimeFormatOptions {
-    const userLocale = session?.user?.locale;
+    const userLocale = getUserDateLocale(session);
     const userLanguage = session?.user?.language;
 
     // Special case: If language is English but locale is Hebrew, use dd/MM/yyyy HH:mm format

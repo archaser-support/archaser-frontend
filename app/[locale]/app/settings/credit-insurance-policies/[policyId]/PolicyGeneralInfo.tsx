@@ -28,6 +28,7 @@ import { useTranslation } from "react-i18next";
 import { CreditInsuranceReadonlyField } from "@/app/[locale]/app/customers/[customerId]/CustomerGeneralInfo";
 import { CurrencySelect } from "@/components/LocationSelects";
 import { shouldNotifyPolicyEligibleForActivation } from "@/shared/creditInsurance/insurancePolicyLifecycle";
+import { MonthEndFieldLabelWithTooltip } from "@/shared/creditInsurance/MonthEndFieldLabelWithTooltip";
 import { getDatePickerFormat } from "@/utils/datetimeOperations";
 
 export type PolicyGeneralInfoPolicyData = {
@@ -36,6 +37,7 @@ export type PolicyGeneralInfoPolicyData = {
     cost_calculation_method?: "ActualSales" | "Limit" | null;
     cost_percent?: string | number | null;
     registration_fee_percent?: string | number | null;
+    annual_credit_assessment_fee?: string | number | null;
     ParentInsurancePolicy?: { policy_number: string } | null;
 };
 
@@ -66,6 +68,8 @@ export interface PolicyGeneralInfoProps {
     setCostPercentInput: (value: string) => void;
     registrationFeePercentInput: string;
     setRegistrationFeePercentInput: (value: string) => void;
+    annualCreditAssessmentFeeInput: string;
+    setAnnualCreditAssessmentFeeInput: (value: string) => void;
     policyKindInput: "Primary" | "TopUp";
     setPolicyKindInput: (value: "Primary" | "TopUp") => void;
     parentInsurancePolicyIdInput: number | null;
@@ -99,22 +103,22 @@ export interface PolicyGeneralInfoProps {
     setDclCustomerSinceMonthsInput: (value: string) => void;
     maxPaymentTermInput: string;
     setMaxPaymentTermInput: (value: string) => void;
-    paymentTermCutoffDayOfMonthInput: string;
-    setPaymentTermCutoffDayOfMonthInput: (value: string) => void;
-    paymentTermSubstituteDayOfMonthInput: string;
-    setPaymentTermSubstituteDayOfMonthInput: (value: string) => void;
+    paymentTermCutoffDayInput: string;
+    setPaymentTermCutoffDayInput: (value: string) => void;
+    paymentTermSubstituteDayInput: string;
+    setPaymentTermSubstituteDayInput: (value: string) => void;
     maxAllowedMepInput: string;
     setMaxAllowedMepInput: (value: string) => void;
-    mepCutoffDayOfMonthInput: string;
-    setMepCutoffDayOfMonthInput: (value: string) => void;
-    mepSubstituteDayOfMonthInput: string;
-    setMepSubstituteDayOfMonthInput: (value: string) => void;
+    mepCutoffDayInput: string;
+    setMepCutoffDayInput: (value: string) => void;
+    mepSubstituteExtraDaysInput: string;
+    setMepSubstituteExtraDaysInput: (value: string) => void;
     reportingDaysInput: string;
     setReportingDaysInput: (value: string) => void;
-    reportingCutoffDayOfMonthInput: string;
-    setReportingCutoffDayOfMonthInput: (value: string) => void;
-    reportingSubstituteDayOfMonthInput: string;
-    setReportingSubstituteDayOfMonthInput: (value: string) => void;
+    reportingCutoffDayInput: string;
+    setReportingCutoffDayInput: (value: string) => void;
+    reportingSubstituteExtraDaysInput: string;
+    setReportingSubstituteExtraDaysInput: (value: string) => void;
     displayStartDate: string;
     displayEndDate: string;
     clearPolicyFormError: (key: string) => void;
@@ -150,6 +154,8 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
         setCostPercentInput,
         registrationFeePercentInput,
         setRegistrationFeePercentInput,
+        annualCreditAssessmentFeeInput,
+        setAnnualCreditAssessmentFeeInput,
         policyKindInput,
         setPolicyKindInput,
         parentInsurancePolicyIdInput,
@@ -183,22 +189,22 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
         setDclCustomerSinceMonthsInput,
         maxPaymentTermInput,
         setMaxPaymentTermInput,
-        paymentTermCutoffDayOfMonthInput,
-        setPaymentTermCutoffDayOfMonthInput,
-        paymentTermSubstituteDayOfMonthInput,
-        setPaymentTermSubstituteDayOfMonthInput,
+        paymentTermCutoffDayInput,
+        setPaymentTermCutoffDayInput,
+        paymentTermSubstituteDayInput,
+        setPaymentTermSubstituteDayInput,
         maxAllowedMepInput,
         setMaxAllowedMepInput,
-        mepCutoffDayOfMonthInput,
-        setMepCutoffDayOfMonthInput,
-        mepSubstituteDayOfMonthInput,
-        setMepSubstituteDayOfMonthInput,
+        mepCutoffDayInput,
+        setMepCutoffDayInput,
+        mepSubstituteExtraDaysInput,
+        setMepSubstituteExtraDaysInput,
         reportingDaysInput,
         setReportingDaysInput,
-        reportingCutoffDayOfMonthInput,
-        setReportingCutoffDayOfMonthInput,
-        reportingSubstituteDayOfMonthInput,
-        setReportingSubstituteDayOfMonthInput,
+        reportingCutoffDayInput,
+        setReportingCutoffDayInput,
+        reportingSubstituteExtraDaysInput,
+        setReportingSubstituteExtraDaysInput,
         displayStartDate,
         displayEndDate,
         clearPolicyFormError,
@@ -216,6 +222,14 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
     const theme = useTheme();
     const { i18n } = useTranslation();
     const isRTL = i18n.language === "he";
+
+    const fieldLabel = (fieldKey: string) => (
+        <MonthEndFieldLabelWithTooltip
+            label={tCi(`credit_insurance.fields.${fieldKey}`)}
+            tooltip={tCi(`credit_insurance.tooltips.${fieldKey}`)}
+            isRtl={isRTL}
+        />
+    );
 
     const sectionHeaders = useMemo(() => {
         const base = {
@@ -372,7 +386,7 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                 </Box>
                                 <TextField
                                     {...modalTextFieldProps}
-                                    label={tCi("credit_insurance.fields.insurer_name")}
+                                    label={fieldLabel("insurer_name")}
                                     value={insurerNameInput}
                                     onChange={(e) => {
                                         setInsurerNameInput(e.target.value);
@@ -394,13 +408,11 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                             sx={editFieldSx}
                                         >
                                             <InputLabel id="cost-calculation-method-select-label">
-                                                {tCi("credit_insurance.fields.cost_calculation_method")}
+                                                {fieldLabel("cost_calculation_method")}
                                             </InputLabel>
                                             <Select
                                                 labelId="cost-calculation-method-select-label"
-                                                label={tCi(
-                                                    "credit_insurance.fields.cost_calculation_method"
-                                                )}
+                                                label={fieldLabel("cost_calculation_method")}
                                                 value={costCalculationMethodInput}
                                                 onChange={(e) => {
                                                     const next = e.target.value as
@@ -431,7 +443,7 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         </FormControl>
                                         <TextField
                                             {...modalTextFieldProps}
-                                            label={tCi("credit_insurance.fields.cost_percent")}
+                                            label={fieldLabel("cost_percent")}
                                             value={costPercentInput}
                                             onChange={(e) => {
                                                 setCostPercentInput(e.target.value);
@@ -449,9 +461,7 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         />
                                         <TextField
                                             {...modalTextFieldProps}
-                                            label={tCi(
-                                                "credit_insurance.fields.registration_fee_percent"
-                                            )}
+                                            label={fieldLabel("registration_fee_percent")}
                                             value={registrationFeePercentInput}
                                             onChange={(e) => {
                                                 setRegistrationFeePercentInput(
@@ -474,6 +484,33 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                             disabled={policyFormDisabled}
                                             sx={editFieldSx}
                                         />
+                                        <TextField
+                                            {...modalTextFieldProps}
+                                            label={fieldLabel(
+                                                "annual_credit_assessment_fee"
+                                            )}
+                                            value={annualCreditAssessmentFeeInput}
+                                            onChange={(e) => {
+                                                setAnnualCreditAssessmentFeeInput(
+                                                    e.target.value
+                                                );
+                                                clearPolicyFormError(
+                                                    "annual_credit_assessment_fee"
+                                                );
+                                            }}
+                                            inputMode="decimal"
+                                            inputProps={{ min: 0, step: "any" }}
+                                            size="small"
+                                            fullWidth
+                                            error={
+                                                !!policyFormErrors.annual_credit_assessment_fee
+                                            }
+                                            helperText={
+                                                policyFormErrors.annual_credit_assessment_fee
+                                            }
+                                            disabled={policyFormDisabled}
+                                            sx={editFieldSx}
+                                        />
                                     </>
                                 )}
                                 <FormControl
@@ -484,11 +521,11 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                     sx={editFieldSx}
                                 >
                                     <InputLabel id="policy-kind-select-label">
-                                        {tCi("credit_insurance.fields.policy_kind")}
+                                        {fieldLabel("policy_kind")}
                                     </InputLabel>
                                     <Select
                                         labelId="policy-kind-select-label"
-                                        label={tCi("credit_insurance.fields.policy_kind")}
+                                        label={fieldLabel("policy_kind")}
                                         value={policyKindInput}
                                         disabled
                                         onChange={(e) => {
@@ -517,11 +554,11 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         sx={editFieldSx}
                                     >
                                         <InputLabel id="parent-policy-select-label">
-                                            {tCi("credit_insurance.fields.parent_insurance_policy")}
+                                            {fieldLabel("parent_insurance_policy")}
                                         </InputLabel>
                                         <Select
                                             labelId="parent-policy-select-label"
-                                            label={tCi("credit_insurance.fields.parent_insurance_policy")}
+                                            label={fieldLabel("parent_insurance_policy")}
                                             value={parentInsurancePolicyIdInput ?? ""}
                                             onChange={(e) => {
                                                 setParentInsurancePolicyIdInput(
@@ -547,7 +584,7 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                 <TextField
                                     {...modalTextFieldProps}
                                     required
-                                    label={tCi("credit_insurance.fields.policy_number")}
+                                    label={fieldLabel("policy_number")}
                                     value={policyNumberInput}
                                     onChange={(e) => {
                                         setPolicyNumberInput(e.target.value);
@@ -569,11 +606,11 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         sx={editFieldSx}
                                     >
                                         <InputLabel id="policy-status-select-label">
-                                            {tCi("credit_insurance.fields.status")}
+                                            {fieldLabel("status")}
                                         </InputLabel>
                                         <Select
                                             labelId="policy-status-select-label"
-                                            label={tCi("credit_insurance.fields.status")}
+                                            label={fieldLabel("status")}
                                             value={statusValue}
                                             onChange={handleStatusChange}
                                         >
@@ -602,20 +639,14 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                                     }
                                                 />
                                             }
-                                            label={tCi(
-                                                "credit_insurance.fields.auto_activate_on_term_start",
-                                                {
-                                                    defaultValue:
-                                                        "Automatically activate on start date",
-                                                }
-                                            )}
+                                            label={fieldLabel("auto_activate_on_term_start")}
                                         />
                                     ) : null}
                                 </Box>
                                 {policyKindInput !== "TopUp" && (
                                     <>
                                 <DatePicker
-                                    label={tCi("credit_insurance.fields.start_date")}
+                                    label={fieldLabel("start_date")}
                                     value={
                                         startDateInput
                                             ? moment(startDateInput, "YYYY-MM-DD", true)
@@ -645,7 +676,7 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                     }}
                                 />
                                 <DatePicker
-                                    label={tCi("credit_insurance.fields.end_date")}
+                                    label={fieldLabel("end_date")}
                                     value={
                                         endDateInput
                                             ? moment(endDateInput, "YYYY-MM-DD", true)
@@ -692,7 +723,7 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                 <CurrencySelect
                                     value={currencyValue}
                                     onChange={handleCurrencyChange}
-                                    label={tCi("credit_insurance.fields.currency")}
+                                    label={fieldLabel("currency")}
                                     error={!!policyFormErrors.currency}
                                     helperText={policyFormErrors.currency}
                                     disabled={policyFormDisabled}
@@ -704,7 +735,7 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         <TextField
                                             {...modalTextFieldProps}
                                             required
-                                            label={tCi("credit_insurance.fields.max_total_cover")}
+                                            label={fieldLabel("max_total_cover")}
                                             value={maxTotalCoverInput}
                                             onChange={(e) => {
                                                 setMaxTotalCoverInput(
@@ -723,7 +754,7 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         <TextField
                                             {...modalTextFieldProps}
                                             required
-                                            label={tCi("credit_insurance.fields.min_credit_score")}
+                                            label={fieldLabel("min_credit_score")}
                                             value={minCreditScoreInput}
                                             onChange={(e) => {
                                                 setMinCreditScoreInput(
@@ -742,7 +773,7 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         <TextField
                                             {...modalTextFieldProps}
                                             required
-                                            label={tCi("credit_insurance.fields.score_validity_period_months")}
+                                            label={fieldLabel("score_validity_period_months")}
                                             value={scoreValidityMonthsInput}
                                             onChange={(e) => {
                                                 setScoreValidityMonthsInput(
@@ -763,9 +794,7 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         <TextField
                                             {...modalTextFieldProps}
                                             required
-                                            label={tCi(
-                                                "credit_insurance.fields.max_total_dcl_sdl_cover"
-                                            )}
+                                            label={fieldLabel("max_total_dcl_sdl_cover")}
                                             value={maxTotalDclSdlCoverInput}
                                             onChange={(e) => {
                                                 setMaxTotalDclSdlCoverInput(
@@ -784,7 +813,7 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         <TextField
                                             {...modalTextFieldProps}
                                             required
-                                            label={tCi("credit_insurance.fields.max_dcl")}
+                                            label={fieldLabel("max_dcl")}
                                             value={maxDclInput}
                                             onChange={(e) => {
                                                 setMaxDclInput(sanitizeDecimalInput(e.target.value));
@@ -801,9 +830,7 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         <TextField
                                             {...modalTextFieldProps}
                                             required
-                                            label={tCi(
-                                                "credit_insurance.fields.dcl_customer_since_months"
-                                            )}
+                                            label={fieldLabel("dcl_customer_since_months")}
                                             value={dclCustomerSinceMonthsInput}
                                             onChange={(e) => {
                                                 setDclCustomerSinceMonthsInput(
@@ -830,7 +857,7 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         <TextField
                                             {...modalTextFieldProps}
                                             required
-                                            label={tCi("credit_insurance.fields.max_payment_term")}
+                                            label={fieldLabel("max_payment_term")}
                                             value={maxPaymentTermInput}
                                             onChange={(e) => {
                                                 setMaxPaymentTermInput(
@@ -848,35 +875,33 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         />
                                         <TextField
                                             {...modalTextFieldProps}
-                                            label={tCi(
-                                                "credit_insurance.fields.payment_term_cutoff_day_of_month"
-                                            )}
-                                            value={paymentTermCutoffDayOfMonthInput}
+                                            label={fieldLabel("payment_term_cutoff_day")}
+                                            value={paymentTermCutoffDayInput}
                                             onChange={(e) => {
                                                 const nextCutoff = sanitizeIntegerInput(
                                                     e.target.value
                                                 );
-                                                setPaymentTermCutoffDayOfMonthInput(
+                                                setPaymentTermCutoffDayInput(
                                                     nextCutoff
                                                 );
                                                 if (!nextCutoff.trim()) {
-                                                    setPaymentTermSubstituteDayOfMonthInput("");
+                                                    setPaymentTermSubstituteDayInput("");
                                                     clearPolicyFormError(
-                                                        "payment_term_substitute_day_of_month"
+                                                        "payment_term_substitute_day"
                                                     );
                                                 }
                                                 clearPolicyFormError(
-                                                    "payment_term_cutoff_day_of_month"
+                                                    "payment_term_cutoff_day"
                                                 );
                                             }}
                                             size="small"
                                             fullWidth
                                             inputMode="numeric"
                                             error={
-                                                !!policyFormErrors.payment_term_cutoff_day_of_month
+                                                !!policyFormErrors.payment_term_cutoff_day
                                             }
                                             helperText={
-                                                policyFormErrors.payment_term_cutoff_day_of_month
+                                                policyFormErrors.payment_term_cutoff_day
                                             }
                                             disabled={policyFormDisabled}
                                             sx={editFieldSx}
@@ -884,28 +909,26 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         <TextField
                                             {...modalTextFieldProps}
                                             required={Boolean(
-                                                paymentTermCutoffDayOfMonthInput.trim()
+                                                paymentTermCutoffDayInput.trim()
                                             )}
-                                            label={tCi(
-                                                "credit_insurance.fields.payment_term_substitute_day_of_month"
-                                            )}
-                                            value={paymentTermSubstituteDayOfMonthInput}
+                                            label={fieldLabel("payment_term_substitute_day")}
+                                            value={paymentTermSubstituteDayInput}
                                             onChange={(e) => {
-                                                setPaymentTermSubstituteDayOfMonthInput(
+                                                setPaymentTermSubstituteDayInput(
                                                     sanitizeIntegerInput(e.target.value)
                                                 );
                                                 clearPolicyFormError(
-                                                    "payment_term_substitute_day_of_month"
+                                                    "payment_term_substitute_day"
                                                 );
                                             }}
                                             size="small"
                                             fullWidth
                                             inputMode="numeric"
                                             error={
-                                                !!policyFormErrors.payment_term_substitute_day_of_month
+                                                !!policyFormErrors.payment_term_substitute_day
                                             }
                                             helperText={
-                                                policyFormErrors.payment_term_substitute_day_of_month
+                                                policyFormErrors.payment_term_substitute_day
                                             }
                                             disabled={policyFormDisabled}
                                             sx={editFieldSx}
@@ -921,7 +944,7 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         <TextField
                                             {...modalTextFieldProps}
                                             required
-                                            label={tCi("credit_insurance.fields.max_allowed_mep")}
+                                            label={fieldLabel("max_allowed_mep")}
                                             value={maxAllowedMepInput}
                                             onChange={(e) => {
                                                 setMaxAllowedMepInput(
@@ -939,33 +962,31 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         />
                                         <TextField
                                             {...modalTextFieldProps}
-                                            label={tCi(
-                                                "credit_insurance.fields.mep_cutoff_day_of_month"
-                                            )}
-                                            value={mepCutoffDayOfMonthInput}
+                                            label={fieldLabel("mep_cutoff_day")}
+                                            value={mepCutoffDayInput}
                                             onChange={(e) => {
                                                 const nextCutoff = sanitizeIntegerInput(
                                                     e.target.value
                                                 );
-                                                setMepCutoffDayOfMonthInput(nextCutoff);
+                                                setMepCutoffDayInput(nextCutoff);
                                                 if (!nextCutoff.trim()) {
-                                                    setMepSubstituteDayOfMonthInput("");
+                                                    setMepSubstituteExtraDaysInput("");
                                                     clearPolicyFormError(
-                                                        "mep_substitute_day_of_month"
+                                                        "mep_substitute_extra_days"
                                                     );
                                                 }
                                                 clearPolicyFormError(
-                                                    "mep_cutoff_day_of_month"
+                                                    "mep_cutoff_day"
                                                 );
                                             }}
                                             size="small"
                                             fullWidth
                                             inputMode="numeric"
                                             error={
-                                                !!policyFormErrors.mep_cutoff_day_of_month
+                                                !!policyFormErrors.mep_cutoff_day
                                             }
                                             helperText={
-                                                policyFormErrors.mep_cutoff_day_of_month
+                                                policyFormErrors.mep_cutoff_day
                                             }
                                             disabled={policyFormDisabled}
                                             sx={editFieldSx}
@@ -973,28 +994,26 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         <TextField
                                             {...modalTextFieldProps}
                                             required={Boolean(
-                                                mepCutoffDayOfMonthInput.trim()
+                                                mepCutoffDayInput.trim()
                                             )}
-                                            label={tCi(
-                                                "credit_insurance.fields.mep_substitute_day_of_month"
-                                            )}
-                                            value={mepSubstituteDayOfMonthInput}
+                                            label={fieldLabel("mep_substitute_extra_days")}
+                                            value={mepSubstituteExtraDaysInput}
                                             onChange={(e) => {
-                                                setMepSubstituteDayOfMonthInput(
+                                                setMepSubstituteExtraDaysInput(
                                                     sanitizeIntegerInput(e.target.value)
                                                 );
                                                 clearPolicyFormError(
-                                                    "mep_substitute_day_of_month"
+                                                    "mep_substitute_extra_days"
                                                 );
                                             }}
                                             size="small"
                                             fullWidth
                                             inputMode="numeric"
                                             error={
-                                                !!policyFormErrors.mep_substitute_day_of_month
+                                                !!policyFormErrors.mep_substitute_extra_days
                                             }
                                             helperText={
-                                                policyFormErrors.mep_substitute_day_of_month
+                                                policyFormErrors.mep_substitute_extra_days
                                             }
                                             disabled={policyFormDisabled}
                                             sx={editFieldSx}
@@ -1010,7 +1029,7 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         <TextField
                                             {...modalTextFieldProps}
                                             required
-                                            label={tCi("credit_insurance.fields.reporting_days")}
+                                            label={fieldLabel("reporting_days")}
                                             value={reportingDaysInput}
                                             onChange={(e) => {
                                                 setReportingDaysInput(
@@ -1028,35 +1047,33 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         />
                                         <TextField
                                             {...modalTextFieldProps}
-                                            label={tCi(
-                                                "credit_insurance.fields.reporting_cutoff_day_of_month"
-                                            )}
-                                            value={reportingCutoffDayOfMonthInput}
+                                            label={fieldLabel("reporting_cutoff_day")}
+                                            value={reportingCutoffDayInput}
                                             onChange={(e) => {
                                                 const nextCutoff = sanitizeIntegerInput(
                                                     e.target.value
                                                 );
-                                                setReportingCutoffDayOfMonthInput(
+                                                setReportingCutoffDayInput(
                                                     nextCutoff
                                                 );
                                                 if (!nextCutoff.trim()) {
-                                                    setReportingSubstituteDayOfMonthInput("");
+                                                    setReportingSubstituteExtraDaysInput("");
                                                     clearPolicyFormError(
-                                                        "reporting_substitute_day_of_month"
+                                                        "reporting_substitute_extra_days"
                                                     );
                                                 }
                                                 clearPolicyFormError(
-                                                    "reporting_cutoff_day_of_month"
+                                                    "reporting_cutoff_day"
                                                 );
                                             }}
                                             size="small"
                                             fullWidth
                                             inputMode="numeric"
                                             error={
-                                                !!policyFormErrors.reporting_cutoff_day_of_month
+                                                !!policyFormErrors.reporting_cutoff_day
                                             }
                                             helperText={
-                                                policyFormErrors.reporting_cutoff_day_of_month
+                                                policyFormErrors.reporting_cutoff_day
                                             }
                                             disabled={policyFormDisabled}
                                             sx={editFieldSx}
@@ -1064,28 +1081,26 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         <TextField
                                             {...modalTextFieldProps}
                                             required={Boolean(
-                                                reportingCutoffDayOfMonthInput.trim()
+                                                reportingCutoffDayInput.trim()
                                             )}
-                                            label={tCi(
-                                                "credit_insurance.fields.reporting_substitute_day_of_month"
-                                            )}
-                                            value={reportingSubstituteDayOfMonthInput}
+                                            label={fieldLabel("reporting_substitute_extra_days")}
+                                            value={reportingSubstituteExtraDaysInput}
                                             onChange={(e) => {
-                                                setReportingSubstituteDayOfMonthInput(
+                                                setReportingSubstituteExtraDaysInput(
                                                     sanitizeIntegerInput(e.target.value)
                                                 );
                                                 clearPolicyFormError(
-                                                    "reporting_substitute_day_of_month"
+                                                    "reporting_substitute_extra_days"
                                                 );
                                             }}
                                             size="small"
                                             fullWidth
                                             inputMode="numeric"
                                             error={
-                                                !!policyFormErrors.reporting_substitute_day_of_month
+                                                !!policyFormErrors.reporting_substitute_extra_days
                                             }
                                             helperText={
-                                                policyFormErrors.reporting_substitute_day_of_month
+                                                policyFormErrors.reporting_substitute_extra_days
                                             }
                                             disabled={policyFormDisabled}
                                             sx={editFieldSx}
@@ -1107,13 +1122,13 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                 </Typography>
                             </Box>
                             <CreditInsuranceReadonlyField
-                                label={tCi("credit_insurance.fields.insurer_name")}
+                                label={fieldLabel("insurer_name")}
                                 value={data?.insurer_name}
                             />
                             {data?.policy_kind !== "TopUp" && (
                                 <>
                             <CreditInsuranceReadonlyField
-                                label={tCi("credit_insurance.fields.cost_calculation_method")}
+                                label={fieldLabel("cost_calculation_method")}
                                 value={
                                     data?.cost_calculation_method === "Limit"
                                         ? tCi(
@@ -1127,7 +1142,7 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                 }
                             />
                             <CreditInsuranceReadonlyField
-                                label={tCi("credit_insurance.fields.cost_percent")}
+                                label={fieldLabel("cost_percent")}
                                 value={
                                     data?.cost_percent != null &&
                                     String(data.cost_percent).trim() !== ""
@@ -1136,9 +1151,7 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                 }
                             />
                             <CreditInsuranceReadonlyField
-                                label={tCi(
-                                    "credit_insurance.fields.registration_fee_percent"
-                                )}
+                                label={fieldLabel("registration_fee_percent")}
                                 value={
                                     data?.registration_fee_percent != null &&
                                     String(data.registration_fee_percent).trim() !== ""
@@ -1148,10 +1161,25 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         : undefined
                                 }
                             />
+                            <CreditInsuranceReadonlyField
+                                label={fieldLabel(
+                                    "annual_credit_assessment_fee"
+                                )}
+                                value={
+                                    data?.annual_credit_assessment_fee != null &&
+                                    String(
+                                        data.annual_credit_assessment_fee
+                                    ).trim() !== ""
+                                        ? decimalToInputString(
+                                              data.annual_credit_assessment_fee
+                                          )
+                                        : undefined
+                                }
+                            />
                                 </>
                             )}
                             <CreditInsuranceReadonlyField
-                                label={tCi("credit_insurance.fields.policy_kind")}
+                                label={fieldLabel("policy_kind")}
                                 value={
                                     data?.policy_kind === "TopUp"
                                         ? tCi("credit_insurance.fields.policy_kind_top_up")
@@ -1160,16 +1188,16 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                             />
                             {data?.policy_kind === "TopUp" && (
                                 <CreditInsuranceReadonlyField
-                                    label={tCi("credit_insurance.fields.parent_insurance_policy")}
+                                    label={fieldLabel("parent_insurance_policy")}
                                     value={data?.ParentInsurancePolicy?.policy_number}
                                 />
                             )}
                             <CreditInsuranceReadonlyField
-                                label={tCi("credit_insurance.fields.policy_number")}
+                                label={fieldLabel("policy_number")}
                                 value={policyNumberInput}
                             />
                             <CreditInsuranceReadonlyField
-                                label={tCi("credit_insurance.fields.status")}
+                                label={fieldLabel("status")}
                                 value={
                                     statusValue === "Active"
                                         ? tCi("credit_insurance.status.active")
@@ -1181,51 +1209,45 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                             {data?.policy_kind !== "TopUp" && (
                                 <>
                             <CreditInsuranceReadonlyField
-                                label={tCi("credit_insurance.fields.start_date")}
+                                label={fieldLabel("start_date")}
                                 value={displayStartDate}
                             />
                             <CreditInsuranceReadonlyField
-                                label={tCi("credit_insurance.fields.end_date")}
+                                label={fieldLabel("end_date")}
                                 value={displayEndDate}
                             />
                                 </>
                             )}
                             {data?.policy_kind !== "TopUp" && (
                             <CreditInsuranceReadonlyField
-                                label={tCi("credit_insurance.fields.currency")}
+                                label={fieldLabel("currency")}
                                 value={currencyValue}
                             />
                             )}
                             {data?.policy_kind !== "TopUp" && (
                                 <>
                                     <CreditInsuranceReadonlyField
-                                        label={tCi("credit_insurance.fields.max_total_cover")}
+                                        label={fieldLabel("max_total_cover")}
                                         value={maxTotalCoverInput}
                                     />
                                     <CreditInsuranceReadonlyField
-                                        label={tCi("credit_insurance.fields.min_credit_score")}
+                                        label={fieldLabel("min_credit_score")}
                                         value={minCreditScoreInput}
                                     />
                                     <CreditInsuranceReadonlyField
-                                        label={tCi(
-                                            "credit_insurance.fields.score_validity_period_months"
-                                        )}
+                                        label={fieldLabel("score_validity_period_months")}
                                         value={scoreValidityMonthsInput}
                                     />
                                     <CreditInsuranceReadonlyField
-                                        label={tCi(
-                                            "credit_insurance.fields.max_total_dcl_sdl_cover"
-                                        )}
+                                        label={fieldLabel("max_total_dcl_sdl_cover")}
                                         value={maxTotalDclSdlCoverInput}
                                     />
                                     <CreditInsuranceReadonlyField
-                                        label={tCi("credit_insurance.fields.max_dcl")}
+                                        label={fieldLabel("max_dcl")}
                                         value={maxDclInput}
                                     />
                                     <CreditInsuranceReadonlyField
-                                        label={tCi(
-                                            "credit_insurance.fields.dcl_customer_since_months"
-                                        )}
+                                        label={fieldLabel("dcl_customer_since_months")}
                                         value={dclCustomerSinceMonthsInput}
                                     />
                                     <Box sx={sectionHeaders.standard}>
@@ -1237,20 +1259,16 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         </Typography>
                                     </Box>
                                     <CreditInsuranceReadonlyField
-                                        label={tCi("credit_insurance.fields.max_payment_term")}
+                                        label={fieldLabel("max_payment_term")}
                                         value={maxPaymentTermInput}
                                     />
                                     <CreditInsuranceReadonlyField
-                                        label={tCi(
-                                            "credit_insurance.fields.payment_term_cutoff_day_of_month"
-                                        )}
-                                        value={paymentTermCutoffDayOfMonthInput}
+                                        label={fieldLabel("payment_term_cutoff_day")}
+                                        value={paymentTermCutoffDayInput}
                                     />
                                     <CreditInsuranceReadonlyField
-                                        label={tCi(
-                                            "credit_insurance.fields.payment_term_substitute_day_of_month"
-                                        )}
-                                        value={paymentTermSubstituteDayOfMonthInput}
+                                        label={fieldLabel("payment_term_substitute_day")}
+                                        value={paymentTermSubstituteDayInput}
                                     />
                                     <Box sx={sectionHeaders.standard}>
                                         <Typography
@@ -1261,20 +1279,16 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         </Typography>
                                     </Box>
                                     <CreditInsuranceReadonlyField
-                                        label={tCi("credit_insurance.fields.max_allowed_mep")}
+                                        label={fieldLabel("max_allowed_mep")}
                                         value={maxAllowedMepInput}
                                     />
                                     <CreditInsuranceReadonlyField
-                                        label={tCi(
-                                            "credit_insurance.fields.mep_cutoff_day_of_month"
-                                        )}
-                                        value={mepCutoffDayOfMonthInput}
+                                        label={fieldLabel("mep_cutoff_day")}
+                                        value={mepCutoffDayInput}
                                     />
                                     <CreditInsuranceReadonlyField
-                                        label={tCi(
-                                            "credit_insurance.fields.mep_substitute_day_of_month"
-                                        )}
-                                        value={mepSubstituteDayOfMonthInput}
+                                        label={fieldLabel("mep_substitute_extra_days")}
+                                        value={mepSubstituteExtraDaysInput}
                                     />
                                     <Box sx={sectionHeaders.standard}>
                                         <Typography
@@ -1285,20 +1299,16 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                                         </Typography>
                                     </Box>
                                     <CreditInsuranceReadonlyField
-                                        label={tCi("credit_insurance.fields.reporting_days")}
+                                        label={fieldLabel("reporting_days")}
                                         value={reportingDaysInput}
                                     />
                                     <CreditInsuranceReadonlyField
-                                        label={tCi(
-                                            "credit_insurance.fields.reporting_cutoff_day_of_month"
-                                        )}
-                                        value={reportingCutoffDayOfMonthInput}
+                                        label={fieldLabel("reporting_cutoff_day")}
+                                        value={reportingCutoffDayInput}
                                     />
                                     <CreditInsuranceReadonlyField
-                                        label={tCi(
-                                            "credit_insurance.fields.reporting_substitute_day_of_month"
-                                        )}
-                                        value={reportingSubstituteDayOfMonthInput}
+                                        label={fieldLabel("reporting_substitute_extra_days")}
+                                        value={reportingSubstituteExtraDaysInput}
                                     />
                                 </>
                             )}

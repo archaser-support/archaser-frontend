@@ -24,7 +24,7 @@ import {
     Typography,
     useTheme,
 } from "@mui/material";
-import { GridColDef, GridSortModel } from "@mui/x-data-grid";
+import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/app/api";
 import {

@@ -35,7 +35,7 @@ This document provides comprehensive guidelines for using the `EndlessScrollData
 import { useVirtualInfiniteScroll, createQueryFn } from "@/shared/layout-components/grid/EndlessScrollDataGrid";
 import { useState, useMemo } from "react";
 import { useDebounce } from "use-debounce";
-import { GridSortModel } from "@mui/x-data-grid";
+import { GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 
 // State setup
 const [search, setSearch] = useState("");
@@ -114,7 +114,7 @@ const { data, totalRecords, isLoading, hasMore, loadMore, reset } = useVirtualIn
 import { useVirtualInfiniteScroll, createApiQueryFn } from "@/shared/layout-components/grid/EndlessScrollDataGrid";
 import { useState, useMemo } from "react";
 import { useDebounce } from "use-debounce";
-import { GridSortModel } from "@mui/x-data-grid";
+import { GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import api from "@/app/api";
 
 // State setup (same as above)

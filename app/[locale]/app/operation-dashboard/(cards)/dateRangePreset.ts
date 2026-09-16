@@ -5,6 +5,7 @@ export type DatePreset =
     | "last_week"
     | "this_month"
     | "last_month"
+    | "last_6_months"
     | "this_year"
     | "last_year"
     | "custom";
@@ -83,6 +84,12 @@ export function detectDateRangePreset(
         new Date(today.getFullYear(), today.getMonth(), 0)
     );
 
+    const last6MonthsStart = new Date(
+        today.getFullYear(),
+        today.getMonth() - 6,
+        today.getDate()
+    );
+
     const thisYearStart = new Date(today.getFullYear(), 0, 1);
     const thisYearEnd = endOfLocalDay(new Date(today.getFullYear(), 11, 31));
 
@@ -132,6 +139,12 @@ export function detectDateRangePreset(
         endDate.getTime() <= lastMonthEnd.getTime()
     ) {
         return "last_month";
+    }
+    if (
+        startDay.getTime() === last6MonthsStart.getTime() &&
+        isSameLocalDay(endDate, todayEnd)
+    ) {
+        return "last_6_months";
     }
     if (
         startDay.getTime() === thisYearStart.getTime() &&

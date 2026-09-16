@@ -10,7 +10,7 @@ import {
 } from "@mui/icons-material";
 import React from "react";
 
-import { formatAmountWithoutSymbol } from "@/utils/stringFormatters";
+import { formatAmountWithoutSymbolWhole } from "@/utils/stringFormatters";
 
 import StatCard, { StatCardGrid } from "./StatCard";
 
@@ -133,7 +133,7 @@ export const createStatConfigs = (
             value: data.counts.total_outstanding_amount,
             icon: <STAT_ICONS.MONEY />,
             status: "warning",
-            formatter: formatAmountWithoutSymbol,
+            formatter: formatAmountWithoutSymbolWhole,
         });
     }
 
@@ -145,7 +145,7 @@ export const createStatConfigs = (
             value: data.counts.total_overdue_amount,
             icon: <STAT_ICONS.MONEY />,
             status: "error",
-            formatter: formatAmountWithoutSymbol,
+            formatter: formatAmountWithoutSymbolWhole,
         });
     }
 

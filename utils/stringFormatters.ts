@@ -149,15 +149,19 @@ export function formatAmountWithoutSymbol(
  * @param currencyCode - The currency code (e.g., 'USD', 'EUR')
  * @param locale - The locale to use for formatting (default: 'en-US')
  * @param i18nLanguage - The current i18n language for RTL/LTR positioning
+ * @param options.wholeNumbers - When true, hide decimal places (stat cards / KPIs)
  * @returns Formatted currency string with proper positioning
  */
 export function formatCurrencyWithRTLSupport(
     amount: number,
     currencyCode: string,
     locale: string = "en-US",
-    i18nLanguage: string = "en"
+    i18nLanguage: string = "en",
+    options?: { wholeNumbers?: boolean }
 ): string {
-    const formattedAmount = formatAmountWithoutSymbol(amount, locale);
+    const formattedAmount = options?.wholeNumbers
+        ? formatAmountWithoutSymbolWhole(amount, locale)
+        : formatAmountWithoutSymbol(amount, locale);
 
     // For Hebrew (RTL), put currency code AFTER the amount.
     // In RTL layout the string renders right-to-left, so "62,348 ILS" displays

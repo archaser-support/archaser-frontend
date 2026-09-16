@@ -9,28 +9,59 @@ type TooltipPayloadItem = {
     dataKey?: string | number;
 };
 
+/** Area+Line composed series share a dataKey; keep the last payload row (usually the Line). */
+function uniqueTooltipItems(
+    entries: ReadonlyArray<TooltipPayloadItem>
+): TooltipPayloadItem[] {
+    const withValue = entries.filter(
+        (entry) => entry.value != null && entry.value !== ""
+    );
+    const byDataKey = new Map<string, TooltipPayloadItem>();
+    const withoutKey: TooltipPayloadItem[] = [];
+    for (const entry of withValue) {
+        if (entry.dataKey == null || entry.dataKey === "") {
+            withoutKey.push(entry);
+            continue;
+        }
+        byDataKey.set(String(entry.dataKey), entry);
+    }
+    return [...byDataKey.values(), ...withoutKey];
+}
+
 export type ChartTooltipProps = {
     active?: boolean;
     label?: string;
-    payload?: TooltipPayloadItem[];
+    payload?: ReadonlyArray<TooltipPayloadItem>;
+    /**
+     * When set, render these rows instead of deriving from Recharts payload
+     * (e.g. cost breakdown while the bar still uses a single series).
+     */
+    items?: ReadonlyArray<TooltipPayloadItem>;
     formatValue?: (value: number, name?: string) => string;
+    /** When Hebrew, flip tooltip layout (RTL) like ApexCharts credit-dashboard tooltips. */
+    language?: string;
 };
 
 export function ChartTooltip({
     active,
     label,
     payload,
+    items: explicitItems,
     formatValue,
+    language,
 }: ChartTooltipProps) {
-    const items = (payload ?? []).filter(
-        (entry) => entry.value != null && entry.value !== ""
-    );
+    const items = uniqueTooltipItems(explicitItems ?? payload ?? []);
     if (!active || items.length === 0) {
         return null;
     }
 
+    const isRtl =
+        language != null &&
+        (language === "he" || language.startsWith("he-"));
+
     return (
         <div
+            dir={isRtl ? "rtl" : "ltr"}
             style={{
                 borderRadius: 8,
                 border: `1px solid ${CPH.border}`,
@@ -39,6 +70,9 @@ export function ChartTooltip({
                 backgroundColor: CPH.card,
                 color: CPH.ink,
                 boxShadow: CPH.shadow,
+                direction: isRtl ? "rtl" : "ltr",
+                textAlign: isRtl ? "right" : "left",
+                unicodeBidi: "isolate",
             }}
         >
             {label ? (
@@ -47,6 +81,9 @@ export function ChartTooltip({
                         marginBottom: 4,
                         fontWeight: 500,
                         color: CPH.slate,
+                        direction: isRtl ? "rtl" : "ltr",
+                        textAlign: isRtl ? "right" : "left",
+                        unicodeBidi: isRtl ? "plaintext" : undefined,
                     }}
                 >
                     {label}
@@ -73,11 +110,14 @@ export function ChartTooltip({
                             : String(entry.value ?? "");
                     return (
                         <li
-                            key={`${entry.dataKey ?? entry.name ?? index}`}
+                            key={`${String(entry.dataKey ?? entry.name ?? "item")}-${index}`}
                             style={{
                                 display: "flex",
+                                flexDirection: "row",
                                 alignItems: "center",
                                 gap: 8,
+                                direction: isRtl ? "rtl" : "ltr",
+                                width: "100%",
                             }}
                         >
                             <span
@@ -87,18 +127,30 @@ export function ChartTooltip({
                                     height: 8,
                                     borderRadius: "50%",
                                     flexShrink: 0,
-                                    backgroundColor: entry.color ?? CPH.jade,
+                                    backgroundColor: entry.color ?? CPH.teal,
                                 }}
                             />
-                            <span style={{ color: CPH.slate }}>
+                            <span
+                                style={{
+                                    color: CPH.slate,
+                                    flex: 1,
+                                    minWidth: 0,
+                                    direction: isRtl ? "rtl" : "ltr",
+                                    textAlign: isRtl ? "right" : "left",
+                                    unicodeBidi: isRtl ? "plaintext" : undefined,
+                                }}
+                            >
                                 {entry.name}
                             </span>
                             <span
                                 style={{
-                                    marginInlineStart: "auto",
+                                    flexShrink: 0,
                                     fontWeight: 500,
                                     fontVariantNumeric: "tabular-nums",
                                     color: CPH.ink,
+                                    direction: "ltr",
+                                    textAlign: isRtl ? "left" : "right",
+                                    unicodeBidi: "isolate",
                                 }}
                             >
                                 {display}

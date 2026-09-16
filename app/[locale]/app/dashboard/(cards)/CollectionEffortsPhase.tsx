@@ -22,6 +22,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import AppUrls from "@/utils/appUrls";
+import { pushFinancialChartDetails } from "@/shared/dashboard/financialChartDetailsTitle";
 import { useDashboardBusinessUnitId } from "@/shared/dashboard/DashboardBusinessUnitContext";
 import { appendDashboardBusinessUnitId } from "@/shared/dashboard/dashboardBusinessUnitParams";
 import { lighten } from "@mui/system/colorManipulator";
@@ -90,8 +91,11 @@ const CollectionEffortsPhase = ({
                 }),
                 businessUnitId
             );
-            router.push(
-                `/${locale}${AppUrls.DASHBOARD}/chart-details?${searchParams.toString()}`
+            pushFinancialChartDetails(
+                router,
+                `/${locale}${AppUrls.DASHBOARD}/chart-details?${searchParams.toString()}`,
+                t,
+                locale
             );
         }, 0);
     };

@@ -1,6 +1,6 @@
 import { Box } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
-import { GridColDef } from "@mui/x-data-grid";
+import { GridColDef } from "@/shared/layout-components/grid/gridColumnTypes";
 import React, { useLayoutEffect, useRef } from "react";
 import { DataGridRowProps } from "../types";
 import { getColumnWidthConfig } from "../utils/columnUtils";

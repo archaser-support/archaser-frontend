@@ -6,12 +6,19 @@ import {
     Info as InfoIcon,
     Warning as WarningIcon,
 } from "@mui/icons-material";
-import { Box, Button, CircularProgress, Typography, useTheme } from "@mui/material";
+import {
+    Box,
+    Button,
+    CircularProgress,
+    Tooltip,
+    Typography,
+    useTheme,
+} from "@mui/material";
 import React from "react";
 import { useTranslation } from "react-i18next";
 
 import AppDialog from "@/shared/layout-components/modal/AppDialog";
-
+import { getRTLTooltipProps } from "@/utils/reportFieldUtils";
 
 export type DialogType = "delete" | "warning" | "info" | "success";
 
@@ -23,10 +30,15 @@ interface DeleteDialogProps {
     description: string | React.ReactNode;
     confirmLabel?: string;
     cancelLabel?: string;
+    /** Optional middle action (e.g. Skip) between Cancel and Confirm. */
+    secondaryLabel?: string;
+    onSecondary?: () => void;
     isLoading?: boolean;
     /** When false, confirm button does not show a loading spinner (button still disabled when isLoading). Default true. */
     showConfirmSpinner?: boolean;
     confirmDisabled?: boolean;
+    /** Shown on the confirm button when it is disabled (wrapped for disabled hover). */
+    confirmDisabledTooltip?: string;
     type?: DialogType;
     errorMessage?: string;
     maxWidth?: "xs" | "sm" | "md" | "lg" | "xl";
@@ -58,9 +70,12 @@ const DeleteDialog: React.FC<DeleteDialogProps> = ({
     description,
     confirmLabel,
     cancelLabel,
+    secondaryLabel,
+    onSecondary,
     isLoading = false,
     showConfirmSpinner = true,
     confirmDisabled = false,
+    confirmDisabledTooltip,
     type = "delete",
     errorMessage,
     maxWidth = "xs",
@@ -70,8 +85,6 @@ const DeleteDialog: React.FC<DeleteDialogProps> = ({
     const { t, i18n } = useTranslation(["common"]);
     const currentLocale = locale || i18n.language;
     const isRTL = currentLocale === "he";
-
-
 
     const getIconAndColor = () => {
         switch (type) {
@@ -109,6 +122,45 @@ const DeleteDialog: React.FC<DeleteDialogProps> = ({
     };
 
     const { icon, color, hoverColor } = getIconAndColor();
+    const confirmIsDisabled = isLoading || confirmDisabled;
+    const showDisabledTooltip =
+        Boolean(confirmDisabledTooltip) && confirmDisabled && !isLoading;
+
+    const confirmButton = (
+        <Button
+            onClick={onConfirm}
+            disabled={confirmIsDisabled}
+            variant="contained"
+            fullWidth={false}
+            className="save-button"
+            endIcon={
+                showConfirmSpinner && isLoading ? (
+                    <CircularProgress size={16} sx={{ color: "inherit" }} />
+                ) : undefined
+            }
+            sx={{
+                backgroundColor: color,
+                "&:hover": {
+                    backgroundColor: hoverColor,
+                },
+                direction: isRTL ? "rtl" : "ltr",
+                "& .MuiButton-endIcon": {
+                    marginLeft: isRTL ? 0 : theme.spacing(1),
+                    marginRight: isRTL ? theme.spacing(1) : 0,
+                },
+            }}
+        >
+            {confirmLabel || t("common.actions.confirm")}
+        </Button>
+    );
+
+    const confirmControl = showDisabledTooltip ? (
+        <Tooltip title={confirmDisabledTooltip} {...getRTLTooltipProps(i18n)}>
+            <span style={{ display: "inline-flex" }}>{confirmButton}</span>
+        </Tooltip>
+    ) : (
+        confirmButton
+    );
 
     return (
         <AppDialog
@@ -125,50 +177,65 @@ const DeleteDialog: React.FC<DeleteDialogProps> = ({
             ariaLabelledBy="delete-dialog-title"
             ariaDescribedBy="delete-dialog-description"
             actions={
-                <>
-                    <Button
-                        onClick={onClose}
-                        variant="outlined"
-                        size="small"
-                        className="cancel-button"
-                        fullWidth={false}
-                        disabled={isLoading}
+                secondaryLabel && onSecondary ? (
+                    <Box
                         sx={{
-                            mr: isRTL ? 0 : theme.spacing(1),
-                            ml: isRTL ? theme.spacing(1) : 0,
-                        }}
-                    >
-                        {cancelLabel || t("common.actions.cancel")}
-                    </Button>
-                    <Button
-                        onClick={onConfirm}
-                        disabled={isLoading || confirmDisabled}
-                        variant="contained"
-                        fullWidth={false}
-                        className="save-button"
-                        endIcon={
-                            showConfirmSpinner && isLoading ? (
-                                <CircularProgress
-                                    size={16}
-                                    sx={{ color: "inherit" }}
-                                />
-                            ) : undefined
-                        }
-                        sx={{
-                            backgroundColor: color,
-                            "&:hover": {
-                                backgroundColor: hoverColor,
-                            },
+                            display: "flex",
+                            width: "100%",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: 1,
                             direction: isRTL ? "rtl" : "ltr",
-                            "& .MuiButton-endIcon": {
-                                marginLeft: isRTL ? 0 : theme.spacing(1),
-                                marginRight: isRTL ? theme.spacing(1) : 0,
-                            },
                         }}
                     >
-                        {confirmLabel || t("common.actions.confirm")}
-                    </Button>
-                </>
+                        <Button
+                            onClick={onClose}
+                            variant="outlined"
+                            size="small"
+                            className="cancel-button"
+                            fullWidth={false}
+                            disabled={isLoading}
+                        >
+                            {cancelLabel || t("common.actions.cancel")}
+                        </Button>
+                        <Box
+                            sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1,
+                            }}
+                        >
+                            <Button
+                                onClick={onSecondary}
+                                variant="outlined"
+                                size="small"
+                                fullWidth={false}
+                                disabled={isLoading}
+                            >
+                                {secondaryLabel}
+                            </Button>
+                            {confirmControl}
+                        </Box>
+                    </Box>
+                ) : (
+                    <>
+                        <Button
+                            onClick={onClose}
+                            variant="outlined"
+                            size="small"
+                            className="cancel-button"
+                            fullWidth={false}
+                            disabled={isLoading}
+                            sx={{
+                                mr: isRTL ? 0 : theme.spacing(1),
+                                ml: isRTL ? theme.spacing(1) : 0,
+                            }}
+                        >
+                            {cancelLabel || t("common.actions.cancel")}
+                        </Button>
+                        {confirmControl}
+                    </>
+                )
             }
         >
             <Box

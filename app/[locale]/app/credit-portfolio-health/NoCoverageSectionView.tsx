@@ -19,6 +19,11 @@ import type { NoCoverageReasonKey, PortfolioNoCoverageSection } from "@/types/cr
 import { BigNumber } from "./BigNumber";
 import { ChartTooltip } from "./ChartTooltip";
 import { Eyebrow } from "./Eyebrow";
+import {
+    formatPortfolioAxisMoney,
+    formatPortfolioMoney,
+    portfolioMoneyAffixes,
+} from "./formatPortfolioMoney";
 import { IslandCard } from "./IslandCard";
 import { CPH } from "./designTokens";
 import layout from "./islandLayout.module.css";
@@ -28,9 +33,8 @@ export type NoCoverageSectionViewProps = {
     section: PortfolioNoCoverageSection;
 };
 
-const REASON_LABEL_KEYS: Record<
-    NoCoverageReasonKey,
-    { key: string; defaultValue: string }
+const REASON_LABEL_KEYS: Partial<
+    Record<NoCoverageReasonKey, { key: string; defaultValue: string }>
 > = {
     pending_review: {
         key: "credit_portfolio_health.reason_pending_review",
@@ -43,10 +47,6 @@ const REASON_LABEL_KEYS: Record<
     insurer_declined: {
         key: "credit_portfolio_health.reason_insurer_declined",
         defaultValue: "Insurer declined",
-    },
-    other: {
-        key: "credit_portfolio_health.reason_other",
-        defaultValue: "Other",
     },
     no_linked_policy: {
         key: "credit_portfolio_health.reason_no_linked_policy",
@@ -84,17 +84,14 @@ const BREACH_REASON_LABEL_KEYS: Record<
     },
 };
 
-function formatAmount(value: number, language: string): string {
-    const locale = language.startsWith("he") ? "he-IL" : "en-US";
-    return value.toLocaleString(locale, { maximumFractionDigits: 0 });
-}
-
 export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
     const { t, i18n } = useTranslation(["dashboard"]);
     const language = i18n.language;
     const ns = { ns: "dashboard" as const };
     const prefersReducedMotion = usePrefersReducedMotion();
     const animDuration = prefersReducedMotion ? 0 : 1100;
+    const currency = section.accountCurrency || "USD";
+    const moneyAffixes = portfolioMoneyAffixes(currency, language);
 
     const reasonsWithSignal = section.reasons.filter(
         (item) => item.averageAmount > 0 || item.averageCustomerCount > 0
@@ -108,10 +105,12 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                     const meta = REASON_LABEL_KEYS[item.reason];
                     return {
                         reason: item.reason,
-                        label: t(meta.key, {
-                            ...ns,
-                            defaultValue: meta.defaultValue,
-                        }),
+                        label: meta
+                            ? t(meta.key, {
+                                  ...ns,
+                                  defaultValue: meta.defaultValue,
+                              })
+                            : item.reason,
                         amount: item.averageAmount,
                         customers: item.averageCustomerCount,
                     };
@@ -186,7 +185,8 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                     <BigNumber
                         value={section.averageUncoveredAmount}
                         decimals={0}
-                        suffix=""
+                        prefix={moneyAffixes.prefix}
+                        suffix={moneyAffixes.suffix}
                         label={t(
                             "credit_portfolio_health.kpi_uncovered_amount",
                             {
@@ -201,7 +201,7 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
             </IslandCard>
 
             <IslandCard
-                accent="copper"
+                accent="violet"
                 className={`${layout.span12} ${layout.mdSpan8} ${layout.cardPad}`}
             >
                 <Eyebrow
@@ -233,7 +233,7 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                             <BarChart
                                 layout="vertical"
                                 data={reasonsChartData}
-                                margin={{ left: 10, right: 20, top: 4, bottom: 4 }}
+                                margin={{ left: 10, right: 28, top: 4, bottom: 8 }}
                             >
                                 <CartesianGrid
                                     strokeDasharray="3 6"
@@ -245,8 +245,13 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                                     tick={{ fill: CPH.slate, fontSize: 11 }}
                                     axisLine={false}
                                     tickLine={false}
+                                    height={36}
                                     tickFormatter={(v: number) =>
-                                        formatAmount(v, language)
+                                        formatPortfolioAxisMoney(
+                                            v,
+                                            currency,
+                                            language
+                                        )
                                     }
                                 />
                                 <YAxis
@@ -259,13 +264,36 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                                 />
                                 <Tooltip
                                     cursor={{ fill: CPH.surfaceMuted }}
-                                    content={
+                                    content={(props) => (
                                         <ChartTooltip
+                                            active={props.active}
+                                            label={
+                                                typeof props.label ===
+                                                    "string" ||
+                                                typeof props.label === "number"
+                                                    ? String(props.label)
+                                                    : undefined
+                                            }
+                                            payload={props.payload as unknown as
+                                                | ReadonlyArray<{
+                                                      name?: string;
+                                                      value?: number | string;
+                                                      color?: string;
+                                                      dataKey?:
+                                                          | string
+                                                          | number;
+                                                  }>
+                                                | undefined}
+                                            language={language}
                                             formatValue={(v) =>
-                                                formatAmount(v, language)
+                                                formatPortfolioMoney(
+                                                    v,
+                                                    currency,
+                                                    language
+                                                )
                                             }
                                         />
-                                    }
+                                    )}
                                 />
                                 <Bar
                                     dataKey="amount"
@@ -284,8 +312,8 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                                             key={i}
                                             fill={
                                                 i === 0
-                                                    ? CPH.copper
-                                                    : CPH.jadeDim
+                                                    ? CPH.violet
+                                                    : CPH.tealDim
                                             }
                                         />
                                     ))}
@@ -353,7 +381,7 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                                 defaultValue: "Share of total violations",
                             }
                         )}
-                        color={CPH.copper}
+                        color={CPH.violet}
                         locale={language}
                     />
                 </div>

@@ -13,7 +13,7 @@ import {
     Typography,
     useTheme,
 } from "@mui/material";
-import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+import { GridColDef, GridRenderCellParams } from "@/shared/layout-components/grid/gridColumnTypes";
 import React, {
     useCallback,
     useEffect,

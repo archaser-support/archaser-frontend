@@ -6,7 +6,7 @@ import {
     Link as MuiLink,
     Typography,
 } from "@mui/material";
-import { GridColDef, GridSortModel } from "@mui/x-data-grid";
+import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useMemo } from "react";

@@ -93,7 +93,7 @@
         "top_up_cost_currency": "Top-Up Cost Currency",
         "total_daily_cost_change": "Total Daily Cost Change",
         "cost_calculation_method": "Cost Calculation Method",
-        "cost_percent": "Insurance Premium Rate (%)",
+        "cost_percent": "Insurance Fee Rate (%)",
         "registration_fee_percent": "Registration Fee (%)",
         "policy_cost_snapshot_date": "Policy Cost Snapshot Date",
         "active_customer_since": "Active customer since",

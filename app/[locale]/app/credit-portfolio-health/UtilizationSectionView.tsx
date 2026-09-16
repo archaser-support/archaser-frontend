@@ -7,7 +7,6 @@ import {
     AlertTriangle,
     Award,
     ChevronRight,
-    Gauge,
     Layers,
     RefreshCw,
     TrendingUp,
@@ -29,8 +28,8 @@ import { useParams, useRouter } from "next/navigation";
 
 import type { PortfolioUtilizationSection, UtilizationDistributionBinKey } from "@/types/creditInsurance";
 import { appendDashboardBusinessUnitId } from "@/shared/dashboard/dashboardBusinessUnitParams";
-import { formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
-
+import { applyCreditReportDocumentTitle } from "../credit-dashboard/report/creditReportTitles";
+import { formatPortfolioMoney } from "./formatPortfolioMoney";
 import { BigNumber } from "./BigNumber";
 import { ChartTooltip } from "./ChartTooltip";
 import { Eyebrow } from "./Eyebrow";
@@ -68,17 +67,50 @@ function riskZoneForBin(bin: UtilizationDistributionBinKey): UtilizationRiskZone
     return "danger";
 }
 
+function averageTopCustomersUtilization(
+    customers: {
+        utilizationPct: number | null;
+        openAr?: number;
+    }[],
+    totalOpenAr: number
+): {
+    averagePct: number | null;
+    count: number;
+    total: number;
+    openArTotal: number;
+    /** Top cohort open AR as % of portfolio open AR; null when denom is 0. */
+    openArSharePct: number | null;
+} {
+    const total = customers.length;
+    const openArTotal = customers.reduce(
+        (sum, row) => sum + Math.max(0, Number(row.openAr) || 0),
+        0
+    );
+    const denom = Math.max(0, Number(totalOpenAr) || 0);
+    const openArSharePct =
+        denom > 0 ? Math.min(100, (100 * openArTotal) / denom) : null;
+    const withPct = customers.filter(
+        (row): row is { utilizationPct: number; openAr?: number } =>
+            row.utilizationPct != null && Number.isFinite(row.utilizationPct)
+    );
+    const count = withPct.length;
+    if (count === 0) {
+        return { averagePct: null, count, total, openArTotal, openArSharePct };
+    }
+    const averagePct =
+        withPct.reduce((sum, row) => sum + row.utilizationPct, 0) / count;
+    return { averagePct, count, total, openArTotal, openArSharePct };
+}
+
 function seriesFillForRisk(
     series: "customers" | "usage",
     zone: UtilizationRiskZone
 ): string {
-    if (zone === "calm") {
-        return series === "customers" ? CPH.jade : CPH.copper;
+    if (zone === "danger") {
+        return CPH.critical;
     }
-    if (zone === "warning") {
-        return series === "customers" ? CPH.copper : CPH.jadeDim;
-    }
-    return CPH.critical;
+    // Below 100%: customers = teal, usage = violet (one color = one meaning).
+    return series === "customers" ? CPH.teal : CPH.violet;
 }
 
 const BIN_LABEL_KEYS: Record<
@@ -152,19 +184,6 @@ function truncateChartLabel(
     return rtl ? `…${truncated}` : `${truncated}…`;
 }
 
-function formatAsOfYmd(ymd: string, language: string): string {
-    const date = new Date(`${ymd}T12:00:00.000Z`);
-    if (Number.isNaN(date.getTime())) {
-        return ymd;
-    }
-    const locale = language.startsWith("he") ? "he-IL" : "en-US";
-    return date.toLocaleDateString(locale, {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-    });
-}
-
 type DistributionChartRow = {
     bin: UtilizationDistributionBinKey;
     label: string;
@@ -204,11 +223,11 @@ function DistributionTooltip({
         return null;
     }
     const locale = language.startsWith("he") ? "he-IL" : "en-US";
+    const isRtl = language === "he" || language.startsWith("he-");
     const customerLine = `${row.customerCount.toLocaleString(locale)} (${formatPct(row.customerPct, language)})`;
-    const usageLine = `${formatCurrencyWithRTLSupport(
+    const usageLine = `${formatPortfolioMoney(
         row.usageAmount,
         currency,
-        locale,
         language
     )} (${formatPct(row.usagePct, language)})`;
 
@@ -216,17 +235,18 @@ function DistributionTooltip({
         {
             name: customerSeriesName,
             display: customerLine,
-            color: CPH.jade,
+            color: CPH.teal,
         },
         {
             name: usageSeriesName,
             display: usageLine,
-            color: CPH.copper,
+            color: CPH.violet,
         },
     ];
 
     return (
         <div
+            dir={isRtl ? "rtl" : "ltr"}
             style={{
                 borderRadius: 8,
                 border: `1px solid ${CPH.border}`,
@@ -235,6 +255,9 @@ function DistributionTooltip({
                 backgroundColor: CPH.card,
                 color: CPH.ink,
                 boxShadow: CPH.shadow,
+                direction: isRtl ? "rtl" : "ltr",
+                textAlign: isRtl ? "right" : "left",
+                unicodeBidi: "isolate",
             }}
         >
             {label ? (
@@ -243,6 +266,8 @@ function DistributionTooltip({
                         marginBottom: 4,
                         fontWeight: 500,
                         color: CPH.slate,
+                        direction: isRtl ? "rtl" : "ltr",
+                        textAlign: isRtl ? "right" : "left",
                     }}
                 >
                     {label}
@@ -263,8 +288,11 @@ function DistributionTooltip({
                         key={entry.name}
                         style={{
                             display: "flex",
+                            flexDirection: "row",
                             alignItems: "center",
                             gap: 8,
+                            direction: isRtl ? "rtl" : "ltr",
+                            width: "100%",
                         }}
                     >
                         <span
@@ -277,13 +305,25 @@ function DistributionTooltip({
                                 backgroundColor: entry.color,
                             }}
                         />
-                        <span style={{ color: CPH.slate }}>{entry.name}</span>
                         <span
                             style={{
-                                marginInlineStart: "auto",
+                                color: CPH.slate,
+                                flex: 1,
+                                minWidth: 0,
+                                textAlign: isRtl ? "right" : "left",
+                            }}
+                        >
+                            {entry.name}
+                        </span>
+                        <span
+                            style={{
+                                flexShrink: 0,
                                 fontWeight: 500,
                                 fontVariantNumeric: "tabular-nums",
                                 color: CPH.ink,
+                                direction: "ltr",
+                                textAlign: isRtl ? "left" : "right",
+                                unicodeBidi: "isolate",
                             }}
                         >
                             {entry.display}
@@ -330,15 +370,6 @@ export function UtilizationSectionView({
                   days: section.peakUtilizationStreakDays,
               });
 
-    const asOfLabel =
-        section.asOfDate != null
-            ? t("credit_portfolio_health.as_of_date", {
-                  ...ns,
-                  defaultValue: "As of {{date}}",
-                  date: formatAsOfYmd(section.asOfDate, language),
-              })
-            : null;
-
     const topCustomersChartData = useMemo(
         () =>
             section.topCustomers.map((item) => ({
@@ -348,6 +379,15 @@ export function UtilizationSectionView({
             })),
         [section.topCustomers]
     );
+
+    const topCustomersChartDomainMax = useMemo(() => {
+        const peak = topCustomersChartData.reduce(
+            (max, row) => Math.max(max, row.utilization),
+            0
+        );
+        // Allow over-limit bars to extend past 100% (old domain [0, 100] clipped them).
+        return Math.max(100, Math.ceil(peak / 10) * 10);
+    }, [topCustomersChartData]);
 
     const distributionChartData = useMemo(
         () =>
@@ -379,13 +419,11 @@ export function UtilizationSectionView({
     const currency = section.accountCurrency || "USD";
 
     const openUtilizationBinReport = (bin: UtilizationDistributionBinKey) => {
-        if (section.asOfDate == null) {
-            return;
-        }
         const sp = new URLSearchParams({
             type: "utilization_bin",
             bin,
-            asOf: section.asOfDate,
+            from: fromYmd,
+            to: toYmd,
         });
         if (policyId != null) {
             sp.set("policyId", String(policyId));
@@ -394,8 +432,47 @@ export function UtilizationSectionView({
             sp.set("includeNoPolicyExposure", "0");
         }
         appendDashboardBusinessUnitId(sp, businessUnitId);
+        applyCreditReportDocumentTitle(t, "utilization_bin");
         router.push(`/${locale}/app/credit-dashboard/report?${sp.toString()}`);
     };
+
+    const overshoot = section.overshoot ?? null;
+
+    const openOvershootReport = () => {
+        const sp = new URLSearchParams({
+            type: "utilization_overshoot",
+            from: fromYmd,
+            to: toYmd,
+        });
+        if (policyId != null) {
+            sp.set("policyId", String(policyId));
+        }
+        if (!includeNoPolicyExposure) {
+            sp.set("includeNoPolicyExposure", "0");
+        }
+        appendDashboardBusinessUnitId(sp, businessUnitId);
+        applyCreditReportDocumentTitle(t, "utilization_overshoot");
+        router.push(`/${locale}/app/credit-dashboard/report?${sp.toString()}`);
+    };
+
+    const rankingPreview = useMemo(
+        () => (overshoot?.ranking ?? []).slice(0, 10),
+        [overshoot?.ranking]
+    );
+
+    const top10AvgUtilization = useMemo(() => {
+        const totalOpenAr =
+            Math.max(0, Number(section.selfUnderwrittenAverageAr) || 0) +
+            Math.max(0, Number(section.approvedAverageAr) || 0);
+        return averageTopCustomersUtilization(
+            section.topCustomers,
+            totalOpenAr
+        );
+    }, [
+        section.topCustomers,
+        section.selfUnderwrittenAverageAr,
+        section.approvedAverageAr,
+    ]);
 
     const topChartHeight = Math.max(220, topCustomersChartData.length * 28);
     const distChartHeight = 280;
@@ -403,7 +480,7 @@ export function UtilizationSectionView({
     return (
         <div className={layout.grid12}>
             <IslandCard
-                accent="jade"
+                accent="teal"
                 className={`${layout.span6} ${layout.mdSpan3} ${layout.cardPad}`}
             >
                 <Eyebrow
@@ -432,9 +509,98 @@ export function UtilizationSectionView({
                             defaultValue: "Policy utilization",
                         }
                     )}
-                    color={CPH.jade}
+                    color={CPH.teal}
                     locale={language}
                 />
+            </IslandCard>
+
+            <IslandCard
+                accent={
+                    top10AvgUtilization.averagePct != null &&
+                    top10AvgUtilization.averagePct > 100
+                        ? "critical"
+                        : "teal"
+                }
+                className={`${layout.span6} ${layout.mdSpan3} ${layout.cardPad}`}
+            >
+                <Eyebrow
+                    icon={Users}
+                    tone={
+                        top10AvgUtilization.averagePct != null &&
+                        top10AvgUtilization.averagePct > 100
+                            ? CPH.critical
+                            : undefined
+                    }
+                    help={t(
+                        "credit_portfolio_health.kpi_avg_utilization_top10_help",
+                        {
+                            ...ns,
+                            defaultValue:
+                                "Shows average utilization of the largest customers by open AR so you can see concentration risk among the biggest names.\n\nUnweighted mean of each of those customers’ period-average utilization %. Customers without an effective limit are excluded.",
+                        }
+                    )}
+                >
+                    {t("credit_portfolio_health.kpi_avg_utilization_top10", {
+                        ...ns,
+                        defaultValue: "Avg. utilization (top 10)",
+                    })}
+                </Eyebrow>
+                {top10AvgUtilization.averagePct == null ? (
+                    <div>
+                        <span style={{ color: CPH.muted }}>—</span>
+                        {top10AvgUtilization.openArSharePct != null ? (
+                            <div
+                                style={{
+                                    marginTop: 8,
+                                    fontSize: 12,
+                                    color: CPH.muted,
+                                }}
+                            >
+                                {t(
+                                    "credit_portfolio_health.kpi_avg_utilization_top10_open_ar_share",
+                                    {
+                                        ...ns,
+                                        defaultValue:
+                                            "{{pct}}% of all open AR",
+                                        pct: formatPct(
+                                            top10AvgUtilization.openArSharePct,
+                                            language,
+                                            1
+                                        ).replace(/%$/, ""),
+                                    }
+                                )}
+                            </div>
+                        ) : null}
+                    </div>
+                ) : (
+                    <BigNumber
+                        value={top10AvgUtilization.averagePct}
+                        suffix="%"
+                        color={
+                            top10AvgUtilization.averagePct > 100
+                                ? CPH.critical
+                                : CPH.teal
+                        }
+                        locale={language}
+                        sub={
+                            top10AvgUtilization.openArSharePct != null
+                                ? t(
+                                      "credit_portfolio_health.kpi_avg_utilization_top10_open_ar_share",
+                                      {
+                                          ...ns,
+                                          defaultValue:
+                                              "{{pct}}% of all open AR",
+                                          pct: formatPct(
+                                              top10AvgUtilization.openArSharePct,
+                                              language,
+                                              1
+                                          ).replace(/%$/, ""),
+                                      }
+                                  )
+                                : undefined
+                        }
+                    />
+                )}
             </IslandCard>
 
             <IslandCard
@@ -474,7 +640,7 @@ export function UtilizationSectionView({
             </IslandCard>
 
             <IslandCard
-                accent="jade"
+                accent="teal"
                 className={`${layout.span6} ${layout.mdSpan3} ${layout.cardPad}`}
             >
                 <Eyebrow
@@ -497,55 +663,153 @@ export function UtilizationSectionView({
                     value={section.peakUtilizationPct}
                     suffix="%"
                     label={peakSub}
-                    color={CPH.jade}
+                    color={CPH.teal}
                     locale={language}
                 />
             </IslandCard>
 
             <IslandCard
-                accent="copper"
-                className={`${layout.span6} ${layout.mdSpan3} ${layout.cardPad}`}
+                accent="violet"
+                className={`${layout.span12} ${layout.mdSpan6} ${layout.cardPad}`}
             >
                 <Eyebrow
-                    icon={Gauge}
-                    help={t("credit_portfolio_health.kpi_efficiency_help", {
-                        ...ns,
-                        defaultValue:
-                            "Portfolio average health ÷ average utilization for covered customers (with an effective limit). Example: health 90% and utilization 60% → 1.5.",
-                    })}
+                    icon={Users}
+                    help={t(
+                        "credit_portfolio_health.kpi_idle_named_customers_help",
+                        {
+                            ...ns,
+                            defaultValue:
+                                "Shows Named customers with no positive open AR on any day they were named in the selected range — including named customers who had no daily open AR snapshot in the range — so you can see the cost of unused named cover.\n\nCount and share vs all Named in that set (CPT named-in-range plus current NamedPolicy roster; DCL excluded). Assessment cost uses each policy’s current fee × idle count × whole years (ceil days÷365, minimum 1). Null fee counts as $0.",
+                        }
+                    )}
                 >
-                    {t("credit_portfolio_health.kpi_efficiency", {
+                    {t("credit_portfolio_health.kpi_idle_named_customers", {
                         ...ns,
-                        defaultValue: "Efficiency ratio",
+                        defaultValue: "Idle named customers",
                     })}
                 </Eyebrow>
-                {section.efficiencyA == null ? (
-                    <span style={{ color: CPH.muted }}>—</span>
-                ) : (
-                    <BigNumber
-                        value={section.efficiencyA}
-                        decimals={2}
-                        suffix=""
-                        label={t(
-                            "credit_portfolio_health.kpi_efficiency_label",
-                            {
-                                ...ns,
-                                defaultValue: "Health ÷ utilization",
-                            }
-                        )}
-                        color={CPH.copper}
-                        locale={language}
-                    />
-                )}
+                <div className={layout.footprintRow}>
+                    <div>
+                        <div
+                            className="text-3xl font-semibold tracking-tight"
+                            style={{
+                                color: CPH.ink,
+                                fontFamily: SPACE_GROTESK_FONT_FAMILY,
+                            }}
+                        >
+                            {(section.idleNamedCustomerCount ?? 0).toLocaleString(
+                                language.startsWith("he") ? "he-IL" : "en-US"
+                            )}
+                        </div>
+                        <div
+                            className="mt-1 text-xs"
+                            style={{ color: CPH.slate }}
+                        >
+                            {t(
+                                "credit_portfolio_health.kpi_idle_named_customers_label",
+                                {
+                                    ...ns,
+                                    defaultValue:
+                                        "{{idle}} of {{named}} named · {{pct}} idle",
+                                    idle: section.idleNamedCustomerCount ?? 0,
+                                    named:
+                                        section.namedCustomerCountInRange ?? 0,
+                                    pct: formatPct(
+                                        section.idleNamedCustomerPct ?? 0,
+                                        language,
+                                        0
+                                    ),
+                                }
+                            )}
+                        </div>
+                    </div>
+                    <ChevronRight size={18} style={{ color: CPH.muted }} />
+                    <div>
+                        <div
+                            className="text-3xl font-semibold tracking-tight"
+                            style={{
+                                color: CPH.ink,
+                                fontFamily: SPACE_GROTESK_FONT_FAMILY,
+                            }}
+                        >
+                            {formatPortfolioMoney(
+                                section.idleNamedAnnualCreditAssessmentCost ??
+                                    0,
+                                section.accountCurrency,
+                                language
+                            )}
+                        </div>
+                        <div
+                            className="mt-1 text-xs"
+                            style={{ color: CPH.slate }}
+                        >
+                            {t(
+                                "credit_portfolio_health.kpi_idle_named_customers_cost_label",
+                                {
+                                    ...ns,
+                                    defaultValue:
+                                        "Assessment cost · ×{{years}} year(s)",
+                                    years: section.yearMultiplier ?? 1,
+                                }
+                            )}
+                        </div>
+                    </div>
+                </div>
             </IslandCard>
 
             <IslandCard
-                accent="jade"
+                accent="violet"
+                className={`${layout.span12} ${layout.mdSpan6} ${layout.cardPad}`}
+            >
+                <Eyebrow
+                    icon={RefreshCw}
+                    help={t("credit_portfolio_health.kpi_top_ups_help", {
+                        ...ns,
+                        defaultValue:
+                            "Top-up count: policies active any time in the period. Customers with top-up: average daily count with at least one active top-up.",
+                    })}
+                >
+                    {t("credit_portfolio_health.kpi_top_ups_title", {
+                        ...ns,
+                        defaultValue: "Top-ups",
+                    })}
+                </Eyebrow>
+                <div className={layout.kpiStrip}>
+                    <BigNumber
+                        value={section.periodActiveTopUpCount}
+                        decimals={0}
+                        suffix=""
+                        label={t("credit_portfolio_health.kpi_top_up_count", {
+                            ...ns,
+                            defaultValue: "Top-up count",
+                        })}
+                        color={CPH.ink}
+                        locale={language}
+                    />
+                    <BigNumber
+                        value={section.periodCustomersWithTopUp}
+                        decimals={0}
+                        suffix=""
+                        label={t(
+                            "credit_portfolio_health.kpi_top_up_customers",
+                            {
+                                ...ns,
+                                defaultValue: "Customers with top-up",
+                            }
+                        )}
+                        color={CPH.ink}
+                        locale={language}
+                    />
+                </div>
+            </IslandCard>
+
+            <IslandCard
+                accent="good"
                 className={`${layout.span12} ${layout.mdSpan6} ${layout.cardPad}`}
             >
                 <Eyebrow
                     icon={Layers}
-                    tone={CPH.jade}
+                    tone={CPH.good}
                     help={t(
                         "credit_portfolio_health.kpi_approved_footprint_help",
                         {
@@ -565,7 +829,7 @@ export function UtilizationSectionView({
                         <div
                             className="text-3xl font-semibold"
                             style={{
-                                color: CPH.jade,
+                                color: CPH.good,
                                 fontFamily: SPACE_GROTESK_FONT_FAMILY,
                             }}
                         >
@@ -574,7 +838,7 @@ export function UtilizationSectionView({
                                 decimals={0}
                                 suffix="%"
                                 locale={language}
-                                color={CPH.jade}
+                                color={CPH.good}
                                 className="text-3xl"
                             />
                         </div>
@@ -593,7 +857,7 @@ export function UtilizationSectionView({
                         <div
                             className="text-3xl font-semibold"
                             style={{
-                                color: CPH.jade,
+                                color: CPH.good,
                                 fontFamily: SPACE_GROTESK_FONT_FAMILY,
                             }}
                         >
@@ -602,7 +866,7 @@ export function UtilizationSectionView({
                                 decimals={0}
                                 suffix="%"
                                 locale={language}
-                                color={CPH.jade}
+                                color={CPH.good}
                                 className="text-3xl"
                             />
                         </div>
@@ -631,7 +895,7 @@ export function UtilizationSectionView({
                                     defaultValue: "Avg. utilization",
                                 }
                             )}
-                            color={CPH.jade}
+                            color={CPH.good}
                             locale={language}
                         />
                     )}
@@ -755,7 +1019,7 @@ export function UtilizationSectionView({
 
             {section.distributionCustomerCount > 0 ? (
                 <IslandCard
-                    accent="jade"
+                    accent="teal"
                     className={`${layout.span12} ${layout.cardPad}`}
                 >
                     <Eyebrow
@@ -764,7 +1028,7 @@ export function UtilizationSectionView({
                             ...ns,
                             count: section.distributionCustomerCount,
                             defaultValue:
-                                "As of range end among {{count}} approved customers with a positive effective limit. Grouped bars: share of customers and share of usage. Exclusive bins; each series sums to ~100%.",
+                                "Among {{count}} approved customers with a positive effective limit on at least one day in the range. Binned by mean daily effective utilization %. Grouped bars: share of customers and share of mean usage. Exclusive bins; each series sums to ~100%.",
                         })}
                     >
                         {t("credit_portfolio_health.distribution_title", {
@@ -772,19 +1036,11 @@ export function UtilizationSectionView({
                             defaultValue: "Utilization distribution",
                         })}
                     </Eyebrow>
-                    {asOfLabel ? (
-                        <p
-                            className="m-0 mb-2 text-xs"
-                            style={{ color: CPH.slate }}
-                        >
-                            {asOfLabel}
-                        </p>
-                    ) : null}
                     <div style={{ width: "100%", height: distChartHeight }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart
                                 data={distributionChartData}
-                                margin={{ top: 22, left: -10, right: 10 }}
+                                margin={{ top: 28, left: 8, right: 12, bottom: 4 }}
                             >
                                 <CartesianGrid
                                     strokeDasharray="3 6"
@@ -829,7 +1085,7 @@ export function UtilizationSectionView({
                                 <Bar
                                     dataKey="customerPct"
                                     name={customerSeriesName}
-                                    fill={CPH.jade}
+                                    fill={CPH.teal}
                                     radius={[8, 8, 0, 0]}
                                     animationDuration={animDuration}
                                     cursor="pointer"
@@ -882,7 +1138,7 @@ export function UtilizationSectionView({
                                 <Bar
                                     dataKey="usagePct"
                                     name={usageSeriesName}
-                                    fill={CPH.copper}
+                                    fill={CPH.violet}
                                     radius={[8, 8, 0, 0]}
                                     animationDuration={animDuration}
                                     cursor="pointer"
@@ -946,15 +1202,15 @@ export function UtilizationSectionView({
 
             {topCustomersChartData.length > 0 ? (
                 <IslandCard
-                    accent="jade"
-                    className={`${layout.span12} ${layout.mdSpan7} ${layout.cardPad}`}
+                    accent="teal"
+                    className={`${layout.span12} ${layout.cardPad}`}
                 >
                     <Eyebrow
                         icon={Award}
                         help={t("credit_portfolio_health.top_customers_help", {
                             ...ns,
                             defaultValue:
-                                "As of the range end date. Bars show effective coverage/utilization %.",
+                                "Top 10 by mean daily open AR in the range. Bars show mean daily effective utilization %.",
                         })}
                     >
                         {t("credit_portfolio_health.top_customers_title", {
@@ -962,14 +1218,6 @@ export function UtilizationSectionView({
                             defaultValue: "Coverage — 10 largest customers",
                         })}
                     </Eyebrow>
-                    {asOfLabel ? (
-                        <p
-                            className="m-0 mb-2 text-xs"
-                            style={{ color: CPH.slate }}
-                        >
-                            {asOfLabel}
-                        </p>
-                    ) : null}
                     <div
                         style={{
                             width: "100%",
@@ -982,7 +1230,7 @@ export function UtilizationSectionView({
                             <BarChart
                                 layout="vertical"
                                 data={topCustomersChartData}
-                                margin={{ left: 8, right: 20, top: 4, bottom: 4 }}
+                                margin={{ left: 8, right: 48, top: 4, bottom: 4 }}
                             >
                                 <CartesianGrid
                                     strokeDasharray="3 6"
@@ -991,7 +1239,7 @@ export function UtilizationSectionView({
                                 />
                                 <XAxis
                                     type="number"
-                                    domain={[0, 100]}
+                                    domain={[0, topCustomersChartDomainMax]}
                                     tick={{ fill: CPH.slate, fontSize: 11 }}
                                     axisLine={false}
                                     tickLine={false}
@@ -1020,6 +1268,7 @@ export function UtilizationSectionView({
                                     cursor={{ fill: CPH.surfaceMuted }}
                                     content={
                                         <ChartTooltip
+                                            language={language}
                                             formatValue={(v) =>
                                                 formatPct(v, language)
                                             }
@@ -1032,13 +1281,42 @@ export function UtilizationSectionView({
                                         "credit_portfolio_health.chart_utilization_pct",
                                         {
                                             ...ns,
-                                            defaultValue: "Coverage",
+                                            defaultValue: "Avg. utilization",
                                         }
                                     )}
-                                    fill={CPH.jade}
+                                    fill={CPH.teal}
                                     radius={[0, 6, 6, 0]}
                                     animationDuration={animDuration}
-                                />
+                                >
+                                    {topCustomersChartData.map((row, i) => (
+                                        <Cell
+                                            key={`top-${i}-${row.name}`}
+                                            fill={
+                                                row.utilization >= 100
+                                                    ? CPH.critical
+                                                    : CPH.teal
+                                            }
+                                        />
+                                    ))}
+                                    <LabelList
+                                        dataKey="utilization"
+                                        position="right"
+                                        formatter={(label) => {
+                                            const value =
+                                                typeof label === "number"
+                                                    ? label
+                                                    : Number(label);
+                                            return Number.isFinite(value)
+                                                ? formatPct(value, language, 0)
+                                                : "";
+                                        }}
+                                        style={{
+                                            fill: CPH.slate,
+                                            fontSize: 11,
+                                            fontVariantNumeric: "tabular-nums",
+                                        }}
+                                    />
+                                </Bar>
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
@@ -1046,73 +1324,161 @@ export function UtilizationSectionView({
             ) : null}
 
             <IslandCard
-                accent="copper"
-                className={`${layout.cardPad} ${
-                    topCustomersChartData.length > 0
-                        ? `${layout.span12} ${layout.mdSpan5}`
-                        : layout.span12
-                }`}
+                accent="critical"
+                className={`${layout.span12} ${layout.cardPad}`}
             >
                 <Eyebrow
-                    icon={RefreshCw}
-                    help={t("credit_portfolio_health.kpi_top_ups_help", {
+                    icon={Users}
+                    tone={CPH.critical}
+                    help={t("credit_portfolio_health.overshoot_ranking_help", {
                         ...ns,
                         defaultValue:
-                            "Top-up count: policies active any time in the period. Customers with top-up: average daily count with at least one active top-up. Avg. utilization: size-weighted daily usage among customers with top-up total greater than zero.",
+                            "Customers ranked by average utilization above 100%. Click a row to open the customer; export opens the full sortable report.",
                     })}
                 >
-                    {t("credit_portfolio_health.kpi_top_ups_title", {
+                    {t("credit_portfolio_health.overshoot_ranking_title", {
                         ...ns,
-                        defaultValue: "Top-ups",
+                        defaultValue: "Customers above 100% utilization",
                     })}
                 </Eyebrow>
-                <div className={layout.kpiStrip} style={{ marginBottom: 16 }}>
-                    <BigNumber
-                        value={section.periodActiveTopUpCount}
-                        decimals={0}
-                        suffix=""
-                        label={t("credit_portfolio_health.kpi_top_up_count", {
+                {rankingPreview.length === 0 ? (
+                    <p className="m-0 text-sm" style={{ color: CPH.muted }}>
+                        {t("credit_portfolio_health.overshoot_ranking_empty", {
                             ...ns,
-                            defaultValue: "Top-up count",
+                            defaultValue:
+                                "No customers with effective-limit days in this range.",
                         })}
-                        color={CPH.ink}
-                        locale={language}
-                    />
-                    <BigNumber
-                        value={section.periodCustomersWithTopUp}
-                        decimals={0}
-                        suffix=""
-                        label={t(
-                            "credit_portfolio_health.kpi_top_up_customers",
-                            {
-                                ...ns,
-                                defaultValue: "Customers with top-up",
-                            }
-                        )}
-                        color={CPH.ink}
-                        locale={language}
-                    />
-                </div>
-                <div className={layout.dividerTop}>
-                    {section.averageTopUpUtilizationPct == null ? (
-                        <span style={{ color: CPH.muted }}>—</span>
-                    ) : (
-                        <BigNumber
-                            value={section.averageTopUpUtilizationPct}
-                            suffix="%"
-                            label={t(
-                                "credit_portfolio_health.kpi_top_up_utilization",
+                    </p>
+                ) : (
+                    <div className="mt-3 overflow-x-auto">
+                        <table
+                            className="w-full text-sm"
+                            style={{
+                                borderCollapse: "collapse",
+                                color: CPH.ink,
+                            }}
+                        >
+                            <thead>
+                                <tr
+                                    style={{
+                                        color: CPH.slate,
+                                        textAlign: "start",
+                                    }}
+                                >
+                                    <th className="pb-2 pe-3 font-medium">
+                                        {t(
+                                            "credit_portfolio_health.overshoot_ranking_col_customer",
+                                            {
+                                                ...ns,
+                                                defaultValue: "Customer",
+                                            }
+                                        )}
+                                    </th>
+                                    <th className="pb-2 pe-3 font-medium">
+                                        {t(
+                                            "credit_portfolio_health.overshoot_ranking_col_avg",
+                                            {
+                                                ...ns,
+                                                defaultValue: "Avg overshoot",
+                                            }
+                                        )}
+                                    </th>
+                                    <th className="pb-2 pe-3 font-medium">
+                                        {t(
+                                            "credit_portfolio_health.overshoot_ranking_col_peak",
+                                            {
+                                                ...ns,
+                                                defaultValue: "Peak usage",
+                                            }
+                                        )}
+                                    </th>
+                                    <th className="pb-2 pe-3 font-medium">
+                                        {t(
+                                            "credit_portfolio_health.overshoot_ranking_col_days_above",
+                                            {
+                                                ...ns,
+                                                defaultValue:
+                                                    "Days above limit",
+                                            }
+                                        )}
+                                    </th>
+                                    <th className="pb-2 font-medium">
+                                        {t(
+                                            "credit_portfolio_health.overshoot_ranking_col_longest",
+                                            {
+                                                ...ns,
+                                                defaultValue:
+                                                    "Longest above limit",
+                                            }
+                                        )}
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {rankingPreview.map((row) => (
+                                    <tr
+                                        key={row.customerId}
+                                        className="cursor-pointer"
+                                        style={{
+                                            borderTop: `1px solid ${CPH.border}`,
+                                        }}
+                                        onClick={() =>
+                                            router.push(
+                                                `/${locale}/app/customers/${row.customerId}`
+                                            )
+                                        }
+                                    >
+                                        <td className="py-2 pe-3">
+                                            {row.customerName}
+                                        </td>
+                                        <td className="py-2 pe-3">
+                                            +
+                                            {formatPct(
+                                                row.avgOvershootPts,
+                                                language
+                                            )}
+                                        </td>
+                                        <td className="py-2 pe-3">
+                                            {row.peakUsagePct == null
+                                                ? "—"
+                                                : formatPct(
+                                                      row.peakUsagePct,
+                                                      language
+                                                  )}
+                                        </td>
+                                        <td className="py-2 pe-3">
+                                            {row.daysAboveLimit ?? 0}
+                                        </td>
+                                        <td className="py-2">
+                                            {row.longestAboveLimitDays ?? 0}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        <button
+                            type="button"
+                            className="mt-3 text-xs underline"
+                            style={{
+                                color: CPH.teal,
+                                background: "none",
+                                border: 0,
+                                cursor: "pointer",
+                                padding: 0,
+                            }}
+                            onClick={openOvershootReport}
+                        >
+                            {t(
+                                "credit_portfolio_health.kpi_overshoot_open_report",
                                 {
                                     ...ns,
                                     defaultValue:
-                                        "Avg. utilization of top-up amount",
+                                        "Open overshoot ranking report",
                                 }
                             )}
-                            color={CPH.copper}
-                            locale={language}
-                        />
-                    )}
-                </div>
+                        </button>
+                    </div>
+                )}
             </IslandCard>
         </div>
     );

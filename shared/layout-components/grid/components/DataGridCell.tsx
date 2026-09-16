@@ -1,6 +1,6 @@
 import { Box } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { GridRenderCellParams } from "@mui/x-data-grid";
+import { GridRenderCellParams } from "@/shared/layout-components/grid/gridColumnTypes";
 import React from "react";
 import { DataGridCellProps } from "../types";
 import TruncatedCell from "./TruncatedCell";

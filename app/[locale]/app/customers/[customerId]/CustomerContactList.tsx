@@ -12,7 +12,7 @@ import {
     alpha,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { GridRenderCellParams } from "@mui/x-data-grid";
+import { GridRenderCellParams } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api, { apiFetch } from "@/app/api";
 import { useSession } from "next-auth/react";

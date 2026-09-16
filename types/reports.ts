@@ -11,6 +11,11 @@ export interface Filter {
 
 export interface ReportConfig {
     tables: string[];
+    /**
+     * Explicit report grain (Prisma root). Independent of column/field order.
+     * Resolve with context override → primaryTable → tables[0] → Customer.
+     */
+    primaryTable?: string;
     joins?: Array<{
         type: "INNER" | "LEFT" | "RIGHT";
         from: string;

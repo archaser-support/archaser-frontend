@@ -8,6 +8,7 @@ import { CreditMetricCard } from "@/app/[locale]/app/credit-dashboard/CreditMetr
 import { useDashboardBusinessUnitId } from "@/shared/dashboard/DashboardBusinessUnitContext";
 import { appendDashboardBusinessUnitId } from "@/shared/dashboard/dashboardBusinessUnitParams";
 import AppUrls from "@/utils/appUrls";
+import { pushFinancialChartDetails } from "@/shared/dashboard/financialChartDetailsTitle";
 
 type OverdueInvoicesCardProps = {
     count?: number;
@@ -30,8 +31,11 @@ const OverdueInvoicesCard = ({ count = 0 }: OverdueInvoicesCardProps) => {
                 }),
                 businessUnitId
             );
-            router.push(
-                `/${locale}${AppUrls.DASHBOARD}/chart-details?${searchParams.toString()}`
+            pushFinancialChartDetails(
+                router,
+                `/${locale}${AppUrls.DASHBOARD}/chart-details?${searchParams.toString()}`,
+                t,
+                locale
             );
         }, 0);
     };

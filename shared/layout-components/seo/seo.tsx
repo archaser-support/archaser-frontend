@@ -1,10 +1,13 @@
 "use client";
-import React, { useEffect } from "react";
+import { useLayoutEffect } from "react";
 
-const Seo = ({ title }: any) => {
-    useEffect(() => {
+const Seo = ({ title }: { title: string }) => {
+    useLayoutEffect(() => {
+        if (!title) {
+            return;
+        }
         document.title = title;
-    }, []);
+    }, [title]);
 
     return <></>;
 };

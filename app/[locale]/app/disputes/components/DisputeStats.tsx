@@ -50,7 +50,7 @@ const DisputeStats: React.FC<DisputeStatsProps> = ({
             status: "warning" as const,
             formatter: (val: any) => {
                 const currency = statsData?.stats?.counts?.currency || "";
-                return formatCurrencyWithRTLSupport(Number(val), currency, i18n.language === "he" ? "he-IL" : "en-US", i18n.language);
+                return formatCurrencyWithRTLSupport(Number(val), currency, i18n.language === "he" ? "he-IL" : "en-US", i18n.language, { wholeNumbers: true });
             },
         },
     ];

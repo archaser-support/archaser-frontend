@@ -4,7 +4,7 @@ import { Gavel as GavelIcon } from "@mui/icons-material";
 import { alpha, Box, Card, CardContent, Typography, useTheme } from "@mui/material";
 import type { ApexOptions } from "apexcharts";
 import dynamic from "next/dynamic";
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { TermsBreachCountByReason } from "@/types/creditInsurance";
@@ -89,7 +89,7 @@ export function CreditTermsBreachBarChart({
             plotOptions: {
                 bar: {
                     horizontal: true,
-                    borderRadius: 4,
+                    borderRadius: 0,
                     barHeight: "72%",
                     distributed: true,
                     dataLabels: { position: "top" },
@@ -99,10 +99,10 @@ export function CreditTermsBreachBarChart({
             legend: { show: false },
             dataLabels: {
                 enabled: true,
-                offsetX: 8,
+                offsetX: 16,
                 style: {
                     fontSize: "12px",
-                    fontWeight: 600,
+                    fontWeight: 400,
                     colors: [isLight ? "#2F3B52" : theme.palette.text.primary],
                 },
             },
@@ -120,6 +120,7 @@ export function CreditTermsBreachBarChart({
                 labels: {
                     maxWidth: 220,
                     align: "left",
+                    offsetX: -10,
                     style: {
                         fontSize: "11px",
                         colors: isLight ? "#2F3B52" : theme.palette.text.primary,
@@ -132,8 +133,8 @@ export function CreditTermsBreachBarChart({
                 xaxis: { lines: { show: true } },
                 yaxis: { lines: { show: false } },
                 padding: {
-                    left: 4,
-                    right: 4,
+                    left: 20,
+                    right: 12,
                     bottom: 0,
                 },
             },
@@ -159,14 +160,14 @@ export function CreditTermsBreachBarChart({
                     if (isRtl) {
                         tooltipContent +=
                             `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 8px; width: 100%;">` +
-                            `<div style="font-weight: 600; color: #2F3B52; text-align: right; direction: rtl; flex: 1;">${series[seriesIndex] ? w.globals.seriesNames?.[seriesIndex] : ""}</div>` +
-                            `<div style="color: ${color}; font-weight: 500; text-align: left; direction: ltr; flex-shrink: 0;">${formattedValue}</div>` +
+                            `<div style="font-weight: 400; color: #2F3B52; text-align: right; direction: rtl; flex: 1;">${series[seriesIndex] ? w.globals.seriesNames?.[seriesIndex] : ""}</div>` +
+                            `<div style="color: ${color}; font-weight: 400; text-align: left; direction: ltr; flex-shrink: 0;">${formattedValue}</div>` +
                             `</div>`;
                     } else {
                         tooltipContent +=
                             `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 16px;">` +
-                            `<div style="font-weight: 600; color: #2F3B52; text-align: left; direction: ltr; flex: 1;">${series[seriesIndex] ? w.globals.seriesNames?.[seriesIndex] : ""}</div>` +
-                            `<div style="color: ${color}; font-weight: 500; text-align: right; direction: ltr;">${formattedValue}</div>` +
+                            `<div style="font-weight: 400; color: #2F3B52; text-align: left; direction: ltr; flex: 1;">${series[seriesIndex] ? w.globals.seriesNames?.[seriesIndex] : ""}</div>` +
+                            `<div style="color: ${color}; font-weight: 400; text-align: right; direction: ltr;">${formattedValue}</div>` +
                             `</div>`;
                     }
 

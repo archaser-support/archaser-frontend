@@ -46,6 +46,10 @@ import { useTranslation } from "react-i18next";
 
 import api from "@/app/api";
 import {
+    customerDashboardKpisQueryKey,
+    fetchCustomerDashboardKpis,
+} from "@/app/[locale]/app/customers/[customerId]/customerDashboardKpisQuery";
+import {
     searchGlobal,
     GlobalSearchResult,
 } from "@/shared/services/globalSearchService";
@@ -60,11 +64,9 @@ interface GlobalSearchProps {
 const RECENT_SEARCHES_KEY = "globalSearch_recentSearches";
 const LAST_SEARCH_RESULTS_KEY = "globalSearch_lastResults";
 const MAX_RECENT_SEARCHES = 5;
-const SEARCH_RESULTS_PANEL_WIDTH_PX = 400;
-const SEARCH_PREVIEW_PANEL_WIDTH_PX = 250;
+const SEARCH_RESULTS_PANEL_WIDTH_PX = 350;
+const SEARCH_PREVIEW_PANEL_WIDTH_PX = 300;
 const SEARCH_DROPDOWN_MAX_HEIGHT_PX = 400;
-const SEARCH_DROPDOWN_EXPANDED_WIDTH_PX =
-    SEARCH_RESULTS_PANEL_WIDTH_PX + SEARCH_PREVIEW_PANEL_WIDTH_PX;
 
 // Helper function to highlight search terms
 const highlightText = (text: string, searchTerm: string): React.ReactNode => {
@@ -192,6 +194,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
         "contacts",
         "invoices",
         "disputes",
+        "dashboard",
     ]);
     const { data: session } = useSession();
     const theme = useTheme();
@@ -219,6 +222,58 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
     const popperRef = useRef<HTMLElement | null>(null);
     const resultRefs = useRef<{ [key: number]: HTMLElement | null }>({});
     const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    // Match dropdown to the Autocomplete root (search pill) width — not a fixed 350px.
+    const [anchorWidthPx, setAnchorWidthPx] = useState(
+        SEARCH_RESULTS_PANEL_WIDTH_PX
+    );
+
+    const accountId = session?.user?.account_id ?? null;
+    const { data: accountProducts } = useQuery({
+        queryKey: ["account-products", accountId],
+        queryFn: async () => {
+            if (!accountId) {
+                return {
+                    has_collection: true,
+                    has_credit_insurance: false,
+                    has_file_import: true,
+                };
+            }
+            const response = await api.get(`/api/entities/accounts/${accountId}`);
+            return {
+                has_collection:
+                    response.data?.has_collection !== undefined
+                        ? response.data.has_collection
+                        : true,
+                has_credit_insurance:
+                    response.data?.has_credit_insurance === true,
+                has_file_import: response.data?.has_file_import !== false,
+            };
+        },
+        enabled: !!accountId,
+        staleTime: 60 * 1000,
+    });
+    const hasCreditInsuranceProduct =
+        accountProducts?.has_credit_insurance === true;
+
+    const previewCustomerId =
+        hoveredResult?.type === "customer" ? hoveredResult.id : null;
+    const { data: previewCreditKpis, isPending: previewCreditKpisPending } =
+        useQuery({
+            queryKey: customerDashboardKpisQueryKey(
+                previewCustomerId ?? 0,
+                accountId ?? 0,
+                null
+            ),
+            queryFn: () =>
+                fetchCustomerDashboardKpis(previewCustomerId as number, null),
+            enabled:
+                !!previewCustomerId &&
+                !!accountId &&
+                hasCreditInsuranceProduct &&
+                !isMobile,
+            staleTime: 60_000,
+        });
+    const previewCreditCards = previewCreditKpis?.cards ?? null;
 
     const appTextDirection =
         i18n.language === "he" || i18n.language.startsWith("he-")
@@ -231,15 +286,17 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
     // Dropdown chrome (placement, expand side, preview side) follows the *query*
     // script direction — English UI + Hebrew search must right-align to the input
     // and open the preview to the left of the results (same as Hebrew UI).
-    // App language only affects chrome translations / theme, not panel geometry.
+    // App language drives preview *copy* alignment (labels left in English UI).
     const isRtl = textDirection === "rtl";
-    const layoutIsRtl = appTextDirection === "rtl";
     const panelIsRtl = isRtl;
+    const isAppRtl = appTextDirection === "rtl";
 
     const previewOpen = Boolean(hoveredResult) && !isMobile;
+    const resultsPanelWidth =
+        Math.round(anchorWidthPx) || SEARCH_RESULTS_PANEL_WIDTH_PX;
     const dropdownPanelWidth = previewOpen
-        ? SEARCH_DROPDOWN_EXPANDED_WIDTH_PX
-        : SEARCH_RESULTS_PANEL_WIDTH_PX;
+        ? resultsPanelWidth + SEARCH_PREVIEW_PANEL_WIDTH_PX
+        : resultsPanelWidth;
 
     const listboxRendererRef = useRef<(props: any) => React.ReactNode>(
         () => null
@@ -298,6 +355,27 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
         }, 100);
         return () => clearTimeout(timer);
     }, []);
+
+    // Keep dropdown width in sync with the search pill (focus expand + resize).
+    useEffect(() => {
+        const input = searchInputRef.current;
+        const autocompleteRoot = input?.closest(
+            ".MuiAutocomplete-root"
+        ) as HTMLElement | null;
+        if (!autocompleteRoot) return;
+
+        const updateWidth = () => {
+            const next = autocompleteRoot.getBoundingClientRect().width;
+            if (next > 0) {
+                setAnchorWidthPx(next);
+            }
+        };
+
+        updateWidth();
+        const resizeObserver = new ResizeObserver(updateWidth);
+        resizeObserver.observe(autocompleteRoot);
+        return () => resizeObserver.disconnect();
+    }, [isFocused, searchTerm, isMobile, isOpen]);
 
     // Debounce search term (reduced to 200ms for faster feedback)
     useEffect(() => {
@@ -582,6 +660,22 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                 return;
             }
 
+            // Re-assert LTR on Popper/Paper every align pass — inherited RTL can
+            // reappear after width/preview reflows and flip pane order.
+            popperElement.style.setProperty("direction", "ltr", "important");
+            popperElement.setAttribute("dir", "ltr");
+            const paperForDir =
+                (popperElement.querySelector(
+                    "[data-global-search-paper='true']"
+                ) as HTMLElement | null) ||
+                (popperElement.querySelector(
+                    ".MuiAutocomplete-paper"
+                ) as HTMLElement | null);
+            if (paperForDir) {
+                paperForDir.style.setProperty("direction", "ltr", "important");
+                paperForDir.setAttribute("dir", "ltr");
+            }
+
             const panel =
                 (popperElement.querySelector(
                     "[data-global-search-paper='true']"
@@ -601,9 +695,6 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
             // Physical right edges — independent of theme start/end mirroring.
             const inputRect = autocompleteRoot.getBoundingClientRect();
             const offsetX = inputRect.right - panelRect.right;
-            if (Math.abs(offsetX) <= 0.5) {
-                return;
-            }
 
             const currentTransform = popperElement.style.transform || "";
             let match = currentTransform.match(
@@ -616,7 +707,14 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
             }
             const currentX = match ? parseFloat(match[1]) : 0;
             const currentY = match ? parseFloat(match[2]) : 0;
-            const nextTransform = `translate3d(${currentX + offsetX}px, ${currentY}px, 0)`;
+            // Keep empty/results panel below the field (WebKit can leave a stale Y
+            // after width/preview reflows when we rewrite transform for X glue).
+            const minY = inputRect.bottom + 8;
+            const nextY = Math.max(currentY, minY);
+            if (Math.abs(offsetX) <= 0.5 && nextY === currentY) {
+                return;
+            }
+            const nextTransform = `translate3d(${currentX + offsetX}px, ${nextY}px, 0)`;
             popperElement.style.transform = nextTransform;
         };
 
@@ -658,24 +756,14 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
 
             applied = true;
 
-            const popperRoot = noOptionsContainer.closest(
-                '[role="presentation"]'
-            ) as HTMLElement | null;
-            if (popperRoot) {
-                popperRoot.style.direction = "rtl";
-                popperRoot.style.textAlign = "right";
-            }
-
+            // Text RTL only on noOptions/paper content — never on the Popper root.
+            // Popper direction:rtl inherits onto Paper and fights bottom-* placement
+            // / preview layout (and can contribute to empty-state overlap in WebKit).
             const paperContainer = noOptionsContainer.closest(
                 ".MuiAutocomplete-paper"
             ) as HTMLElement | null;
             if (paperContainer) {
-                paperContainer.style.direction = "rtl";
-                paperContainer.style.width = "100%";
-                paperContainer.style.minWidth = "100%";
-                paperContainer.style.maxWidth = "100%";
                 paperContainer.style.textAlign = "right";
-                paperContainer.setAttribute("dir", "rtl");
             }
 
             noOptionsContainer.style.direction = "rtl";
@@ -1047,6 +1135,43 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
         return str.charAt(0).toUpperCase() + str.slice(1);
     }, []);
 
+    const formatPreviewMoney = useCallback(
+        (amount: number | null | undefined, currency?: string | null) => {
+            if (amount == null || !Number.isFinite(Number(amount))) {
+                return "—";
+            }
+            const currencyCode =
+                currency?.trim() ||
+                session?.user?.currency ||
+                "USD";
+            const userLocale = session?.user?.locale;
+            const userLanguage = session?.user?.language;
+            let locale = "en-US";
+            if (userLocale) {
+                locale = userLocale;
+            } else if (userLanguage === "Hebrew" || i18n.language === "he") {
+                locale = "he-IL";
+            }
+            return formatCurrencyWithRTLSupport(
+                Number(amount),
+                currencyCode,
+                locale,
+                i18n.language
+            );
+        },
+        [i18n.language, session?.user?.currency, session?.user?.language, session?.user?.locale]
+    );
+
+    const previewCaptionSx = useMemo(
+        () => ({
+            display: "block" as const,
+            mb: 0.5,
+            textAlign: isAppRtl ? ("right" as const) : ("left" as const),
+            direction: isAppRtl ? ("rtl" as const) : ("ltr" as const),
+        }),
+        [isAppRtl]
+    );
+
     // Format category value for display
     const formatCategory = useCallback(
         (category: string | null | undefined): string | null => {
@@ -1217,19 +1342,39 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
             // That caps the Paper at ~400px — override so preview can expand the panel.
             const { style: incomingStyle, ...popperProps } = props;
 
+            // Gap below the TextField — single source (offset modifier only).
+            // Do not also set paper marginTop: Safari/WebKit can inflate overflow
+            // measurements and preventOverflow then shifts the panel up onto the input.
+            const POPPER_ANCHOR_GAP_PX = 8;
+
             return (
                 <Popper
                     {...popperProps}
                     // Beat RtlProvider: keep start/end physical (end = right edge).
                     direction="ltr"
+                    // fixed: AppHeader centers search with transform; absolute +
+                    // transformed ancestors are a common WebKit mis-measure source.
+                    strategy="fixed"
                     style={{
                         ...incomingStyle,
                         width: dropdownPanelWidth,
                         minWidth: dropdownPanelWidth,
                         maxWidth: dropdownPanelWidth,
+                        // Physical panel geometry must stay LTR; CSS direction:rtl
+                        // on the Popper inherits onto Paper and double-flips flex.
+                        direction: "ltr",
                     }}
+                    dir="ltr"
                     ref={(node) => {
                         popperRef.current = node;
+                        if (node) {
+                            node.style.setProperty(
+                                "direction",
+                                "ltr",
+                                "important"
+                            );
+                            node.setAttribute("dir", "ltr");
+                        }
                         if (typeof props.ref === "function") {
                             props.ref(node);
                         } else if (props.ref) {
@@ -1241,13 +1386,17 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                         {
                             name: "offset",
                             options: {
-                                offset: [0, 8],
+                                offset: [0, POPPER_ANCHOR_GAP_PX],
                             },
                         },
                         {
                             name: "preventOverflow",
-                            enabled: !panelIsRtl, // Off for RTL panel so right-edge glue can extend past viewport padding
+                            // Off for RTL panel so right-edge glue can extend past viewport padding.
+                            // mainAxis:false — never shift vertically onto the TextField
+                            // (tall empty-state + short/mobile viewports; Chromium + WebKit).
+                            enabled: !panelIsRtl,
                             options: {
+                                mainAxis: false,
                                 altAxis: true,
                                 altBoundary: true,
                                 tether: false,
@@ -1282,6 +1431,30 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                     popper.width;
                             },
                         },
+                        // Belt-and-suspenders: empty "No results" (and any panel) must
+                        // stay fully below the anchor — even if another modifier or
+                        // WebKit rect quirk nudges Y upward.
+                        {
+                            name: "enforceBelowAnchor",
+                            enabled: true,
+                            phase: "main",
+                            requiresIfExists: [
+                                "offset",
+                                "preventOverflow",
+                                "alignToAnchorRightEdge",
+                            ],
+                            fn: ({ state }: any) => {
+                                const offsets = state.modifiersData.popperOffsets;
+                                if (!offsets) return;
+                                const minY =
+                                    state.rects.reference.y +
+                                    state.rects.reference.height +
+                                    POPPER_ANCHOR_GAP_PX;
+                                if (offsets.y < minY) {
+                                    offsets.y = minY;
+                                }
+                            },
+                        },
                     ]}
                     sx={{
                         zIndex: 1300,
@@ -1297,7 +1470,6 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                             maxWidth: dropdownPanelWidth,
                             overflow: "hidden",
                             margin: 0,
-                            marginTop: "8px",
                             padding: 0,
                             transition: panelIsRtl
                                 ? "none"
@@ -2075,18 +2247,37 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
             ownerState: _ownerState,
             sx: incomingSx,
             style: incomingStyle,
+            ref: incomingPaperRef,
             ...paperProps
         } = props;
-        // DOM order is always [results, preview]. Flip with row-reverse for RTL query.
-        // Panel geometry follows query script (English UI + Hebrew search right-aligns
-        // with preview to the left of results).
-        // Inline direction:ltr is required — Popper sets direction:rtl and sx/dir
-        // lose to that inheritance (see diagnosis paper_still_direction_rtl_despite_sx_ltr_lock).
-        const panelFlexDirection = panelIsRtl ? "row-reverse" : "row";
+        // Panel geometry follows query script (English UI + Hebrew search → preview
+        // left of results). Keep the flex container physically LTR and place panes
+        // with `order` — never row-reverse. Inherited direction:rtl + row-reverse
+        // double-flips (preview on the right); that was the intermittent ארז bug
+        // (see diagnosis paper_still_direction_rtl_despite_sx_ltr_lock).
+        const resultsOrder = panelIsRtl ? 2 : 1;
+        const previewOrder = panelIsRtl ? 1 : 2;
+        const lockPaperDirection = (node: HTMLDivElement | null) => {
+            if (!node) return;
+            // Parent/Popper direction:rtl !important beats plain inline style;
+            // setProperty(..., 'important') is required for a stable lock.
+            node.style.setProperty("direction", "ltr", "important");
+            node.setAttribute("dir", "ltr");
+        };
         return (
             <Paper
                 {...(paperProps as any)}
                 data-global-search-paper="true"
+                dir="ltr"
+                ref={(node: HTMLDivElement | null) => {
+                    lockPaperDirection(node);
+                    if (typeof incomingPaperRef === "function") {
+                        incomingPaperRef(node);
+                    } else if (incomingPaperRef) {
+                        (incomingPaperRef as React.MutableRefObject<HTMLDivElement | null>).current =
+                            node;
+                    }
+                }}
                 style={{
                     ...incomingStyle,
                     // Beat inherited Popper direction:rtl (attr/sx were not enough)
@@ -2100,7 +2291,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                           : []),
                     {
                         display: "flex",
-                        flexDirection: panelFlexDirection,
+                        flexDirection: "row",
                         direction: "ltr",
                         width: dropdownPanelWidth,
                         minWidth: dropdownPanelWidth,
@@ -2118,11 +2309,12 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                 <Box
                     data-global-search-results="true"
                     sx={{
-                        width: SEARCH_RESULTS_PANEL_WIDTH_PX,
+                        width: resultsPanelWidth,
                         flexShrink: 0,
                         maxHeight: SEARCH_DROPDOWN_MAX_HEIGHT_PX,
                         overflowY: "auto",
                         direction: isRtl ? "rtl" : "ltr",
+                        order: resultsOrder,
                     }}
                 >
                     {children}
@@ -2135,6 +2327,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                 sx={{
                                     width: SEARCH_PREVIEW_PANEL_WIDTH_PX,
                                     flexShrink: 0,
+                                    order: previewOrder,
                                     borderLeft:
                                         panelIsRtl
                                             ? "none"
@@ -2148,7 +2341,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                     overflowY: "auto",
                                     maxHeight: SEARCH_DROPDOWN_MAX_HEIGHT_PX,
                                     p: 2,
-                                    direction: isRtl ? "rtl" : "ltr",
+                                    // Label/field alignment follows app language, not query script
+                                    direction: isAppRtl ? "rtl" : "ltr",
+                                    textAlign: isAppRtl ? "right" : "left",
                                 }}
                             >
                                 <Box
@@ -2157,10 +2352,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                         alignItems: "center",
                                         gap: 1,
                                         mb: 1,
-                                        flexDirection:
-                                            isRtl
-                                                ? "row-reverse"
-                                                : "row",
+                                        flexDirection: isAppRtl
+                                            ? "row-reverse"
+                                            : "row",
                                         width: "100%",
                                     }}
                                 >
@@ -2173,16 +2367,16 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                         fontWeight="bold"
                                         sx={{
                                             fontSize: "1.1rem",
-                                            textAlign:
-                                                isRtl
-                                                    ? "right"
-                                                    : "left",
-                                            direction:
-                                                isRtl
-                                                    ? "rtl"
-                                                    : "ltr",
+                                            textAlign: isAppRtl
+                                                ? "right"
+                                                : "left",
+                                            direction: isAppRtl
+                                                ? "rtl"
+                                                : "ltr",
                                             flex: 1,
                                             minWidth: 0,
+                                            overflowWrap: "anywhere",
+                                            overflow: "hidden",
                                         }}
                                     >
                                         {highlightText(
@@ -2190,22 +2384,6 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                             searchTerm || debouncedSearch
                                         )}
                                     </Typography>
-                                    <Chip
-                                        label={getEntityLabel(
-                                            hoveredResult.type
-                                        )}
-                                        size="small"
-                                        sx={{
-                                            ...getEntityTypeChipSx(
-                                                hoveredResult.type,
-                                                {
-                                                    selected: true,
-                                                    interactive: false,
-                                                }
-                                            ),
-                                            flexShrink: 0,
-                                        }}
-                                    />
                                 </Box>
                                 {/* Show customer code at the top for customers */}
                                 {hoveredResult.type === "customer" &&
@@ -2216,11 +2394,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                                 display: "block",
                                                 mb: 1,
                                                 textAlign:
-                                                    isRtl
+                                                    isAppRtl
                                                         ? "right"
                                                         : "left",
                                                 direction:
-                                                    isRtl
+                                                    isAppRtl
                                                         ? "rtl"
                                                         : "ltr",
                                             }}
@@ -2252,11 +2430,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                                 display: "block",
                                                 mb: 1,
                                                 textAlign:
-                                                    isRtl
+                                                    isAppRtl
                                                         ? "right"
                                                         : "left",
                                                 direction:
-                                                    isRtl
+                                                    isAppRtl
                                                         ? "rtl"
                                                         : "ltr",
                                             }}
@@ -2287,11 +2465,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                                 display: "block",
                                                 mb: 1,
                                                 textAlign:
-                                                    isRtl
+                                                    isAppRtl
                                                         ? "right"
                                                         : "left",
                                                 direction:
-                                                    isRtl
+                                                    isAppRtl
                                                         ? "rtl"
                                                         : "ltr",
                                             }}
@@ -2318,11 +2496,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                                 display: "block",
                                                 mb: 1,
                                                 textAlign:
-                                                    isRtl
+                                                    isAppRtl
                                                         ? "right"
                                                         : "left",
                                                 direction:
-                                                    isRtl
+                                                    isAppRtl
                                                         ? "rtl"
                                                         : "ltr",
                                             }}
@@ -2352,11 +2530,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                                 display: "block",
                                                 mb: 1,
                                                 textAlign:
-                                                    isRtl
+                                                    isAppRtl
                                                         ? "right"
                                                         : "left",
                                                 direction:
-                                                    isRtl
+                                                    isAppRtl
                                                         ? "rtl"
                                                         : "ltr",
                                             }}
@@ -2376,11 +2554,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                                             display: "block",
                                                             mb: 0.5,
                                                             textAlign:
-                                                                isRtl
+                                                                isAppRtl
                                                                     ? "right"
                                                                     : "left",
                                                             direction:
-                                                                isRtl
+                                                                isAppRtl
                                                                     ? "rtl"
                                                                     : "ltr",
                                                         }}
@@ -2414,11 +2592,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                                             display: "block",
                                                             mb: 0.5,
                                                             textAlign:
-                                                                isRtl
+                                                                isAppRtl
                                                                     ? "right"
                                                                     : "left",
                                                             direction:
-                                                                isRtl
+                                                                isAppRtl
                                                                     ? "rtl"
                                                                     : "ltr",
                                                         }}
@@ -2491,6 +2669,92 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                                 )}
                                         </Box>
                                     )}
+                                {hoveredResult.type === "customer" &&
+                                    hasCreditInsuranceProduct && (
+                                        <Box sx={{ mt: 1, mb: 1 }}>
+                                            <Typography
+                                                variant="caption"
+                                                sx={previewCaptionSx}
+                                            >
+                                                <strong>
+                                                    {t(
+                                                        "credit_insurance.total_ar",
+                                                        {
+                                                            ns: "customers",
+                                                            defaultValue:
+                                                                "Total AR",
+                                                        }
+                                                    )}
+                                                    :
+                                                </strong>{" "}
+                                                {previewCreditKpisPending &&
+                                                !previewCreditCards
+                                                    ? t("messages.loading", {
+                                                          ns: "common",
+                                                          defaultValue:
+                                                              "Loading…",
+                                                      })
+                                                    : formatPreviewMoney(
+                                                          previewCreditCards?.totalAr,
+                                                          previewCreditCards?.accountCurrency
+                                                      )}
+                                            </Typography>
+                                            <Typography
+                                                variant="caption"
+                                                sx={previewCaptionSx}
+                                            >
+                                                <strong>
+                                                    {t(
+                                                        "credit_insurance.capacity_gap",
+                                                        {
+                                                            ns: "customers",
+                                                            defaultValue:
+                                                                "Capacity Gap",
+                                                        }
+                                                    )}
+                                                    :
+                                                </strong>{" "}
+                                                {previewCreditKpisPending &&
+                                                !previewCreditCards
+                                                    ? t("messages.loading", {
+                                                          ns: "common",
+                                                          defaultValue:
+                                                              "Loading…",
+                                                      })
+                                                    : formatPreviewMoney(
+                                                          previewCreditCards?.capacityGapAmount,
+                                                          previewCreditCards?.accountCurrency
+                                                      )}
+                                            </Typography>
+                                            <Typography
+                                                variant="caption"
+                                                sx={previewCaptionSx}
+                                            >
+                                                <strong>
+                                                    {t(
+                                                        "credit_insurance_dashboard.terms_breach",
+                                                        {
+                                                            ns: "dashboard",
+                                                            defaultValue:
+                                                                "Terms Breach",
+                                                        }
+                                                    )}
+                                                    :
+                                                </strong>{" "}
+                                                {previewCreditKpisPending &&
+                                                !previewCreditCards
+                                                    ? t("messages.loading", {
+                                                          ns: "common",
+                                                          defaultValue:
+                                                              "Loading…",
+                                                      })
+                                                    : formatPreviewMoney(
+                                                          previewCreditCards?.termsBreachOutstanding,
+                                                          previewCreditCards?.accountCurrency
+                                                      )}
+                                            </Typography>
+                                        </Box>
+                                    )}
                                 {hoveredResult.metadata && (
                                     <Box sx={{ mt: 1 }}>
                                         {Object.entries(hoveredResult.metadata)
@@ -2550,11 +2814,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                                             display: "block",
                                                             mb: 0.5,
                                                             textAlign:
-                                                                isRtl
+                                                                isAppRtl
                                                                     ? "right"
                                                                     : "left",
                                                             direction:
-                                                                isRtl
+                                                                isAppRtl
                                                                     ? "rtl"
                                                                     : "ltr",
                                                         }}

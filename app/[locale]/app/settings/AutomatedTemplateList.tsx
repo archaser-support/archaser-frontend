@@ -13,7 +13,7 @@ import {
     Link as MuiLink,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { GridColDef, GridSortModel } from "@mui/x-data-grid";
+import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery } from "@tanstack/react-query";
 import api, { apiFetch } from "@/app/api";
 import { useSession } from "next-auth/react";
@@ -713,7 +713,6 @@ const AutomatedTemplateList: React.FC<{ accountId?: number }> = ({ accountId: _a
                 }}
             >
                 <EndlessScrollDataGrid
-                    key={`automated-templates-${debouncedSearch}-${queryKeyVersion}`}
                     rows={rows}
                     columns={columns}
                     totalRecords={totalRecords}

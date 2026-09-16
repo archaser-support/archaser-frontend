@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { CreditMetricCard } from "@/app/[locale]/app/credit-dashboard/CreditMetricCard";
 import { useDashboardBusinessUnitId } from "@/shared/dashboard/DashboardBusinessUnitContext";
 
-import { buildOperationDashboardDetailsUrl } from "../operationDashboardDetailsUrl";
+import { pushOperationDashboardDetails } from "../operationDashboardDetailsUrl";
 
 type PromisesToPayCardProps = {
     total?: number;
@@ -41,13 +41,15 @@ const PromisesToPayCard = ({
                     "Formula: (Fulfilled Promises / Total Promises) × 100. A promise is considered fulfilled when the collection period moves from 'Promise_to_pay' category to another category within the selected date range.",
             })}
             onClick={() =>
-                router.push(
-                    buildOperationDashboardDetailsUrl("promises-to-pay", {
+                pushOperationDashboardDetails(
+                    router,
+                    t,
+                    "promises-to-pay", {
                         startDate,
                         endDate,
                         selectedUserId,
                         businessUnitId,
-                    })
+                    }
                 )
             }
         />
