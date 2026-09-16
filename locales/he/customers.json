@@ -64,6 +64,7 @@
         "insurance_policy": "פוליסת ביטוח",
         "customer_number_policy": "מספר לקוח בפוליסה",
         "approved_limit": "תקרה מאושרת",
+        "approved_limit_currency": "מטבע תקרה מאושרת",
         "approved_limit_expiration_date": "תאריך תפוגת תקרה מאושרת",
         "limit_type": "סוג תקרה",
         "limit_type_dcl": "DCL",
