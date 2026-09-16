@@ -1843,13 +1843,11 @@ const ActivityTimeline: React.FC<CustomerProp> = ({
 
         let actualDeliveryTime: Date | null = null;
         if (item.actual_delivery_time) {
-            actualDeliveryTime =
+            const parsed =
                 item.actual_delivery_time instanceof Date
                     ? item.actual_delivery_time
                     : new Date(item.actual_delivery_time);
-            if (isNaN(actualDeliveryTime.getTime())) {
-                actualDeliveryTime = null;
-            }
+            actualDeliveryTime = Number.isNaN(parsed.getTime()) ? null : parsed;
         }
 
         return {

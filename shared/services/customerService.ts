@@ -453,7 +453,6 @@ export const fetchCustomerTimeLineData = async (params: {
                                     : null,
                             })
                         ) || [],
-                    status: activity.status || null, // Add activity status for schedule icon visibility
                 };
             }
         );
