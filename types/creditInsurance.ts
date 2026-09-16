@@ -156,8 +156,6 @@ export type CreditDashboardSummary = {
         totalAmount: number;
         thresholdPct: number;
         scoreWarnDays: number;
-        /** Distinct customers with a projected 150%/200% utilization crossing. */
-        projectedCustomerCount?: number;
     };
     zeroLimitWarnings: {
         customerCount: number;
