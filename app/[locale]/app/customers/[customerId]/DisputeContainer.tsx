@@ -449,7 +449,7 @@ const DisputeContainer: React.FC<DisputeContainerProps> = ({
                 {
                     dispute_status: "Resolved",
                     dispute_resolution: disputeResolution,
-                    dispute_comment: disputeResolution || "Resolution updated",
+                    resolution_comment: disputeResolution || "Resolution updated",
                 }
             );
             showToast(

@@ -106,6 +106,7 @@ export default function AssignUserModel({
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
+                        owner_id: assignedUser?.value,
                         assigned_user_id: assignedUser?.value,
                         user_comment: userComment,
                     }),
