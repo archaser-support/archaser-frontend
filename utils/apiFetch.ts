@@ -40,21 +40,52 @@ export function normalizeProductApiPath(path: string): string {
 /**
  * Browser `fetch` for product APIs — Nest base URL + Bearer in Nest UI mode.
  * Pass paths like `/api/entities/customers` or `/entities/customers`.
+ *
+ * Public portal leaves stay anonymous: do not attach the agent Bearer (and do
+ * not trip global 401 → login handoff) when a customer is browsing the portal
+ * while an agent session also exists in the same browser.
  */
+function isPublicPortalProductPath(pathOrUrl: string): boolean {
+    try {
+        const path = (
+            /^https?:\/\//i.test(pathOrUrl)
+                ? new URL(pathOrUrl).pathname
+                : pathOrUrl.split("?")[0]
+        ).replace(/\/+$/, "") || "/";
+
+        if (path === "/api/portal" || path.startsWith("/api/portal/")) {
+            return true;
+        }
+        // After peel, relative product paths can look like `/portal/...`
+        if (path === "/portal" || path.startsWith("/portal/")) {
+            return true;
+        }
+        return /^\/(?:api\/)?customers\/[^/]+\/(portal-data|agent-portal|invoices|bank-details|banks|disputes|create-dispute|view-disputes|wrong-contact)$/.test(
+            path
+        );
+    } catch {
+        return false;
+    }
+}
+
 export async function apiFetch(
     input: string,
     init: RequestInit = {}
 ): Promise<Response> {
     const url = resolveProductRequestUrl(input);
     const headers = new Headers(init.headers || {});
+    const publicPortal =
+        isPublicPortalProductPath(input) || isPublicPortalProductPath(url);
 
     const existing =
         headers.get("Authorization") || headers.get("authorization");
-    const authorization = resolveAuthorizationHeader({
-        existingAuthorization: existing,
-        nestAccessToken: getNestAccessToken(),
-        attachNestBearer: shouldAttachNestBearer(),
-    });
+    const authorization = publicPortal
+        ? existing || undefined
+        : resolveAuthorizationHeader({
+              existingAuthorization: existing,
+              nestAccessToken: getNestAccessToken(),
+              attachNestBearer: shouldAttachNestBearer(),
+          });
     if (authorization) {
         headers.set("Authorization", authorization);
     }
@@ -80,7 +111,7 @@ export async function apiFetch(
             ? init.credentials ?? "omit"
             : init.credentials ?? "include",
     });
-    if (shouldAttachNestBearer() && response.status === 401) {
+    if (!publicPortal && shouldAttachNestBearer() && response.status === 401) {
         await handleExpiredNestSession();
     }
     return response;

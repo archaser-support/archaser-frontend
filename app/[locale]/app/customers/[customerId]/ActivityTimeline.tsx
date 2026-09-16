@@ -100,6 +100,7 @@ import {
     toUserTimezone,
 } from "@/utils/datetimeOperations";
 import { sanitizeActivityTitle } from "@/utils/htmlSanitizer";
+import { broadcast, BROADCAST_TYPES } from "@/utils/broadcast";
 // Define ActivityContact interface locally instead of importing from Prisma
 interface ActivityContact {
     id: number;
@@ -137,7 +138,7 @@ interface CustomerProp {
 interface TimelineItem {
     id?: string;
     schedule_time: Date;
-    actual_delivery_time: Date;
+    actual_delivery_time: Date | null;
     type?: string;
     title?: string;
     details: TimelineDetail[];
@@ -1402,14 +1403,14 @@ const TimelineDescription = memo(
 
 TimelineDescription.displayName = "TimelineDescription";
 
-// Helper function to get effective time for sorting (actual_delivery_time || schedule_time || created_at)
-// This ensures proper chronological order even when activities are fast-forwarded for testing
+// Prefer when the activity actually happened; fall back to schedule/created.
+// Do not treat a future schedule_time as "done" for sorting/grouping.
 const getEffectiveTime = (item: TimelineItem): Date => {
-    if (item.actual_delivery_time && !isNaN(item.actual_delivery_time.getTime())) {
+    if (
+        item.actual_delivery_time &&
+        !isNaN(item.actual_delivery_time.getTime())
+    ) {
         return item.actual_delivery_time;
-    }
-    if (item.schedule_time && !isNaN(item.schedule_time.getTime())) {
-        return item.schedule_time;
     }
     if (item.created_at) {
         const createdDate =
@@ -1420,8 +1421,10 @@ const getEffectiveTime = (item: TimelineItem): Date => {
             return createdDate;
         }
     }
-    // Fallback to schedule_time even if invalid (shouldn't happen)
-    return item.schedule_time || new Date();
+    if (item.schedule_time && !isNaN(item.schedule_time.getTime())) {
+        return item.schedule_time;
+    }
+    return new Date();
 };
 
 const Timeline = memo(
@@ -1690,6 +1693,30 @@ const ActivityTimeline: React.FC<CustomerProp> = ({
         });
     }, [queryClient]);
 
+    // Portal / other tabs broadcast after creating PTP or disputes
+    useEffect(() => {
+        if (!customer?.id) {
+            return;
+        }
+        const onBroadcast = (message: {
+            type?: string;
+            data?: { customerId?: string | number };
+        }) => {
+            if (message?.type !== BROADCAST_TYPES.REFRESH_TIMELINE) {
+                return;
+            }
+            const broadcastCustomerId = Number(message.data?.customerId);
+            if (
+                Number.isFinite(broadcastCustomerId) &&
+                broadcastCustomerId === customer.id
+            ) {
+                triggerRefresh();
+            }
+        };
+        broadcast.addListener(onBroadcast);
+        return () => broadcast.removeListener(onBroadcast);
+    }, [customer?.id, triggerRefresh]);
+
     // Function to toggle detail expansion
     const handleToggleDetail = useCallback((detailId: string) => {
         setExpandedDetails((prev) => {
@@ -1733,9 +1760,11 @@ const ActivityTimeline: React.FC<CustomerProp> = ({
         enabled: !!customer?.id,
         retry: 3,
         refetchOnWindowFocus: true,
-        staleTime: isAutomatedCategory ? 5 * 1000 : 5 * 60 * 1000, // 5s for automated so status updates (SENT/DELIVERED) show quickly, 5 min for others
-        gcTime: 10 * 60 * 1000, // Cache for 10 minutes
-        refetchOnMount: true,
+        // Keep timeline fresh after portal/agent PTP creates; long staleTime was
+        // serving empty/error pages from when the API was briefly down.
+        staleTime: isAutomatedCategory ? 5 * 1000 : 15 * 1000,
+        gcTime: 10 * 60 * 1000,
+        refetchOnMount: "always",
         refetchOnReconnect: true,
         refetchInterval: (query) => {
             // Smart polling: only poll if we have data and customer is in automated category
@@ -1759,12 +1788,15 @@ const ActivityTimeline: React.FC<CustomerProp> = ({
             return null;
         }
 
-        const actualDeliveryTime =
-            item.actual_delivery_time instanceof Date
-                ? item.actual_delivery_time
-                : new Date(item.actual_delivery_time || scheduleTime);
-        if (isNaN(actualDeliveryTime.getTime())) {
-            return null;
+        let actualDeliveryTime: Date | null = null;
+        if (item.actual_delivery_time) {
+            actualDeliveryTime =
+                item.actual_delivery_time instanceof Date
+                    ? item.actual_delivery_time
+                    : new Date(item.actual_delivery_time);
+            if (isNaN(actualDeliveryTime.getTime())) {
+                actualDeliveryTime = null;
+            }
         }
 
         return {
@@ -1870,72 +1902,24 @@ const ActivityTimeline: React.FC<CustomerProp> = ({
                 .filter((item): item is TimelineItem => item !== null);
 
             if (!lastId) {
-                // Initial load or refresh
-                if (prev.length === 0) {
-                    return newItems.sort(
-                        (a, b) =>
-                            getEffectiveTime(b).getTime() -
-                            getEffectiveTime(a).getTime()
-                    );
-                }
-
-                // If no new items on refresh, return previous data unchanged
-                if (newItems.length === 0) {
-                    return prev;
-                }
-
-                // Merge logic for refresh - preserve accordion state when prev has data
-                const existingItemsMap = new Map(
-                    prev.map((item) => [item.id, item])
-                );
-
-                const updatedItems = newItems.map((newItem) => {
-                    const existingItem = existingItemsMap.get(newItem.id);
-                    if (existingItem) {
-                        return {
-                            ...existingItem,
-                            ...newItem,
-                            details: newItem.details.map((newDetail) => {
-                                const existingDetail =
-                                    existingItem.details.find(
-                                        (d) => d.id === newDetail.id
-                                    );
-                                if (existingDetail) {
-                                    return {
-                                        ...existingDetail,
-                                        ...newDetail,
-                                        attachments:
-                                            newDetail.attachments || [],
-                                    };
-                                }
-                                return newDetail;
-                            }),
-                        };
-                    }
-                    return newItem;
-                });
-
-                const newItemIds = new Set(newItems.map((item) => item.id));
-                const itemsToAdd = prev.filter(
-                    (item) => !newItemIds.has(item.id)
-                );
-
-                return [...updatedItems, ...itemsToAdd].sort(
-                    (a, b) =>
-                        getEffectiveTime(b).getTime() -
-                        getEffectiveTime(a).getTime()
-                );
-            } else {
-                // Pagination logic
-                const newData = [...prev, ...newItems];
-                return Array.from(
-                    new Map(newData.map((item) => [item.id, item])).values()
-                ).sort(
+                // First page / refresh — replace, don't keep stale scroll pages
+                // that would bury newly logged PTP/dispute rows.
+                return newItems.sort(
                     (a, b) =>
                         getEffectiveTime(b).getTime() -
                         getEffectiveTime(a).getTime()
                 );
             }
+
+            // Pagination — append
+            const newData = [...prev, ...newItems];
+            return Array.from(
+                new Map(newData.map((item) => [item.id, item])).values()
+            ).sort(
+                (a, b) =>
+                    getEffectiveTime(b).getTime() -
+                    getEffectiveTime(a).getTime()
+            );
         });
 
         if (!lastId) {

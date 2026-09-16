@@ -105,19 +105,30 @@ export default function InvoiceList({
                     customer_id,
                     invoices_in_dispute: invoices_numbers
                         .map((invoice) => invoice.invoiceNumber)
-                        .join(" ,"),
+                        .join(","),
                 }),
             });
 
-            if (!response.ok)
-                throw new Error(`HTTP error! status: ${response.status}`);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(
+                    (typeof errorData.error === "string" && errorData.error) ||
+                        (typeof errorData.message === "string" &&
+                            errorData.message) ||
+                        t("fields.error_logging_dispute_please_try_again_later")
+                );
+            }
             setSelectedInvoices(new Set());
             setDisputeMessage("");
             setDisputeReason("");
             setCurrentStep(1);
             setIsSubmitSuccess(true);
         } catch (error) {
-            alert(t("fields.error_logging_dispute_please_try_again_later"));
+            alert(
+                error instanceof Error
+                    ? error.message
+                    : t("fields.error_logging_dispute_please_try_again_later")
+            );
         } finally {
             setIsLoading(false);
         }
