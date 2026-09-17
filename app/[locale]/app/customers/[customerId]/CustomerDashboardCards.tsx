@@ -1113,7 +1113,7 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                             {
                                                 ns: "dashboard",
                                                 defaultValue:
-                                                    "σ {{sigma}}% daily swing",
+                                                    "σ {{sigma}}%",
                                                 sigma: (
                                                     periodKpiCards.arVolatilitySigmaPct *
                                                     100
@@ -1198,7 +1198,7 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                             {
                                                 ns: "dashboard",
                                                 defaultValue:
-                                                    "+{{pts}} pts avg over 100%",
+                                                    "+{{pts}} pts avg",
                                                 pts: periodKpiCards.avgOvershootPts.toFixed(
                                                     1
                                                 ),
