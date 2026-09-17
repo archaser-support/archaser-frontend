@@ -2607,7 +2607,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                                                 {
                                                                     ns: "customers",
                                                                     defaultValue:
-                                                                        "Total Overdue Amount",
+                                                                        "Overdue Amount",
                                                                 }
                                                             )}
                                                             :
