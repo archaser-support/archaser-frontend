@@ -229,7 +229,7 @@
         "mep_breach_start_date_helper": "Optional. Invoices issued before this day are excluded from MEP breach evaluation. Leave blank to evaluate all history.",
         "mep_breach_start_date_locked": "Locked after backfill started. Reset backfill to change the MEP breach start date.",
         "reporting_breach_start_date_label": "Reporting breach start date",
-        "reporting_breach_start_date_helper": "Required. Invoices issued before this day never get reporting breach. Always editable after backfill starts.",
+        "reporting_breach_start_date_helper": "Required. Reporting breach applies only when the invoice target reporting date is on or after this day. Always editable after backfill starts.",
         "reporting_breach_start_date_required": "Reporting breach start date is required.",
         "reporting_breach_recompute_title": "Reporting breach recompute started",
         "reporting_breach_recompute_started": "Reporting breach start date saved. Invoice recompute started in the background. Start Generate to rebuild Portfolio Health snapshots for this account.",

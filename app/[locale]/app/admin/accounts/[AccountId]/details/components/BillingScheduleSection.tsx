@@ -547,11 +547,11 @@ const BillingScheduleSection = memo(function BillingScheduleSection(props: Billi
                                                 <FieldWithTrailingInfoTooltip
                                                     isHebrew={isHebrew}
                                                     title={t(
-                                                        "billing_connector.reporting_breach_start_date_helper",
-                                                        {
-                                                            defaultValue:
-                                                                "Required. Invoices issued before this day never get reporting breach. Always editable after backfill starts.",
-                                                        }
+                                                            "billing_connector.reporting_breach_start_date_helper",
+                                                            {
+                                                                defaultValue:
+                                                                    "Required. Reporting breach applies only when the invoice target reporting date is on or after this day. Always editable after backfill starts.",
+                                                            }
                                                     )}
                                                 >
                                                     <TextField
