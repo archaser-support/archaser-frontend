@@ -219,10 +219,10 @@ export default React.forwardRef<
                     [importType]: next,
                 },
             });
-            setMode(readMode(saved, importType));
-            setOdata(readAdvancedOData(saved, importType));
-            setRules(readRules(saved, importType));
-            onSaved?.(saved);
+            setMode(readMode(saved.config, importType));
+            setOdata(readAdvancedOData(saved.config, importType));
+            setRules(readRules(saved.config, importType));
+            onSaved?.(saved.config);
             success(
                 next
                     ? `${importType} pull filter saved`
