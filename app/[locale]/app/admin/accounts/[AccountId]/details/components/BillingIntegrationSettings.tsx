@@ -3,6 +3,7 @@
 import {
     Alert,
     Box,
+    Button,
     Checkbox,
     CircularProgress,
     FormControl,
@@ -42,10 +43,12 @@ import {
     type SyncRunSummary,
     type UpsertBillingConnectorPayload,
 } from "@/shared/services/billingConnectorService";
+import { startAsOfBackfill } from "@/shared/services/asOfBackfillService";
 import type { ConnectorFieldMapperHandle } from "@/shared/layout-components/import/ConnectorFieldMapper";
 import type { ConnectorEntityPullFilterEditorHandle } from "@/shared/layout-components/import/ConnectorEntityPullFilterEditor";
 import { normalizeConnectorEnabledEntities } from "@/shared/constants/importEntityFields";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
+import AppDialog from "@/shared/layout-components/modal/AppDialog";
 import DeleteDialog from "@/shared/layout-components/modal/DeleteDialog";
 import {
     buildClearBeforeImportConfirmCopy,
@@ -167,7 +170,7 @@ const BillingIntegrationSettings = forwardRef<
 ) {
     const { success, error: showError } = useToast();
     const queryClient = useQueryClient();
-    const { i18n } = useTranslation(["common"]);
+    const { t, i18n } = useTranslation(["accounts", "common"]);
     const isHebrew = i18n.language === "he";
 
     const { data: config, isLoading } = useQuery({
@@ -227,8 +230,8 @@ const BillingIntegrationSettings = forwardRef<
     >("mapping");
     const [backfillStartDate, setBackfillStartDate] = useState("");
     const [mepBreachStartDate, setMepBreachStartDate] = useState("");
-    const [skipReportingBreachOnBackfill, setSkipReportingBreachOnBackfill] =
-        useState(false);
+    const [reportingBreachStartDate, setReportingBreachStartDate] =
+        useState("");
     const [includeOlderOpenInvoices, setIncludeOlderOpenInvoices] =
         useState(true);
     const [invoicePaidTolerance, setInvoicePaidTolerance] = useState(
@@ -242,6 +245,32 @@ const BillingIntegrationSettings = forwardRef<
         Record<string, unknown>
     >({});
     const [resetDialogOpen, setResetDialogOpen] = useState(false);
+    const [
+        reportingBreachRecomputeModalOpen,
+        setReportingBreachRecomputeModalOpen,
+    ] = useState(false);
+    const startPortfolioGenerateMutation = useMutation({
+        mutationFn: () => startAsOfBackfill(accountId),
+        onSuccess: () => {
+            setReportingBreachRecomputeModalOpen(false);
+            success(
+                t("billing_connector.reporting_breach_generate_started", {
+                    defaultValue: "Portfolio Health Generate started for this account.",
+                })
+            );
+            void queryClient.invalidateQueries({
+                queryKey: ["as-of-backfill", accountId],
+            });
+        },
+        onError: () => {
+            showError(
+                t("billing_connector.reporting_breach_generate_failed", {
+                    defaultValue:
+                        "Could not start Portfolio Health Generate for this account.",
+                })
+            );
+        },
+    });
     const [clearBeforeStartDialogOpen, setClearBeforeStartDialogOpen] =
         useState(false);
     const [cacheSuggestionDialogOpen, setCacheSuggestionDialogOpen] =
@@ -385,11 +414,11 @@ const BillingIntegrationSettings = forwardRef<
             setMepBreachStartDate(
                 toDateInputValue(config.mep_breach_start_date)
             );
+            setReportingBreachStartDate(
+                toDateInputValue(config.reporting_breach_start_date)
+            );
             setIncludeOlderOpenInvoices(
                 config.include_older_open_invoices ?? true
-            );
-            setSkipReportingBreachOnBackfill(
-                Boolean(config.skip_reporting_breach_on_backfill)
             );
         }
         setInvoicePaidTolerance(
@@ -468,8 +497,9 @@ const BillingIntegrationSettings = forwardRef<
                 enabled_entities: enabledEntities,
                 backfill_start_date: backfillStartDate.trim() || null,
                 mep_breach_start_date: mepBreachStartDate.trim() || null,
+                reporting_breach_start_date:
+                    reportingBreachStartDate.trim() || null,
                 include_older_open_invoices: includeOlderOpenInvoices,
-                skip_reporting_breach_on_backfill: skipReportingBreachOnBackfill,
                 invoice_paid_tolerance:
                     parsePaidToleranceInput(invoicePaidTolerance) ??
                     DEFAULT_PAID_TOLERANCE,
@@ -499,7 +529,7 @@ const BillingIntegrationSettings = forwardRef<
             }
             return saveBillingConnectorConfig(accountId, payload);
         },
-        onSuccess: () => {
+        onSuccess: (result) => {
             cutoverDirtyRef.current = false;
             void invalidateBillingConnectorQueries(queryClient, accountId, {
                 syncRuns: false,
@@ -507,6 +537,9 @@ const BillingIntegrationSettings = forwardRef<
             setApiKeyToken("");
             setBasicPassword("");
             setOauthClientSecret("");
+            if (result.reporting_breach_recompute_started) {
+                setReportingBreachRecomputeModalOpen(true);
+            }
         },
     });
 
@@ -521,6 +554,11 @@ const BillingIntegrationSettings = forwardRef<
         if (paidTolerance == null) {
             throw new Error(
                 "Paid leftover tolerance must be a number from 0 to 10."
+            );
+        }
+        if (!reportingBreachStartDate.trim()) {
+            throw new Error(
+                "Reporting breach start date is required."
             );
         }
         const pullFiltersLocked = Boolean(config?.backfill_options_locked);
@@ -734,7 +772,7 @@ const BillingIntegrationSettings = forwardRef<
                 });
                 queryClient.setQueryData(
                     billingConnectorQueryKey(accountId),
-                    saved
+                    saved.config
                 );
             } catch (err: unknown) {
                 showError(
@@ -748,7 +786,32 @@ const BillingIntegrationSettings = forwardRef<
 
     const persistCutoverOptions = useCallback(
         async (patch: UpsertBillingConnectorPayload) => {
-            if (!canManage || config?.backfill_options_locked) {
+            if (!canManage) {
+                return;
+            }
+            const patchKeys = Object.keys(patch);
+            const reportingDateOnly =
+                patchKeys.length === 1 &&
+                patch.reporting_breach_start_date !== undefined;
+            if (config?.backfill_options_locked && !reportingDateOnly) {
+                return;
+            }
+            if (
+                patch.reporting_breach_start_date !== undefined &&
+                !(
+                    typeof patch.reporting_breach_start_date === "string" &&
+                    patch.reporting_breach_start_date.trim()
+                )
+            ) {
+                showError(
+                    t(
+                        "billing_connector.reporting_breach_start_date_required",
+                        {
+                            defaultValue:
+                                "Reporting breach start date is required.",
+                        }
+                    )
+                );
                 return;
             }
             cutoverDirtyRef.current = true;
@@ -759,9 +822,12 @@ const BillingIntegrationSettings = forwardRef<
                 );
                 queryClient.setQueryData(
                     billingConnectorQueryKey(accountId),
-                    saved
+                    saved.config
                 );
                 cutoverDirtyRef.current = false;
+                if (saved.reporting_breach_recompute_started) {
+                    setReportingBreachRecomputeModalOpen(true);
+                }
             } catch (err: unknown) {
                 showError(
                     axiosErrorMessage(err) ?? "Failed to save cutover options"
@@ -774,6 +840,7 @@ const BillingIntegrationSettings = forwardRef<
             config?.backfill_options_locked,
             queryClient,
             showError,
+            t,
         ]
     );
 
@@ -2111,7 +2178,7 @@ const BillingIntegrationSettings = forwardRef<
         mutationFn: (entities: ImportType[]) =>
             saveBillingConnectorConfig(accountId, {
                 enabled_entities: entities,
-            }),
+            }).then((result) => result.config),
         onSuccess: (saved) => {
             // Update enabled_entities in cache without bumping modified_at so
             // the form sync effect does not reset unsaved connection fields.
@@ -2352,12 +2419,10 @@ const BillingIntegrationSettings = forwardRef<
                 onBackfillStartDateChange={setBackfillStartDate}
                 mepBreachStartDate={mepBreachStartDate}
                 onMepBreachStartDateChange={setMepBreachStartDate}
+                reportingBreachStartDate={reportingBreachStartDate}
+                onReportingBreachStartDateChange={setReportingBreachStartDate}
                 includeOlderOpenInvoices={includeOlderOpenInvoices}
                 onIncludeOlderOpenInvoicesChange={setIncludeOlderOpenInvoices}
-                skipReportingBreachOnBackfill={skipReportingBreachOnBackfill}
-                onSkipReportingBreachOnBackfillChange={
-                    setSkipReportingBreachOnBackfill
-                }
                 backfillOptionsLocked={Boolean(config?.backfill_options_locked)}
                 persistCutoverOptions={persistCutoverOptions}
                 extensionKeyOptions={extensionKeyOptions}
@@ -2473,6 +2538,63 @@ const BillingIntegrationSettings = forwardRef<
                 maxWidth="sm"
                 locale={i18n.language}
             />
+            <AppDialog
+                open={reportingBreachRecomputeModalOpen}
+                onClose={() => setReportingBreachRecomputeModalOpen(false)}
+                isRTL={isHebrew}
+                paperWidth="360px"
+                paperMaxHeight="95vh"
+                title={t(
+                    "billing_connector.reporting_breach_recompute_title",
+                    {
+                        defaultValue: "Reporting breach recompute started",
+                    }
+                )}
+                actions={
+                    <>
+                        <Button
+                            onClick={() =>
+                                setReportingBreachRecomputeModalOpen(false)
+                            }
+                            disabled={startPortfolioGenerateMutation.isPending}
+                        >
+                            {t("actions.close", {
+                                ns: "common",
+                                defaultValue: "Close",
+                            })}
+                        </Button>
+                        <Button
+                            variant="contained"
+                            disabled={startPortfolioGenerateMutation.isPending}
+                            onClick={() =>
+                                startPortfolioGenerateMutation.mutate()
+                            }
+                            startIcon={
+                                startPortfolioGenerateMutation.isPending ? (
+                                    <CircularProgress size={16} color="inherit" />
+                                ) : undefined
+                            }
+                        >
+                            {t(
+                                "billing_connector.reporting_breach_open_generate",
+                                {
+                                    defaultValue: "Start Generate",
+                                }
+                            )}
+                        </Button>
+                    </>
+                }
+            >
+                <Typography variant="body2" color="text.secondary">
+                    {t(
+                        "billing_connector.reporting_breach_recompute_started",
+                        {
+                            defaultValue:
+                                "Reporting breach start date saved. Invoice recompute started in the background. Start Generate to rebuild Portfolio Health snapshots for this account.",
+                        }
+                    )}
+                </Typography>
+            </AppDialog>
             <DeleteDialog
                 isOpen={clearBeforeStartDialogOpen}
                 onClose={() => {
