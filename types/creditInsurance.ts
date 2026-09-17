@@ -585,7 +585,6 @@ export type CreditAsOfBackfillJobView = {
     requestedBy: string | null;
     startedAt: string | null;
     updatedAt: string | null;
-    skipReportingBreach: boolean;
     avgSecondsPerDay?: number | null;
     estimatedSecondsRemaining?: number | null;
     /** Pending rewrite queue window only; null when processing/done/missing. */
