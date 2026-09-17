@@ -79,7 +79,13 @@
         "address_line1": "שורת כתובת 1",
         "address_line2": "שורת כתובת 2",
         "name": "שם",
-        "wait_days_after_automated": "ימים לאחר אוטומציה"
+        "wait_days_after_automated": "ימים לאחר אוטומציה",
+        "products": "מוצרים",
+        "has_collection": "גבייה",
+        "has_credit_insurance": "ביטוח אשראי",
+        "is_demo": "חשבון דמו",
+        "enable_customer_checkpoints": "נקודות ביקורת ללקוח",
+        "is_demo_help": "כשמופעל, חשבון זה בסטייג'ינג יכול לשלוח פניות ללקוחות ולהקצות הרשאות ייבוא קבצים."
     },
     "actions": {
         "add_contact": "הוסף איש קשר",

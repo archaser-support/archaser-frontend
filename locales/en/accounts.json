@@ -79,7 +79,13 @@
         "address_line1": "Address Line 1",
         "address_line2": "Address Line 2",
         "unlisted_country_sms_policy": "Unlisted Country SMS Policy",
-        "wait_days_after_automated": "Wait Days After Automated"
+        "wait_days_after_automated": "Wait Days After Automated",
+        "products": "Products",
+        "has_collection": "Collection",
+        "has_credit_insurance": "Credit Insurance",
+        "is_demo": "Demo account",
+        "enable_customer_checkpoints": "Customer checkpoints",
+        "is_demo_help": "When on, this staging account can send customer outreach and assign file-import permissions."
     },
     "actions": {
         "add_contact": "Add Contact",

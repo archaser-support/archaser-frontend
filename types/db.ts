@@ -383,7 +383,7 @@ export type Account = {
     sso_providers: string | null;
     has_collection: boolean;
     has_credit_insurance: boolean;
-    has_file_import: boolean;
+    is_demo: boolean;
     enable_customer_checkpoints: boolean;
     credit_limit_warning_threshold_pct: number | null;
     credit_score_validity_warning_days: number | null;

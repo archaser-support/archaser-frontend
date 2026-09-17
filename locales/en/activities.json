@@ -172,6 +172,7 @@
         "inactive_customers_will_be_ignored": "{{count}} inactive customer(s) will be ignored. Only active customers will be updated.",
         "email_sent_successfully": "Email sent successfully",
         "failed_to_send_email": "Failed to send email",
+        "demo_disabled_outreach": "Customer outreach is disabled while Demo is off",
         "no_valid_contacts": "No contacts with valid email addresses found for this customer",
         "no_valid_contacts_for_customer": "No valid contacts found for {{customerName}}",
         "email_ready_to_send": "Ready to send",
