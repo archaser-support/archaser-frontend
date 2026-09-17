@@ -1069,7 +1069,7 @@ export function CreditPortfolioHealthScreen({
                     defaultValue: "Generate snapshots",
                 })}
                 titleIcon={<CalendarDays size={18} />}
-                paperWidth="360px"
+                paperWidth="520px"
                 actions={
                     confirmingLargeGenerate != null ? (
                         <>
