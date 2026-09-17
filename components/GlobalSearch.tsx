@@ -235,7 +235,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                 return {
                     has_collection: true,
                     has_credit_insurance: false,
-                    has_file_import: true,
+                    is_demo: false,
                 };
             }
             const response = await api.get(`/api/entities/accounts/${accountId}`);
@@ -246,7 +246,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                         : true,
                 has_credit_insurance:
                     response.data?.has_credit_insurance === true,
-                has_file_import: response.data?.has_file_import !== false,
+                is_demo: response.data?.is_demo === true,
             };
         },
         enabled: !!accountId,

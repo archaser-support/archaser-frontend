@@ -172,6 +172,7 @@
         "inactive_customers_will_be_ignored": "{{count}} לקוח/לקוחות לא פעילים יועלמו. רק לקוחות פעילים יעודכנו.",
         "email_sent_successfully": "המייל נשלח בהצלחה",
         "failed_to_send_email": "שליחת המייל נכשלה",
+        "demo_disabled_outreach": "פניות ללקוחות מושבתות כשחשבון הדמו כבוי",
         "no_valid_contacts": "לא נמצאו אנשי קשר עם כתובות מייל תקינות עבור לקוח זה",
         "no_valid_contacts_for_customer": "לא נמצאו אנשי קשר תקינים עבור {{customerName}}",
         "email_ready_to_send": "מוכן לשליחה",

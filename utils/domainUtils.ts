@@ -64,6 +64,14 @@ export function getTenantSubdomain(
 }
 
 /**
+ * Staging / preprod UI hosts only. Local and production are not staging for
+ * Demo-account gating (toggle visibility, import catalog, outreach mute).
+ */
+export function isStagingDeployClient(): boolean {
+    return detectEnvironment() === "preprod";
+}
+
+/**
  * Detects the current environment based on the domain
  * @returns EnvironmentType - The detected environment
  */

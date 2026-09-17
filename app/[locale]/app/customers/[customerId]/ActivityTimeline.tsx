@@ -109,6 +109,7 @@ interface ActivityContact {
     created_at: Date;
     modified_at: Date;
     status?: string;
+    failure_reason?: string | null;
     communication_channel?: string; // Added for specific channel tracking
     channel_selection_reason?: string; // Added for fallback tracking
     // Add other properties as needed
@@ -786,7 +787,14 @@ const ReceipientList: React.FC<{
                             >
                                 {/* Bullet - appears on left for LTR, right for RTL */}
                                 <Tooltip
-                                    title={`Delivery Status: ${statusLabel}`}
+                                    title={
+                                        activityContact.failure_reason ===
+                                        "Demo disabled"
+                                            ? `${t("values.status_failed", { ns: "activities" })}: ${t("messages.demo_disabled_outreach", { ns: "activities" })}`
+                                            : activityContact.failure_reason
+                                              ? `${statusLabel}: ${activityContact.failure_reason}`
+                                              : `Delivery Status: ${statusLabel}`
+                                    }
                                     TransitionComponent={Fade}
                                     placement="bottom"
                                 >
