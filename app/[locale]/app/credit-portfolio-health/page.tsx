@@ -150,7 +150,6 @@ export default function CreditPortfolioHealthPage() {
     const [activeTab, setActiveTab] = useState<PortfolioHealthTabId>(() =>
         parsePortfolioHealthTab(searchParams?.get("tab"))
     );
-    const [ignoreReportingBreach, setIgnoreReportingBreach] = useState(true);
 
     const policiesQuery = useCreditDashboardPoliciesQuery();
     const policies = useMemo(
@@ -429,19 +428,6 @@ export default function CreditPortfolioHealthPage() {
         }
     }, [backfillJob?.status, refetch]);
 
-    useEffect(() => {
-        const status = backfillJob?.status;
-        if (
-            status === "running" ||
-            status === "paused" ||
-            status === "failed"
-        ) {
-            setIgnoreReportingBreach(
-                backfillJob?.skipReportingBreach !== false
-            );
-        }
-    }, [backfillJob?.status, backfillJob?.skipReportingBreach]);
-
     const generateMutation = useMutation({
         mutationFn: async () => {
             const res = await apiFetch(
@@ -452,7 +438,6 @@ export default function CreditPortfolioHealthPage() {
                     body: JSON.stringify({
                         from: debouncedFromYmd,
                         to: requestToYmd,
-                        skipReportingBreach: ignoreReportingBreach,
                     }),
                 }
             );
@@ -498,7 +483,6 @@ export default function CreditPortfolioHealthPage() {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         mode: "recent",
-                        skipReportingBreach: ignoreReportingBreach,
                     }),
                 }
             );
@@ -634,8 +618,6 @@ export default function CreditPortfolioHealthPage() {
             generateRecentPending={generateRecentMutation.isPending}
             stopPending={stopMutation.isPending}
             retryPending={retryMutation.isPending}
-            ignoreReportingBreach={ignoreReportingBreach}
-            onIgnoreReportingBreachChange={setIgnoreReportingBreach}
         />
     );
 }
