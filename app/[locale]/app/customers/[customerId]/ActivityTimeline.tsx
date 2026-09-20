@@ -101,6 +101,10 @@ import {
     toUserTimezone,
 } from "@/utils/datetimeOperations";
 import { sanitizeActivityTitle } from "@/utils/htmlSanitizer";
+import {
+    resolveContentTextDirection,
+    type TextDirection,
+} from "@/utils/textDirection";
 import { broadcast, BROADCAST_TYPES } from "@/utils/broadcast";
 // Define ActivityContact interface locally instead of importing from Prisma
 interface ActivityContact {
@@ -1018,6 +1022,23 @@ const CollapsibleDetail = memo(
             );
         }, [detail.description, detail.title_params, t, session]);
 
+        const uiDirection: TextDirection =
+            i18n.language === "he" ? "rtl" : "ltr";
+        const contentDirection = useMemo(
+            () =>
+                resolveContentTextDirection(
+                    translatedContent,
+                    uiDirection
+                ),
+            [translatedContent, uiDirection]
+        );
+        const contentDirSx = {
+            direction: contentDirection,
+            textAlign: (contentDirection === "rtl" ? "right" : "left") as
+                | "right"
+                | "left",
+        };
+
         const hasContent = translatedContent && translatedContent.trim();
         // Use explicit px — numeric sx borderRadius is multiplied by theme.shape.borderRadius (4),
         // so `12` becomes 48px on Box; collapsed Paper was height-clamped and looked smaller.
@@ -1332,7 +1353,7 @@ const CollapsibleDetail = memo(
                                 border: "none",
                                 borderRadius: 0,
                                 boxShadow: "none",
-                                direction: i18n.language === "he" ? "rtl" : "ltr",
+                                direction: uiDirection,
                             }}
                         >
                             <Box sx={{ maxWidth: "100%" }}>
@@ -1367,17 +1388,15 @@ const CollapsibleDetail = memo(
                                             "& .prose": {
                                                 maxWidth: "none",
                                             },
-                                            direction: i18n.language === "he" ? "rtl" : "ltr",
-                                            textAlign: i18n.language === "he" ? "right" : "left",
+                                            ...contentDirSx,
                                         }}
                                         className="activity-timeline-content"
+                                        dir={contentDirection}
                                     >
                                         <Typography
                                             component="div"
-                                            sx={{
-                                                direction: i18n.language === "he" ? "rtl" : "ltr",
-                                                textAlign: i18n.language === "he" ? "right" : "left",
-                                            }}
+                                            dir={contentDirection}
+                                            sx={contentDirSx}
                                             dangerouslySetInnerHTML={{
                                                 __html: sanitizeActivityTitle(
                                                     translatedContent
@@ -1388,19 +1407,17 @@ const CollapsibleDetail = memo(
                                 ) : detail?.badgeText === "Internal" ? (
                                     <Box
                                         className="activity-timeline-content"
-                                        sx={{
-                                            direction: i18n.language === "he" ? "rtl" : "ltr",
-                                            textAlign: i18n.language === "he" ? "right" : "left",
-                                        }}
+                                        dir={contentDirection}
+                                        sx={contentDirSx}
                                     >
                                         <Typography
                                             component="span"
+                                            dir={contentDirection}
                                             sx={{
                                                 fontSize: "0.875rem",
                                                 color: "text.secondary",
                                                 wordBreak: "break-word",
-                                                direction: i18n.language === "he" ? "rtl" : "ltr",
-                                                textAlign: i18n.language === "he" ? "right" : "left",
+                                                ...contentDirSx,
                                             }}
                                             dangerouslySetInnerHTML={{
                                                 __html: sanitizeActivityTitle(
@@ -1412,17 +1429,13 @@ const CollapsibleDetail = memo(
                                 ) : (
                                     <Box
                                         className="activity-timeline-content"
-                                        sx={{
-                                            direction: i18n.language === "he" ? "rtl" : "ltr",
-                                            textAlign: i18n.language === "he" ? "right" : "left",
-                                        }}
+                                        dir={contentDirection}
+                                        sx={contentDirSx}
                                     >
                                         <Typography
                                             component="div"
-                                            sx={{
-                                                direction: i18n.language === "he" ? "rtl" : "ltr",
-                                                textAlign: i18n.language === "he" ? "right" : "left",
-                                            }}
+                                            dir={contentDirection}
+                                            sx={contentDirSx}
                                             dangerouslySetInnerHTML={{
                                                 __html: sanitizeActivityTitle(
                                                     translatedContent
