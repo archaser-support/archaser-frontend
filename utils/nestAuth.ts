@@ -55,12 +55,21 @@ function resolveLoginPathname(pathname: string): string {
     return `/${locale}/login`;
 }
 
+function isCustomerPortalPath(pathname: string): boolean {
+    return pathname.includes("/portal/");
+}
+
 /**
  * Global expired-session handler for Nest bearer auth.
  * Clears local bearer token, signs out NextAuth cookie session, then routes to login.
  */
 export async function handleExpiredNestSession(): Promise<void> {
     if (typeof window === "undefined" || handlingExpiredSession) {
+        return;
+    }
+    // Customer portal is anonymous. A 401 from an agent API (or a missing
+    // Bearer) must not send the visitor to staff login / tenant SSO.
+    if (isCustomerPortalPath(window.location.pathname || "")) {
         return;
     }
     // Mid-login / fresh app boot: a 401 must not signOut + bounce to /login.
