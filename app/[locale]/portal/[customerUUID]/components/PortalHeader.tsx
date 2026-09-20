@@ -8,7 +8,6 @@ import { useTranslation } from "react-i18next";
 import { getPortalLogoAvatarSx } from "@/app/theme/portalCard";
 import { PORTAL_LOGO_AVATAR_BORDER_RADIUS_PX } from "@/app/theme/constants";
 import { FileUploadServiceClient } from "@/lib/fileUploadServiceClient";
-import { logoCache } from "@/utils/logoCache";
 import { createLogoDataUrl } from "@/utils/logoUtils";
 
 import PortalDesktopMenu from "./PortalDesktopMenu";
@@ -54,32 +53,18 @@ const PortalHeader: React.FC<PortalHeaderProps> = ({
 
                 // The portal API signs the logo server-side, since an anonymous
                 // visitor cannot call the authenticated presign endpoint.
+                // Do not fall back to getFileUrl here: that 401 used to bounce
+                // the customer onto staff login / tenant SSO.
                 if (typeof logo === "string" && /^https?:\/\//i.test(logo)) {
                     setProcessedLogo(logo);
                     return;
                 }
 
-                // If it's an S3 file path, get presigned URL (with caching)
                 if (
                     typeof logo === "string" &&
                     FileUploadServiceClient.isS3File(logo)
                 ) {
-                    try {
-                        // Check cache first
-                        let presignedUrl = logoCache.getCachedUrl(logo);
-
-                        if (!presignedUrl) {
-                            // Cache miss - fetch new presigned URL
-                            presignedUrl =
-                                await FileUploadServiceClient.getFileUrl(logo);
-                            // Cache the new URL
-                            logoCache.setCachedUrl(logo, presignedUrl);
-                        }
-
-                        setProcessedLogo(presignedUrl);
-                    } catch (_error) {
-                        setProcessedLogo(null);
-                    }
+                    setProcessedLogo(null);
                     return;
                 }
 
@@ -95,14 +80,6 @@ const PortalHeader: React.FC<PortalHeaderProps> = ({
     }, [logo]);
 
     const handleLogoError = () => {
-        // If it's an S3 file and we get an error, invalidate the cache
-        if (
-            logo &&
-            typeof logo === "string" &&
-            FileUploadServiceClient.isS3File(logo)
-        ) {
-            logoCache.removeCached(logo);
-        }
         setLogoError(true);
     };
 
