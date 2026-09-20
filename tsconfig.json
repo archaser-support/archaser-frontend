@@ -58,6 +58,7 @@
     "next-env.d.ts",
     "build/types/**/*.ts",
     "build/dev/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    "build/dev/dev/types/**/*.ts"
   ]
 }
