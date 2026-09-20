@@ -26,3 +26,15 @@ export function resolveTextDirection(
     }
     return fallback;
 }
+
+/** Strip markup and `{template}` tokens so mixed Hebrew emails still detect RTL. */
+export function resolveContentTextDirection(
+    htmlOrText: string,
+    fallback: TextDirection
+): TextDirection {
+    const stripped = htmlOrText
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\{[^{}]+\}/g, " ")
+        .replace(/&[#a-zA-Z0-9]+;/g, " ");
+    return resolveTextDirection(stripped, fallback);
+}
