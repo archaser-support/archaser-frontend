@@ -296,11 +296,11 @@ export const fetchCustomerTimeLineData = async (params: {
                 const scheduleTime = new Date(
                     activity.schedule_time || activity.created_at || new Date()
                 );
-                const actualDeliveryTime = new Date(
-                    activity.actual_delivery_time ||
-                    activity.schedule_time ||
-                    activity.created_at
-                );
+                // Only use a real delivery timestamp — falling back to schedule_time
+                // for SCHEDULED rows made future reminders sort/group as if already done.
+                const actualDeliveryTime = activity.actual_delivery_time
+                    ? new Date(activity.actual_delivery_time)
+                    : null;
 
                 // Detect if this is a promise to pay activity (calls, sequence, or system-logged PTP)
                 const isPromiseToPay =
@@ -373,9 +373,11 @@ export const fetchCustomerTimeLineData = async (params: {
                     id: activity.id.toString(),
                     schedule_time: scheduleTime,
                     actual_delivery_time: actualDeliveryTime,
+                    created_at: activity.created_at || null,
                     type: activity.type,
                     title: activity.title || "",
                     title_params: activity.title_params || null,
+                    status: activity.status || null,
                     details: [
                         {
                             id: activity.id.toString(),
@@ -451,7 +453,6 @@ export const fetchCustomerTimeLineData = async (params: {
                                     : null,
                             })
                         ) || [],
-                    status: activity.status || null, // Add activity status for schedule icon visibility
                 };
             }
         );

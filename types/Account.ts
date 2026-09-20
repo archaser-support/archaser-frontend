@@ -23,7 +23,7 @@ export type Account = AccountRow & {
     portal_verification_enabled?: boolean | null;
     has_collection?: boolean | null;
     has_credit_insurance?: boolean | null;
-    has_file_import?: boolean | null;
+    is_demo?: boolean | null;
     enable_customer_checkpoints?: boolean | null;
 };
 

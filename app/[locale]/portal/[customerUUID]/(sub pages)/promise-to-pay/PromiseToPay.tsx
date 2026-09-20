@@ -131,7 +131,9 @@ const PromiseToPayContainer: React.FC<PromiseToPayProps> = ({
             const { getCaptchaToken } = await import("@/utils/captchaFrontendUtils");
             const captchaToken = await getCaptchaToken("promise_to_pay");
 
-            const response = await apiFetch("/api/portal/update-promise-to-pay/", {
+            // No trailing slash — Next redirects `/api/.../` with 308, which
+            // can drop or convert POSTs before they reach Nest.
+            const response = await apiFetch("/api/portal/update-promise-to-pay", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -145,15 +147,42 @@ const PromiseToPayContainer: React.FC<PromiseToPayProps> = ({
                 }),
             });
 
-            const data = await response.json();
+            const data = await response.json().catch(() => ({} as Record<string, unknown>));
 
             if (!response.ok) {
+                const nestMessage =
+                    typeof data.message === "string"
+                        ? data.message
+                        : typeof data.error === "string"
+                          ? data.error
+                          : data.message &&
+                              typeof data.message === "object" &&
+                              typeof (data.message as { error?: unknown }).error ===
+                                  "string"
+                            ? (data.message as { error: string }).error
+                            : null;
                 throw new Error(
-                    data.message || t("fields.promise_to_pay_submission_error")
+                    nestMessage || t("fields.promise_to_pay_submission_error")
                 );
             }
 
             setIsSubmitSuccess(true);
+
+            try {
+                const { broadcast } = await import("@/utils/broadcast");
+                const { BROADCAST_CONSTANTS } = await import(
+                    "@/utils/constants"
+                );
+                broadcast.postMessage({
+                    type: BROADCAST_CONSTANTS.REFRESH_TIMELINE,
+                    data: {
+                        customerId,
+                        timestamp: new Date().toISOString(),
+                    },
+                });
+            } catch {
+                // Timeline refresh is best-effort
+            }
         } catch (error) {
             console.error("Error updating promise to pay:", error);
             setError(

@@ -100,6 +100,7 @@ import {
     toUserTimezone,
 } from "@/utils/datetimeOperations";
 import { sanitizeActivityTitle } from "@/utils/htmlSanitizer";
+import { broadcast, BROADCAST_TYPES } from "@/utils/broadcast";
 // Define ActivityContact interface locally instead of importing from Prisma
 interface ActivityContact {
     id: number;
@@ -108,6 +109,7 @@ interface ActivityContact {
     created_at: Date;
     modified_at: Date;
     status?: string;
+    failure_reason?: string | null;
     communication_channel?: string; // Added for specific channel tracking
     channel_selection_reason?: string; // Added for fallback tracking
     // Add other properties as needed
@@ -137,7 +139,7 @@ interface CustomerProp {
 interface TimelineItem {
     id?: string;
     schedule_time: Date;
-    actual_delivery_time: Date;
+    actual_delivery_time: Date | null;
     type?: string;
     title?: string;
     details: TimelineDetail[];
@@ -275,6 +277,10 @@ const isOpaqueActor = (value: unknown): boolean => {
         actor === "system" ||
         actor === "system_user" ||
         actor === "portal_user" ||
+        actor === "{{users.values.portal_user}}" ||
+        actor === "users.values.portal_user" ||
+        actor === "{{activities.values.system}}" ||
+        actor === "activities.values.system" ||
         (actor.includes("-") && actor.length > 20)
     );
 };
@@ -282,22 +288,71 @@ const isOpaqueActor = (value: unknown): boolean => {
 /**
  * Titles interpolate `{{userId}}`, but the stored id is a UUID. `title_params`
  * also carries `userName`, so swap it in rather than showing the raw id.
+ * Portal/system actors may arrive as sentinel ids or already-wrapped i18n keys.
  */
 const withResolvedActor = (
-    params: Record<string, unknown> | undefined
+    params: Record<string, unknown> | undefined,
+    t: (_key: string, _params?: Record<string, unknown>) => string
 ): Record<string, unknown> | undefined => {
-    if (!params?.userName || !isOpaqueActor(params.userId)) {
+    if (!params) {
         return params;
     }
-    return { ...params, userId: params.userName };
+    const rawUserId = optionalTrimmedActor(params.userId);
+    if (!rawUserId) {
+        return params;
+    }
+
+    const lower = rawUserId.toLowerCase();
+    if (
+        lower === "portal_user" ||
+        lower === "portal user" ||
+        lower === "{{users.values.portal_user}}" ||
+        lower === "users.values.portal_user"
+    ) {
+        return {
+            ...params,
+            userId: t("values.portal_user", {
+                ns: "users",
+                defaultValue: "Portal User",
+            }),
+        };
+    }
+    if (
+        lower === "system" ||
+        lower === "system_user" ||
+        lower === "system user" ||
+        lower === "{{activities.values.system}}" ||
+        lower === "activities.values.system"
+    ) {
+        return {
+            ...params,
+            userId: t("values.system", {
+                ns: "activities",
+                defaultValue: "System",
+            }),
+        };
+    }
+
+    if (params.userName && isOpaqueActor(params.userId)) {
+        return { ...params, userId: params.userName };
+    }
+    return params;
 };
+
+function optionalTrimmedActor(value: unknown): string | null {
+    if (value == null) {
+        return null;
+    }
+    const trimmed = String(value).trim();
+    return trimmed || null;
+}
 
 const formatActivityTitle = (
     detail: TimelineDetail,
     t: (_key: string, _params?: Record<string, unknown>) => string,
     session?: Session | null
 ): string => {
-    const params = withResolvedActor(parseTitleParams(detail.title_params));
+    const params = withResolvedActor(parseTitleParams(detail.title_params), t);
     const titleParams =
         params?.time == null && detail.time
             ? {
@@ -315,7 +370,10 @@ const formatActivityTitle = (
             ? t("fields.activity_call_activity", { ns: "activities" })
             : "";
     }
-    return translateStoredI18nKey(String(detail.title), t, titleParams, {
+    const titleKey = isActivityFailed(detail)
+        ? titleKeyForFailedActivity(detail.title)
+        : detail.title;
+    const formatted = translateStoredI18nKey(String(titleKey), t, titleParams, {
         formatDate: (date, kind) =>
             formatDateForDisplay(
                 date,
@@ -324,26 +382,85 @@ const formatActivityTitle = (
                 kind === "datetime" ? getUserTimezone(session ?? null) : undefined
             ),
     });
+    if (!isActivityFailed(detail) || titleKey !== detail.title) {
+        return formatted;
+    }
+    return replaceScheduledWithFailed(formatted, t);
 };
 
-// Function to detect if an activity is failed
-const isActivityFailed = (detail: TimelineDetail): boolean => {
-    // Check if any activity contact has failed status
-    if (detail.ActivityContacts && detail.ActivityContacts.length > 0) {
-        return detail.ActivityContacts.some(
-            (contact) =>
-                contact.status === "Failed" || contact.status === "Bounced"
+const SCHEDULED_TO_FAILED_TITLE: Record<string, string> = {
+    activity_automated_step_scheduled: "activity_automated_step_failed",
+    activity_automated_scheduled: "activity_automated_step_failed",
+    activity_promise_to_pay_scheduled: "activity_promise_to_pay_failed",
+    promise_to_pay_scheduled: "promise_to_pay_failed",
+    activity_due_notification_scheduled: "activity_due_notification_failed",
+};
+
+const titleKeyForFailedActivity = (rawTitle: string): string => {
+    const trimmed = rawTitle.trim();
+    const wrapped = trimmed.match(/^\{+(.+)\}+$/);
+    const inner = wrapped ? wrapped[1].trim() : trimmed;
+    const namespaced = inner.match(/^activities:(.+)$/);
+    const bare = namespaced ? namespaced[1] : inner;
+    const mapped = SCHEDULED_TO_FAILED_TITLE[bare];
+    if (!mapped) {
+        return rawTitle;
+    }
+    if (namespaced) {
+        return `activities:${mapped}`;
+    }
+    if (wrapped) {
+        return `{${mapped}}`;
+    }
+    return mapped;
+};
+
+const replaceScheduledWithFailed = (
+    title: string,
+    t: (_key: string, _params?: Record<string, unknown>) => string
+): string => {
+    const scheduled = t("values.status_scheduled", { ns: "activities" });
+    const failed = t("values.status_failed", { ns: "activities" });
+    const tokens = [...new Set([scheduled, "scheduled"])].filter(Boolean);
+    let result = title;
+    for (const token of tokens) {
+        const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        result = result.replace(new RegExp(escaped, "gi"), (match) =>
+            match === match.toLowerCase() ? failed.toLowerCase() : failed
         );
     }
+    return result;
+};
 
-    // Check if the title indicates a failed activity
+const isFailedOrBouncedStatus = (status?: string | null): boolean => {
+    if (!status) return false;
+    const normalized = status.toUpperCase();
+    return (
+        normalized === ActivityStatus.FAILED ||
+        normalized === ActivityStatus.BOUNCED
+    );
+};
+
+// Activity.status is FAILED; ActivityContact.status is Failed (delivery_status).
+const isActivityFailed = (detail: TimelineDetail): boolean => {
+    if (isFailedOrBouncedStatus(detail.status)) {
+        return true;
+    }
+    if (detail.ActivityContacts && detail.ActivityContacts.length > 0) {
+        if (
+            detail.ActivityContacts.some((contact) =>
+                isFailedOrBouncedStatus(contact.status)
+            )
+        ) {
+            return true;
+        }
+    }
     if (detail.title) {
         const title = detail.title.toLowerCase();
         return (
             title.includes("failed") || title.includes("automated_step_failed")
         );
     }
-
     return false;
 };
 
@@ -591,8 +708,10 @@ const ReceipientList: React.FC<{
             case ActivityStatus.SCHEDULED:
                 return theme.palette.chartPalette.light; // Scheduled for future
             case ActivityStatus.FAILED:
+            case "Failed":
                 return theme.palette.chartPalette.dark; // Failed delivery
             case ActivityStatus.BOUNCED:
+            case "Bounced":
                 return theme.palette.chartPalette.dark; // Bounced email
             case ActivityStatus.CANCELLED:
                 return theme.palette.text.secondary; // Muted - cancelled activity
@@ -732,7 +851,14 @@ const ReceipientList: React.FC<{
                             >
                                 {/* Bullet - appears on left for LTR, right for RTL */}
                                 <Tooltip
-                                    title={`Delivery Status: ${statusLabel}`}
+                                    title={
+                                        activityContact.failure_reason ===
+                                        "Demo disabled"
+                                            ? `${t("values.status_failed", { ns: "activities" })}: ${t("messages.demo_disabled_outreach", { ns: "activities" })}`
+                                            : activityContact.failure_reason
+                                              ? `${statusLabel}: ${activityContact.failure_reason}`
+                                              : `Delivery Status: ${statusLabel}`
+                                    }
                                     TransitionComponent={Fade}
                                     placement="bottom"
                                 >
@@ -1081,9 +1207,9 @@ const CollapsibleDetail = memo(
                                 >
                                     <Box
                                         sx={{
-                                            color: isActivityFailed(detail)
-                                                ? "error.main"
-                                                : (detail.status === 'CANCELLED' || detail.status === 'Cancelled')
+                                            color:
+                                                detail.status === "CANCELLED" ||
+                                                detail.status === "Cancelled"
                                                     ? "text.disabled"
                                                     : "primary.main",
                                             cursor: "help",
@@ -1402,14 +1528,14 @@ const TimelineDescription = memo(
 
 TimelineDescription.displayName = "TimelineDescription";
 
-// Helper function to get effective time for sorting (actual_delivery_time || schedule_time || created_at)
-// This ensures proper chronological order even when activities are fast-forwarded for testing
+// Prefer when the activity actually happened; fall back to schedule/created.
+// Do not treat a future schedule_time as "done" for sorting/grouping.
 const getEffectiveTime = (item: TimelineItem): Date => {
-    if (item.actual_delivery_time && !isNaN(item.actual_delivery_time.getTime())) {
+    if (
+        item.actual_delivery_time &&
+        !isNaN(item.actual_delivery_time.getTime())
+    ) {
         return item.actual_delivery_time;
-    }
-    if (item.schedule_time && !isNaN(item.schedule_time.getTime())) {
-        return item.schedule_time;
     }
     if (item.created_at) {
         const createdDate =
@@ -1420,8 +1546,10 @@ const getEffectiveTime = (item: TimelineItem): Date => {
             return createdDate;
         }
     }
-    // Fallback to schedule_time even if invalid (shouldn't happen)
-    return item.schedule_time || new Date();
+    if (item.schedule_time && !isNaN(item.schedule_time.getTime())) {
+        return item.schedule_time;
+    }
+    return new Date();
 };
 
 const Timeline = memo(
@@ -1690,6 +1818,30 @@ const ActivityTimeline: React.FC<CustomerProp> = ({
         });
     }, [queryClient]);
 
+    // Portal / other tabs broadcast after creating PTP or disputes
+    useEffect(() => {
+        if (!customer?.id) {
+            return;
+        }
+        const onBroadcast = (message: {
+            type?: string;
+            data?: { customerId?: string | number };
+        }) => {
+            if (message?.type !== BROADCAST_TYPES.REFRESH_TIMELINE) {
+                return;
+            }
+            const broadcastCustomerId = Number(message.data?.customerId);
+            if (
+                Number.isFinite(broadcastCustomerId) &&
+                broadcastCustomerId === customer.id
+            ) {
+                triggerRefresh();
+            }
+        };
+        broadcast.addListener(onBroadcast);
+        return () => broadcast.removeListener(onBroadcast);
+    }, [customer?.id, triggerRefresh]);
+
     // Function to toggle detail expansion
     const handleToggleDetail = useCallback((detailId: string) => {
         setExpandedDetails((prev) => {
@@ -1733,9 +1885,11 @@ const ActivityTimeline: React.FC<CustomerProp> = ({
         enabled: !!customer?.id,
         retry: 3,
         refetchOnWindowFocus: true,
-        staleTime: isAutomatedCategory ? 5 * 1000 : 5 * 60 * 1000, // 5s for automated so status updates (SENT/DELIVERED) show quickly, 5 min for others
-        gcTime: 10 * 60 * 1000, // Cache for 10 minutes
-        refetchOnMount: true,
+        // Keep timeline fresh after portal/agent PTP creates; long staleTime was
+        // serving empty/error pages from when the API was briefly down.
+        staleTime: isAutomatedCategory ? 5 * 1000 : 15 * 1000,
+        gcTime: 10 * 60 * 1000,
+        refetchOnMount: "always",
         refetchOnReconnect: true,
         refetchInterval: (query) => {
             // Smart polling: only poll if we have data and customer is in automated category
@@ -1759,12 +1913,13 @@ const ActivityTimeline: React.FC<CustomerProp> = ({
             return null;
         }
 
-        const actualDeliveryTime =
-            item.actual_delivery_time instanceof Date
-                ? item.actual_delivery_time
-                : new Date(item.actual_delivery_time || scheduleTime);
-        if (isNaN(actualDeliveryTime.getTime())) {
-            return null;
+        let actualDeliveryTime: Date | null = null;
+        if (item.actual_delivery_time) {
+            const parsed =
+                item.actual_delivery_time instanceof Date
+                    ? item.actual_delivery_time
+                    : new Date(item.actual_delivery_time);
+            actualDeliveryTime = Number.isNaN(parsed.getTime()) ? null : parsed;
         }
 
         return {
@@ -1870,72 +2025,24 @@ const ActivityTimeline: React.FC<CustomerProp> = ({
                 .filter((item): item is TimelineItem => item !== null);
 
             if (!lastId) {
-                // Initial load or refresh
-                if (prev.length === 0) {
-                    return newItems.sort(
-                        (a, b) =>
-                            getEffectiveTime(b).getTime() -
-                            getEffectiveTime(a).getTime()
-                    );
-                }
-
-                // If no new items on refresh, return previous data unchanged
-                if (newItems.length === 0) {
-                    return prev;
-                }
-
-                // Merge logic for refresh - preserve accordion state when prev has data
-                const existingItemsMap = new Map(
-                    prev.map((item) => [item.id, item])
-                );
-
-                const updatedItems = newItems.map((newItem) => {
-                    const existingItem = existingItemsMap.get(newItem.id);
-                    if (existingItem) {
-                        return {
-                            ...existingItem,
-                            ...newItem,
-                            details: newItem.details.map((newDetail) => {
-                                const existingDetail =
-                                    existingItem.details.find(
-                                        (d) => d.id === newDetail.id
-                                    );
-                                if (existingDetail) {
-                                    return {
-                                        ...existingDetail,
-                                        ...newDetail,
-                                        attachments:
-                                            newDetail.attachments || [],
-                                    };
-                                }
-                                return newDetail;
-                            }),
-                        };
-                    }
-                    return newItem;
-                });
-
-                const newItemIds = new Set(newItems.map((item) => item.id));
-                const itemsToAdd = prev.filter(
-                    (item) => !newItemIds.has(item.id)
-                );
-
-                return [...updatedItems, ...itemsToAdd].sort(
-                    (a, b) =>
-                        getEffectiveTime(b).getTime() -
-                        getEffectiveTime(a).getTime()
-                );
-            } else {
-                // Pagination logic
-                const newData = [...prev, ...newItems];
-                return Array.from(
-                    new Map(newData.map((item) => [item.id, item])).values()
-                ).sort(
+                // First page / refresh — replace, don't keep stale scroll pages
+                // that would bury newly logged PTP/dispute rows.
+                return newItems.sort(
                     (a, b) =>
                         getEffectiveTime(b).getTime() -
                         getEffectiveTime(a).getTime()
                 );
             }
+
+            // Pagination — append
+            const newData = [...prev, ...newItems];
+            return Array.from(
+                new Map(newData.map((item) => [item.id, item])).values()
+            ).sort(
+                (a, b) =>
+                    getEffectiveTime(b).getTime() -
+                    getEffectiveTime(a).getTime()
+            );
         });
 
         if (!lastId) {

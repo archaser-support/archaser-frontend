@@ -18,6 +18,7 @@ const i18nNamespaces = [
     "reports",
     "generic_fields",
     "settings",
+    "users",
 ];
 
 interface LayoutProps {

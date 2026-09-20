@@ -3,7 +3,7 @@ import { METRIC_STAT_CARD_ICON_SIZE_PX } from "@/app/theme/metricStatCard";
 /** Shared height for Health Index + Trend cards in the dashboard top row. */
 export const CREDIT_DASHBOARD_COMPACT_CARD_HEIGHT_PX = 352;
 
-/** Toolbar row (title + delta chips + interval toggle) — single line. */
+/** Toolbar row (title + delta chips) — single line. */
 export const CREDIT_DASHBOARD_COMPACT_TOOLBAR_PX = 48;
 
 /** Icon tile top offset (matches metricStatCard iconBox). */

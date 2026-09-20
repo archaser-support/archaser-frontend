@@ -52,13 +52,6 @@ export const attachment_category = {
 } as const;
 export type attachment_category = (typeof attachment_category)[keyof typeof attachment_category];
 
-export const BillingConnectorStatus = {
-    Active: "Active",
-    Disabled: "Disabled",
-    Error: "Error",
-} as const;
-export type BillingConnectorStatus = (typeof BillingConnectorStatus)[keyof typeof BillingConnectorStatus];
-
 export const BillingProvider = {
     PRIORITY: "PRIORITY",
     SAP_BUSINESS_ONE: "SAP_BUSINESS_ONE",
@@ -390,7 +383,7 @@ export type Account = {
     sso_providers: string | null;
     has_collection: boolean;
     has_credit_insurance: boolean;
-    has_file_import: boolean;
+    is_demo: boolean;
     enable_customer_checkpoints: boolean;
     credit_limit_warning_threshold_pct: number | null;
     credit_score_validity_warning_days: number | null;
@@ -693,7 +686,6 @@ export type BillingConnector = {
     id: number;
     account_id: number;
     provider: BillingProvider;
-    status: BillingConnectorStatus;
     base_url: string | null;
     auth_type: ConnectorAuthType;
     credentials_encrypted: string | null;
@@ -709,7 +701,7 @@ export type BillingConnector = {
     backfill_started_at: Date | null;
     backfill_start_date: Date | null;
     include_older_open_invoices: boolean;
-    skip_reporting_breach_on_backfill: boolean;
+    reporting_breach_start_date: Date | null;
     invoice_paid_tolerance: number;
     entity_sets: JsonValue;
     entity_set_catalog: JsonValue | null;

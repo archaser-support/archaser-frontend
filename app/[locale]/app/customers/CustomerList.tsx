@@ -98,7 +98,7 @@ const CustomerList: React.FC<CustomerListProps> = ({
     const { data: accountProducts } = useQuery<{
         has_collection?: boolean;
         has_credit_insurance?: boolean;
-        has_file_import?: boolean;
+        is_demo?: boolean;
     }>({
         queryKey: ["account-products", session?.user?.account_id],
         queryFn: async () => {
@@ -107,7 +107,7 @@ const CustomerList: React.FC<CustomerListProps> = ({
                 return {
                     has_collection: true,
                     has_credit_insurance: false,
-                    has_file_import: true,
+                    is_demo: false,
                 };
             }
             const response = await api.get(
@@ -120,7 +120,7 @@ const CustomerList: React.FC<CustomerListProps> = ({
                         : true,
                 has_credit_insurance:
                     response.data?.has_credit_insurance === true,
-                has_file_import: response.data?.has_file_import !== false,
+                is_demo: response.data?.is_demo === true,
             };
         },
         enabled: !!session?.user?.account_id,
