@@ -225,7 +225,7 @@ export type CreditDashboardMonthPct = {
     limitWarningsCustomerCount: number | null;
 };
 
-export type CreditDashboardHistoryInterval = "daily" | "weekly";
+export type CreditDashboardHistoryInterval = "daily";
 
 export type CreditDashboardSummaryHistory = {
     series: CreditDashboardHistoryPoint[];
@@ -585,9 +585,10 @@ export type CreditAsOfBackfillJobView = {
     requestedBy: string | null;
     startedAt: string | null;
     updatedAt: string | null;
-    skipReportingBreach: boolean;
     avgSecondsPerDay?: number | null;
     estimatedSecondsRemaining?: number | null;
+    /** Pending rewrite queue window only; null when processing/done/missing. */
+    pendingRewrite?: { from: string; to: string } | null;
 };
 
 export type CreditPortfolioHealthResponse = {

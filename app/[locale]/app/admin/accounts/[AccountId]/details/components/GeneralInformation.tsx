@@ -17,6 +17,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 
 import { CurrencySelect, LocaleSelect } from "@/components/LocationSelects";
+import { isStagingDeployClient } from "@/utils/domainUtils";
 
 import { AccountDisplayData } from "../types";
 
@@ -38,6 +39,7 @@ const GeneralInformation: React.FC<GeneralInformationProps> = ({
     isArchaserAdmin = false,
 }) => {
     const { t } = useTranslation(["accounts", "common"]);
+    const showDemoToggle = isArchaserAdmin && isStagingDeployClient();
 
     const StatusOptions = [
         { value: "Active", label: t("values.status_active", { ns: "common" }) },
@@ -411,7 +413,10 @@ const GeneralInformation: React.FC<GeneralInformationProps> = ({
                     }}
                 >
                     <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                        Products
+                        {t("fields.products", {
+                            ns: "accounts",
+                            defaultValue: "Products",
+                        })}
                     </Typography>
                     <FormGroup row>
                         <FormControlLabel
@@ -426,7 +431,10 @@ const GeneralInformation: React.FC<GeneralInformationProps> = ({
                                     }
                                 />
                             }
-                            label="Collection"
+                            label={t("fields.has_collection", {
+                                ns: "accounts",
+                                defaultValue: "Collection",
+                            })}
                         />
                         <FormControlLabel
                             control={
@@ -440,22 +448,30 @@ const GeneralInformation: React.FC<GeneralInformationProps> = ({
                                     }
                                 />
                             }
-                            label="Credit Insurance"
+                            label={t("fields.has_credit_insurance", {
+                                ns: "accounts",
+                                defaultValue: "Credit Insurance",
+                            })}
                         />
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={customer.has_file_import !== false}
-                                    onChange={(e) =>
-                                        onFieldChange(
-                                            "has_file_import",
-                                            e.target.checked
-                                        )
-                                    }
-                                />
-                            }
-                            label="File Import"
-                        />
+                        {showDemoToggle ? (
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={!!customer.is_demo}
+                                        onChange={(e) =>
+                                            onFieldChange(
+                                                "is_demo",
+                                                e.target.checked
+                                            )
+                                        }
+                                    />
+                                }
+                                label={t("fields.is_demo", {
+                                    ns: "accounts",
+                                    defaultValue: "Demo account",
+                                })}
+                            />
+                        ) : null}
                         {isArchaserAdmin ? (
                             <FormControlLabel
                                 control={
@@ -471,7 +487,10 @@ const GeneralInformation: React.FC<GeneralInformationProps> = ({
                                         }
                                     />
                                 }
-                                label="Customer checkpoints"
+                                label={t("fields.enable_customer_checkpoints", {
+                                    ns: "accounts",
+                                    defaultValue: "Customer checkpoints",
+                                })}
                             />
                         ) : null}
                     </FormGroup>

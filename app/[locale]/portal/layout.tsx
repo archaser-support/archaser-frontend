@@ -6,7 +6,7 @@ import PortalThemeRegistry from "@/app/PortalThemeRegistry";
 import { PORTAL_SCOPE_CLASS } from "@/app/theme/portalButton";
 import TranslationsProvider from "@/components/TranslationsProvider";
 
-const portalI18nNamespaces = ["portal", "invoices"];
+const portalI18nNamespaces = ["portal", "invoices", "common", "disputes"];
 
 export default async function PortalLayout({
     children,

@@ -604,7 +604,7 @@ const AppLayout = ({ children }: any) => {
     const { data: effectiveAccountProducts, isLoading: isLoadingAccountProducts } = useQuery<{
         has_collection?: boolean;
         has_credit_insurance?: boolean;
-        has_file_import?: boolean;
+        is_demo?: boolean;
     }>({
         queryKey: ["account-products", effectiveUser.account_id],
         queryFn: async () => {
@@ -612,7 +612,7 @@ const AppLayout = ({ children }: any) => {
                 return {
                     has_collection: true,
                     has_credit_insurance: false,
-                    has_file_import: true,
+                    is_demo: false,
                 };
             }
             const response = await api.get(
@@ -625,7 +625,7 @@ const AppLayout = ({ children }: any) => {
                         : true,
                 has_credit_insurance:
                     response.data?.has_credit_insurance === true,
-                has_file_import: response.data?.has_file_import !== false,
+                is_demo: response.data?.is_demo === true,
             };
         },
         enabled: !!effectiveUser.account_id,
@@ -708,7 +708,7 @@ const AppLayout = ({ children }: any) => {
     // Settings section - show if user has view_settings permission
     const shouldShowSettingsSection = hasViewSettingsPermission;
 
-    // Import section - show if File Import product is on and user has any import permission
+    // Import section - show if staging Demo is on and user has any import permission
     const shouldShowImportSection =
         hasFileImportProduct &&
         (hasImportCustomerPermission ||
@@ -744,7 +744,7 @@ const AppLayout = ({ children }: any) => {
             let accountProducts: {
                 has_collection?: boolean;
                 has_credit_insurance?: boolean;
-                has_file_import?: boolean;
+                is_demo?: boolean;
             } | undefined;
             if (viewAsUserAccountId) {
                 try {
@@ -758,8 +758,7 @@ const AppLayout = ({ children }: any) => {
                                 : true,
                         has_credit_insurance:
                             accountResponse.data?.has_credit_insurance === true,
-                        has_file_import:
-                            accountResponse.data?.has_file_import !== false,
+                        is_demo: accountResponse.data?.is_demo === true,
                     };
                 } catch {
                     accountProducts = undefined;
