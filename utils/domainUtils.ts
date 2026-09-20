@@ -64,6 +64,16 @@ export function getTenantSubdomain(
 }
 
 /**
+ * Staging/preprod and local/dev hosts. Production is excluded so Demo toggle,
+ * import catalog, and outreach mute can be verified in development the same
+ * way as on staging.
+ */
+export function isStagingDeployClient(): boolean {
+    const env = detectEnvironment();
+    return env === "preprod" || env === "localhost";
+}
+
+/**
  * Detects the current environment based on the domain
  * @returns EnvironmentType - The detected environment
  */

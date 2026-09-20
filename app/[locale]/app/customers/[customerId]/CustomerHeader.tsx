@@ -1075,7 +1075,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
             ? `${categoryLabel} (${Number(openPeriod.last_automated_step)})`
             : categoryLabel;
     const showCategoryChangeButton =
-        !isCreditOnlyAccount &&
+        isCollectionAccount &&
         openPeriod != null &&
         canChangeCollectionCategory(effectiveCategory);
     const overdueDisplay = resolveCustomerOverdueDisplayMetrics(
@@ -1173,6 +1173,10 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                     sx={{
                                         fontWeight: 500,
                                         color: "text.primary",
+                                        lineHeight: 1,
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        minHeight: 24,
                                         fontSize: {
                                             xs: "1.1rem",
                                             sm: "1.25rem",
@@ -1199,6 +1203,9 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                                 fontWeight: 400,
                                                 color: "text.secondary",
                                                 ml: 0.75,
+                                                lineHeight: 1,
+                                                display: "inline-flex",
+                                                alignItems: "center",
                                                 unicodeBidi: "isolate",
                                             }}
                                         >
@@ -1247,7 +1254,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                         }}
                                     />
                                 </Box>
-                                {!isCreditOnlyAccount ? (
+                                {isCollectionAccount ? (
                                     <>
                                         <Divider
                                             orientation="vertical"
@@ -1439,7 +1446,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                         </Box>
                                     </Tooltip>
                                 )}
-                                {!hideOpenPortal && (
+                                {!hideOpenPortal && isCollectionAccount && (
                                     <>
                                         <Divider
                                             orientation="vertical"
@@ -1531,7 +1538,10 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                         overdueSecondaryAmount
                                     )}
                                     secondaryLine={formatInvoiceCountSecondary(
-                                        overdueDisplay.invoiceCount
+                                        // Prefer live getById count over open-period
+                                        // Math.max — period rollups can lag invoices.
+                                        customer.number_of_overdue_invoices ??
+                                            overdueDisplay.invoiceCount
                                     )}
                                     compactValueFontSize={headerCompactValueFontSize}
                                     forceSecondaryLineBelow

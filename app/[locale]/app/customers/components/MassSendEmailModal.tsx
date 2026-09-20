@@ -595,10 +595,22 @@ const MassSendEmailModal: React.FC<MassSendEmailModalProps> = ({
                 closeModal();
             } catch (error: any) {
                 const errorMessage =
-                    error?.response?.data?.error ||
-                    error?.message ||
-                    t("messages.failed_to_send_email", { ns: "activities" });
+                    error?.response?.data?.code === "DEMO_DISABLED"
+                        ? t("messages.demo_disabled_outreach", {
+                              ns: "activities",
+                          })
+                        : error?.response?.data?.error ||
+                          error?.message ||
+                          t("messages.failed_to_send_email", {
+                              ns: "activities",
+                          });
                 showToast(errorMessage, "error");
+                if (
+                    error?.response?.data?.code === "DEMO_DISABLED" &&
+                    refreshTimeline
+                ) {
+                    refreshTimeline();
+                }
                 setIsSending(false);
             }
         } else {
@@ -646,9 +658,15 @@ const MassSendEmailModal: React.FC<MassSendEmailModalProps> = ({
                     });
                 } catch (error: any) {
                     const errorMessage =
-                        error?.response?.data?.error ||
-                        error?.message ||
-                        t("messages.failed_to_send_email", { ns: "activities" });
+                        error?.response?.data?.code === "DEMO_DISABLED"
+                            ? t("messages.demo_disabled_outreach", {
+                                  ns: "activities",
+                              })
+                            : error?.response?.data?.error ||
+                              error?.message ||
+                              t("messages.failed_to_send_email", {
+                                  ns: "activities",
+                              });
                     results.push({
                         customerId: customerRow.id,
                         customerName,

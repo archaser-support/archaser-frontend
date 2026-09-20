@@ -61,6 +61,7 @@ import AppDialog from "@/shared/layout-components/modal/AppDialog";
 import AppUrls from "@/utils/appUrls";
 import { getCustomerDisplayName } from "@/utils/customerDisplayName";
 import { mergeWithDefaults } from "@/utils/genericFieldUtils";
+import { isCreditOnlyAccount as accountIsCreditOnly } from "@/shared/utils/accountProducts";
 
 import CustomerAddressInfo from "./CustomerAddressInfo";
 import CustomerBanksList from "./CustomerBanksList";
@@ -926,15 +927,31 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
         staleTime: 0,
     });
 
-    const isCreditOnlyAccount =
-        accountData?.has_collection === false &&
-        accountData?.has_credit_insurance === true;
+    const { data: accountProducts } = useQuery({
+        queryKey: ["account-products", customer?.account_id],
+        queryFn: async () => {
+            const response = await api.get(
+                `/api/entities/accounts/${customer?.account_id}`
+            );
+            return {
+                has_collection:
+                    response.data?.has_collection !== undefined
+                        ? response.data.has_collection
+                        : true,
+                has_credit_insurance:
+                    response.data?.has_credit_insurance === true,
+                is_demo: response.data?.is_demo === true,
+            };
+        },
+        enabled: !!customer?.account_id,
+        staleTime: 60 * 1000,
+    });
 
+    const isCreditOnlyAccount = accountIsCreditOnly(accountProducts);
     const isCreditInsuranceAccount: boolean =
-        accountData?.has_credit_insurance === true;
-
+        accountProducts?.has_credit_insurance === true;
     const isCollectionAccount: boolean =
-        accountData?.has_collection !== false;
+        accountProducts?.has_collection !== false;
 
     // MUI Tabs value = index among rendered <Tab /> children (differs when Settings tab is omitted)
     const muiTabsValue = useMemo(
@@ -1864,7 +1881,7 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                 <CustomerHeader
                     customer_id={customer_id}
                     onTimelineRefresh={refreshTimeline}
-                    hideOpenPortal={isCreditOnlyAccount}
+                    hideOpenPortal={!isCollectionAccount}
                     isCollectionAccount={isCollectionAccount}
                     isCreditInsuranceAccount={isCreditInsuranceAccount}
                     isCreditOnlyAccount={isCreditOnlyAccount}

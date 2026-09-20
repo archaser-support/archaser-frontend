@@ -390,9 +390,7 @@ function LoginPageContent() {
                                           has_credit_insurance:
                                               accountData.has_credit_insurance ===
                                               true,
-                                          has_file_import:
-                                              accountData.has_file_import !==
-                                              false,
+                                          is_demo: accountData.is_demo === true,
                                       }
                                     : undefined,
                             });

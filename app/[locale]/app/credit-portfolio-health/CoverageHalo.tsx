@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
 import { SPACE_GROTESK_FONT_FAMILY } from "./fontTokens";
@@ -12,6 +13,10 @@ export type CoverageHaloProps = {
     label: string;
     locale?: string;
     size?: number;
+    /** Compact status under the value (e.g. Flat / Improving). */
+    status?: ReactNode;
+    statusColor?: string;
+    statusTitle?: string;
 };
 
 function clampPct(value: number): number {
@@ -34,6 +39,9 @@ export function CoverageHalo({
     label,
     locale = "en",
     size = 148,
+    status,
+    statusColor = CPH.slate,
+    statusTitle,
 }: CoverageHaloProps) {
     const prefersReducedMotion = usePrefersReducedMotion();
     const stroke = 12;
@@ -54,6 +62,10 @@ export function CoverageHalo({
 
     const offset =
         circumference - ((mounted ? target : 0) / 100) * circumference;
+    const valueLabel = formatPct(valuePct, locale);
+    const ariaLabel = statusTitle
+        ? `${label}: ${valueLabel}. ${statusTitle}`
+        : `${label}: ${valueLabel}`;
 
     return (
         <div
@@ -64,7 +76,8 @@ export function CoverageHalo({
                 flexShrink: 0,
             }}
             role="img"
-            aria-label={`${label}: ${formatPct(valuePct, locale)}`}
+            aria-label={ariaLabel}
+            title={statusTitle}
         >
             <svg
                 width={size}
@@ -105,26 +118,41 @@ export function CoverageHalo({
                     position: "absolute",
                     inset: 0,
                     display: "flex",
+                    flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
+                    gap: 4,
                     pointerEvents: "none",
                     textAlign: "center",
-                    padding: 12,
+                    padding: 16,
                 }}
             >
                 <span
                     style={{
                         fontFamily: SPACE_GROTESK_FONT_FAMILY,
                         color: CPH.ink,
-                        fontSize: "2rem",
+                        fontSize: status ? "1.75rem" : "2rem",
                         fontWeight: 600,
                         lineHeight: 1,
                         letterSpacing: "-0.02em",
                         fontVariantNumeric: "tabular-nums",
                     }}
                 >
-                    {formatPct(valuePct, locale)}
+                    {valueLabel}
                 </span>
+                {status ? (
+                    <span
+                        style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            lineHeight: 1.2,
+                            color: statusColor,
+                            maxWidth: "100%",
+                        }}
+                    >
+                        {status}
+                    </span>
+                ) : null}
             </div>
         </div>
     );

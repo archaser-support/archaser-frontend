@@ -39,6 +39,13 @@ export async function proxy(request: NextRequest) {
             process.env.NODE_ENV === "development" &&
             process.env.USE_NEST_API_REWRITE === "true"
         ) {
+            // Next's default trailingSlash:false 308s `/api/foo/` → `/api/foo`.
+            // Rewrite (don't redirect) so POST bodies survive to Nest.
+            if (pathname.length > 5 && pathname.endsWith("/")) {
+                const url = request.nextUrl.clone();
+                url.pathname = pathname.replace(/\/+$/, "");
+                return NextResponse.rewrite(url);
+            }
             return NextResponse.next();
         }
         if (pathname.startsWith("/api/ws")) {
