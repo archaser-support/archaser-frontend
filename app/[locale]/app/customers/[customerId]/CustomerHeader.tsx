@@ -1075,7 +1075,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
             ? `${categoryLabel} (${Number(openPeriod.last_automated_step)})`
             : categoryLabel;
     const showCategoryChangeButton =
-        !isCreditOnlyAccount &&
+        isCollectionAccount &&
         openPeriod != null &&
         canChangeCollectionCategory(effectiveCategory);
     const overdueDisplay = resolveCustomerOverdueDisplayMetrics(
@@ -1254,7 +1254,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                         }}
                                     />
                                 </Box>
-                                {!isCreditOnlyAccount ? (
+                                {isCollectionAccount ? (
                                     <>
                                         <Divider
                                             orientation="vertical"
@@ -1446,7 +1446,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                         </Box>
                                     </Tooltip>
                                 )}
-                                {!hideOpenPortal && (
+                                {!hideOpenPortal && isCollectionAccount && (
                                     <>
                                         <Divider
                                             orientation="vertical"
