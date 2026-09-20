@@ -38,7 +38,7 @@ import {
     fetchOpenDispute,
     fetchUsers,
 } from "@/shared/services/customerService";
-import { formatDisputeNumber } from "@/utils/disputeFormatters";
+import { formatDisputeNumber, formatDisputeResolutionLabel } from "@/utils/disputeFormatters";
 import { Customer } from "@/types/Customer";
 import { OpenDisputeResponse } from "@/types/CustomerDispute";
 import { UserResponse } from "@/types/User";
@@ -449,7 +449,6 @@ const DisputeContainer: React.FC<DisputeContainerProps> = ({
                 {
                     dispute_status: "Resolved",
                     dispute_resolution: disputeResolution,
-                    resolution_comment: disputeResolution || "Resolution updated",
                 }
             );
             showToast(
@@ -1055,10 +1054,14 @@ const DisputeContainer: React.FC<DisputeContainerProps> = ({
                                                 "fields.resolution_resolution_comment"
                                             )}
                                             value={
-                                                dispute.resolution_comment ||
-                                                t(
-                                                    "fields.details_no_comment"
-                                                )
+                                                dispute.resolution_comment
+                                                    ? formatDisputeResolutionLabel(
+                                                          dispute.resolution_comment,
+                                                          t
+                                                      )
+                                                    : t(
+                                                          "fields.details_no_comment"
+                                                      )
                                             }
                                         />
 
