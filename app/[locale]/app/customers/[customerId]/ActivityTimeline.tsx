@@ -87,6 +87,7 @@ import {
     resolveI18nPlaceholders,
     translateStoredI18nKey,
 } from "@/shared/utils/resolveI18nPlaceholders";
+import { wrapDisputeResolutionActivityValues } from "@/utils/disputeFormatters";
 import { Customer } from "@/types/Customer";
 import { ActivityStatus } from "@/types/enums";
 // Local Components and Types
@@ -998,7 +999,7 @@ const CollapsibleDetail = memo(
         const translatedContent = useMemo(() => {
             if (!detail.description) return "";
             return resolveI18nPlaceholders(
-                detail.description,
+                wrapDisputeResolutionActivityValues(detail.description),
                 t,
                 parseTitleParams(detail.title_params),
                 {
@@ -1756,6 +1757,7 @@ const ActivityTimeline: React.FC<CustomerProp> = ({
         "activities",
         "customers",
         "common",
+        "disputes",
     ]);
     const { data: session } = useSession();
     const theme = useTheme();
