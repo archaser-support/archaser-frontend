@@ -370,7 +370,10 @@ const formatActivityTitle = (
             ? t("fields.activity_call_activity", { ns: "activities" })
             : "";
     }
-    return translateStoredI18nKey(String(detail.title), t, titleParams, {
+    const titleKey = isActivityFailed(detail)
+        ? titleKeyForFailedActivity(detail.title)
+        : detail.title;
+    const formatted = translateStoredI18nKey(String(titleKey), t, titleParams, {
         formatDate: (date, kind) =>
             formatDateForDisplay(
                 date,
@@ -379,26 +382,85 @@ const formatActivityTitle = (
                 kind === "datetime" ? getUserTimezone(session ?? null) : undefined
             ),
     });
+    if (!isActivityFailed(detail) || titleKey !== detail.title) {
+        return formatted;
+    }
+    return replaceScheduledWithFailed(formatted, t);
 };
 
-// Function to detect if an activity is failed
-const isActivityFailed = (detail: TimelineDetail): boolean => {
-    // Check if any activity contact has failed status
-    if (detail.ActivityContacts && detail.ActivityContacts.length > 0) {
-        return detail.ActivityContacts.some(
-            (contact) =>
-                contact.status === "Failed" || contact.status === "Bounced"
+const SCHEDULED_TO_FAILED_TITLE: Record<string, string> = {
+    activity_automated_step_scheduled: "activity_automated_step_failed",
+    activity_automated_scheduled: "activity_automated_step_failed",
+    activity_promise_to_pay_scheduled: "activity_promise_to_pay_failed",
+    promise_to_pay_scheduled: "promise_to_pay_failed",
+    activity_due_notification_scheduled: "activity_due_notification_failed",
+};
+
+const titleKeyForFailedActivity = (rawTitle: string): string => {
+    const trimmed = rawTitle.trim();
+    const wrapped = trimmed.match(/^\{+(.+)\}+$/);
+    const inner = wrapped ? wrapped[1].trim() : trimmed;
+    const namespaced = inner.match(/^activities:(.+)$/);
+    const bare = namespaced ? namespaced[1] : inner;
+    const mapped = SCHEDULED_TO_FAILED_TITLE[bare];
+    if (!mapped) {
+        return rawTitle;
+    }
+    if (namespaced) {
+        return `activities:${mapped}`;
+    }
+    if (wrapped) {
+        return `{${mapped}}`;
+    }
+    return mapped;
+};
+
+const replaceScheduledWithFailed = (
+    title: string,
+    t: (_key: string, _params?: Record<string, unknown>) => string
+): string => {
+    const scheduled = t("values.status_scheduled", { ns: "activities" });
+    const failed = t("values.status_failed", { ns: "activities" });
+    const tokens = [...new Set([scheduled, "scheduled"])].filter(Boolean);
+    let result = title;
+    for (const token of tokens) {
+        const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        result = result.replace(new RegExp(escaped, "gi"), (match) =>
+            match === match.toLowerCase() ? failed.toLowerCase() : failed
         );
     }
+    return result;
+};
 
-    // Check if the title indicates a failed activity
+const isFailedOrBouncedStatus = (status?: string | null): boolean => {
+    if (!status) return false;
+    const normalized = status.toUpperCase();
+    return (
+        normalized === ActivityStatus.FAILED ||
+        normalized === ActivityStatus.BOUNCED
+    );
+};
+
+// Activity.status is FAILED; ActivityContact.status is Failed (delivery_status).
+const isActivityFailed = (detail: TimelineDetail): boolean => {
+    if (isFailedOrBouncedStatus(detail.status)) {
+        return true;
+    }
+    if (detail.ActivityContacts && detail.ActivityContacts.length > 0) {
+        if (
+            detail.ActivityContacts.some((contact) =>
+                isFailedOrBouncedStatus(contact.status)
+            )
+        ) {
+            return true;
+        }
+    }
     if (detail.title) {
         const title = detail.title.toLowerCase();
         return (
             title.includes("failed") || title.includes("automated_step_failed")
         );
     }
-
     return false;
 };
 
@@ -646,8 +708,10 @@ const ReceipientList: React.FC<{
             case ActivityStatus.SCHEDULED:
                 return theme.palette.chartPalette.light; // Scheduled for future
             case ActivityStatus.FAILED:
+            case "Failed":
                 return theme.palette.chartPalette.dark; // Failed delivery
             case ActivityStatus.BOUNCED:
+            case "Bounced":
                 return theme.palette.chartPalette.dark; // Bounced email
             case ActivityStatus.CANCELLED:
                 return theme.palette.text.secondary; // Muted - cancelled activity
@@ -1143,9 +1207,9 @@ const CollapsibleDetail = memo(
                                 >
                                     <Box
                                         sx={{
-                                            color: isActivityFailed(detail)
-                                                ? "error.main"
-                                                : (detail.status === 'CANCELLED' || detail.status === 'Cancelled')
+                                            color:
+                                                detail.status === "CANCELLED" ||
+                                                detail.status === "Cancelled"
                                                     ? "text.disabled"
                                                     : "primary.main",
                                             cursor: "help",
