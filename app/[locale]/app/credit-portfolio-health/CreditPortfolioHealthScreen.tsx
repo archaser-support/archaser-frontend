@@ -4,9 +4,7 @@ import {
     Box,
     Button,
     CircularProgress,
-    FormControlLabel,
     LinearProgress,
-    Switch,
     Tooltip,
     Typography,
     useTheme,
@@ -24,11 +22,21 @@ import {
 } from "@/app/[locale]/app/credit-dashboard/CreditDashboardPolicySelect";
 import { CreditDashboardExcludedCustomersFilter } from "@/app/[locale]/app/credit-dashboard/CreditDashboardExcludedCustomersFilter";
 import BusinessUnitDashboardFilter from "@/shared/components/BusinessUnitDashboardFilter";
-import { PORTFOLIO_HEALTH_LARGE_RANGE_DAYS } from "@/shared/creditInsurance/portfolioHealthDateRange";
-import DeleteDialog from "@/shared/layout-components/modal/DeleteDialog";
+import { resolveGenerateModalAutoOpen } from "@/shared/creditInsurance/generateModalAttention";
+import {
+    countInclusiveCalendarDays,
+    PORTFOLIO_HEALTH_LARGE_RANGE_DAYS,
+} from "@/shared/creditInsurance/portfolioHealthDateRange";
+import AppDialog from "@/shared/layout-components/modal/AppDialog";
 import Seo from "@/shared/layout-components/seo/seo";
+import {
+    formatDateForDisplay,
+    getUserDateLocale,
+    getUserTimezone,
+} from "@/utils/datetimeOperations";
 import { getRTLTooltipProps } from "@/utils/reportFieldUtils";
 import type {
+    CreditAsOfBackfillJobStatus,
     CreditAsOfBackfillJobView,
     CreditPortfolioHealthResponse,
 } from "@/types/creditInsurance";
@@ -72,15 +80,30 @@ export type CreditPortfolioHealthScreenProps = {
     error: Error | null;
     backfillJob: CreditAsOfBackfillJobView | undefined;
     onGenerateSnapshots: () => void;
+    onGenerateRecentSnapshots: () => void;
     onStopGenerate: () => void;
     onRetryGenerate: () => void;
     generatePending: boolean;
+    generateRecentPending: boolean;
     stopPending: boolean;
     retryPending: boolean;
-    ignoreReportingBreach: boolean;
-    onIgnoreReportingBreachChange: (value: boolean) => void;
     generateDaysInRange: number;
 };
+
+function formatCalendarDateForDisplay(
+    value: Date | string,
+    dateLocale: string,
+    timezone: string
+): string {
+    if (typeof value === "string") {
+        const parsed = new Date(`${value}T12:00:00.000Z`);
+        if (Number.isNaN(parsed.getTime())) {
+            return value;
+        }
+        return formatDateForDisplay(parsed, "date", dateLocale, timezone);
+    }
+    return formatDateForDisplay(value, "date", dateLocale, timezone);
+}
 
 function formatEstimatedSecondsRemaining(
     seconds: number,
@@ -140,13 +163,13 @@ export function CreditPortfolioHealthScreen({
     error,
     backfillJob,
     onGenerateSnapshots,
+    onGenerateRecentSnapshots,
     onStopGenerate,
     onRetryGenerate,
     generatePending,
+    generateRecentPending,
     stopPending,
     retryPending,
-    ignoreReportingBreach,
-    onIgnoreReportingBreachChange,
     generateDaysInRange,
 }: CreditPortfolioHealthScreenProps) {
     const { t, i18n } = useTranslation(["dashboard"]);
@@ -154,6 +177,8 @@ export function CreditPortfolioHealthScreen({
     const theme = useTheme();
     const isRtl = i18n.language === "he" || i18n.language.startsWith("he-");
     const prefersReducedMotion = usePrefersReducedMotion();
+    const dateLocale = getUserDateLocale(session ?? null);
+    const userTimezone = getUserTimezone(session ?? null);
     const ns = { ns: "dashboard" as const };
     const accountCurrency = useMemo(() => {
         const fromApi =
@@ -168,18 +193,18 @@ export function CreditPortfolioHealthScreen({
         data?.costs?.accountCurrency,
         session?.user?.currency,
     ]);
-    const [confirmingLargeGenerate, setConfirmingLargeGenerate] =
-        useState(false);
+    const [generateModalOpen, setGenerateModalOpen] = useState(false);
+    const [generateModalDismissed, setGenerateModalDismissed] = useState(false);
+    const [confirmingLargeGenerate, setConfirmingLargeGenerate] = useState<
+        null | "full" | "recent"
+    >(null);
+    const previousBackfillStatusRef = useRef<CreditAsOfBackfillJobStatus | null>(
+        null
+    );
     const isLargeGenerateRange =
         generateDaysInRange > PORTFOLIO_HEALTH_LARGE_RANGE_DAYS;
     const titleClickCountRef = useRef(0);
     const titleClickResetTimerRef = useRef<number | null>(null);
-
-    useEffect(() => {
-        if (!isLargeGenerateRange) {
-            setConfirmingLargeGenerate(false);
-        }
-    }, [isLargeGenerateRange, generateDaysInRange]);
 
     const pageTitle = t("credit_portfolio_health.page_title", {
         ...ns,
@@ -329,8 +354,41 @@ export function CreditPortfolioHealthScreen({
             : 0;
     const showIndeterminateProgress =
         isBackfillRunning && (backfillJob?.daysDone ?? 0) === 0;
+    const startActionsPending = generatePending || generateRecentPending;
     const generateDisabled =
-        isBackfillRunning || generatePending || stopPending || retryPending;
+        isBackfillRunning ||
+        startActionsPending ||
+        stopPending ||
+        retryPending;
+    const pendingRewrite = backfillJob?.pendingRewrite ?? null;
+    const pendingRewriteDays = pendingRewrite
+        ? countInclusiveCalendarDays(pendingRewrite.from, pendingRewrite.to)
+        : 0;
+    const isLargeRecentRange =
+        pendingRewriteDays > PORTFOLIO_HEALTH_LARGE_RANGE_DAYS;
+    const generateRecentDisabled =
+        generateDisabled || pendingRewrite == null;
+    const generateRecentTooltip = pendingRewrite
+        ? t("credit_portfolio_health.generate_recent_snapshots_tooltip", {
+              ...ns,
+              from: formatCalendarDateForDisplay(
+                  pendingRewrite.from,
+                  dateLocale,
+                  userTimezone
+              ),
+              to: formatCalendarDateForDisplay(
+                  pendingRewrite.to,
+                  dateLocale,
+                  userTimezone
+              ),
+              defaultValue:
+                  "Rebuilds portfolio health for the pending rewrite window ({{from}} – {{to}}). Does not use the page date range.",
+          })
+        : t("credit_portfolio_health.generate_recent_disabled_reason", {
+              ...ns,
+              defaultValue:
+                  "No pending rewrite window. Generate recent is available after an import enqueues days for nightly rewrite.",
+          });
     const backfillUpdatedAtMs = backfillJob?.updatedAt
         ? Date.parse(backfillJob.updatedAt)
         : 0;
@@ -338,26 +396,126 @@ export function CreditPortfolioHealthScreen({
         isBackfillRunning &&
         backfillUpdatedAtMs > 0 &&
         Date.now() - backfillUpdatedAtMs > 45_000;
-    const ignoreReportingBreachLocked =
-        backfillStatus === "running" ||
-        backfillStatus === "paused" ||
-        backfillStatus === "failed" ||
-        generatePending;
     const showDataRefreshSpinner =
         activeTab !== "policy-summary" && (isLoading || isFetching);
 
+    useEffect(() => {
+        if (
+            (confirmingLargeGenerate === "full" && !isLargeGenerateRange) ||
+            (confirmingLargeGenerate === "recent" && !isLargeRecentRange)
+        ) {
+            setConfirmingLargeGenerate(null);
+        }
+    }, [
+        confirmingLargeGenerate,
+        isLargeGenerateRange,
+        isLargeRecentRange,
+        generateDaysInRange,
+        pendingRewriteDays,
+    ]);
+
+    useEffect(() => {
+        const status = backfillStatus;
+        const result = resolveGenerateModalAutoOpen({
+            status,
+            previousStatus: previousBackfillStatusRef.current,
+            dismissed: generateModalDismissed,
+        });
+        previousBackfillStatusRef.current = status;
+        if (result.nextDismissed !== generateModalDismissed) {
+            setGenerateModalDismissed(result.nextDismissed);
+        }
+        if (result.shouldOpen) {
+            setGenerateModalOpen(true);
+        }
+    }, [backfillStatus, generateModalDismissed]);
+
+    const openGenerateModal = () => {
+        setGenerateModalDismissed(false);
+        setGenerateModalOpen(true);
+    };
+
+    const closeGenerateModal = () => {
+        setGenerateModalOpen(false);
+        setConfirmingLargeGenerate(null);
+        setGenerateModalDismissed(true);
+    };
+
     const handleGenerateClick = () => {
         if (isLargeGenerateRange) {
-            setConfirmingLargeGenerate(true);
+            setConfirmingLargeGenerate("full");
             return;
         }
         onGenerateSnapshots();
     };
 
+    const handleGenerateRecentClick = () => {
+        if (isLargeRecentRange) {
+            setConfirmingLargeGenerate("recent");
+            return;
+        }
+        onGenerateRecentSnapshots();
+    };
+
     const handleConfirmLargeGenerate = () => {
-        setConfirmingLargeGenerate(false);
+        const mode = confirmingLargeGenerate;
+        setConfirmingLargeGenerate(null);
+        if (mode === "recent") {
+            onGenerateRecentSnapshots();
+            return;
+        }
         onGenerateSnapshots();
     };
+
+    const largeConfirmDays =
+        confirmingLargeGenerate === "recent"
+            ? pendingRewriteDays
+            : generateDaysInRange;
+    const largeConfirmPending =
+        confirmingLargeGenerate === "recent"
+            ? generateRecentPending
+            : generatePending;
+
+    const pageRangeLabel = `${formatCalendarDateForDisplay(
+        startDate,
+        dateLocale,
+        userTimezone
+    )} – ${formatCalendarDateForDisplay(endDate, dateLocale, userTimezone)}`;
+    const pendingRewriteLabel = pendingRewrite
+        ? `${formatCalendarDateForDisplay(
+              pendingRewrite.from,
+              dateLocale,
+              userTimezone
+          )} – ${formatCalendarDateForDisplay(
+              pendingRewrite.to,
+              dateLocale,
+              userTimezone
+          )}`
+        : t("credit_portfolio_health.generate_modal_pending_rewrite_none", {
+              ...ns,
+              defaultValue: "None",
+          });
+
+    const openGenerateButtonLabel =
+        backfillStatus === "running" || isStaleRunning
+            ? t("credit_portfolio_health.open_generate_running", {
+                  ...ns,
+                  defaultValue: "Generate running",
+              })
+            : backfillStatus === "paused"
+              ? t("credit_portfolio_health.open_generate_paused", {
+                    ...ns,
+                    defaultValue: "Generate paused",
+                })
+              : backfillStatus === "failed"
+                ? t("credit_portfolio_health.open_generate_failed", {
+                      ...ns,
+                      defaultValue: "Generate failed",
+                  })
+                : t("credit_portfolio_health.open_generate", {
+                      ...ns,
+                      defaultValue: "Generate",
+                  });
 
     const estimatedRemainingLabel =
         backfillJob?.estimatedSecondsRemaining != null &&
@@ -497,45 +655,6 @@ export function CreditPortfolioHealthScreen({
                         />
                         <Tooltip
                             title={t(
-                                "credit_portfolio_health.ignore_reporting_breach_tooltip",
-                                {
-                                    ...ns,
-                                    defaultValue:
-                                        "Only this Generate. Snapshots treat reporting-late as off. Invoice records and the nightly job stay unchanged.",
-                                }
-                            )}
-                            {...getRTLTooltipProps(i18n)}
-                        >
-                            <span>
-                                <FormControlLabel
-                                    disabled={ignoreReportingBreachLocked}
-                                    control={
-                                        <Switch
-                                            color="primary"
-                                            checked={ignoreReportingBreach}
-                                            onChange={(event) =>
-                                                onIgnoreReportingBreachChange(
-                                                    event.target.checked
-                                                )
-                                            }
-                                            {...(isRtl
-                                                ? { "data-rtl": true }
-                                                : {})}
-                                        />
-                                    }
-                                    label={t(
-                                        "credit_portfolio_health.ignore_reporting_breach",
-                                        {
-                                            ...ns,
-                                            defaultValue:
-                                                "Ignore reporting breach",
-                                        }
-                                    )}
-                                />
-                            </span>
-                        </Tooltip>
-                        <Tooltip
-                            title={t(
                                 "credit_portfolio_health.generate_snapshots_tooltip",
                                 {
                                     ...ns,
@@ -549,58 +668,12 @@ export function CreditPortfolioHealthScreen({
                                 <Button
                                     variant="contained"
                                     size="small"
-                                    disabled={generateDisabled}
-                                    onClick={handleGenerateClick}
+                                    onClick={openGenerateModal}
                                 >
-                                    {t(
-                                        "credit_portfolio_health.generate_snapshots",
-                                        {
-                                            ...ns,
-                                            defaultValue: "Generate",
-                                        }
-                                    )}
+                                    {openGenerateButtonLabel}
                                 </Button>
                             </span>
                         </Tooltip>
-                        {isBackfillRunning ? (
-                            <Button
-                                variant="outlined"
-                                size="small"
-                                disabled={stopPending}
-                                onClick={onStopGenerate}
-                            >
-                                {t("credit_portfolio_health.stop_generate", {
-                                    ...ns,
-                                    defaultValue: "Stop",
-                                })}
-                            </Button>
-                        ) : null}
-                        {backfillStatus === "paused" ||
-                        backfillStatus === "failed" ||
-                        isStaleRunning ? (
-                            <Button
-                                variant="outlined"
-                                size="small"
-                                disabled={retryPending || generatePending}
-                                onClick={onRetryGenerate}
-                            >
-                                {isStaleRunning
-                                    ? t(
-                                          "credit_portfolio_health.resume_generate",
-                                          {
-                                              ...ns,
-                                              defaultValue: "Resume",
-                                          }
-                                      )
-                                    : t(
-                                          "credit_portfolio_health.retry_generate",
-                                          {
-                                              ...ns,
-                                              defaultValue: "Retry",
-                                          }
-                                      )}
-                            </Button>
-                        ) : null}
                     </Box>
                     {showProgress ? (
                         <Box
@@ -987,43 +1060,272 @@ export function CreditPortfolioHealthScreen({
                     </Box>
                 </Box>
             </Box>
-            <DeleteDialog
-                isOpen={confirmingLargeGenerate}
-                onClose={() => setConfirmingLargeGenerate(false)}
-                onConfirm={handleConfirmLargeGenerate}
-                title={t("credit_portfolio_health.large_range_confirm_title", {
+            <AppDialog
+                open={generateModalOpen}
+                onClose={closeGenerateModal}
+                isRTL={isRtl}
+                title={t("credit_portfolio_health.generate_modal_title", {
                     ...ns,
-                    defaultValue: "Generate snapshot history",
+                    defaultValue: "Generate snapshots",
                 })}
-                description={t(
-                    "credit_portfolio_health.large_range_confirm",
-                    {
+                titleIcon={<CalendarDays size={18} />}
+                paperWidth="520px"
+                actions={
+                    confirmingLargeGenerate != null ? (
+                        <>
+                            <Button
+                                onClick={() => setConfirmingLargeGenerate(null)}
+                                disabled={largeConfirmPending}
+                            >
+                                {t(
+                                    "credit_portfolio_health.large_range_cancel_button",
+                                    {
+                                        ...ns,
+                                        defaultValue: "Cancel",
+                                    }
+                                )}
+                            </Button>
+                            <Button
+                                variant="contained"
+                                color="warning"
+                                onClick={handleConfirmLargeGenerate}
+                                disabled={
+                                    largeConfirmPending ||
+                                    (confirmingLargeGenerate === "recent"
+                                        ? generateRecentDisabled
+                                        : generateDisabled)
+                                }
+                            >
+                                {largeConfirmPending ? (
+                                    <CircularProgress size={18} color="inherit" />
+                                ) : (
+                                    t(
+                                        "credit_portfolio_health.large_range_confirm_button",
+                                        {
+                                            ...ns,
+                                            defaultValue: "Generate anyway",
+                                        }
+                                    )
+                                )}
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <Button onClick={closeGenerateModal}>
+                                {t(
+                                    "credit_portfolio_health.generate_modal_close",
+                                    {
+                                        ...ns,
+                                        defaultValue: "Close",
+                                    }
+                                )}
+                            </Button>
+                            <Tooltip
+                                title={t(
+                                    "credit_portfolio_health.generate_snapshots_tooltip",
+                                    {
+                                        ...ns,
+                                        defaultValue:
+                                            "Builds daily portfolio health snapshots for the selected date range. Runs in the background — use Stop to pause and Resume to continue.",
+                                    }
+                                )}
+                                {...getRTLTooltipProps(i18n)}
+                            >
+                                <span>
+                                    <Button
+                                        variant="contained"
+                                        disabled={generateDisabled}
+                                        onClick={handleGenerateClick}
+                                    >
+                                        {generatePending ? (
+                                            <CircularProgress
+                                                size={18}
+                                                color="inherit"
+                                            />
+                                        ) : (
+                                            t(
+                                                "credit_portfolio_health.generate_snapshots",
+                                                {
+                                                    ...ns,
+                                                    defaultValue: "Generate",
+                                                }
+                                            )
+                                        )}
+                                    </Button>
+                                </span>
+                            </Tooltip>
+                            <Tooltip
+                                title={generateRecentTooltip}
+                                {...getRTLTooltipProps(i18n)}
+                            >
+                                <span>
+                                    <Button
+                                        variant="contained"
+                                        disabled={generateRecentDisabled}
+                                        onClick={handleGenerateRecentClick}
+                                    >
+                                        {generateRecentPending ? (
+                                            <CircularProgress
+                                                size={18}
+                                                color="inherit"
+                                            />
+                                        ) : (
+                                            t(
+                                                "credit_portfolio_health.generate_recent_snapshots",
+                                                {
+                                                    ...ns,
+                                                    defaultValue:
+                                                        "Generate recent",
+                                                }
+                                            )
+                                        )}
+                                    </Button>
+                                </span>
+                            </Tooltip>
+                            {isBackfillRunning ? (
+                                <Button
+                                    variant="outlined"
+                                    color="warning"
+                                    disabled={stopPending}
+                                    onClick={onStopGenerate}
+                                >
+                                    {stopPending ? (
+                                        <CircularProgress
+                                            size={18}
+                                            color="inherit"
+                                        />
+                                    ) : (
+                                        t(
+                                            "credit_portfolio_health.stop_generate",
+                                            {
+                                                ...ns,
+                                                defaultValue: "Stop",
+                                            }
+                                        )
+                                    )}
+                                </Button>
+                            ) : null}
+                            {backfillStatus === "paused" ||
+                            backfillStatus === "failed" ||
+                            isStaleRunning ? (
+                                <Button
+                                    variant="outlined"
+                                    disabled={
+                                        retryPending || startActionsPending
+                                    }
+                                    onClick={onRetryGenerate}
+                                >
+                                    {retryPending ? (
+                                        <CircularProgress
+                                            size={18}
+                                            color="inherit"
+                                        />
+                                    ) : isStaleRunning ? (
+                                        t(
+                                            "credit_portfolio_health.resume_generate",
+                                            {
+                                                ...ns,
+                                                defaultValue: "Resume",
+                                            }
+                                        )
+                                    ) : (
+                                        t(
+                                            "credit_portfolio_health.retry_generate",
+                                            {
+                                                ...ns,
+                                                defaultValue: "Retry",
+                                            }
+                                        )
+                                    )}
+                                </Button>
+                            ) : null}
+                        </>
+                    )
+                }
+            >
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    {t("credit_portfolio_health.generate_modal_help", {
                         ...ns,
                         defaultValue:
-                            "Generate {{days}} days of snapshot history? This can take a while on large accounts.",
-                        days: generateDaysInRange,
-                    }
-                )}
-                confirmLabel={t(
-                    "credit_portfolio_health.large_range_confirm_button",
-                    {
-                        ...ns,
-                        defaultValue: "Generate anyway",
-                    }
-                )}
-                cancelLabel={t(
-                    "credit_portfolio_health.large_range_cancel_button",
-                    {
-                        ...ns,
-                        defaultValue: "Cancel",
-                    }
-                )}
-                isLoading={generatePending}
-                confirmDisabled={generateDisabled}
-                type="warning"
-                maxWidth="sm"
-                locale={i18n.language}
-            />
+                            "Generate builds daily snapshots for the page date range. Generate recent rebuilds only the pending rewrite window from imports.",
+                    })}
+                </Typography>
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 2,
+                        py: 0.5,
+                    }}
+                >
+                    <Typography variant="body2" color="text.secondary">
+                        {t(
+                            "credit_portfolio_health.generate_modal_page_range",
+                            {
+                                ...ns,
+                                defaultValue: "Page date range",
+                            }
+                        )}
+                    </Typography>
+                    <Typography
+                        variant="body2"
+                        sx={{ textAlign: "end" }}
+                    >
+                        {pageRangeLabel}
+                    </Typography>
+                </Box>
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 2,
+                        py: 0.5,
+                    }}
+                >
+                    <Typography variant="body2" color="text.secondary">
+                        {t(
+                            "credit_portfolio_health.generate_modal_pending_rewrite",
+                            {
+                                ...ns,
+                                defaultValue: "Pending rewrite window",
+                            }
+                        )}
+                    </Typography>
+                    <Typography
+                        variant="body2"
+                        sx={{ textAlign: "end" }}
+                    >
+                        {pendingRewriteLabel}
+                    </Typography>
+                </Box>
+                {confirmingLargeGenerate != null ? (
+                    <Box sx={{ mt: 2 }}>
+                        <Typography
+                            variant="subtitle2"
+                            sx={{ fontWeight: 600, mb: 0.5 }}
+                        >
+                            {t(
+                                "credit_portfolio_health.large_range_confirm_title",
+                                {
+                                    ...ns,
+                                    defaultValue: "Generate snapshot history",
+                                }
+                            )}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            {t(
+                                "credit_portfolio_health.large_range_confirm",
+                                {
+                                    ...ns,
+                                    defaultValue:
+                                        "Generate {{days}} days of snapshot history? This can take a while on large accounts.",
+                                    days: largeConfirmDays,
+                                }
+                            )}
+                        </Typography>
+                    </Box>
+                ) : null}
+            </AppDialog>
         </>
     );
 }

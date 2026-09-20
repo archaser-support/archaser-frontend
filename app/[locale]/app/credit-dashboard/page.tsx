@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { parseDashboardBusinessUnitIdFromUrl } from "@/shared/dashboard/dashboardBusinessUnitParams";
 import type { CreditDashboardSummary } from "@/types/creditInsurance";
-import type { CreditDashboardHistoryInterval, CreditDashboardSummaryHistory } from "@/types/creditInsurance";
+import type { CreditDashboardSummaryHistory } from "@/types/creditInsurance";
 import type { CustomerPolicyUsageTrendResponse } from "@/types/creditInsurance";
 
 import { CreditDashboardScreen } from "./CreditDashboardScreen";
@@ -62,8 +62,6 @@ export default function CreditDashboardPage() {
             searchParams?.get("businessUnitId")
         )
     );
-    const [trendInterval, setTrendInterval] =
-        useState<CreditDashboardHistoryInterval>("daily");
     const [includeNoPolicyExposure, setIncludeNoPolicyExposure] = useState(
         () => {
             const raw = searchParams?.get("includeNoPolicyExposure");
@@ -242,13 +240,12 @@ export default function CreditDashboardPage() {
             policyIdForSummary,
             selectedBusinessUnitId,
             historyDays,
-            trendInterval,
             includeNoPolicyExposure,
         ],
         queryFn: async () => {
             const params = new URLSearchParams({
                 days: String(historyDays),
-                interval: trendInterval,
+                interval: "daily",
             });
             if (policyIdForSummary != null) {
                 params.set("policyId", String(policyIdForSummary));
@@ -272,10 +269,7 @@ export default function CreditDashboardPage() {
         refetchOnWindowFocus: false,
         placeholderData: (previousData, previousQuery) => {
             const prev = previousQuery?.queryKey;
-            if (
-                prev?.[4] !== historyDays ||
-                prev?.[5] !== trendInterval
-            ) {
+            if (prev?.[4] !== historyDays) {
                 return undefined;
             }
             return previousData;
@@ -340,8 +334,6 @@ export default function CreditDashboardPage() {
             historyDelta={historyQuery.data?.delta ?? EMPTY_HISTORY_DELTA}
             historyLoadFailed={historyQuery.isError}
             historyDays={historyDays}
-            trendInterval={trendInterval}
-            onTrendIntervalChange={setTrendInterval}
             monthPct={historyQuery.data?.monthPct ?? null}
             topCustomerUsage={topCustomerUsageQuery.data}
             isTopCustomerUsageLoading={topCustomerUsageQuery.isLoading}

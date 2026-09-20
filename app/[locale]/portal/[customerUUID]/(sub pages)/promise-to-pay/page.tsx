@@ -13,6 +13,7 @@ import PromiseToPayContainer from "./PromiseToPay";
 
 type CustomerData = CustomerForPromiseToPay & {
     id: number;
+    customerId?: number;
     Account?: {
         promise_to_pay: number;
         name: string | null;
@@ -139,7 +140,7 @@ export default function PromiseToPayPage() {
                 maxWidth="95%"
             >
                 <PromiseToPayContainer
-                    customerId={customer.id}
+                    customerId={customer.customerId ?? customer.id}
                     promise_to_pay={customer.Account?.promise_to_pay || 0}
                     customerUUID={customerUUID}
                     subDomain={customer.Account?.sub_domain || ""}

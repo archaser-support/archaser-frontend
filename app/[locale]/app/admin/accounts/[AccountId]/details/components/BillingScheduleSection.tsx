@@ -132,10 +132,10 @@ export interface BillingScheduleSectionProps {
     onBackfillStartDateChange: (value: string) => void;
     mepBreachStartDate: string;
     onMepBreachStartDateChange: (value: string) => void;
+    reportingBreachStartDate: string;
+    onReportingBreachStartDateChange: (value: string) => void;
     includeOlderOpenInvoices: boolean;
     onIncludeOlderOpenInvoicesChange: (value: boolean) => void;
-    skipReportingBreachOnBackfill: boolean;
-    onSkipReportingBreachOnBackfillChange: (value: boolean) => void;
     backfillOptionsLocked: boolean;
     persistCutoverOptions: (patch: UpsertBillingConnectorPayload) => void | Promise<void>;
     extensionKeyOptions: ExtensionKeyOption[];
@@ -181,10 +181,10 @@ const BillingScheduleSection = memo(function BillingScheduleSection(props: Billi
         onBackfillStartDateChange,
         mepBreachStartDate,
         onMepBreachStartDateChange,
+        reportingBreachStartDate,
+        onReportingBreachStartDateChange,
         includeOlderOpenInvoices,
         onIncludeOlderOpenInvoicesChange,
-        skipReportingBreachOnBackfill,
-        onSkipReportingBreachOnBackfillChange,
         backfillOptionsLocked,
         persistCutoverOptions,
         extensionKeyOptions,
@@ -543,6 +543,69 @@ const BillingScheduleSection = memo(function BillingScheduleSection(props: Billi
                                                     />
                                                 </FieldWithTrailingInfoTooltip>
                                             </Grid>
+                                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                                                <FieldWithTrailingInfoTooltip
+                                                    isHebrew={isHebrew}
+                                                    title={t(
+                                                            "billing_connector.reporting_breach_start_date_helper",
+                                                            {
+                                                                defaultValue:
+                                                                    "Required. Reporting breach applies only when the invoice target reporting date is on or after this day. Always editable after backfill starts.",
+                                                            }
+                                                    )}
+                                                >
+                                                    <TextField
+                                                        fullWidth
+                                                        required
+                                                        label={t(
+                                                            "billing_connector.reporting_breach_start_date_label",
+                                                            {
+                                                                defaultValue:
+                                                                    "Reporting breach start date",
+                                                            }
+                                                        )}
+                                                        type="date"
+                                                        size="small"
+                                                        value={
+                                                            reportingBreachStartDate
+                                                        }
+                                                        onChange={(e) => {
+                                                            const next =
+                                                                e.target.value;
+                                                            onReportingBreachStartDateChange(
+                                                                next
+                                                            );
+                                                            if (!next.trim()) {
+                                                                return;
+                                                            }
+                                                            void persistCutoverOptions(
+                                                                {
+                                                                    reporting_breach_start_date:
+                                                                        next.trim(),
+                                                                }
+                                                            );
+                                                        }}
+                                                        disabled={!canManage}
+                                                        error={
+                                                            !reportingBreachStartDate.trim()
+                                                        }
+                                                        helperText={
+                                                            !reportingBreachStartDate.trim()
+                                                                ? t(
+                                                                      "billing_connector.reporting_breach_start_date_required",
+                                                                      {
+                                                                          defaultValue:
+                                                                              "Reporting breach start date is required.",
+                                                                      }
+                                                                  )
+                                                                : undefined
+                                                        }
+                                                        InputLabelProps={{
+                                                            shrink: true,
+                                                        }}
+                                                    />
+                                                </FieldWithTrailingInfoTooltip>
+                                            </Grid>
                                             {Boolean(backfillStartDate.trim()) && (
                                                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                                     <FormControlLabel
@@ -627,85 +690,6 @@ const BillingScheduleSection = memo(function BillingScheduleSection(props: Billi
                                                     />
                                                 </Grid>
                                             )}
-                                            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                                                <FormControlLabel
-                                                    control={
-                                                        <Switch
-                                                            checked={
-                                                                skipReportingBreachOnBackfill
-                                                            }
-                                                            onChange={(e) => {
-                                                                const next =
-                                                                    e.target.checked;
-                                                                onSkipReportingBreachOnBackfillChange(next);
-                                                                void persistCutoverOptions(
-                                                                    {
-                                                                        skip_reporting_breach_on_backfill:
-                                                                            next,
-                                                                    }
-                                                                );
-                                                            }}
-                                                            disabled={
-                                                                !canManage ||
-                                                                backfillOptionsLocked
-                                                            }
-                                                        />
-                                                    }
-                                                    label={
-                                                        <Box
-                                                            sx={{
-                                                                display: "flex",
-                                                                alignItems: "center",
-                                                                gap: 0.5,
-                                                            }}
-                                                        >
-                                                            Skip reporting breach during
-                                                            backfill
-                                                            <Tooltip
-                                                                title={
-                                                                    backfillOptionsLocked
-                                                                        ? "Locked after backfill started. Reset backfill to change this option."
-                                                                        : "Only affects connector backfill import. Incremental sync and the overnight reporting-breach job still run as usual."
-                                                                }
-                                                                arrow
-                                                                enterDelay={300}
-                                                                leaveDelay={100}
-                                                                placement="bottom"
-                                                                PopperProps={{
-                                                                    sx: {
-                                                                        "& .MuiTooltip-tooltip":
-                                                                            {
-                                                                                direction:
-                                                                                    isHebrew
-                                                                                        ? "rtl"
-                                                                                        : "ltr",
-                                                                            },
-                                                                    },
-                                                                }}
-                                                            >
-                                                                <InfoIcon
-                                                                    fontSize="small"
-                                                                    color="action"
-                                                                    sx={{
-                                                                        cursor: "help",
-                                                                    }}
-                                                                />
-                                                            </Tooltip>
-                                                        </Box>
-                                                    }
-                                                    sx={{
-                                                        alignItems: "center",
-                                                        mt: 0.5,
-                                                        "& .MuiFormControlLabel-label":
-                                                            {
-                                                                fontSize: "0.875rem",
-                                                                fontWeight: 500,
-                                                                lineHeight: 1.4,
-                                                                ml: 1,
-                                                            },
-                                                    }}
-                                                />
-                                            </Grid>
                                             {backfillOptionsLocked && (
                                                 <Grid size={{ xs: 12 }}>
                                                     <Alert severity="warning">

@@ -50,7 +50,6 @@ export interface BillingConnectorConfig {
     id: number;
     account_id: number;
     provider: BillingProvider;
-    status: string;
     base_url: string | null;
     auth_type: ConnectorAuthType;
     has_credentials: boolean;
@@ -68,15 +67,15 @@ export interface BillingConnectorConfig {
      */
     mep_breach_start_date?: string | null;
     /**
+     * YYYY-MM-DD. Required on Billing cutover save. Invoices issued before this
+     * UTC calendar day never get reporting_breach.
+     */
+    reporting_breach_start_date?: string | null;
+    /**
      * When start date is set: also pull unpaid pre-date invoices + related payments.
      * Default true.
      */
     include_older_open_invoices?: boolean;
-    /**
-     * When true, backfill invoice writes do not set reporting_breach.
-     * Default false. Incremental sync and overnight job ignore this.
-     */
-    skip_reporting_breach_on_backfill?: boolean;
     /**
      * Leftover band for Paid (customer outstanding). Default 0.20. Range 0–10.
      */
@@ -174,12 +173,12 @@ export interface SyncRunSummary {
     >;
     error_message: string | null;
     error_type: string | null;
-    /** Present on backfill runs — start date / older-open / skip-breach. */
+    /** Present on backfill runs — start date / older-open / reporting gate. */
     cutover_options?: {
         backfill_start_date: string | null;
         mep_breach_start_date?: string | null;
+        reporting_breach_start_date?: string | null;
         include_older_open_invoices: boolean;
-        skip_reporting_breach_on_backfill: boolean;
     } | null;
     cutover_summary?: string | null;
     /** Registry key for the step currently executing (Customer, _maturity, …). */
@@ -209,8 +208,9 @@ export interface UpsertBillingConnectorPayload {
     backfill_start_date?: string | null;
     /** YYYY-MM-DD, null/"" to clear. */
     mep_breach_start_date?: string | null;
+    /** YYYY-MM-DD. Required on cutover save; cannot clear. */
+    reporting_breach_start_date?: string | null;
     include_older_open_invoices?: boolean;
-    skip_reporting_breach_on_backfill?: boolean;
     /** Required. 0–10, two decimals. Default 0.20. */
     invoice_paid_tolerance?: number;
     /** Null/"" clears the extension attachment. */
@@ -235,12 +235,19 @@ export async function fetchBillingConnectorConfig(
 export async function saveBillingConnectorConfig(
     accountId: number,
     payload: UpsertBillingConnectorPayload
-): Promise<BillingConnectorConfig> {
-    const response = await api.put<{ config: BillingConnectorConfig }>(
-        basePath(accountId),
-        payload
-    );
-    return response.data.config;
+): Promise<{
+    config: BillingConnectorConfig;
+    reporting_breach_recompute_started?: boolean;
+}> {
+    const response = await api.put<{
+        config: BillingConnectorConfig;
+        reporting_breach_recompute_started?: boolean;
+    }>(basePath(accountId), payload);
+    return {
+        config: response.data.config,
+        reporting_breach_recompute_started:
+            response.data.reporting_breach_recompute_started === true,
+    };
 }
 
 export async function testBillingConnectorConnection(
@@ -299,7 +306,7 @@ export interface PreviewSyncResponse {
     cutover?: {
         backfill_start_date: string | null;
         include_older_open_invoices: boolean;
-        skip_reporting_breach_on_backfill: boolean;
+        reporting_breach_start_date?: string | null;
     };
     cutover_summary?: string | null;
     entities: PreviewSyncEntityResult[];

@@ -113,6 +113,7 @@ export default function InvoiceSelector({
     const [submittedData, setSubmittedData] = useState<SubmittedData | null>(
         null
     );
+    const [submitError, setSubmitError] = useState<string | null>(null);
 
     // Hooks
     const { t, i18n } = useTranslation([
@@ -157,6 +158,7 @@ export default function InvoiceSelector({
             reason: false,
             message: false,
         });
+        setSubmitError(null);
 
         const errors = {
             invoices: selectedInvoices.size === 0,
@@ -176,8 +178,6 @@ export default function InvoiceSelector({
                 .filter((invoice) => selectedInvoices.has(invoice.id))
                 .map((invoice) => invoice.invoiceNumber);
 
-            // Log dispute submission details for debugging
-
             // Get Captcha token
             const { getCaptchaToken } = await import("@/utils/captchaFrontendUtils");
             const captchaToken = await getCaptchaToken("create_dispute");
@@ -190,13 +190,25 @@ export default function InvoiceSelector({
                     dispute_comment: disputeMessage,
                     dispute_reason_id: disputeReason,
                     customer_id,
-                    invoices_in_dispute: selectedInvoiceNumbers.join(" ,"),
+                    invoices_in_dispute: selectedInvoiceNumbers.join(","),
                     captchaToken,
                 }),
             });
 
+            const errorBody = !response.ok
+                ? await response.json().catch(() => ({} as Record<string, unknown>))
+                : null;
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const nestMessage =
+                    typeof errorBody?.error === "string"
+                        ? errorBody.error
+                        : typeof errorBody?.message === "string"
+                          ? errorBody.message
+                          : null;
+                throw new Error(
+                    nestMessage ||
+                        t("fields.error_logging_dispute_please_try_again_later")
+                );
             }
 
             const submittedDataObj = {
@@ -227,7 +239,12 @@ export default function InvoiceSelector({
                 },
             });
         } catch (error) {
-            // Handle dispute submission error
+            console.error("Error creating portal dispute:", error);
+            setSubmitError(
+                error instanceof Error
+                    ? error.message
+                    : t("fields.error_logging_dispute_please_try_again_later")
+            );
         } finally {
             setIsLoading(false);
         }
@@ -239,7 +256,8 @@ export default function InvoiceSelector({
         invoices,
         selectedAmount,
         reasons,
-        onRefreshInvoices,
+        selectedCurrency,
+        t,
     ]);
 
     const handleClose = useCallback(() => {
@@ -608,6 +626,14 @@ export default function InvoiceSelector({
                     }}
                 >
                     <Stack spacing={4}>
+                        {submitError && (
+                            <Alert severity="error" onClose={() => setSubmitError(null)}>
+                                <AlertTitle>
+                                    {t("messages.status_error", { ns: "portal" })}
+                                </AlertTitle>
+                                {submitError}
+                            </Alert>
+                        )}
                         <Box>
                             <Typography
                                 variant="h6"
