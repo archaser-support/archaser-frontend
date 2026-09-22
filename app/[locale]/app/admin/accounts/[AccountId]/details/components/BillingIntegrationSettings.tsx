@@ -1902,7 +1902,7 @@ const BillingIntegrationSettings = forwardRef<
         return (
             <Box display="flex" flexDirection="column" gap={1.5}>
                 <Typography variant="body2">
-                    Import backups within the 6-month retention window are
+                    Import backups within the 30-day retention window are
                     available. Pick a day, then a run, then select entities to
                     load from that run&apos;s cache. Leave all unchecked (or
                     cancel) to fetch everything from the ERP.
