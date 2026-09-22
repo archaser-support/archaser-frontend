@@ -1,7 +1,7 @@
 import { AttachMoney as MoneyIcon } from "@mui/icons-material";
 import { Box, Typography, useTheme } from "@mui/material";
 import { alpha } from "@mui/material/styles";
-import { formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
+import { formatMoney } from "@/utils/stringFormatters";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,11 +10,6 @@ import { FinancialDashboardChartCard } from "./FinancialDashboardChartCard";
 const ReactApexChart = dynamic(() => import("react-apexcharts"), {
     ssr: false,
 });
-
-// Helper function to get currency code (use code instead of symbol)
-const getCurrencySymbol = (currencyCode: string): string => {
-    return currencyCode;
-};
 
 type EntityData = {
     customer: string; // Can represent customer, business unit, or any entity name
@@ -44,7 +39,6 @@ const AmountByEntityChart = ({
 }: AmountByEntityChartProps) => {
     const { t, i18n } = useTranslation(["dashboard", "common"]);
     const theme = useTheme();
-    const currencySymbol = getCurrencySymbol(currency);
     const locale = i18n.language === "he" ? "he-IL" : "en-US";
 
     // Generate theme-based colors for donut/bar - variations of chart palette
@@ -155,7 +149,7 @@ const AmountByEntityChart = ({
             dataLabels: {
                 enabled: true,
                 formatter: function (val: number) {
-                    return formatCurrencyWithRTLSupport(val, currency, locale, i18n.language);
+                    return formatMoney(val, currency, { style: "symbol", locale, language: i18n.language });
                 },
                 style: {
                     colors: ["#ffffff"],
@@ -179,7 +173,12 @@ const AmountByEntityChart = ({
                     ),
                     labels: {
                         formatter: function (val: string) {
-                            return `${(Number(val) / 1000).toFixed(2)}K`;
+                            return formatMoney(Number(val), currency, {
+                                style: "iso",
+                                locale,
+                                language: i18n.language,
+                                wholeNumbers: true,
+                            });
                         },
                         style: {
                             colors: theme.palette.text.secondary,
@@ -222,7 +221,7 @@ const AmountByEntityChart = ({
                 : {
                     labels: {
                         formatter: function (val: number) {
-                            return formatCurrencyWithRTLSupport(val, currency, locale, i18n.language);
+                            return formatMoney(val, currency, { style: "iso", locale, language: i18n.language });
                         },
                         style: {
                             colors: theme.palette.text.secondary,
@@ -246,13 +245,13 @@ const AmountByEntityChart = ({
                     return `
                         <div style="padding: 8px; background: ${theme.palette.background.paper}; border: 1px solid ${theme.palette.divider}; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
                             <div style="font-weight: 600; margin-bottom: 4px; color: ${theme.palette.text.primary}; font-size: 14px;">${customerName}</div>
-                            <div style="color: ${theme.palette.text.secondary}; font-size: 12px;">${formatCurrencyWithRTLSupport(amount, currency, locale, i18n.language)}</div>
+                            <div style="color: ${theme.palette.text.secondary}; font-size: 12px;">${formatMoney(amount, currency, { style: "symbol", locale, language: i18n.language })}</div>
                         </div>
                     `;
                 },
             },
         }),
-        [chartData, currencySymbol, theme, horizontal, i18n.language]
+        [chartData, currency, locale, theme, horizontal, i18n.language]
     );
 
     const barChartSeries = useMemo(
@@ -292,7 +291,7 @@ const AmountByEntityChart = ({
                 y: {
                     formatter: function (val: number, { seriesIndex }: any) {
                         const item = chartData[seriesIndex];
-                        return `${formatCurrencyWithRTLSupport(item.amount, currency, locale, i18n.language)} (${item.percentage}%)`;
+                        return `${formatMoney(item.amount, currency, { style: "symbol", locale, language: i18n.language })} (${item.percentage}%)`;
                     },
                 },
             },
@@ -313,7 +312,7 @@ const AmountByEntityChart = ({
                 },
             },
         }),
-        [chartData, currencySymbol, theme, i18n.language]
+        [chartData, currency, locale, theme, i18n.language]
     );
 
     const doughnutChartSeries = useMemo(

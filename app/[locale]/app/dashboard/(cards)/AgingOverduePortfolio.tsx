@@ -22,20 +22,12 @@ import { appendDashboardBusinessUnitId } from "@/shared/dashboard/dashboardBusin
 import { FinancialDashboardChartCard } from "./FinancialDashboardChartCard";
 import AppUrls from "@/utils/appUrls";
 import { pushFinancialChartDetails } from "@/shared/dashboard/financialChartDetailsTitle";
-import {
-    formatAmountWithoutSymbol,
-    formatCurrencyWithRTLSupport,
-} from "@/utils/stringFormatters";
+import { formatMoney } from "@/utils/stringFormatters";
 
 type AgingOverduePortfolioProps = {
     rows: AgingRangeRow[];
     chartData?: AgingRangeRow[]; // Aging range data for the table
     currency: string;
-};
-
-// Helper function to get currency code (use code instead of symbol)
-const getCurrencySymbol = (currencyCode: string): string => {
-    return currencyCode;
 };
 
 const AgingOverduePortfolio = ({
@@ -48,7 +40,7 @@ const AgingOverduePortfolio = ({
     const router = useRouter();
     const params = useParams();
     const locale = (params?.locale as string) || "en";
-    const currencySymbol = getCurrencySymbol(currency);
+    const amountLocale = i18n.language === "he" ? "he-IL" : "en-US";
     const businessUnitId = useDashboardBusinessUnitId();
 
     const handleChartClick = (daysRange?: string) => {
@@ -347,21 +339,16 @@ const AgingOverduePortfolio = ({
                                                     whiteSpace: "nowrap",
                                                 }}
                                             >
-                                                {Number(row.amount) === 0
-                                                    ? formatCurrencyWithRTLSupport(
-                                                          0,
-                                                          currency,
-                                                          locale,
-                                                          i18n.language,
-                                                          { wholeNumbers: true }
-                                                      )
-                                                    : formatCurrencyWithRTLSupport(
-                                                          Number(row.amount),
-                                                          currency,
-                                                          locale,
-                                                          i18n.language,
-                                                          { wholeNumbers: true }
-                                                      )}
+                                                {formatMoney(
+                                                    Number(row.amount),
+                                                    currency,
+                                                    {
+                                                        style: "symbol",
+                                                        locale: amountLocale,
+                                                        language: i18n.language,
+                                                        wholeNumbers: true,
+                                                    }
+                                                )}
                                             </TableCell>
                                             <TableCell
                                                 sx={{

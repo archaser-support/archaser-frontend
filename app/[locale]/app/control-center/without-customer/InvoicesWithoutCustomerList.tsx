@@ -26,7 +26,6 @@ import EndlessScrollDataGrid, {
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import { fetchCustomers } from "@/shared/services/customerService";
 import {
-    CurrencyColumnsConfig,
     ExportFormat,
     formatCurrencyWithCode,
 } from "@/shared/utility/exportToExcel";
@@ -35,7 +34,10 @@ import {
     getUserDateLocale,
     getUserTimezone,
 } from "@/utils/datetimeOperations";
-import { formatAmountWithoutSymbol } from "@/utils/stringFormatters";
+import {
+    formatCurrencyWithRTLSupport,
+    resolveCustomerFirstCurrency,
+} from "@/utils/stringFormatters";
 
 interface Invoice {
     id: number;
@@ -266,14 +268,23 @@ const InvoicesWithoutCustomerList: React.FC = () => {
                     )
                     : "N/A",
                 amount: invoice.amount,
-                amount_formatted:
-                    invoice.amount === 0
-                        ? `0.00 USD`
-                        : `${formatAmountWithoutSymbol(invoice.amount || 0)} USD`,
+                amount_formatted: formatCurrencyWithRTLSupport(
+                    invoice.amount || 0,
+                    resolveCustomerFirstCurrency({
+                        fallbackCurrency: (invoice as {
+                            customer_currency?: string | null;
+                            currency?: string | null;
+                        }).customer_currency ||
+                            (invoice as { currency?: string | null }).currency,
+                        accountCurrency: session?.user?.currency,
+                    }),
+                    getUserDateLocale(session),
+                    i18n.language
+                ),
                 status: invoice.status || "Unknown",
                 raw: invoice,
             })),
-        [invoices, selectedRows, session]
+        [invoices, selectedRows, session, i18n.language]
     );
 
     // Export handler for invoices without customer
@@ -299,11 +310,11 @@ const InvoicesWithoutCustomerList: React.FC = () => {
                         : "N/A";
 
                     // Get currency - try multiple sources
-                    const currency =
-                        invoice.customer_currency ||
-                        invoice.Account?.Country?.currency ||
-                        invoice.currency ||
-                        "USD"; // Default to USD
+                    const currency = resolveCustomerFirstCurrency({
+                        fallbackCurrency:
+                            invoice.customer_currency || invoice.currency,
+                        accountCurrency: session?.user?.currency,
+                    });
 
                     return {
                         id: invoice.id,
@@ -545,15 +556,6 @@ const InvoicesWithoutCustomerList: React.FC = () => {
                             pageName: "invoices_without_customer",
                             customPrefix: "invoices_without_customer_export",
                         }}
-                        // Currency columns configuration for export splitting
-                        currencyColumns={
-                            {
-                                amount: {
-                                    amountField: "amount_value",
-                                    currencyField: "amount_currency",
-                                },
-                            } as CurrencyColumnsConfig
-                        }
                     />
                 </Box>
             )}

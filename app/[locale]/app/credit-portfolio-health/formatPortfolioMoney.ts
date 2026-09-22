@@ -1,4 +1,4 @@
-import { formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
+import { formatMoney } from "@/utils/stringFormatters";
 
 function normalizeCurrency(currencyCode: string): string {
     return currencyCode.trim().toUpperCase() || "USD";
@@ -18,13 +18,12 @@ export function formatPortfolioMoney(
     currencyCode: string,
     language: string
 ): string {
-    return formatCurrencyWithRTLSupport(
-        amount,
-        normalizeCurrency(currencyCode),
-        numberLocale(language),
-        rtlLanguage(language),
-        { wholeNumbers: true }
-    );
+    return formatMoney(amount, normalizeCurrency(currencyCode), {
+        style: "symbol",
+        locale: numberLocale(language),
+        language: rtlLanguage(language),
+        wholeNumbers: true,
+    });
 }
 
 /** Prefix/suffix for animated StatNumber / BigNumber money displays. */

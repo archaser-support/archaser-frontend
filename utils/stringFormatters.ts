@@ -1,3 +1,4 @@
+import { currencies } from "@/shared/data/common/currencies";
 import { CustomerDispute } from "@/types/CustomerDispute";
 
 type PartialCustomerDispute = Partial<
@@ -143,6 +144,108 @@ export function formatAmountWithoutSymbol(
     }).format(amount);
 }
 
+export type MoneyDisplayStyle = "iso" | "symbol";
+
+export interface FormatMoneyOptions {
+    style?: MoneyDisplayStyle;
+    locale?: string;
+    language?: string;
+    /** When true, hide decimal places (stat cards / KPIs). */
+    wholeNumbers?: boolean;
+}
+
+/**
+ * Resolves a display currency symbol from an ISO code.
+ * Falls back to the ISO code when the symbol is unknown.
+ */
+export function getCurrencySymbol(currencyCode: string | null | undefined): string {
+    const code = currencyCode?.trim().toUpperCase();
+    if (!code) {
+        return "";
+    }
+    const currency = currencies.find((c) => c.code === code);
+    return currency?.symbol || code;
+}
+
+/**
+ * Formats a money amount with a currency marker.
+ * - style "iso": ISO code (e.g. `USD 1,200` / Hebrew `1,200 USD`)
+ * - style "symbol": currency symbol (e.g. `$1,200` / Hebrew `1,200 $`)
+ * Always shows a currency marker; blank currency falls back to USD.
+ */
+export function formatMoney(
+    amount: number,
+    currency: string | null | undefined,
+    options: FormatMoneyOptions = {}
+): string {
+    const {
+        style = "iso",
+        locale = "en-US",
+        language = "en",
+        wholeNumbers = false,
+    } = options;
+    const currencyCode =
+        (currency && String(currency).trim()) ||
+        resolveCustomerFirstCurrency({});
+    const safeAmount = Number.isFinite(amount) ? amount : 0;
+    const formattedAmount = wholeNumbers
+        ? formatAmountWithoutSymbolWhole(safeAmount, locale)
+        : formatAmountWithoutSymbol(safeAmount, locale);
+    const nbsp = "\u00A0";
+
+    if (style === "symbol") {
+        const symbol = getCurrencySymbol(currencyCode) || currencyCode;
+        return language === "he"
+            ? `${formattedAmount} ${symbol}`
+            : `${symbol}${formattedAmount}`;
+    }
+
+    // ISO: For Hebrew (RTL), put currency code AFTER the amount.
+    // Use an LTR mark before the number to preserve digit/sign order.
+    if (language === "he") {
+        const ltrMark = "\u200E";
+        return `${ltrMark}${formattedAmount}${nbsp}${currencyCode}`;
+    }
+    return `${currencyCode}${nbsp}${formattedAmount}`;
+}
+
+export interface MoneyDualParts {
+    secondaryAmount: number | null | undefined;
+    secondaryCurrency: string | null | undefined;
+    accountAmount: number;
+    accountCurrency: string | null | undefined;
+}
+
+/**
+ * Dual-currency display: secondary first, account in parentheses.
+ * Falls back to a single account amount when secondary is missing.
+ */
+export function formatMoneyDual(
+    parts: MoneyDualParts,
+    options: FormatMoneyOptions = {}
+): string {
+    const accountFormatted = formatMoney(
+        parts.accountAmount,
+        parts.accountCurrency,
+        options
+    );
+    const secondaryAmount = parts.secondaryAmount;
+    const secondaryCurrency = parts.secondaryCurrency;
+    if (
+        secondaryCurrency &&
+        secondaryAmount != null &&
+        Number.isFinite(secondaryAmount)
+    ) {
+        const secondaryFormatted = formatMoney(
+            secondaryAmount,
+            secondaryCurrency,
+            options
+        );
+        return `${secondaryFormatted} (${accountFormatted})`;
+    }
+    return accountFormatted;
+}
+
 /**
  * Formats a number as a currency amount with proper RTL/LTR support
  * @param amount - The amount to format
@@ -159,20 +262,12 @@ export function formatCurrencyWithRTLSupport(
     i18nLanguage: string = "en",
     options?: { wholeNumbers?: boolean }
 ): string {
-    const formattedAmount = options?.wholeNumbers
-        ? formatAmountWithoutSymbolWhole(amount, locale)
-        : formatAmountWithoutSymbol(amount, locale);
-
-    // For Hebrew (RTL), put currency code AFTER the amount.
-    // In RTL layout the string renders right-to-left, so "62,348 ILS" displays
-    // with the number on the right and ILS on the left — the correct Hebrew convention.
-    // Use an LTR mark before the number to preserve digit/sign order.
-    const nbsp = "\u00A0";
-    if (i18nLanguage === "he") {
-        const ltrMark = "\u200E"; // Left-to-Right Mark — keeps number digits in correct order
-        return `${ltrMark}${formattedAmount}${nbsp}${currencyCode}`;
-    }
-    return `${currencyCode}${nbsp}${formattedAmount}`;
+    return formatMoney(amount, currencyCode, {
+        style: "iso",
+        locale,
+        language: i18nLanguage,
+        wholeNumbers: options?.wholeNumbers,
+    });
 }
 
 /**

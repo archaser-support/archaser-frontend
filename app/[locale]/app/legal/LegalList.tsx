@@ -41,7 +41,6 @@ import { fetchCountriesFromApi } from "@/shared/redux/action";
 import { useAppDispatch, useAppSelector } from "@/shared/redux/hooks";
 import { fetchLegalStats } from "@/shared/services/legalService";
 import {
-    CurrencyColumnsConfig,
     ExportFormat,
     formatCurrencyWithCode,
 } from "@/shared/utility/exportToExcel";
@@ -52,7 +51,10 @@ import {
     getCountryTimezone,
     getCurrentTimeForCountry,
 } from "@/utils/datetimeOperations";
-import { formatAmountWithoutSymbol } from "@/utils/stringFormatters";
+import {
+    formatCurrencyWithRTLSupport,
+    resolveCustomerFirstCurrency,
+} from "@/utils/stringFormatters";
 
 // Dynamically import modal to prevent CSS chunking issues
 const MassUpdateCategoryModal = dynamic(
@@ -373,7 +375,10 @@ const LegalList: React.FC<LegalListProps> = ({
         return legalCases.map((legalCase: any) => {
             const country = legalCase.customer_country || "Unknown";
             const amountOverdue = legalCase.amount_overdue || 0;
-            const currency = legalCase.currency || "";
+            const currency = resolveCustomerFirstCurrency({
+                fallbackCurrency: legalCase.currency,
+                accountCurrency: session?.user?.currency,
+            });
 
             return {
                 id: legalCase.id,
@@ -381,10 +386,12 @@ const LegalList: React.FC<LegalListProps> = ({
                 customer: legalCase.customer,
                 customer_number: legalCase.customer_number,
                 amount_overdue: legalCase.amount_overdue,
-                amount_formatted:
-                    amountOverdue === 0
-                        ? `0.00 ${currency}`
-                        : `${formatAmountWithoutSymbol(amountOverdue)} ${currency}`,
+                amount_formatted: formatCurrencyWithRTLSupport(
+                    amountOverdue,
+                    currency,
+                    getUserDateLocale(session),
+                    i18n.language
+                ),
                 days_past_due: legalCase.days_past_due || 0,
                 customer_country: country,
                 customer_current_time:
@@ -396,7 +403,7 @@ const LegalList: React.FC<LegalListProps> = ({
                 raw: legalCase, // Include raw legal case data for modal access
             };
         });
-    }, [legalCases, countryTimes, session, t]);
+    }, [legalCases, countryTimes, session, t, i18n.language]);
 
     // Export handler for legal cases
     const handleExport = useCallback(
@@ -427,7 +434,10 @@ const LegalList: React.FC<LegalListProps> = ({
                 (legalCase: any) => {
                     const country = legalCase.customer_country || "Unknown";
                     const amountOverdue = legalCase.amount_overdue || 0;
-                    const currency = legalCase.currency || "";
+                    const currency = resolveCustomerFirstCurrency({
+                        fallbackCurrency: legalCase.currency,
+                        accountCurrency: session?.user?.currency,
+                    });
 
                     return {
                         id: legalCase.id,
@@ -872,15 +882,6 @@ const LegalList: React.FC<LegalListProps> = ({
                         pageName: "legal_cases",
                         customPrefix: "legal_cases_export",
                     }}
-                    // Currency columns configuration for export splitting
-                    currencyColumns={
-                        {
-                            amount_formatted: {
-                                amountField: "amount_formatted_value",
-                                currencyField: "amount_formatted_currency",
-                            },
-                        } as CurrencyColumnsConfig
-                    }
                     enableMultiSelect={true}
                     selectedRowIds={selectedRows}
                     onSelectionChange={(selectedRowIds) => {
