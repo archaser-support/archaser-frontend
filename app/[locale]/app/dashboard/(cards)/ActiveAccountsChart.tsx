@@ -8,7 +8,6 @@ import AppUrls from "@/utils/appUrls";
 import { pushFinancialChartDetails } from "@/shared/dashboard/financialChartDetailsTitle";
 import { useDashboardBusinessUnitId } from "@/shared/dashboard/DashboardBusinessUnitContext";
 import { appendDashboardBusinessUnitId } from "@/shared/dashboard/dashboardBusinessUnitParams";
-import { formatAmountWithoutSymbol } from "@/utils/stringFormatters";
 
 import { FinancialDashboardChartCard } from "./FinancialDashboardChartCard";
 
@@ -213,7 +212,9 @@ const ActiveAccountsChart = ({
                 top: 0,
             },
             formatter: function (val: number) {
-                return formatAmountWithoutSymbol(val);
+                return Number(val).toLocaleString(
+                    i18n.language === "he" ? "he-IL" : "en-US"
+                );
             },
         },
         tooltip: {
@@ -249,6 +250,7 @@ const ActiveAccountsChart = ({
                 const isHebrew = i18n.language === "he";
                 const textAlign = isHebrew ? "right" : "left";
                 const direction = isHebrew ? "rtl" : "ltr";
+                const countLocale = isHebrew ? "he-IL" : "en-US";
 
                 let tooltipContent = `<div class="custom-tooltip" style="background: white; border: 1px solid #DCE3EB; border-radius: 4px; padding: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 12px; font-family: inherit; text-align: ${textAlign}; direction: ${direction};">`;
 
@@ -259,13 +261,14 @@ const ActiveAccountsChart = ({
                 series.forEach((seriesData, index) => {
                     const value = seriesData[dataPointIndex];
                     if (value !== undefined && value !== null) {
+                        const formattedValue = Number(value).toLocaleString(countLocale);
                         if (isHebrew) {
                             // For Hebrew: value on left, label on right (RTL order)
                             tooltipContent +=
                                 `<div style="display: flex !important; justify-content: space-between !important; align-items: center !important; margin-bottom: 4px !important; gap: 8px !important; width: 100% !important;">` +
                                 `<div style="font-weight: 600 !important; color: #2F3B52 !important; text-align: right !important; direction: rtl !important; flex: 1 !important;">${labels[index]
                                 }</div>` +
-                                `<div style="color: ${colors[index]} !important; font-weight: 500 !important; text-align: left !important; direction: ltr !important; flex-shrink: 0 !important;">${value
+                                `<div style="color: ${colors[index]} !important; font-weight: 500 !important; text-align: left !important; direction: ltr !important; flex-shrink: 0 !important;">${formattedValue
                                 }</div>` +
                                 `</div>`;
                         } else {
@@ -274,7 +277,7 @@ const ActiveAccountsChart = ({
                                 `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 16px;">` +
                                 `<div style="font-weight: 600; color: #2F3B52; text-align: left !important; direction: ltr; flex: 1;">${labels[index]
                                 }</div>` +
-                                `<div style="color: ${colors[index]}; font-weight: 500; text-align: right !important; direction: ltr;">${value
+                                `<div style="color: ${colors[index]}; font-weight: 500; text-align: right !important; direction: ltr;">${formattedValue
                                 }</div>` +
                                 `</div>`;
                         }

@@ -20,15 +20,7 @@ import { useDashboardBusinessUnitId } from "@/shared/dashboard/DashboardBusiness
 import { appendDashboardBusinessUnitId } from "@/shared/dashboard/dashboardBusinessUnitParams";
 
 import { FinancialDashboardChartCard } from "./FinancialDashboardChartCard";
-import {
-    formatAmountWithoutSymbol,
-    formatCurrencyWithRTLSupport,
-} from "@/utils/stringFormatters";
-
-// Helper function to get currency code (use code instead of symbol)
-const getCurrencySymbol = (currencyCode: string): string => {
-    return currencyCode;
-};
+import { formatMoney } from "@/utils/stringFormatters";
 
 interface MaturityRow {
     id: number;
@@ -54,7 +46,7 @@ const ReceivablesMaturitySchedule = ({
     const params = useParams();
     const locale = (params?.locale as string) || "en";
     const businessUnitId = useDashboardBusinessUnitId();
-    const currencySymbol = getCurrencySymbol(currency);
+    const amountLocale = i18n.language === "he" ? "he-IL" : "en-US";
 
     // Helper function to translate day ranges
     const translateDaysRange = (daysRange: string): string => {
@@ -373,21 +365,16 @@ const ReceivablesMaturitySchedule = ({
                                                     whiteSpace: "nowrap",
                                                 }}
                                             >
-                                                {Number(row.amount) === 0
-                                                    ? formatCurrencyWithRTLSupport(
-                                                          0,
-                                                          currency,
-                                                          locale,
-                                                          i18n.language,
-                                                          { wholeNumbers: true }
-                                                      )
-                                                    : formatCurrencyWithRTLSupport(
-                                                          Number(row.amount),
-                                                          currency,
-                                                          locale,
-                                                          i18n.language,
-                                                          { wholeNumbers: true }
-                                                      )}
+                                                {formatMoney(
+                                                    Number(row.amount),
+                                                    currency,
+                                                    {
+                                                        style: "symbol",
+                                                        locale: amountLocale,
+                                                        language: i18n.language,
+                                                        wholeNumbers: true,
+                                                    }
+                                                )}
                                             </TableCell>
                                             <TableCell
                                                 sx={{

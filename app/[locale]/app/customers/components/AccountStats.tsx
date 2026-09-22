@@ -13,7 +13,7 @@ import { CreditMetricCard } from "@/app/[locale]/app/credit-dashboard/CreditMetr
 import type { MetricStatCardIconAccent } from "@/app/theme";
 import type { CustomerStats } from "@/types/Customer";
 import {
-    formatCurrencyWithRTLSupport,
+    formatMoney,
     resolveCustomerFirstCurrency,
 } from "@/utils/stringFormatters";
 
@@ -78,13 +78,16 @@ const AccountStats: React.FC<AccountStatsProps> = ({
             getValue: (s) =>
                 statsLoading
                     ? loadingValue
-                    : formatCurrencyWithRTLSupport(
+                    : formatMoney(
                           Number(s?.counts?.total_overdue_amount ?? 0),
                           currencyCode,
-                          locale,
-                          i18n.language,
-                          { wholeNumbers: true }
-                        ),
+                          {
+                              style: "symbol",
+                              locale,
+                              language: i18n.language,
+                              wholeNumbers: true,
+                          }
+                      ),
         },
         {
             key: "total_due_amount",
@@ -94,13 +97,16 @@ const AccountStats: React.FC<AccountStatsProps> = ({
             getValue: (s) =>
                 statsLoading
                     ? loadingValue
-                    : formatCurrencyWithRTLSupport(
+                    : formatMoney(
                           Number(s?.counts?.total_due_amount ?? 0),
                           currencyCode,
-                          locale,
-                          i18n.language,
-                          { wholeNumbers: true }
-                        ),
+                          {
+                              style: "symbol",
+                              locale,
+                              language: i18n.language,
+                              wholeNumbers: true,
+                          }
+                      ),
         },
     ];
 

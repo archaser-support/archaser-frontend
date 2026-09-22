@@ -10,7 +10,6 @@ import AppUrls from "@/utils/appUrls";
 import { pushFinancialChartDetails } from "@/shared/dashboard/financialChartDetailsTitle";
 import { useDashboardBusinessUnitId } from "@/shared/dashboard/DashboardBusinessUnitContext";
 import { appendDashboardBusinessUnitId } from "@/shared/dashboard/dashboardBusinessUnitParams";
-import { formatAmountWithoutSymbol } from "@/utils/stringFormatters";
 import { FinancialDashboardChartCard } from "./FinancialDashboardChartCard";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), {
@@ -241,7 +240,9 @@ const AutomatedPhaseSplit = ({
                 top: 0,
             },
             formatter: function (val: number) {
-                return formatAmountWithoutSymbol(val);
+                return Number(val).toLocaleString(
+                    i18n.language === "he" ? "he-IL" : "en-US"
+                );
             },
         },
         tooltip: {
@@ -274,8 +275,7 @@ const AutomatedPhaseSplit = ({
                 const isHebrew = i18n.language === "he";
                 const textAlign = isHebrew ? "right" : "left";
                 const direction = isHebrew ? "rtl" : "ltr";
-
-                // Debug: Log the language detection
+                const countLocale = isHebrew ? "he-IL" : "en-US";
 
                 // Use simple inline styles like CollectedVsPromiseChart
                 let tooltipContent = `<div class="custom-tooltip" style="background: white; border: 1px solid #DCE3EB; border-radius: 4px; padding: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 12px; font-family: inherit; text-align: ${textAlign}; direction: ${direction};">`;
@@ -289,7 +289,8 @@ const AutomatedPhaseSplit = ({
                 series.forEach((seriesData, index) => {
                     const value = seriesData[dataPointIndex];
                     if (value !== undefined && value !== null) {
-                        const formattedValue = formatAmountWithoutSymbol(value);
+                        const formattedValue =
+                            Number(value).toLocaleString(countLocale);
                         if (isHebrew) {
                             // For Hebrew: value on left, label on right (RTL order)
                             tooltipContent +=

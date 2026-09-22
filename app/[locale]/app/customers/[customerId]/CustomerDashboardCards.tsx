@@ -35,14 +35,13 @@ import {
 import type { TermsBreachCountByReason } from "@/types/creditInsurance";
 import { resolveCapacityGapDisplayAmounts } from "@/shared/creditInsurance/invoiceBucketAmounts";
 import { resolveCustomerDetailDashboardUx } from "@/shared/customerDetailDashboardUx";
-import { currencies } from "@/shared/data/common/currencies";
 import { Customer } from "@/types/Customer";
 import {
     formatDateForDisplay,
     getUserDateLocale,
     getUserTimezone,
 } from "@/utils/datetimeOperations";
-import { formatAmountWithoutSymbolWhole } from "@/utils/stringFormatters";
+import { formatMoney, formatMoneyDual } from "@/utils/stringFormatters";
 
 import {
     buildDashboardCardContract,
@@ -162,50 +161,6 @@ function formatUsagePct(value: number | null | undefined) {
         return "—";
     }
     return `${value.toFixed(1)}%`;
-}
-
-const getCurrencySymbol = (currencyCode: string): string => {
-    const code = currencyCode?.trim().toUpperCase();
-    if (!code) {
-        return "";
-    }
-    const currency = currencies.find((c) => c.code === code);
-    return currency?.symbol || code;
-};
-
-function formatCurrencyAmountPart(
-    langHebrew: boolean,
-    amount: string,
-    symbol: string
-): string {
-    if (!symbol) {
-        return amount;
-    }
-    return langHebrew ? `${amount} ${symbol}` : `${symbol} ${amount}`;
-}
-
-function formatDualCurrencyCreditInsuranceLine(
-    langHebrew: boolean,
-    accountAmount: number,
-    accountCurrency: string,
-    secondaryAmount: number | null | undefined,
-    secondaryCurrency: string | null | undefined
-): string {
-    const amountLocale = langHebrew ? "he-IL" : "en-US";
-    const acctSym = getCurrencySymbol(accountCurrency);
-    const main = formatAmountWithoutSymbolWhole(accountAmount, amountLocale);
-    const mainPart = formatCurrencyAmountPart(langHebrew, main, acctSym);
-    if (
-        secondaryCurrency &&
-        secondaryAmount != null &&
-        Number.isFinite(secondaryAmount)
-    ) {
-        const secSym = getCurrencySymbol(secondaryCurrency);
-        const sec = formatAmountWithoutSymbolWhole(secondaryAmount, amountLocale);
-        const secPart = formatCurrencyAmountPart(langHebrew, sec, secSym);
-        return `${secPart} (${mainPart})`;
-    }
-    return mainPart;
 }
 
 const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
@@ -716,12 +671,12 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
             if (amount == null || !Number.isFinite(amount)) {
                 return "—";
             }
-            const base = formatAmountWithoutSymbolWhole(amount, locale);
-            const symbol = getCurrencySymbol(accountCurrency ?? "");
-            if (!symbol) {
-                return base;
-            }
-            return isRtl ? `${base} ${symbol}` : `${symbol} ${base}`;
+            return formatMoney(amount, accountCurrency, {
+                style: "symbol",
+                locale,
+                language: isRtl ? "he" : "en",
+                wholeNumbers: true,
+            });
         },
         [accountCurrency, isRtl, locale]
     );
@@ -768,15 +723,23 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
             if (amount == null || !Number.isFinite(amount)) {
                 return "—";
             }
-            return formatDualCurrencyCreditInsuranceLine(
-                isRtl,
-                Math.max(0, Number(amount)),
-                accountCurrency ?? "",
-                secondaryAmount ?? null,
-                secondaryCurrencyOverride ?? secondaryCurrency
+            return formatMoneyDual(
+                {
+                    secondaryAmount: secondaryAmount ?? null,
+                    secondaryCurrency:
+                        secondaryCurrencyOverride ?? secondaryCurrency,
+                    accountAmount: Math.max(0, Number(amount)),
+                    accountCurrency: accountCurrency ?? "",
+                },
+                {
+                    style: "symbol",
+                    locale,
+                    language: isRtl ? "he" : "en",
+                    wholeNumbers: true,
+                }
             );
         },
-        [accountCurrency, secondaryCurrency, isRtl]
+        [accountCurrency, secondaryCurrency, isRtl, locale]
     );
 
     const handlePolicyChange = (rawValue: string) => {

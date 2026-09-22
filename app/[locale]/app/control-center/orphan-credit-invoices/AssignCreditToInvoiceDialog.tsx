@@ -15,7 +15,7 @@ import { useTranslation } from "react-i18next";
 
 import AppDialog from "@/shared/layout-components/modal/AppDialog";
 import ModalScrollBox from "@/shared/layout-components/modal/ModalScrollBox";
-import { formatAmountWithoutSymbol } from "@/utils/stringFormatters";
+import { formatMoney } from "@/utils/stringFormatters";
 
 const SCROLL_CONTAINER_ID = "assign-credit-modal-scroll";
 
@@ -56,6 +56,17 @@ export function AssignCreditToInvoiceDialog({
     ]);
     const theme = useTheme();
     const isRTL = i18n.language === "he";
+    const amountLocale = isRTL ? "he-IL" : "en-US";
+
+    const formatInvoiceAmount = (
+        amount: number,
+        currency: string | null | undefined
+    ) =>
+        formatMoney(amount, currency, {
+            style: "iso",
+            locale: amountLocale,
+            language: i18n.language,
+        });
 
     const textFieldSx = useMemo(
         () => ({
@@ -212,12 +223,11 @@ export function AssignCreditToInvoiceDialog({
                                     option.customer_currency ||
                                     option.Account?.Country?.currency ||
                                     "";
-                                const formattedAmount =
-                                    formatAmountWithoutSymbol(
-                                        option.customer_net_amount ||
-                                            option.amount
-                                    );
-                                return `${option.invoice_number} - ${formattedAmount} ${currency}`;
+                                const formattedAmount = formatInvoiceAmount(
+                                    option.customer_net_amount || option.amount,
+                                    currency
+                                );
+                                return `${option.invoice_number} - ${formattedAmount}`;
                             }}
                             isOptionEqualToValue={(option, value) =>
                                 option.id === value?.id
@@ -237,11 +247,10 @@ export function AssignCreditToInvoiceDialog({
                                     option.customer_currency ||
                                     option.Account?.Country?.currency ||
                                     "";
-                                const formattedAmount =
-                                    formatAmountWithoutSymbol(
-                                        option.customer_net_amount ||
-                                            option.amount
-                                    );
+                                const formattedAmount = formatInvoiceAmount(
+                                    option.customer_net_amount || option.amount,
+                                    currency
+                                );
                                 return (
                                     <li
                                         key={key}
@@ -288,7 +297,7 @@ export function AssignCreditToInvoiceDialog({
                                                         : "left",
                                                 }}
                                             >
-                                                {`${formattedAmount} ${currency}`}
+                                                {formattedAmount}
                                             </Typography>
                                         </Box>
                                     </li>
