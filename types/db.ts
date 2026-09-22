@@ -385,6 +385,7 @@ export type Account = {
     has_credit_insurance: boolean;
     is_demo: boolean;
     enable_customer_checkpoints: boolean;
+    amounts_include_vat: boolean;
     credit_limit_warning_threshold_pct: number | null;
     credit_score_validity_warning_days: number | null;
     reporting_date_warning_days: number | null;
@@ -1788,6 +1789,8 @@ export type Invoice = {
     invoice_number: string | null;
     custom_code1: string | null;
     amount: number | null;
+    amount_without_vat: number | null;
+    vat_amount: number | null;
     due_date: Date | null;
     oldest_overdue_invoice_date: Date | null;
     total_paid: number | null;
@@ -1802,6 +1805,8 @@ export type Invoice = {
     account_id: number;
     customer_total_paid: number | null;
     customer_amount: number | null;
+    customer_amount_without_vat: number | null;
+    customer_vat_amount: number | null;
     customer_outstanding_debt: number | null;
     customer_currency: string | null;
     credit_for_invoice_id: number | null;
