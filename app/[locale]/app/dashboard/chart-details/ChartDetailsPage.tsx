@@ -49,7 +49,6 @@ import EndlessScrollDataGrid, {
     useWindowWidth,
 } from "@/shared/layout-components/grid/EndlessScrollDataGrid";
 import {
-    CurrencyColumnsConfig,
     ExportFormat,
     formatCurrencyWithCode,
     safeAmount,
@@ -123,12 +122,6 @@ function summarizeCollectedMtdRows(
 }
 
 export default function ChartDetailsPage({ params }: ChartDetailsProps) {
-    const resolveDisplayCurrency = (rowCurrency?: string, baseCurrency?: string) =>
-        resolveCustomerFirstCurrency({
-            customerCurrencyPrimary: rowCurrency,
-            fallbackCurrency: baseCurrency,
-        });
-
     const resolvedParams = React.use(params);
     const { t, i18n } = useTranslation(["dashboard", "common"], {
         lng: resolvedParams.locale,
@@ -140,6 +133,13 @@ export default function ChartDetailsPage({ params }: ChartDetailsProps) {
     const theme = useTheme();
     const windowWidth = useWindowWidth();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+
+    const resolveDisplayCurrency = (rowCurrency?: string, baseCurrency?: string) =>
+        resolveCustomerFirstCurrency({
+            customerCurrencyPrimary: rowCurrency,
+            fallbackCurrency: baseCurrency,
+            accountCurrency: session?.user?.currency,
+        });
 
     const chartType = searchParams?.get("type");
     const period = searchParams?.get("period");
@@ -224,7 +224,7 @@ export default function ChartDetailsPage({ params }: ChartDetailsProps) {
                 data.currency
             );
 
-            // Create currency-formatted amounts for splitting with NaN protection and detailed logging
+            // Combined amount + ISO for export (no separate currency column)
             const amount =
                 safeAmount(row.amount, "amount") ||
                 safeAmount(row.outstandingAmount, "outstandingAmount") ||
@@ -1208,45 +1208,6 @@ export default function ChartDetailsPage({ params }: ChartDetailsProps) {
                     exportContextInfo={{
                         pageName: pageTitle,
                     }}
-                    // Currency columns configuration for export splitting
-                    currencyColumns={
-                        {
-                            amount: {
-                                amountField: "amount_value",
-                                currencyField: "amount_currency",
-                            },
-                            outstandingAmount: {
-                                amountField: "outstanding_amount_value",
-                                currencyField: "outstanding_amount_currency",
-                            },
-                            invoiceAmount: {
-                                amountField: "invoice_amount_value",
-                                currencyField: "invoice_amount_currency",
-                            },
-                            overdueInvoiceAmount: {
-                                amountField: "overdue_invoice_amount_value",
-                                currencyField: "overdue_invoice_amount_currency",
-                            },
-                            originalAmount: {
-                                amountField: "original_amount_value",
-                                currencyField: "original_amount_currency",
-                            },
-                            promiseToPayAmount: {
-                                amountField: "promise_to_pay_amount_value",
-                                currencyField: "promise_to_pay_amount_currency",
-                            },
-                            paymentAmount: {
-                                amountField: "payment_amount_value",
-                                currencyField: "payment_amount_currency",
-                            },
-                            paymentAmountInCustomerCurrency: {
-                                amountField:
-                                    "payment_amount_customer_currency_value",
-                                currencyField:
-                                    "payment_amount_customer_currency_currency",
-                            },
-                        } as CurrencyColumnsConfig
-                    }
                     noRowsMessage={t("messages.no_results", { ns: "common" })}
                     noRowsDescription={t("messages.no_results_description", {
                         ns: "common",

@@ -10,7 +10,7 @@ import {
 } from "@mui/icons-material";
 import React from "react";
 
-import { formatAmountWithoutSymbolWhole } from "@/utils/stringFormatters";
+import { formatMoney } from "@/utils/stringFormatters";
 
 import StatCard, { StatCardGrid } from "./StatCard";
 
@@ -88,9 +88,19 @@ export const STAT_ICONS = {
 // Helper function to create common stat configurations
 export const createStatConfigs = (
     data: any,
-    namespace: string
+    namespace: string,
+    currency?: string,
+    language: string = "en"
 ): StatConfig[] => {
     const configs: StatConfig[] = [];
+    const locale = language === "he" ? "he-IL" : "en-US";
+    const moneyFormatter = (value: any) =>
+        formatMoney(Number(value), currency, {
+            style: "symbol",
+            locale,
+            language,
+            wholeNumbers: true,
+        });
 
     // Total customers/customers
     if (data?.counts?.total_customers !== undefined) {
@@ -133,7 +143,7 @@ export const createStatConfigs = (
             value: data.counts.total_outstanding_amount,
             icon: <STAT_ICONS.MONEY />,
             status: "warning",
-            formatter: formatAmountWithoutSymbolWhole,
+            formatter: moneyFormatter,
         });
     }
 
@@ -145,7 +155,7 @@ export const createStatConfigs = (
             value: data.counts.total_overdue_amount,
             icon: <STAT_ICONS.MONEY />,
             status: "error",
-            formatter: formatAmountWithoutSymbolWhole,
+            formatter: moneyFormatter,
         });
     }
 

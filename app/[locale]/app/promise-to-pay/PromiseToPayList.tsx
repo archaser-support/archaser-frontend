@@ -26,7 +26,6 @@ import PageHeader from "@/components/PageHeader";
 import { fetchDisputeWithPromiseToPayStats } from "@/shared/services/promiseToPayService";
 import {
     formatCurrencyWithCode,
-    CurrencyColumnsConfig,
     ExportFormat,
 } from "@/shared/utility/exportToExcel";
 import { getNestedValue } from "@/shared/utility/helpers";
@@ -38,8 +37,8 @@ import {
     getUserDateLocale,
 } from "@/utils/datetimeOperations";
 import {
-    formatAmountWithoutSymbol,
     formatCurrencyWithRTLSupport,
+    resolveCustomerFirstCurrency,
 } from "@/utils/stringFormatters";
 
 import PromiseToPayStats from "./components/PromiseToPayStats";
@@ -58,6 +57,8 @@ export interface PromiseToPayRow {
     customer: string;
     customer_number: string;
     amount_overdue: number;
+    amount_overdue_formatted: string;
+    currency: string;
     days_past_due: number;
     promise_date: string | Date | null;
     urgency_color: string;
@@ -223,7 +224,10 @@ const PromiseToPayList: React.FC<PromiseToPayListProps> = ({
                     : item.Customer.Company?.name || t("fields.unknown");
 
                 const amount = item.total_outstanding_amount || 0;
-                const currency = item.currency || "";
+                const currency = resolveCustomerFirstCurrency({
+                    fallbackCurrency: item.currency,
+                    accountCurrency: session?.user?.currency,
+                });
                 const oldestDate = item.Customer?.oldest_invoice_overdue_date;
                 const daysPastDue = oldestDate
                     ? Math.floor(
@@ -245,6 +249,7 @@ const PromiseToPayList: React.FC<PromiseToPayListProps> = ({
                         getUserDateLocale(session),
                         i18n.language
                     ),
+                    currency,
                     days_past_due: daysPastDue,
                     promise_date: item.promise_to_pay_date
                         ? new Date(item.promise_to_pay_date).toISOString()
@@ -255,7 +260,7 @@ const PromiseToPayList: React.FC<PromiseToPayListProps> = ({
                 };
             });
         },
-        [t, getUrgencyColor]
+        [t, getUrgencyColor, session, i18n.language]
     );
 
     // Transform data to rows
@@ -278,7 +283,10 @@ const PromiseToPayList: React.FC<PromiseToPayListProps> = ({
                 const transformedPromiseToPay = rawPromiseToPayList.map(
                     (item: any) => {
                         const amount = item.amount_overdue || 0;
-                        const currency = item.currency || "";
+                        const currency = resolveCustomerFirstCurrency({
+                            fallbackCurrency: item.currency,
+                            accountCurrency: session?.user?.currency,
+                        });
 
                         // Format promise date for export
                         const promiseDate = item.promise_date
@@ -564,15 +572,6 @@ const PromiseToPayList: React.FC<PromiseToPayListProps> = ({
                             pageName: "promise_to_pay",
                             customPrefix: "promise_to_pay_export",
                         }}
-                        // Currency columns configuration for export splitting
-                        currencyColumns={
-                            {
-                                amount_overdue: {
-                                    amountField: "amount_overdue_value",
-                                    currencyField: "amount_overdue_currency",
-                                },
-                            } as CurrencyColumnsConfig
-                        }
                     />
                 </Box>
             )}

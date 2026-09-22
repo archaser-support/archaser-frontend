@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
 import StatCard, {
     StatCardGrid,
 } from "@/shared/layout-components/stats/StatCard";
-import { formatAmountWithoutSymbolWhole } from "@/utils/stringFormatters";
+import { formatMoney } from "@/utils/stringFormatters";
 
 export type StatConfig = {
     key: string;
@@ -87,8 +87,20 @@ export const STAT_ICONS = {
 };
 
 // Helper function to create common stat configurations
-export const createStatConfigs = (data: any): StatConfig[] => {
+export const createStatConfigs = (
+    data: any,
+    currency?: string,
+    language: string = "en"
+): StatConfig[] => {
     const configs: StatConfig[] = [];
+    const locale = language === "he" ? "he-IL" : "en-US";
+    const moneyFormatter = (value: any) =>
+        formatMoney(Number(value), currency, {
+            style: "symbol",
+            locale,
+            language,
+            wholeNumbers: true,
+        });
 
     // Total customers/customers
     if (data?.counts?.total_customers !== undefined) {
@@ -131,7 +143,7 @@ export const createStatConfigs = (data: any): StatConfig[] => {
             value: data.counts.total_outstanding_amount,
             icon: <STAT_ICONS.MONEY />,
             status: "warning",
-            formatter: formatAmountWithoutSymbolWhole,
+            formatter: moneyFormatter,
         });
     }
 

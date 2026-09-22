@@ -21,7 +21,10 @@ import {
     getUserDateLocale,
     getUserTimezone,
 } from "@/utils/datetimeOperations";
-import { formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
+import {
+    formatCurrencyWithRTLSupport,
+    resolveCustomerFirstCurrency,
+} from "@/utils/stringFormatters";
 
 import { CreditInsuranceViolationsCell } from "./CreditInsuranceViolationsCell";
 import InvoiceCreditInsuranceReportingModal from "./InvoiceCreditInsuranceReportingModal";
@@ -176,7 +179,10 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
     const formatAmountCell = useCallback(
         (val: any, rowCurrency: string) => {
             if (val === undefined || val === null || val === "") return "";
-            const currency = rowCurrency || "";
+            const currency = resolveCustomerFirstCurrency({
+                fallbackCurrency: rowCurrency,
+                accountCurrency: session?.user?.currency,
+            });
             if (typeof val === "number") {
                 return formatCurrencyWithRTLSupport(
                     val,
@@ -314,7 +320,13 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
             },
             customer_total_paid: (params: any) => {
                 const totalPaid = params?.value !== undefined && params?.value !== null ? params.value : params?.row?.customer_total_paid || 0;
-                const currency = params?.row?.customer_currency || "";
+                const currency = resolveCustomerFirstCurrency({
+                    fallbackCurrency:
+                        params?.row?.customer_currency ||
+                        params?.row?.["Invoice.customer_currency"] ||
+                        params?.row?.currency,
+                    accountCurrency: session?.user?.currency,
+                });
                 const formattedAmount = typeof totalPaid === "string" ? totalPaid : formatCurrencyWithRTLSupport(
                     totalPaid,
                     currency,
