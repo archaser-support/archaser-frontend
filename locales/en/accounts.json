@@ -85,7 +85,20 @@
         "has_credit_insurance": "Credit Insurance",
         "is_demo": "Demo account",
         "enable_customer_checkpoints": "Customer checkpoints",
+        "amounts_include_vat": "Amounts include VAT",
         "is_demo_help": "When on, this staging account can send customer outreach and assign file-import permissions."
+    },
+    "vat_basis": {
+        "confirm_title": "Recalculate customer totals?",
+        "confirm_message": "Changing this setting recalculates all customer AR totals for this account and may take a while. Continue?",
+        "confirm_button": "Confirm",
+        "cancel_button": "Cancel",
+        "save_success": "VAT setting saved — refreshing customer totals",
+        "save_failed": "Failed to save VAT setting",
+        "progress_value": "{{done}} / {{total}} customers",
+        "eta_seconds": "~{{seconds}}s remaining",
+        "refresh_failed": "Customer totals refresh failed",
+        "retry_button": "Retry"
     },
     "actions": {
         "add_contact": "Add Contact",
