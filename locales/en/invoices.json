@@ -1,7 +1,11 @@
 {
   "fields": {
-    "amount": "Amount",
-    "customer_amount": "Customer Amount",
+    "amount": "Amount with VAT",
+    "amount_without_vat": "Amount without VAT",
+    "vat_amount": "VAT Amount",
+    "customer_amount": "Customer Amount with VAT",
+    "customer_amount_without_vat": "Customer Amount without VAT",
+    "customer_vat_amount": "Customer VAT Amount",
     "due_date": "Due Date",
     "due_section_title": "Due Invoices",
     "invoice_date": "Invoice Date",
