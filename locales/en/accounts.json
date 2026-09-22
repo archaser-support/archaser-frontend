@@ -254,7 +254,8 @@
         "sync_mode_label": "Sync mode",
         "last_sync_at_label": "Last sync (UTC)",
         "last_sync_at_empty": "—",
-        "next_scheduled_sync_at_label": "Next scheduled sync (UTC)"
+        "next_scheduled_sync_at_label": "Next scheduled sync (UTC)",
+        "extension_matched": "{{label}} ({{key}})"
     },
     "as_of_backfill": {
         "open_button": "As-of history backfill",
