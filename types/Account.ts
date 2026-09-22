@@ -25,6 +25,7 @@ export type Account = AccountRow & {
     has_credit_insurance?: boolean | null;
     is_demo?: boolean | null;
     enable_customer_checkpoints?: boolean | null;
+    amounts_include_vat?: boolean | null;
 };
 
 export interface AccountResponse {

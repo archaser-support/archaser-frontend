@@ -85,7 +85,20 @@
         "has_credit_insurance": "ביטוח אשראי",
         "is_demo": "חשבון דמו",
         "enable_customer_checkpoints": "נקודות ביקורת ללקוח",
+        "amounts_include_vat": "סכומים כוללים מע״מ",
         "is_demo_help": "כשמופעל, חשבון זה בסטייג'ינג יכול לשלוח פניות ללקוחות ולהקצות הרשאות ייבוא קבצים."
+    },
+    "vat_basis": {
+        "confirm_title": "לחשב מחדש את סכומי הלקוחות?",
+        "confirm_message": "שינוי הגדרה זו מחשב מחדש את כל סכומי ה-AR של הלקוחות בחשבון זה ועלול לקחת זמן. להמשיך?",
+        "confirm_button": "אישור",
+        "cancel_button": "ביטול",
+        "save_success": "הגדרת המע״מ נשמרה — מרענן סכומי לקוחות",
+        "save_failed": "שמירת הגדרת המע״מ נכשלה",
+        "progress_value": "{{done}} / {{total}} לקוחות",
+        "eta_seconds": "נותרו כ־{{seconds}} שנ׳",
+        "refresh_failed": "רענון סכומי הלקוחות נכשל",
+        "retry_button": "נסה שוב"
     },
     "actions": {
         "add_contact": "הוסף איש קשר",

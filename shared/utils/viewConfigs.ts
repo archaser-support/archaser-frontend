@@ -130,6 +130,14 @@ export const VIEW_CONFIGS: Record<string, ViewContextConfig> = {
                 amountField: "customer_amount_value",
                 currencyField: "customer_amount_currency",
             },
+            customer_amount_without_vat: {
+                amountField: "customer_amount_without_vat_value",
+                currencyField: "customer_amount_without_vat_currency",
+            },
+            customer_vat_amount: {
+                amountField: "customer_vat_amount_value",
+                currencyField: "customer_vat_amount_currency",
+            },
             customer_net_amount: {
                 amountField: "customer_net_amount_value",
                 currencyField: "customer_net_amount_currency",
