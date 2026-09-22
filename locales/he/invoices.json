@@ -1,7 +1,11 @@
 {
   "fields": {
-    "amount": "סכום",
-    "customer_amount": "סכום לקוח",
+    "amount": "סכום כולל מע״מ",
+    "amount_without_vat": "סכום ללא מע״מ",
+    "vat_amount": "סכום מע״מ",
+    "customer_amount": "סכום לקוח כולל מע״מ",
+    "customer_amount_without_vat": "סכום לקוח ללא מע״מ",
+    "customer_vat_amount": "סכום מע״מ לקוח",
     "due_date": "תאריך יעד",
     "due_section_title": "חשבוניות לתשלום",
     "invoice_date": "תאריך חשבונית",
