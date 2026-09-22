@@ -5,7 +5,6 @@ import React from "react";
 
 import AppUrls from "@/utils/appUrls";
 import {
-    formatAmountWithoutSymbol,
     formatCurrencyWithRTLSupport,
     resolveCustomerFirstCurrency,
 } from "@/utils/stringFormatters";
@@ -45,8 +44,10 @@ const createCurrencyCell = (
     i18nLanguage: string = "en"
 ) => {
     const CurrencyCell = (params: any) => {
-        // Use currency code instead of symbol for consistency with export
+        // Prefer row currency, then chart/account fallback
         const currencyCode = resolveCustomerFirstCurrency({
+            customerCurrencyPrimary:
+                params.row?.customerCurrency || params.row?.currency,
             fallbackCurrency: chartDetails?.currency,
         });
         const formattedAmount = formatCurrencyWithRTLSupport(
@@ -464,6 +465,8 @@ const createPromiseAmountCell = (
         }
 
         const currencyCode = resolveCustomerFirstCurrency({
+            customerCurrencyPrimary:
+                params.row?.customerCurrency || params.row?.currency,
             fallbackCurrency: chartDetails?.currency,
         });
         const formattedAmount = formatCurrencyWithRTLSupport(

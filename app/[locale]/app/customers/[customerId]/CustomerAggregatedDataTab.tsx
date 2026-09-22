@@ -29,7 +29,6 @@ import { useTranslation } from "react-i18next";
 import { getCustomerAggregatedData } from "@/shared/services/customerService";
 import AppUrls from "@/utils/appUrls";
 import {
-    formatAmountWithoutSymbol,
     formatCurrencyWithRTLSupport,
     resolveCustomerFirstCurrency,
 } from "@/utils/stringFormatters";
@@ -268,7 +267,13 @@ const CustomerAggregatedDataTab: React.FC<CustomerAggregatedDataTabProps> = ({
                     fontFamily: "inherit",
                 },
                 y: {
-                    formatter: (val: number) => formatAmountWithoutSymbol(val),
+                    formatter: (val: number) =>
+                        formatCurrencyWithRTLSupport(
+                            val,
+                            accountCurrency,
+                            i18n.language === "he" ? "he-IL" : "en-US",
+                            i18n.language
+                        ),
                 },
             },
             grid: {
@@ -326,8 +331,19 @@ const CustomerAggregatedDataTab: React.FC<CustomerAggregatedDataTabProps> = ({
                                 fontSize: "16px",
                                 fontWeight: 700,
                                 color: theme.palette.chartPalette.main,
-                                formatter: (val: string) =>
-                                    formatAmountWithoutSymbol(parseFloat(val)),
+                                formatter: (val: string) => {
+                                    const currency =
+                                        childCustomers.length > 0 &&
+                                            childCustomers[0].currency
+                                            ? childCustomers[0].currency
+                                            : accountCurrency;
+                                    return formatCurrencyWithRTLSupport(
+                                        parseFloat(val),
+                                        currency,
+                                        i18n.language === "he" ? "he-IL" : "en-US",
+                                        i18n.language
+                                    );
+                                },
                             },
                             total: {
                                 show: true,

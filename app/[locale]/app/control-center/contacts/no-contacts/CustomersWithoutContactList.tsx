@@ -24,15 +24,19 @@ import api from "@/app/api";
 import { getMetricStatCardBorderRadius } from "@/app/theme/metricStatCard";
 import {
     formatCurrencyWithCode,
-    CurrencyColumnsConfig,
     ExportFormat,
 } from "@/shared/utility/exportToExcel";
 import { getNestedValue } from "@/shared/utility/helpers";
 import { useAccountClientType } from "@/shared/hooks/useAccountClientType";
-import { formatAmountWithoutSymbol } from "@/utils/stringFormatters";
+import {
+    formatCurrencyWithRTLSupport,
+    resolveCustomerFirstCurrency,
+} from "@/utils/stringFormatters";
+import { useSession } from "next-auth/react";
 
 const CustomersWithoutContactList: React.FC = () => {
     const clientType = useAccountClientType();
+    const { data: session } = useSession();
     const { t, i18n } = useTranslation([
         "control_center",
         "customers",
@@ -251,9 +255,12 @@ const CustomersWithoutContactList: React.FC = () => {
                         const amount =
                             customer?.CustomerCollectionPeriod?.[0]
                                 ?.total_outstanding_amount ?? 0;
-                        const currency =
-                            customer?.CustomerCollectionPeriod?.[0]?.currency ??
-                            "";
+                        const currency = resolveCustomerFirstCurrency({
+                            fallbackCurrency:
+                                customer?.CustomerCollectionPeriod?.[0]
+                                    ?.currency,
+                            accountCurrency: session?.user?.currency,
+                        });
 
                         return {
                             id: customer.id,
@@ -285,15 +292,18 @@ const CustomersWithoutContactList: React.FC = () => {
                 throw _error;
             }
         },
-        [customers]
+        [customers, session]
     );
 
     const rows = customers.map((customer: any, index: number) => {
         const amount =
             customer?.CustomerCollectionPeriod?.[0]?.total_outstanding_amount ??
             0;
-        const currency =
-            customer?.CustomerCollectionPeriod?.[0]?.currency ?? "";
+        const currency = resolveCustomerFirstCurrency({
+            fallbackCurrency:
+                customer?.CustomerCollectionPeriod?.[0]?.currency,
+            accountCurrency: session?.user?.currency,
+        });
 
         return {
             id:
@@ -323,10 +333,12 @@ const CustomersWithoutContactList: React.FC = () => {
                 customer?.CustomerCollectionPeriod?.[0]
                     ?.no_of_overdue_invoices ?? 0,
             total_outstanding_amount: amount,
-            total_outstanding_amount_formatted:
-                amount === 0
-                    ? `0.00 ${currency}`
-                    : `${formatAmountWithoutSymbol(amount)} ${currency}`,
+            total_outstanding_amount_formatted: formatCurrencyWithRTLSupport(
+                amount,
+                currency,
+                "en-US",
+                i18n.language
+            ),
             raw: customer,
         };
     });
@@ -652,17 +664,6 @@ const CustomersWithoutContactList: React.FC = () => {
                             pageName: "customers_without_contact",
                             customPrefix: "customers_without_contact_export",
                         }}
-                        // Currency columns configuration for export splitting
-                        currencyColumns={
-                            {
-                                total_outstanding_amount: {
-                                    amountField:
-                                        "total_outstanding_amount_value",
-                                    currencyField:
-                                        "total_outstanding_amount_currency",
-                                },
-                            } as CurrencyColumnsConfig
-                        }
                     />
                 </Box>
             )}

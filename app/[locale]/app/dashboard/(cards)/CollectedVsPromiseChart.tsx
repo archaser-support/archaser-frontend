@@ -3,7 +3,7 @@ import { Box, useTheme } from "@mui/material";
 import dynamic from "next/dynamic";
 import { useTranslation } from "react-i18next";
 
-import { formatAmountWithoutSymbol } from "@/utils/stringFormatters";
+import { formatMoney } from "@/utils/stringFormatters";
 
 import { FinancialDashboardChartCard } from "./FinancialDashboardChartCard";
 
@@ -14,14 +14,17 @@ const ReactApexChart = dynamic(() => import("react-apexcharts"), {
 type CollectedVsPromiseChartProps = {
     options: any;
     series: any;
+    currency?: string;
 };
 
 const CollectedVsPromiseChart = ({
     options = {},
     series = [],
+    currency = "USD",
 }: CollectedVsPromiseChartProps) => {
     const theme = useTheme();
     const { t, i18n } = useTranslation(["dashboard", "common"]);
+    const locale = i18n.language === "he" ? "he-IL" : "en-US";
 
     // Enhanced chart options with AgentList color palette
     const enhancedOptions = {
@@ -108,6 +111,14 @@ const CollectedVsPromiseChart = ({
                     fontSize: "12px",
                     fontFamily: "inherit",
                 },
+                formatter: function (val: number) {
+                    return formatMoney(val, currency, {
+                        style: "iso",
+                        locale,
+                        language: i18n.language,
+                        wholeNumbers: true,
+                    });
+                },
             },
         },
         dataLabels: {
@@ -135,7 +146,12 @@ const CollectedVsPromiseChart = ({
                 top: 0,
             },
             formatter: function (val: number) {
-                return formatAmountWithoutSymbol(val);
+                return formatMoney(val, currency, {
+                    style: "iso",
+                    locale,
+                    language: i18n.language,
+                    wholeNumbers: true,
+                });
             },
         },
         tooltip: {
@@ -190,7 +206,11 @@ const CollectedVsPromiseChart = ({
                 series.forEach((seriesData, index) => {
                     const value = seriesData[dataPointIndex];
                     if (value !== undefined && value !== null) {
-                        const formattedValue = formatAmountWithoutSymbol(value);
+                        const formattedValue = formatMoney(value, currency, {
+                            style: "symbol",
+                            locale,
+                            language: i18n.language,
+                        });
                         if (isHebrew) {
                             // For Hebrew: value on left, label on right (RTL order)
                             tooltipContent +=

@@ -11,7 +11,7 @@ import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { CreditDashboardSummary } from "@/types/creditInsurance";
-import { formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
+import { formatMoney } from "@/utils/stringFormatters";
 
 import type { CreditReportType } from "./creditReportTypes";
 
@@ -34,13 +34,12 @@ export function CreditReportSummaryCards({
 
     const fmt = useCallback(
         (n: number) =>
-            formatCurrencyWithRTLSupport(
-                n,
-                accountCurrency,
-                userLocale,
-                i18n.language,
-                { wholeNumbers: true }
-                        ),
+            formatMoney(n, accountCurrency, {
+                style: "symbol",
+                locale: userLocale,
+                language: i18n.language,
+                wholeNumbers: true,
+            }),
         [accountCurrency, userLocale, i18n.language]
     );
 
