@@ -48,6 +48,7 @@ const DataGridRow: React.FC<DataGridRowProps> = React.memo(
         columnWidths,
         isHighlighted,
         isSelected = false,
+        backgroundColor,
         language,
         onRowClick,
         highlightedRowRef,
@@ -60,9 +61,11 @@ const DataGridRow: React.FC<DataGridRowProps> = React.memo(
             ? alpha(theme.palette.primary.main, 0.08)
             : isHighlighted
                 ? alpha(theme.palette.primary.main, 0.08)
-                : actualIndex % 2 === 0
-                    ? theme.palette.background.paper
-                    : theme.palette.action.hover;
+                : backgroundColor
+                    ? backgroundColor
+                    : actualIndex % 2 === 0
+                        ? theme.palette.background.paper
+                        : theme.palette.action.hover;
 
         // Use standard Material-UI divider color for borders
         const borderColor = theme.palette.divider;
@@ -280,7 +283,9 @@ const DataGridRow: React.FC<DataGridRowProps> = React.memo(
                             ? alpha(theme.palette.primary.main, 0.12)
                             : isHighlighted
                                 ? alpha(theme.palette.primary.main, 0.12)
-                                : theme.palette.action.selected,
+                                : backgroundColor
+                                    ? backgroundColor
+                                    : theme.palette.action.selected,
                     },
                     transition: "background-color 0.2s ease",
                 }}
@@ -347,6 +352,7 @@ const DataGridRow: React.FC<DataGridRowProps> = React.memo(
             prevProps.actualIndex === nextProps.actualIndex &&
             prevProps.isHighlighted === nextProps.isHighlighted &&
             prevProps.isSelected === nextProps.isSelected &&
+            prevProps.backgroundColor === nextProps.backgroundColor &&
             prevProps.language === nextProps.language &&
             prevProps.columns === nextProps.columns &&
             JSON.stringify(prevProps.columnWidths) ===

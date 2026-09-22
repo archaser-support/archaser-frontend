@@ -101,6 +101,8 @@ interface EndlessScrollDataGridProps {
         { amountField: string; currencyField: string }
     >;
     highlightedRowId?: number | string | null; // ID of row to highlight
+    /** Optional per-row background (e.g. status tint); zebra used when undefined. */
+    getRowBackgroundColor?: (row: any) => string | undefined;
     hideToolbar?: boolean; // Hide the toolbar
     /** When this value changes, viewport height is recalculated (e.g. when content above grid loads) */
     viewportRecalcDependency?: unknown;
@@ -165,6 +167,7 @@ const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
     exportContextInfo,
     currencyColumns,
     highlightedRowId,
+    getRowBackgroundColor,
     hideToolbar = false,
     // Report selector props
     reportSelector = false,
@@ -949,6 +952,7 @@ const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
                                 columnWidths={columnWidths}
                                 isHighlighted={isHighlighted}
                                 isSelected={isSelected}
+                                backgroundColor={getRowBackgroundColor?.(row)}
                                 language={language}
                                 onRowClick={onRowClick ? (row) => {
                                     // Only call original onRowClick if provided (for backward compatibility)
