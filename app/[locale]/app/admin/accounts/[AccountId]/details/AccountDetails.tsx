@@ -207,6 +207,7 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
             has_collection: true,
             has_credit_insurance: false,
             is_demo: false,
+            amounts_include_vat: true,
             promise_to_pay: 1,
             default_first_activity_delay_days: 3,
             category_after_automated: "Agent",
@@ -543,6 +544,10 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
             is_demo: (account as any).is_demo === true,
             enable_customer_checkpoints:
                 (account as any).enable_customer_checkpoints === true,
+            amounts_include_vat:
+                (account as any).amounts_include_vat === undefined
+                    ? true
+                    : (account as any).amounts_include_vat !== false,
             credit_limit_warning_threshold_pct:
                 accountAny.credit_limit_warning_threshold_pct != null
                     ? Number(accountAny.credit_limit_warning_threshold_pct)
@@ -1359,6 +1364,27 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
     }, [isProviderDialogOpen, providerForm.country_id, accountId]);
 
     // Render all sections without tabs
+    const persistAmountsIncludeVat = async (value: boolean) => {
+        if (isNewAccount || accountId === "new") {
+            return;
+        }
+        const response = await apiFetch(`/api/entities/accounts/${accountId}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ amounts_include_vat: value }),
+        });
+        if (!response.ok) {
+            showError(t("vat_basis.save_failed", { ns: "accounts" }));
+            throw new Error("Failed to save VAT setting");
+        }
+        success(t("vat_basis.save_success", { ns: "accounts" }));
+        await queryClient.invalidateQueries({
+            queryKey: ["account", accountId],
+        });
+    };
+
     const renderGeneralTab = () => {
         // (search state and filteredProviders come from component scope)
         const sectionProps = {
@@ -1400,7 +1426,15 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
                         </Typography>
                     </Box>
                     <CardContent sx={accountCardContentSx}>
-                        <GeneralInformation {...sectionProps} />
+                        <GeneralInformation
+                            {...sectionProps}
+                            accountId={accountId}
+                            onPersistAmountsIncludeVat={
+                                isNewAccount
+                                    ? undefined
+                                    : persistAmountsIncludeVat
+                            }
+                        />
                     </CardContent>
                 </Card>
 

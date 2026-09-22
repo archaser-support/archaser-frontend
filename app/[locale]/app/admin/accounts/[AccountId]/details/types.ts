@@ -52,6 +52,7 @@ export interface AccountFormData {
     has_credit_insurance?: boolean | null;
     is_demo?: boolean | null;
     enable_customer_checkpoints?: boolean | null;
+    amounts_include_vat?: boolean | null;
     credit_limit_warning_threshold_pct?: number | null;
     credit_score_validity_warning_days?: number | null;
     reporting_date_warning_days?: number | null;
