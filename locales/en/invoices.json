@@ -27,6 +27,7 @@
     "view_invoices": "View Invoices",
     "status_filter": "Status Filter",
     "last_payment_date": "Last Payment Date",
+    "close_date": "Invoice Close Date",
     "customer_currency": "Customer Currency",
     "payment_date": "Payment Date",
     "payment_method": "Payment Method",
