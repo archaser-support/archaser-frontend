@@ -28,7 +28,6 @@ import {
     fetchAvailableInvoices
 } from "@/shared/services/InvoiceStatusService";
 import {
-    CurrencyColumnsConfig,
     ExportFormat,
     formatCurrencyWithCode,
 } from "@/shared/utility/exportToExcel";
@@ -39,6 +38,7 @@ import {
 } from "@/utils/datetimeOperations";
 import {
     formatCurrencyWithRTLSupport,
+    resolveCustomerFirstCurrency,
 } from "@/utils/stringFormatters";
 
 const OrphanCreditInvoicesList: React.FC = () => {
@@ -313,10 +313,13 @@ const OrphanCreditInvoicesList: React.FC = () => {
                 const rawInvoices = invoices || [];
 
                 const transformedInvoices = rawInvoices.map((invoice: any) => {
-                    const currency =
-                        invoice.customer_currency ||
-                        invoice.Account?.Country?.currency ||
-                        "";
+                    const currency = resolveCustomerFirstCurrency({
+                        fallbackCurrency:
+                            invoice.customer_currency ||
+                            invoice.Account?.Country?.currency ||
+                            invoice.currency,
+                        accountCurrency: session?.user?.currency,
+                    });
                     const amount = invoice.amount || 0;
                     const netAmount = invoice.net_amount || 0;
 
@@ -374,15 +377,18 @@ const OrphanCreditInvoicesList: React.FC = () => {
             headerName: t("fields.amount", { ns: "invoices" }),
             flex: 1,
             renderCell: (params) => {
-                const currency =
-                    params.row.customer_currency ||
-                    params.row.Account?.Country?.currency ||
-                    "";
+                const currency = resolveCustomerFirstCurrency({
+                    fallbackCurrency:
+                        params.row.customer_currency ||
+                        params.row.Account?.Country?.currency ||
+                        params.row.currency,
+                    accountCurrency: session?.user?.currency,
+                });
                 const amount = params.row.amount || 0;
                 const formattedAmount = formatCurrencyWithRTLSupport(
                     amount,
                     currency,
-                    "en-US",
+                    getUserDateLocale(session),
                     i18n.language
                 );
                 const isRTL = i18n.language === "he";
@@ -411,15 +417,18 @@ const OrphanCreditInvoicesList: React.FC = () => {
             headerName: t("fields.net_amount", { ns: "invoices" }),
             flex: 1,
             renderCell: (params) => {
-                const currency =
-                    params.row.customer_currency ||
-                    params.row.Account?.Country?.currency ||
-                    "";
+                const currency = resolveCustomerFirstCurrency({
+                    fallbackCurrency:
+                        params.row.customer_currency ||
+                        params.row.Account?.Country?.currency ||
+                        params.row.currency,
+                    accountCurrency: session?.user?.currency,
+                });
                 const netAmount = params.row.net_amount || 0;
                 const formattedAmount = formatCurrencyWithRTLSupport(
                     netAmount,
                     currency,
-                    "en-US",
+                    getUserDateLocale(session),
                     i18n.language
                 );
                 const isRTL = i18n.language === "he";
@@ -561,19 +570,6 @@ const OrphanCreditInvoicesList: React.FC = () => {
                             pageName: "orphan_credit_invoices",
                             customPrefix: "orphan_credit_invoices_export",
                         }}
-                        // Currency columns configuration for export splitting
-                        currencyColumns={
-                            {
-                                amount: {
-                                    amountField: "amount_value",
-                                    currencyField: "amount_currency",
-                                },
-                                net_amount: {
-                                    amountField: "net_amount_value",
-                                    currencyField: "net_amount_currency",
-                                },
-                            } as CurrencyColumnsConfig
-                        }
                     />
                 </Box>
             )}

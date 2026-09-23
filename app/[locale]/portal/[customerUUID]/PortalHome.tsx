@@ -82,7 +82,7 @@ import { useLogoPreloader } from "@/hooks/useLogoPreloader";
 import { PortalUrls } from "@/utils/portalUrlUtils";
 import {
     resolveCustomerFirstCurrency,
-    formatAmountWithoutSymbol,
+    formatMoney,
 } from "@/utils/stringFormatters";
 
 import type { ICustomerDetails } from "./page";
@@ -236,12 +236,6 @@ const getStyles = (theme: Theme) => ({
     },
 });
 
-// Utility functions
-const formatAmount = (amount: number, currency?: string): string => {
-    const formattedAmount = formatAmountWithoutSymbol(amount);
-    return currency ? `${formattedAmount} ${currency}` : `${formattedAmount}`;
-};
-
 // Main Component
 export default function PortalHome({ customerDetails }: CustomerDetailsProps) {
     const theme = useTheme();
@@ -367,6 +361,13 @@ const HeroSection = memo(
         const theme = useTheme();
         const { t, i18n } = useTranslation(["portal", "invoices", "common"]);
         const styles = getStyles(theme);
+
+        const formatAmount = (amount: number, currency?: string): string =>
+            formatMoney(amount, currency, {
+                style: "symbol",
+                locale: i18n.language === "he" ? "he-IL" : "en-US",
+                language: i18n.language,
+            });
 
         const handleViewInvoices = useCallback(() => {
             router.push(PortalUrls.invoices(customerUUID, language));

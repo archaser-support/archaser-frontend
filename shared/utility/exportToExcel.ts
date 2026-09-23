@@ -286,7 +286,8 @@ export const safeAmount = (value: any, fieldName?: string): number => {
 };
 
 /**
- * Format a numeric amount with currency code (English format: "1,234 USD")
+ * Format a numeric amount with currency code (English format: "1,234.00 USD").
+ * Prefer this combined string for exports instead of splitting amount/currency columns.
  *
  * @param amount - The numeric amount
  * @param currencyCode - The currency code (e.g., "USD", "EUR")
@@ -294,7 +295,7 @@ export const safeAmount = (value: any, fieldName?: string): number => {
  * @returns Formatted currency string
  *
  * @example
- * formatCurrencyWithCode(1234, "USD") // "1,234 USD"
+ * formatCurrencyWithCode(1234, "USD") // "1,234.00 USD"
  * formatCurrencyWithCode(1234.56, "EUR") // "1,234.56 EUR"
  */
 export const formatCurrencyWithCode = (
@@ -302,8 +303,10 @@ export const formatCurrencyWithCode = (
     currencyCode: string,
     locale: string = "en-US"
 ): string => {
+    const resolvedCurrency =
+        (currencyCode && String(currencyCode).trim()) || "USD";
     if (amount === null || amount === undefined || isNaN(amount)) {
-        return `0.00 ${currencyCode}`;
+        return `0.00 ${resolvedCurrency}`;
     }
 
     const formatter = new Intl.NumberFormat(locale, {
@@ -311,7 +314,7 @@ export const formatCurrencyWithCode = (
         maximumFractionDigits: 2,
     });
 
-    return `${formatter.format(amount)} ${currencyCode}`;
+    return `${formatter.format(amount)} ${resolvedCurrency}`;
 };
 
 /**

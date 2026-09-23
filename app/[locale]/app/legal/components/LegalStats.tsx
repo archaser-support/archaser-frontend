@@ -13,7 +13,7 @@ import { CreditMetricCard } from "@/app/[locale]/app/credit-dashboard/CreditMetr
 import type { MetricStatCardIconAccent } from "@/app/theme";
 import type { LegalCasesResponse } from "@/shared/services/legalService";
 import {
-    formatCurrencyWithRTLSupport,
+    formatMoney,
     resolveCustomerFirstCurrency,
 } from "@/utils/stringFormatters";
 
@@ -69,13 +69,16 @@ const LegalStats: React.FC<LegalStatsProps> = ({ statsData, statsLoading }) => {
             getValue: () =>
                 statsLoading
                     ? loadingValue
-                    : formatCurrencyWithRTLSupport(
+                    : formatMoney(
                           Number(counts?.totalAmount ?? 0),
                           currencyCode,
-                          locale,
-                          i18n.language,
-                          { wholeNumbers: true }
-                        ),
+                          {
+                              style: "symbol",
+                              locale,
+                              language: i18n.language,
+                              wholeNumbers: true,
+                          }
+                      ),
         },
     ];
 

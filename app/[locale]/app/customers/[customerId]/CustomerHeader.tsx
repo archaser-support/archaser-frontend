@@ -50,7 +50,6 @@ import {
     getActiveCustomerPolicyFromCustomer,
     isZeroApprovedLimit,
 } from "@/shared/customerPolicyAdapter";
-import { currencies } from "@/shared/data/common/currencies";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import {
     fetchCustomerById,
@@ -65,7 +64,7 @@ import {
     getUserDateLocale,
     getUserTimezone,
 } from "@/utils/datetimeOperations";
-import { formatAmountWithoutSymbol } from "@/utils/stringFormatters";
+import { formatMoneyDual } from "@/utils/stringFormatters";
 
 import ChangeCollectionCategoryModal from "./ChangeCollectionCategoryModal";
 import CustomerCheckpointActions from "./CustomerCheckpointActions";
@@ -173,50 +172,6 @@ const METADATA_CHIP_SX = {
         alignItems: "center",
     },
 } as const;
-
-const getCurrencySymbol = (currencyCode: string): string => {
-    const code = currencyCode?.trim().toUpperCase();
-    if (!code) {
-        return "";
-    }
-    const currency = currencies.find((c) => c.code === code);
-    return currency?.symbol || code;
-};
-
-function formatCurrencyAmountPart(
-    langHebrew: boolean,
-    amount: string,
-    symbol: string
-): string {
-    if (!symbol) {
-        return amount;
-    }
-    return langHebrew ? `${amount} ${symbol}` : `${symbol} ${amount}`;
-}
-
-function formatDualCurrencyCreditInsuranceLine(
-    langHebrew: boolean,
-    accountAmount: number,
-    accountCurrency: string,
-    secondaryAmount: number | null | undefined,
-    secondaryCurrency: string | null | undefined
-): string {
-    const amountLocale = langHebrew ? "he-IL" : "en-US";
-    const acctSym = getCurrencySymbol(accountCurrency);
-    const main = formatAmountWithoutSymbol(accountAmount, amountLocale);
-    const mainPart = formatCurrencyAmountPart(langHebrew, main, acctSym);
-    if (
-        secondaryCurrency &&
-        secondaryAmount != null &&
-        Number.isFinite(secondaryAmount)
-    ) {
-        const secSym = getCurrencySymbol(secondaryCurrency);
-        const sec = formatAmountWithoutSymbol(secondaryAmount, amountLocale);
-        const secPart = formatCurrencyAmountPart(langHebrew, sec, secSym);
-        return `${secPart} (${mainPart})`;
-    }
-    return mainPart;
-}
 
 const calculateTimeRemaining = (followUpDate: Date, t: any): string => {
     if (!followUpDate || isNaN(followUpDate.getTime())) {
@@ -930,12 +885,20 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                 showHeaderDualCurrency && secondaryAmount != null
                     ? Number(secondaryAmount)
                     : null;
-            return formatDualCurrencyCreditInsuranceLine(
-                isRtl,
-                primary,
-                accountCurrency ?? "",
-                secondary,
-                showHeaderDualCurrency ? headerSecondaryCurrency : null
+            return formatMoneyDual(
+                {
+                    secondaryAmount: secondary,
+                    secondaryCurrency: showHeaderDualCurrency
+                        ? headerSecondaryCurrency
+                        : null,
+                    accountAmount: primary,
+                    accountCurrency: accountCurrency ?? "",
+                },
+                {
+                    style: "symbol",
+                    locale: isRtl ? "he-IL" : "en-US",
+                    language: isRtl ? "he" : "en",
+                }
             );
         },
         [
