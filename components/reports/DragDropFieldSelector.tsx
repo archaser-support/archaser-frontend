@@ -1323,6 +1323,9 @@ const DragDropFieldSelector: React.FC<DragDropFieldSelectorProps> = ({
                 CustomerCollectionPeriod: [
                     { key: "tables.collection_periods", ns: "reports" },
                 ],
+                CustomerPolicy: [
+                    { key: "tables.customer_policies", ns: "reports" },
+                ],
                 Contact: [
                     { key: "sections.title", ns: "contacts" },
                     { key: "tables.contacts", ns: "reports" },

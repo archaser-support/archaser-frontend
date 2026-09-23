@@ -154,6 +154,7 @@ const FormulaColumnEditor = forwardRef<
         Activity: "tables.activities",
         InvoicePayment: "tables.invoice_payments",
         CustomerCollectionPeriod: "tables.collection_periods",
+        CustomerPolicy: "tables.customer_policies",
         Contact: "tables.contacts",
         Company: "tables.companies",
     };
