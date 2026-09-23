@@ -17,6 +17,13 @@ export type PolicySummaryDetail = {
     cost_percent?: string | number | null;
     registration_fee_percent?: string | number | null;
     annual_credit_assessment_fee?: string | number | null;
+    insured_percentage?: string | number | null;
+    non_qualifying_loss_threshold?: string | number | null;
+    minimum_premium?: string | number | null;
+    minimum_premium_period_years?: number | null;
+    aggregate_excess?: string | number | null;
+    sdl_excess?: string | number | null;
+    product_type?: "TailorMade" | "Commodity" | string | null;
     InsurancePolicyCountry?: unknown[] | null;
     NamedPolicy?: unknown[] | null;
 };
@@ -71,5 +78,30 @@ export function dclSdlCoverAmount(detail: PolicySummaryDetail): number | null {
     return (
         toFiniteNumber(detail.max_total_dcl_sdl_cover) ??
         toFiniteNumber(detail.max_dcl)
+    );
+}
+
+/** Primary policies always get the commercial summary card (TopUp never). */
+export function showPolicySummaryCommercialTerms(
+    detail: PolicySummaryDetail
+): boolean {
+    return detail.policy_kind !== "TopUp";
+}
+
+/** Whether any of the summary commercial fields have a stored value. */
+export function hasPolicySummaryCommercialTerms(
+    detail: PolicySummaryDetail
+): boolean {
+    if (!showPolicySummaryCommercialTerms(detail)) {
+        return false;
+    }
+    return (
+        toFiniteNumber(detail.insured_percentage) != null ||
+        toFiniteNumber(detail.non_qualifying_loss_threshold) != null ||
+        toFiniteNumber(detail.minimum_premium) != null ||
+        detail.minimum_premium_period_years != null ||
+        toFiniteNumber(detail.aggregate_excess) != null ||
+        toFiniteNumber(detail.sdl_excess) != null ||
+        Boolean(detail.product_type?.trim())
     );
 }
