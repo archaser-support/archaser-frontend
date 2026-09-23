@@ -15,6 +15,8 @@ export type EyebrowProps = {
     help?: string;
     /** Center title + help icon (e.g. Coverage Halo card). */
     centered?: boolean;
+    /** Right-aligned control in the title row (e.g. cohort slider). */
+    trailing?: ReactNode;
 };
 
 export function Eyebrow({
@@ -23,6 +25,7 @@ export function Eyebrow({
     tone = CPH.slate,
     help,
     centered = false,
+    trailing,
 }: EyebrowProps) {
     const { i18n, t } = useTranslation(["dashboard"]);
     const isRtl =
@@ -33,7 +36,11 @@ export function Eyebrow({
             style={{
                 display: "flex",
                 alignItems: "center",
-                justifyContent: centered ? "center" : "flex-start",
+                justifyContent: centered
+                    ? "center"
+                    : trailing
+                      ? "space-between"
+                      : "flex-start",
                 gap: 6,
                 marginBottom: 12,
                 fontSize: 11,
@@ -46,17 +53,45 @@ export function Eyebrow({
                 textAlign: isRtl ? "right" : "left",
             }}
         >
-            {Icon ? <Icon size={13} strokeWidth={2.25} aria-hidden /> : null}
-            <span>{children}</span>
-            {help ? (
-                <CreditDashboardTitleInfoIcon
-                    isRtl={isRtl}
-                    title={help}
-                    ariaLabel={t(
-                        "credit_insurance_dashboard.chart_title_help_aria",
-                        { ns: "dashboard" }
-                    )}
-                />
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: centered ? "center" : "flex-start",
+                    gap: 6,
+                    minWidth: 0,
+                    flex: trailing ? "1 1 auto" : undefined,
+                }}
+            >
+                {Icon ? <Icon size={13} strokeWidth={2.25} aria-hidden /> : null}
+                <span>{children}</span>
+                {help ? (
+                    <CreditDashboardTitleInfoIcon
+                        isRtl={isRtl}
+                        title={help}
+                        ariaLabel={t(
+                            "credit_insurance_dashboard.chart_title_help_aria",
+                            { ns: "dashboard" }
+                        )}
+                    />
+                ) : null}
+            </div>
+            {trailing ? (
+                <div
+                    style={{
+                        flex: "0 0 auto",
+                        marginInlineStart: centered ? undefined : "auto",
+                        textTransform: "none",
+                        letterSpacing: "normal",
+                        fontWeight: 400,
+                        color: CPH.ink,
+                        minWidth: 120,
+                        maxWidth: 180,
+                        width: "100%",
+                    }}
+                >
+                    {trailing}
+                </div>
             ) : null}
         </div>
     );
