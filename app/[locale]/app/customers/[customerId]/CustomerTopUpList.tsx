@@ -48,6 +48,10 @@ import {
     getUserDateLocale,
     getUserTimezone,
 } from "@/utils/datetimeOperations";
+import {
+    formatMoney,
+    resolveCustomerFirstCurrency,
+} from "@/utils/stringFormatters";
 
 const ADD_TOP_UP_SCROLL_ID = "add-top-up-modal-scroll";
 
@@ -192,10 +196,21 @@ export function CustomerTopUpList({
 
     const formatCurrency = useCallback(
         (value: number, currency?: string | null) => {
-            const cur = (currency || "").trim().toUpperCase();
-            return cur ? `${value.toLocaleString()} ${cur}` : value.toLocaleString();
+            const locale = i18n.language === "he" ? "he-IL" : "en-US";
+            return formatMoney(
+                value,
+                resolveCustomerFirstCurrency({
+                    customerCurrencyPrimary: currency,
+                    accountCurrency: session?.user?.currency,
+                }),
+                {
+                    style: "iso",
+                    locale,
+                    language: i18n.language,
+                }
+            );
         },
-        []
+        [i18n.language, session?.user?.currency]
     );
 
     const formatDate = useCallback((dateStr: string | null) => {

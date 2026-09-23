@@ -985,6 +985,7 @@ export function CreditDashboardScreen({
                                         combined={s.policyUsage.combined}
                                         named={s.policyUsage.named}
                                         dclSdl={s.policyUsage.dclSdl}
+                                        accountCurrency={currency}
                                         topUpCoverTotal={
                                             showTopUpMetrics
                                                 ? s.policyUsage.topUpCoverTotal
@@ -1009,7 +1010,14 @@ export function CreditDashboardScreen({
                                 </Box>
                                 <Box sx={{ gridColumn: { xs: "1", md: "2 / 3" } }}>
                                     <CreditPolicyLimitUsageTrendChart
-                                        data={topCustomerUsage}
+                                        data={
+                                            topCustomerUsage
+                                                ? {
+                                                      ...topCustomerUsage,
+                                                      accountCurrency: currency,
+                                                  }
+                                                : undefined
+                                        }
                                         isLoading={isTopCustomerUsageLoading}
                                     />
                                 </Box>

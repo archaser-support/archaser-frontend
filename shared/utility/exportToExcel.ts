@@ -1,6 +1,7 @@
 import * as ExcelJS from "exceljs";
 
 import { formatDateForDisplay } from "@/utils/datetimeOperations";
+import { formatMoney } from "@/utils/stringFormatters";
 
 export type ExportFormat = "excel" | "csv" | "pdf";
 
@@ -303,18 +304,14 @@ export const formatCurrencyWithCode = (
     currencyCode: string,
     locale: string = "en-US"
 ): string => {
-    const resolvedCurrency =
-        (currencyCode && String(currencyCode).trim()) || "USD";
-    if (amount === null || amount === undefined || isNaN(amount)) {
-        return `0.00 ${resolvedCurrency}`;
-    }
-
-    const formatter = new Intl.NumberFormat(locale, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
+    const language = locale.toLowerCase().startsWith("he") ? "he" : "en";
+    const safeAmount =
+        amount === null || amount === undefined || isNaN(amount) ? 0 : amount;
+    return formatMoney(safeAmount, currencyCode, {
+        style: "iso",
+        locale,
+        language,
     });
-
-    return `${formatter.format(amount)} ${resolvedCurrency}`;
 };
 
 /**

@@ -16,6 +16,10 @@ import {
 } from "./creditPolicyUsageChartViewModel";
 
 import type { PolicyLimitUsageCategoryTotals } from "@/types/creditInsurance";
+import {
+    formatPortfolioAxisMoney,
+    formatPortfolioMoney,
+} from "@/app/[locale]/app/credit-portfolio-health/formatPortfolioMoney";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -50,13 +54,15 @@ export function CreditPolicyUsageChart(props: {
     topUpCoverUsed?: number;
     topUpCoverRemaining?: number;
     topUpCoverOverEffective?: number;
+    accountCurrency: string;
 }) {
     const { t, i18n } = useTranslation(["dashboard"]);
     const theme = useTheme();
     const c = theme.creditDashboardChartCard;
     const isRtl = i18n.language === "he";
     const isLight = theme.palette.mode === "light";
-    const numLocale = i18n.language === "he" ? "he-IL" : "en-US";
+    const language = i18n.language;
+    const accountCurrency = props.accountCurrency || "USD";
     const nsDashboard = { ns: "dashboard" as const };
     const axisMutedColor = isLight ? "#7C8DA1" : theme.palette.text.secondary;
     const gridLineColor = isLight ? "#DCE3EB" : theme.palette.divider;
@@ -125,10 +131,13 @@ export function CreditPolicyUsageChart(props: {
     const topUpCoveredFill = isLight
         ? lighten(theme.palette.warning.main, 0.25)
         : alpha(theme.palette.warning.main, 0.75);
-    const usagePctFormatter = new Intl.NumberFormat(numLocale, {
-        minimumFractionDigits: 1,
-        maximumFractionDigits: 1,
-    });
+    const usagePctFormatter = new Intl.NumberFormat(
+        language === "he" ? "he-IL" : "en-US",
+        {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+        }
+    );
     const usagePctLabel = t(
         "credit_insurance_dashboard.top_customers_usage_pct_series",
         nsDashboard
@@ -246,7 +255,11 @@ export function CreditPolicyUsageChart(props: {
                 },
                 labels: {
                     formatter: (v: number) =>
-                        Math.round(v).toLocaleString(numLocale),
+                        formatPortfolioAxisMoney(
+                            Math.round(v),
+                            accountCurrency,
+                            language
+                        ),
                     style: {
                         colors: axisMutedColor,
                     },
@@ -285,6 +298,12 @@ export function CreditPolicyUsageChart(props: {
                         approvedLimitsByIndex[dataPointIndex] ?? 0;
                     const isTopUpColumn =
                         showTopUpBar && dataPointIndex === categoryFullLabels.length - 1;
+                    const fmtMoney = (v: number) =>
+                        formatPortfolioMoney(
+                            Math.round(v),
+                            accountCurrency,
+                            language
+                        );
 
                     let tooltipContent = `<div class="custom-tooltip" style="background: white; border: 1px solid #DCE3EB; border-radius: 4px; padding: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 12px; font-family: inherit; text-align: ${textAlign}; direction: ${direction};">`;
                     tooltipContent += `<div style="font-weight: 700; color: #2F3B52; margin-bottom: 6px; border-bottom: 1px solid #DCE3EB; padding-bottom: 4px; text-align: ${textAlign}; direction: ${direction};">${category}</div>`;
@@ -293,7 +312,7 @@ export function CreditPolicyUsageChart(props: {
                         tooltipContent +=
                             `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 16px;">` +
                             `<div style="font-weight: 400; color: #2F3B52; text-align: ${textAlign}; direction: ${direction}; flex: 1;">${approvedLimitLabel}</div>` +
-                            `<div style="color: #2F3B52; font-weight: 400; text-align: ${isRtl ? "left" : "right"}; direction: ltr;">${Math.round(approvedLimitValue).toLocaleString(numLocale)}</div>` +
+                            `<div style="color: #2F3B52; font-weight: 400; text-align: ${isRtl ? "left" : "right"}; direction: ltr;">${fmtMoney(approvedLimitValue)}</div>` +
                             `</div>`;
                     } else if (isTopUpColumn && topUpCapacity > 0) {
                         const totalCoverLabel = t(
@@ -306,7 +325,7 @@ export function CreditPolicyUsageChart(props: {
                         tooltipContent +=
                             `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 16px;">` +
                             `<div style="font-weight: 400; color: #2F3B52; text-align: ${textAlign}; direction: ${direction}; flex: 1;">${totalCoverLabel}</div>` +
-                            `<div style="color: #2F3B52; font-weight: 400; text-align: ${isRtl ? "left" : "right"}; direction: ltr;">${Math.round(topUpCapacity).toLocaleString(numLocale)}</div>` +
+                            `<div style="color: #2F3B52; font-weight: 400; text-align: ${isRtl ? "left" : "right"}; direction: ltr;">${fmtMoney(topUpCapacity)}</div>` +
                             `</div>`;
                     }
 
@@ -319,13 +338,13 @@ export function CreditPolicyUsageChart(props: {
                             tooltipContent +=
                                 `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 8px; width: 100%;">` +
                                 `<div style="font-weight: 400; color: #2F3B52; text-align: right; direction: rtl; flex: 1;">${labels[index] ?? ""}</div>` +
-                                `<div style="color: ${colors[index]}; font-weight: 400; text-align: left; direction: ltr; flex-shrink: 0;">${Math.round(value).toLocaleString(numLocale)}</div>` +
+                                `<div style="color: ${colors[index]}; font-weight: 400; text-align: left; direction: ltr; flex-shrink: 0;">${fmtMoney(value)}</div>` +
                                 `</div>`;
                         } else {
                             tooltipContent +=
                                 `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 16px;">` +
                                 `<div style="font-weight: 400; color: #2F3B52; text-align: left; direction: ltr; flex: 1;">${labels[index] ?? ""}</div>` +
-                                `<div style="color: ${colors[index]}; font-weight: 400; text-align: right; direction: ltr;">${Math.round(value).toLocaleString(numLocale)}</div>` +
+                                `<div style="color: ${colors[index]}; font-weight: 400; text-align: right; direction: ltr;">${fmtMoney(value)}</div>` +
                                 `</div>`;
                         }
                     });
@@ -366,6 +385,7 @@ export function CreditPolicyUsageChart(props: {
         [
             approvedLimitLabel,
             approvedLimitsByIndex,
+            accountCurrency,
             axisMutedColor,
             baseCategories.length,
             baseStackHeights,
@@ -373,7 +393,7 @@ export function CreditPolicyUsageChart(props: {
             chartMain,
             gridLineColor,
             isRtl,
-            numLocale,
+            language,
             remainingFill,
             showTopUpBar,
             t,

@@ -1425,6 +1425,7 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                             menuItemSx={menuItemSx}
                             hideSectionTitle
                             denseDetailGrid
+                            currencyCode={currencyValue}
                             tCi={tCi}
                             sanitizeDecimalInput={sanitizeDecimalInput}
                             sanitizeIntegerInput={sanitizeIntegerInput}

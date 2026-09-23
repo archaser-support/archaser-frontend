@@ -20,6 +20,10 @@ import {
     type InsurancePolicyProductType,
     INSURANCE_POLICY_PRODUCT_TYPES,
 } from "@/shared/creditInsurance/policyCommercialTerms";
+import {
+    formatMoney,
+    resolveCustomerFirstCurrency,
+} from "@/utils/stringFormatters";
 
 export type PolicyCommercialTermsFieldsProps = {
     isEditing: boolean;
@@ -38,6 +42,8 @@ export type PolicyCommercialTermsFieldsProps = {
     hideSectionTitle?: boolean;
     /** Dense 3-col grid matching policy detail; modal uses 2-col via false. */
     denseDetailGrid?: boolean;
+    /** Policy currency code for readonly money display. */
+    currencyCode?: string | null;
     tCi: (key: string, options?: Record<string, unknown>) => string;
     sanitizeDecimalInput?: (value: string) => string;
     sanitizeIntegerInput?: (value: string) => string;
@@ -56,6 +62,7 @@ export function PolicyCommercialTermsFields({
     menuItemSx = {},
     hideSectionTitle = false,
     denseDetailGrid = true,
+    currencyCode,
     tCi,
     sanitizeDecimalInput = (v) => v,
     sanitizeIntegerInput = (v) => v,
@@ -64,6 +71,8 @@ export function PolicyCommercialTermsFields({
 }: PolicyCommercialTermsFieldsProps): React.ReactElement {
     const { i18n } = useTranslation();
     const isRTL = i18n.language === "he";
+    const moneyLocale = i18n.language === "he" ? "he-IL" : "en-US";
+    const moneyLanguage = i18n.language === "he" ? "he" : i18n.language;
 
     const fieldLabel = (fieldKey: string) => (
         <MonthEndFieldLabelWithTooltip
@@ -92,7 +101,21 @@ export function PolicyCommercialTermsFields({
     const formatMoneyDisplay = (raw: string) => {
         const trimmed = raw.trim();
         if (!trimmed) return undefined;
-        return decimalToInputString(trimmed);
+        const amount = Number(trimmed);
+        if (!Number.isFinite(amount)) {
+            return decimalToInputString(trimmed);
+        }
+        return formatMoney(
+            amount,
+            currencyCode?.trim()
+                ? currencyCode
+                : resolveCustomerFirstCurrency({}),
+            {
+                style: "iso",
+                locale: moneyLocale,
+                language: moneyLanguage,
+            }
+        );
     };
 
     const gridSx = useMemo(

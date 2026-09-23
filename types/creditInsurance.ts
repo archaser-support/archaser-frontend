@@ -660,6 +660,7 @@ export type CustomerPolicyUsageTrendResponse = {
     snapshotDate: string | null;
     hasTopUpPolicies: boolean;
     topCustomers: CustomerPolicyTrendTopRow[];
+    accountCurrency?: string | null;
 };
 
 export type RiskExposurePolicySeries = {
