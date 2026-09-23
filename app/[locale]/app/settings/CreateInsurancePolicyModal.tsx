@@ -41,8 +41,15 @@ import {
 import { MonthEndFieldLabelWithTooltip } from "@/shared/creditInsurance/MonthEndFieldLabelWithTooltip";
 import { validateAnnualCreditAssessmentFeeFormField } from "@/shared/creditInsurance/annualCreditAssessmentFee";
 import { validateRegistrationFeePercentFormField } from "@/shared/creditInsurance/registrationFeePercent";
+import {
+    commercialTermValidationMessage,
+    emptyCommercialTermsFormInputs,
+    type CommercialTermsFormInputs,
+    validateCommercialTermsFormFields,
+} from "@/shared/creditInsurance/policyCommercialTerms";
 import { getDatePickerFormat } from "@/utils/datetimeOperations";
 import { CurrencySelect } from "@/components/LocationSelects";
+import { PolicyCommercialTermsFields } from "./credit-insurance-policies/[policyId]/PolicyCommercialTermsFields";
 
 const SCROLL_ID = "insurance-policy-modal-scroll";
 
@@ -208,6 +215,8 @@ export function CreateInsurancePolicyModal({
     const [registrationFeePercent, setRegistrationFeePercent] = useState("");
     const [annualCreditAssessmentFee, setAnnualCreditAssessmentFee] =
         useState("");
+    const [commercialTerms, setCommercialTerms] =
+        useState<CommercialTermsFormInputs>(emptyCommercialTermsFormInputs);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
     const { data: availablePolicies } = useQuery({
@@ -283,6 +292,7 @@ export function CreateInsurancePolicyModal({
         setCostPercent("");
         setRegistrationFeePercent("");
         setAnnualCreditAssessmentFee("");
+        setCommercialTerms(emptyCommercialTermsFormInputs());
         setFieldErrors({});
     }, [open, policyId]);
 
@@ -387,6 +397,39 @@ export function CreateInsurancePolicyModal({
         setAnnualCreditAssessmentFee(
             decimalToInputString(policyDetail.annual_credit_assessment_fee)
         );
+        setCommercialTerms({
+            insured_percentage: decimalToInputString(
+                policyDetail.insured_percentage
+            ),
+            non_qualifying_loss_threshold: decimalToInputString(
+                policyDetail.non_qualifying_loss_threshold
+            ),
+            minimum_premium: decimalToInputString(
+                policyDetail.minimum_premium
+            ),
+            minimum_premium_period_years:
+                policyDetail.minimum_premium_period_years != null
+                    ? String(policyDetail.minimum_premium_period_years)
+                    : "",
+            aggregate_excess: decimalToInputString(
+                policyDetail.aggregate_excess
+            ),
+            sdl_excess: decimalToInputString(policyDetail.sdl_excess),
+            ncb_zero_claims_bonus_percent: decimalToInputString(
+                policyDetail.ncb_zero_claims_bonus_percent
+            ),
+            ncb_claims_ratio_threshold_percent: decimalToInputString(
+                policyDetail.ncb_claims_ratio_threshold_percent
+            ),
+            ncb_up_to_threshold_bonus_percent: decimalToInputString(
+                policyDetail.ncb_up_to_threshold_bonus_percent
+            ),
+            product_type:
+                policyDetail.product_type === "TailorMade" ||
+                policyDetail.product_type === "Commodity"
+                    ? policyDetail.product_type
+                    : "",
+        });
         setFieldErrors({});
     }, [open, policyId, policyDetail]);
 
@@ -672,6 +715,16 @@ export function CreateInsurancePolicyModal({
                 );
             }
 
+            const commercialResult = validateCommercialTermsFormFields(
+                commercialTerms,
+                policyKind
+            );
+            for (const [field, code] of Object.entries(commercialResult.errors)) {
+                if (code) {
+                    errors[field] = commercialTermValidationMessage(code, tCi);
+                }
+            }
+
             if (Object.keys(errors).length > 0) {
                 setFieldErrors(errors);
                 throw new Error("validation");
@@ -726,6 +779,21 @@ export function CreateInsurancePolicyModal({
                     policyKind === "TopUp" ? null : registrationFee.value,
                 annual_credit_assessment_fee:
                     policyKind === "TopUp" ? null : annualAssessmentFee.value,
+                insured_percentage: commercialResult.values.insured_percentage,
+                non_qualifying_loss_threshold:
+                    commercialResult.values.non_qualifying_loss_threshold,
+                minimum_premium: commercialResult.values.minimum_premium,
+                minimum_premium_period_years:
+                    commercialResult.values.minimum_premium_period_years,
+                aggregate_excess: commercialResult.values.aggregate_excess,
+                sdl_excess: commercialResult.values.sdl_excess,
+                ncb_zero_claims_bonus_percent:
+                    commercialResult.values.ncb_zero_claims_bonus_percent,
+                ncb_claims_ratio_threshold_percent:
+                    commercialResult.values.ncb_claims_ratio_threshold_percent,
+                ncb_up_to_threshold_bonus_percent:
+                    commercialResult.values.ncb_up_to_threshold_bonus_percent,
+                product_type: commercialResult.values.product_type,
                 auto_activate_on_term_start:
                     policyKind === "Primary" ? autoActivateOnTermStart : false,
             };
@@ -949,6 +1017,9 @@ export function CreateInsurancePolicyModal({
                                             setCostPercent("");
                                             setRegistrationFeePercent("");
                                             setAnnualCreditAssessmentFee("");
+                                            setCommercialTerms(
+                                                emptyCommercialTermsFormInputs()
+                                            );
                                             clearFieldError("currency");
                                             clearFieldError("cost_percent");
                                             clearFieldError("registration_fee_percent");
@@ -1349,6 +1420,7 @@ export function CreateInsurancePolicyModal({
                         </Box>
 
                         {policyKind === "Primary" && (
+                        <>
                         <Box>
                             <Typography
                                 variant="subtitle2"
@@ -1779,6 +1851,35 @@ export function CreateInsurancePolicyModal({
                                         />
                             </Box>
                         </Box>
+
+                        <Box>
+                            <Typography
+                                variant="subtitle2"
+                                sx={{ mb: 1, color: "primary.main" }}
+                            >
+                                {tCi("credit_insurance.sections.commercial_terms")}
+                            </Typography>
+                            <PolicyCommercialTermsFields
+                                isEditing
+                                disabled={formBusy}
+                                values={commercialTerms}
+                                errors={fieldErrors}
+                                onChange={(field, value) => {
+                                    setCommercialTerms((prev) => ({
+                                        ...prev,
+                                        [field]: value,
+                                    }));
+                                }}
+                                clearError={clearFieldError}
+                                modalTextFieldProps={textFieldRtlProps}
+                                textFieldSx={textFieldDirSx}
+                                menuItemSx={menuItemSx}
+                                hideSectionTitle
+                                denseDetailGrid={false}
+                                tCi={tCi}
+                            />
+                        </Box>
+                        </>
                         )}
                     </Box>
                     )}
