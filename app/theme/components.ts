@@ -2518,7 +2518,7 @@ export function buildThemeComponents(ctx: ThemeComponentsContext): ThemeOptions[
         MuiAlert: {
             styleOverrides: {
                 root: {
-                    borderRadius: 2,
+                    borderRadius: 8,
                 },
             },
         },

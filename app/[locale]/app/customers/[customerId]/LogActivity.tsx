@@ -83,7 +83,7 @@ import { ContactResponse } from "@/types/contact";
 import { Customer } from "@/types/Customer";
 import { DisputeReasonResponse } from "@/types/DisputeReason";
 import { combineFirstLastNames } from "@/utils/authUtils";
-import { formatAmountWithoutSymbol } from "@/utils/stringFormatters";
+import { formatMoney } from "@/utils/stringFormatters";
 
 import { BusinessHoursService } from "../../../../../utils/businessHoursService";
 import {
@@ -1283,12 +1283,16 @@ const LogActivity: React.FC<LogActivityProps> = ({
                     invoice.Customer?.customer_currency2 ||
                     "USD";
                 const formattedAmount = amount
-                    ? formatAmountWithoutSymbol(amount)
+                    ? formatMoney(amount, currency, {
+                          style: "iso",
+                          locale: i18n.language === "he" ? "he-IL" : "en-US",
+                          language: i18n.language,
+                      })
                     : "";
 
                 return {
                     value: String(invoice.id),
-                    label: `Invoice #${invoiceNumber}${formattedAmount ? ` - ${formattedAmount} ${currency}` : ""}`,
+                    label: `Invoice #${invoiceNumber}${formattedAmount ? ` - ${formattedAmount}` : ""}`,
                     id: invoice.id,
                     invoice_number: invoiceNumber,
                     amount: amount || undefined,
@@ -1300,7 +1304,7 @@ const LogActivity: React.FC<LogActivityProps> = ({
         } catch (_error) {
             return [];
         }
-    }, [invoiceResponse]);
+    }, [invoiceResponse, i18n.language]);
 
     // Filtered invoice options based on search term
     const filteredInvoiceOptions = useMemo(() => {
@@ -1328,7 +1332,11 @@ const LogActivity: React.FC<LogActivityProps> = ({
                         .toLowerCase()
                         .includes(invoiceSearchTerm.toLowerCase()) ||
                     (invoice.amount &&
-                        formatAmountWithoutSymbol(invoice.amount)
+                        formatMoney(invoice.amount, invoice.customer_currency, {
+                            style: "iso",
+                            locale: i18n.language === "he" ? "he-IL" : "en-US",
+                            language: i18n.language,
+                        })
                             .toLowerCase()
                             .includes(invoiceSearchTerm.toLowerCase())) ||
                     (invoice.customer_currency &&
@@ -1339,7 +1347,7 @@ const LogActivity: React.FC<LogActivityProps> = ({
         } catch (_error) {
             return [];
         }
-    }, [mappedInvoiceOptions, invoiceSearchTerm]);
+    }, [mappedInvoiceOptions, invoiceSearchTerm, i18n.language]);
 
     // Enhanced invoice selection handlers
     const handleInvoiceSelection = useCallback(

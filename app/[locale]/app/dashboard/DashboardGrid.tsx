@@ -250,6 +250,7 @@ const DashboardGrid = ({
                             <CollectedVsPromiseChart
                                 options={data.audienceReport?.options || {}}
                                 series={data.audienceReport?.series || []}
+                                currency={currency}
                             />
                         </Box>
                     )}

@@ -64,7 +64,6 @@ import {
 } from "@/shared/services/agentService";
 import {
     formatCurrencyWithCode,
-    CurrencyColumnsConfig,
     ExportFormat,
 } from "@/shared/utility/exportToExcel";
 import { CustomerAgent } from "@/types/CustomerWithAgentDispute";
@@ -77,8 +76,8 @@ import {
     getCountryTimezone,
 } from "@/utils/datetimeOperations";
 import {
-    formatAmountWithoutSymbol,
     formatCurrencyWithRTLSupport,
+    resolveCustomerFirstCurrency,
 } from "@/utils/stringFormatters";
 
 import AgentStats from "./components/AgentStats";
@@ -571,9 +570,15 @@ const AgentList: React.FC<AgentListProps> = ({
                         customer: t("fields.unknown"),
                         customer_number: t("fields.unknown"),
                         amount_overdue: agent?.total_outstanding_amount ?? 0,
-                        amount_formatted: `${formatAmountWithoutSymbol(
-                            agent?.total_outstanding_amount ?? 0
-                        )} ${agent?.currency || ""}`,
+                        amount_formatted: formatCurrencyWithRTLSupport(
+                            agent?.total_outstanding_amount ?? 0,
+                            resolveCustomerFirstCurrency({
+                                fallbackCurrency: agent?.currency,
+                                accountCurrency: session?.user?.currency,
+                            }),
+                            getUserDateLocale(session),
+                            i18n.language
+                        ),
                         days_past_due: 0,
                         customer_country: t("fields.unknown"),
                         customer_current_time: t("fields.unknown"),
@@ -656,7 +661,10 @@ const AgentList: React.FC<AgentListProps> = ({
                     amount_overdue: agent?.total_outstanding_amount ?? 0,
                     amount_formatted: formatCurrencyWithRTLSupport(
                         agent?.total_outstanding_amount ?? 0,
-                        agent?.currency || "",
+                        resolveCustomerFirstCurrency({
+                            fallbackCurrency: agent?.currency,
+                            accountCurrency: session?.user?.currency,
+                        }),
                         getUserDateLocale(session),
                         i18n.language
                     ),
@@ -678,7 +686,15 @@ const AgentList: React.FC<AgentListProps> = ({
                     customer: t("fields.agent_unknown"),
                     customer_number: t("fields.agent_unknown"),
                     amount_overdue: 0,
-                    amount_formatted: "0 ",
+                    amount_formatted: formatCurrencyWithRTLSupport(
+                        0,
+                        resolveCustomerFirstCurrency({
+                            fallbackCurrency: agent?.currency,
+                            accountCurrency: session?.user?.currency,
+                        }),
+                        getUserDateLocale(session),
+                        i18n.language
+                    ),
                     days_past_due: 0,
                     customer_country: t("fields.agent_unknown"),
                     customer_current_time: t("fields.agent_unknown"),
@@ -689,7 +705,7 @@ const AgentList: React.FC<AgentListProps> = ({
                 };
             }
         },
-        [t, session]
+        [t, session, i18n.language]
     );
 
     // Export handler for agents
@@ -775,8 +791,11 @@ const AgentList: React.FC<AgentListProps> = ({
                 const customerNumber =
                     agent.Customer?.customer_number || t("fields.unknown");
                 const amountOverdue = agent?.total_outstanding_amount ?? 0;
-                // Use agent currency if available, otherwise fallback to global currency
-                const currency = agent?.currency || globalCurrency || "";
+                // Use agent currency if available, otherwise fallback to global / account currency
+                const currency = resolveCustomerFirstCurrency({
+                    fallbackCurrency: agent?.currency || globalCurrency,
+                    accountCurrency: session?.user?.currency,
+                });
 
                 // Calculate days past due
                 const daysPastDue = agent?.Customer?.oldest_invoice_overdue_date
@@ -836,7 +855,7 @@ const AgentList: React.FC<AgentListProps> = ({
                     customer_id: agent.Customer?.id || null,
                     customer: customerName,
                     customer_number: customerNumber,
-                    // Use formatCurrencyWithCode for currency splitting in export
+                    // Combined amount + ISO for export (no separate currency column)
                     amount_formatted: formatCurrencyWithCode(
                         amountOverdue,
                         currency
@@ -1840,14 +1859,6 @@ const AgentList: React.FC<AgentListProps> = ({
                                 pageName: "agents",
                                 customPrefix: "agents_export",
                             }}
-                            currencyColumns={
-                                {
-                                    amount_formatted: {
-                                        amountField: "amount_formatted_value",
-                                        currencyField: "amount_formatted_currency",
-                                    },
-                                } as CurrencyColumnsConfig
-                            }
                             enableMultiSelect={true}
                             selectedRowIds={selectedRows}
                             onSelectionChange={(selectedRowIds) => {
@@ -1910,14 +1921,6 @@ const AgentList: React.FC<AgentListProps> = ({
                                 pageName: "agents",
                                 customPrefix: "agents_export",
                             }}
-                            currencyColumns={
-                                {
-                                    amount_formatted: {
-                                        amountField: "amount_formatted_value",
-                                        currencyField: "amount_formatted_currency",
-                                    },
-                                } as CurrencyColumnsConfig
-                            }
                             enableMultiSelect={true}
                             selectedRowIds={selectedRows}
                             onSelectionChange={(selectedRowIds) => {

@@ -11,7 +11,7 @@ import { useTranslation } from "react-i18next";
 
 import { CreditMetricCard } from "@/app/[locale]/app/credit-dashboard/CreditMetricCard";
 import type { MetricStatCardIconAccent } from "@/app/theme";
-import { formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
+import { formatMoney } from "@/utils/stringFormatters";
 
 interface AgentStatsProps {
     statsData?: {
@@ -72,13 +72,16 @@ const AgentStats: React.FC<AgentStatsProps> = ({ statsData, statsLoading }) => {
             getValue: () =>
                 statsLoading
                     ? loadingValue
-                    : formatCurrencyWithRTLSupport(
+                    : formatMoney(
                           Number(counts?.total_outstanding_amount ?? 0),
                           currency,
-                          locale,
-                          i18n.language,
-                          { wholeNumbers: true }
-                        ),
+                          {
+                              style: "symbol",
+                              locale,
+                              language: i18n.language,
+                              wholeNumbers: true,
+                          }
+                      ),
         },
     ];
 

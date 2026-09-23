@@ -9,7 +9,7 @@ import type { BillingExtensionPanelProps } from "../types";
  */
 export default function Account10149Panel(_props: BillingExtensionPanelProps) {
     return (
-        <Alert severity="info">
+        <Alert severity="info" icon={false}>
             Account 10149 extension is attached. On ERP sync, credit invoices
             (DEBIT = C) have their amounts multiplied by -1, and currency labels
             are rewritten before save (ש&apos;ח / ש&quot;ח → ILS, $ → USD). Every
