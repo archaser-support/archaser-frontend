@@ -32,6 +32,11 @@ import {
     getUserDateLocale,
     getUserTimezone,
 } from "@/utils/datetimeOperations";
+import {
+    formatAmountWithoutSymbol,
+    formatMoney,
+    resolveCustomerFirstCurrency,
+} from "@/utils/stringFormatters";
 import { getEffectivePolicyId, getActiveCustomerPolicyFromCustomer } from "@/shared/customerPolicyAdapter";
 import {
     buildPolicyHistoryHeaderAuditSegment,
@@ -436,17 +441,29 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
         customer?.approved_limit != null &&
         Number(String(customer.approved_limit).trim()) === 0;
     const showDclFields = customer?.limit_type !== "Named";
+    const moneyLocale = i18n.language === "he" ? "he-IL" : "en-US";
+    const moneyLanguage = i18n.language === "he" ? "he" : i18n.language;
     const approvedLimitWithCurrency = useMemo(() => {
         if (customer?.approved_limit == null) {
             return null;
         }
-        const amount = String(customer.approved_limit);
-        const currency =
-            typeof customer?.approved_limit_currency === "string"
-                ? customer.approved_limit_currency.trim().toUpperCase()
-                : "";
-        return currency ? `${amount} ${currency}` : amount;
-    }, [customer?.approved_limit, customer?.approved_limit_currency]);
+        const amount = Number(customer.approved_limit);
+        if (!Number.isFinite(amount)) {
+            return null;
+        }
+        return formatMoney(
+            amount,
+            resolveCustomerFirstCurrency({
+                customerCurrencyPrimary: customer?.approved_limit_currency,
+            }),
+            { style: "iso", locale: moneyLocale, language: moneyLanguage }
+        );
+    }, [
+        customer?.approved_limit,
+        customer?.approved_limit_currency,
+        moneyLocale,
+        moneyLanguage,
+    ]);
 
     const effectiveLimitBreakdown = useMemo(() => {
         const c = customer as {
@@ -459,32 +476,33 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
         if (!c?.has_active_top_up || c.effective_approved_limit == null) {
             return null;
         }
-        const currency =
-            typeof c.approved_limit_currency === "string"
-                ? c.approved_limit_currency.trim().toUpperCase()
-                : "";
-        const amountLocale = i18n.language === "he" ? "he-IL" : "en-US";
+        const code = resolveCustomerFirstCurrency({
+            customerCurrencyPrimary: c.approved_limit_currency,
+        });
         const effective = Number(c.effective_approved_limit);
-        const effectiveDisplay = currency
-            ? `${effective.toLocaleString(amountLocale)} ${currency}`
-            : effective.toLocaleString(amountLocale);
+        if (!Number.isFinite(effective)) {
+            return null;
+        }
+        const effectiveDisplay = formatMoney(effective, code, {
+            style: "iso",
+            locale: moneyLocale,
+            language: moneyLanguage,
+        });
         const topUpTotal = Number(c.top_up_total ?? 0);
         if (topUpTotal <= 0) {
             return { effectiveDisplay, inlineDisplay: effectiveDisplay };
         }
         const base = Number(c.base_approved_limit ?? 0);
         const baseStr = Number.isFinite(base)
-            ? base.toLocaleString(amountLocale)
+            ? formatAmountWithoutSymbol(base, moneyLocale)
             : "—";
-        const topUpStr = topUpTotal.toLocaleString(amountLocale);
-        const secondary = currency
-            ? `${baseStr} + ${topUpStr} ${currency}`
-            : `${baseStr} + ${topUpStr}`;
+        const topUpStr = formatAmountWithoutSymbol(topUpTotal, moneyLocale);
+        const secondary = `${baseStr} + ${topUpStr} ${code}`;
         return {
             effectiveDisplay,
             inlineDisplay: `${effectiveDisplay} (${secondary})`,
         };
-    }, [customer, i18n.language]);
+    }, [customer, moneyLocale, moneyLanguage]);
 
     type PolicyHistoryRow = Record<string, unknown> & {
         id?: number | string;
@@ -590,17 +608,28 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
         setExpandedPolicies(new Set());
     }, []);
 
-    const formatRowApprovedLimit = useCallback((row: PolicyHistoryRow) => {
-        if (row.approved_limit == null || row.approved_limit === "") {
-            return null;
-        }
-        const amount = String(row.approved_limit);
-        const currency =
-            typeof row.approved_limit_currency === "string"
-                ? row.approved_limit_currency.trim().toUpperCase()
-                : "";
-        return currency ? `${amount} ${currency}` : amount;
-    }, []);
+    const formatRowApprovedLimit = useCallback(
+        (row: PolicyHistoryRow) => {
+            if (row.approved_limit == null || row.approved_limit === "") {
+                return null;
+            }
+            const amount = Number(row.approved_limit);
+            if (!Number.isFinite(amount)) {
+                return null;
+            }
+            return formatMoney(
+                amount,
+                resolveCustomerFirstCurrency({
+                    customerCurrencyPrimary:
+                        typeof row.approved_limit_currency === "string"
+                            ? row.approved_limit_currency
+                            : null,
+                }),
+                { style: "iso", locale: moneyLocale, language: moneyLanguage }
+            );
+        },
+        [moneyLocale, moneyLanguage]
+    );
 
     const formatRowDate = useCallback(
         (value: unknown) => {
