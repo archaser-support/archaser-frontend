@@ -28,6 +28,7 @@ import { Eyebrow } from "./Eyebrow";
 import { IslandCard } from "./IslandCard";
 import { PortfolioHealthDailyChart } from "./PortfolioHealthDailyChart";
 import { PortfolioHealthMonthlyChart } from "./PortfolioHealthMonthlyChart";
+import { TopCustomerCreditProtectionCard } from "./TopCustomerCreditProtectionCard";
 import { CPH } from "./designTokens";
 import layout from "./islandLayout.module.css";
 import {
@@ -209,7 +210,7 @@ export function PortfolioHealthSectionView({
         {
             ...ns,
             defaultValue:
-                "Mean of daily portfolio health (compliant ÷ total AR × 100) over available days in the range.",
+                "Mean of daily Credit Protection Level (compliant ÷ total AR × 100) over available days in the range.",
         }
     );
     const peakCurrentLabel =
@@ -295,14 +296,14 @@ export function PortfolioHealthSectionView({
                 <Eyebrow centered help={averageHealthHelp}>
                     {t("credit_portfolio_health.kpi_average_health", {
                         ...ns,
-                        defaultValue: "Average portfolio health",
+                        defaultValue: "Credit Protection Level",
                     })}
                 </Eyebrow>
                 <CoverageHalo
                     valuePct={section.seriesA.averageHealthPct}
                     label={t("credit_portfolio_health.coverage_halo_avg_label", {
                         ...ns,
-                        defaultValue: "Avg. Health",
+                        defaultValue: "Credit Protection Level",
                     })}
                     locale={language}
                     status={momentumStatus}
@@ -462,6 +463,11 @@ export function PortfolioHealthSectionView({
                     </button>
                 ) : null}
             </IslandCard>
+
+            <TopCustomerCreditProtectionCard
+                section={section.topCustomerCreditProtection}
+                accountCurrency={accountCurrency}
+            />
 
             <div className={layout.span12}>
                 <PortfolioHealthDailyChart
