@@ -187,6 +187,8 @@ const REPORT_TABLE_NAME_TO_I18N_SLUG: Record<string, string> = {
     Person: "person",
     AccountBankAccounts: "account_bank_accounts",
     Country: "country",
+    CustomerCollectionPeriod: "collection_periods",
+    CustomerPolicy: "customer_policies",
 };
 
 function isCustomerNameFieldConfig(
@@ -332,12 +334,15 @@ function getRowValue(
         key === "Customer.policy_id" ||
         key === "Invoice.InsurancePolicy.policy_number" ||
         key === "Invoice.policy_id" ||
+        key === "CustomerPolicy.InsurancePolicy.policy_number" ||
         (fieldConfig?.table === "Customer" &&
             (fieldConfig?.field === "InsurancePolicy.policy_number" ||
                 fieldConfig?.field === "policy_id")) ||
         (fieldConfig?.table === "Invoice" &&
             (fieldConfig?.field === "InsurancePolicy.policy_number" ||
-                fieldConfig?.field === "policy_id"));
+                fieldConfig?.field === "policy_id")) ||
+        (fieldConfig?.table === "CustomerPolicy" &&
+            fieldConfig?.field === "InsurancePolicy.policy_number");
 
     if (isCustomerPolicyNumberField) {
         const policyNumber = resolvePolicyNumberFromReportRow(params.row);
@@ -1023,7 +1028,8 @@ export function generateViewColumns(
             renderCell: (params: GridRenderCellParams) => {
                 if (
                     (fieldConfig?.table === "Customer" ||
-                        fieldConfig?.table === "Invoice") &&
+                        fieldConfig?.table === "Invoice" ||
+                        fieldConfig?.table === "CustomerPolicy") &&
                     (fieldConfig?.field === "policy_id" ||
                         fieldConfig?.field === "InsurancePolicy.policy_number")
                 ) {

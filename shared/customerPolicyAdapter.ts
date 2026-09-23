@@ -127,6 +127,7 @@ export function resolvePolicyNumberFromReportRow(row: unknown): string | null {
     }
     const r = row as Record<string, unknown>;
     const flatCandidates = [
+        r["CustomerPolicy.InsurancePolicy.policy_number"],
         r["Invoice.InsurancePolicy.policy_number"],
         r["Invoice.policy_id"],
         r["Customer.InsurancePolicy.policy_number"],
@@ -142,6 +143,7 @@ export function resolvePolicyNumberFromReportRow(row: unknown): string | null {
     const raw = r.raw as Record<string, unknown> | undefined;
     if (raw) {
         for (const candidate of [
+            raw["CustomerPolicy.InsurancePolicy.policy_number"],
             raw["Invoice.InsurancePolicy.policy_number"],
             raw["Invoice.policy_id"],
             raw["Customer.InsurancePolicy.policy_number"],
@@ -153,6 +155,18 @@ export function resolvePolicyNumberFromReportRow(row: unknown): string | null {
                 return String(candidate);
             }
         }
+    }
+    const directPolicy = (
+        r as { InsurancePolicy?: { policy_number?: string } } | undefined
+    )?.InsurancePolicy?.policy_number;
+    if (directPolicy != null && String(directPolicy).trim() !== "") {
+        return String(directPolicy);
+    }
+    const rawDirectPolicy = (
+        raw as { InsurancePolicy?: { policy_number?: string } } | undefined
+    )?.InsurancePolicy?.policy_number;
+    if (rawDirectPolicy != null && String(rawDirectPolicy).trim() !== "") {
+        return String(rawDirectPolicy);
     }
     const invoice = (r.Invoice ?? raw?.Invoice ?? r) as
         | Record<string, unknown>
