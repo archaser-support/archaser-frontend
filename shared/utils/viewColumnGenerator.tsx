@@ -31,7 +31,10 @@ import {
     isEnumField,
     translateEnumValue,
 } from "./viewFieldHelpers";
-import { formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
+import {
+    formatCurrencyWithRTLSupport,
+    resolveCustomerFirstCurrency,
+} from "@/utils/stringFormatters";
 
 const EMPTY_CELL_PLACEHOLDER = "—";
 
@@ -53,6 +56,48 @@ function coerceReportAmount(value: unknown): number | null {
     return null;
 }
 
+/** ISO-4217 alphabetic codes only — reject amounts that leaked into currency slots. */
+function isLikelyIsoCurrencyCode(value: unknown): value is string {
+    if (typeof value !== "string") {
+        return false;
+    }
+    const trimmed = value.trim();
+    return /^[A-Za-z]{3}$/.test(trimmed);
+}
+
+/**
+ * Read a currency companion field without amount-column fallbacks.
+ * Never pass the amount fieldConfig into getRowValue and never use params.value —
+ * both can return the numeric amount when the currency key is missing, which then
+ * becomes a fake ISO code ("50000 50,000").
+ */
+function getReportCurrencyFieldValue(
+    params: GridRenderCellParams,
+    currencyKey: string,
+    tableName: string
+): string | undefined {
+    const row = params.row ?? {};
+    const raw = row.raw ?? {};
+    const leaf = currencyKey.includes(".")
+        ? currencyKey.split(".").pop()!
+        : currencyKey;
+    const candidates = [
+        currencyKey,
+        leaf,
+        !currencyKey.includes(".") && tableName
+            ? `${tableName}.${currencyKey}`
+            : null,
+    ].filter(Boolean) as string[];
+
+    for (const candidate of candidates) {
+        const value = row[candidate] ?? raw[candidate];
+        if (isLikelyIsoCurrencyCode(value)) {
+            return String(value).trim().toUpperCase();
+        }
+    }
+    return undefined;
+}
+
 function resolveReportAmountCurrency(
     params: GridRenderCellParams,
     fieldConfig: { table?: string; field?: string } | undefined,
@@ -60,17 +105,16 @@ function resolveReportAmountCurrency(
     tableName: string,
     viewConfig: { currencyColumns?: Record<string, { currencyField?: string }> },
     accountCurrency?: string
-): string | undefined {
+): string {
     const currencyColumns = viewConfig?.currencyColumns;
     if (currencyColumns?.[key]?.currencyField) {
-        const configured = getRowValue(
+        const configured = getReportCurrencyFieldValue(
             params,
             currencyColumns[key].currencyField!,
-            tableName,
-            fieldConfig
+            tableName
         );
-        if (configured != null && String(configured).trim() !== "") {
-            return String(configured).trim();
+        if (configured) {
+            return configured;
         }
     }
 
@@ -82,9 +126,13 @@ function resolveReportAmountCurrency(
 
     const pick = (...candidates: string[]) => {
         for (const candidate of candidates) {
-            const value = getRowValue(params, candidate, tableName, fieldConfig);
-            if (value != null && String(value).trim() !== "") {
-                return String(value).trim();
+            const value = getReportCurrencyFieldValue(
+                params,
+                candidate,
+                tableName
+            );
+            if (value) {
+                return value;
             }
         }
         return undefined;
@@ -94,10 +142,13 @@ function resolveReportAmountCurrency(
         field === "promise_to_pay_amount" ||
         table === "CustomerCollectionPeriod"
     ) {
-        return (
-            pick("CustomerCollectionPeriod.currency", "currency") ??
-            accountCurrency
-        );
+        return resolveCustomerFirstCurrency({
+            collectionCurrencyPrimary: pick(
+                "CustomerCollectionPeriod.currency",
+                "currency"
+            ),
+            accountCurrency,
+        });
     }
 
     if (
@@ -106,19 +157,20 @@ function resolveReportAmountCurrency(
             field.includes("debt") ||
             field.includes("paid"))
     ) {
-        return (
-            pick(
+        return resolveCustomerFirstCurrency({
+            customerCurrencyPrimary: pick(
                 "Invoice.customer_currency",
                 "InvoicePayment.customer_currency",
                 `${table}.customer_currency`,
                 "customer_currency"
-            ) ?? accountCurrency
-        );
+            ),
+            accountCurrency,
+        });
     }
 
-    // Credit dashboard / customer money columns use policy currency.
+    // Credit / customer / policy money columns: pair amount with policy currency.
     if (
-        table === "Customer" &&
+        (table === "Customer" || table === "CustomerPolicy") &&
         (field.includes("amount") ||
             field.includes("debt") ||
             field.includes("outstanding") ||
@@ -131,14 +183,20 @@ function resolveReportAmountCurrency(
             field === "terms_breach_outstanding" ||
             field === "top_up_resolved_amount" ||
             field === "top_up_value" ||
-            field === "at_risk_exposure")
+            field === "at_risk_exposure" ||
+            field === "open_receivable_amount")
     ) {
-        return (
-            pick("Customer.approved_limit_currency") ?? accountCurrency
-        );
+        return resolveCustomerFirstCurrency({
+            customerCurrencyPrimary: pick(
+                "Customer.approved_limit_currency",
+                "CustomerPolicy.approved_limit_currency",
+                "approved_limit_currency"
+            ),
+            accountCurrency,
+        });
     }
 
-    return accountCurrency;
+    return resolveCustomerFirstCurrency({ accountCurrency });
 }
 
 function formatReportAmountWithCurrency(
@@ -163,9 +221,6 @@ function formatReportAmountWithCurrency(
         viewConfig,
         accountCurrency
     );
-    if (!currencyCode) {
-        return null;
-    }
     const locale = i18nLanguage === "he" ? "he-IL" : "en-US";
     return formatCurrencyWithRTLSupport(
         numericAmount,
