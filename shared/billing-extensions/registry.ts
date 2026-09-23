@@ -54,3 +54,18 @@ export function getBillingExtensionPanel(
     }
     return BILLING_EXTENSION_PANELS.get(key.trim());
 }
+
+/** Registry key `account_{accountId}` when a panel is registered for it. */
+export function getMatchingAccountExtensionKey(
+    accountId: number
+): string | null {
+    const key = `account_${accountId}`;
+    return BILLING_EXTENSION_PANELS.has(key) ? key : null;
+}
+
+export function getMatchingAccountExtensionPanel(
+    accountId: number
+): BillingExtensionPanelRegistration | undefined {
+    const key = getMatchingAccountExtensionKey(accountId);
+    return key ? BILLING_EXTENSION_PANELS.get(key) : undefined;
+}

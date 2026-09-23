@@ -33,6 +33,22 @@ export function formatSyncHistoryDuration(
     return `${durationSeconds}s`;
 }
 
+/** Run-level Sync History row tint; PARTIAL stays un-tinted. */
+export type SyncHistoryRowTint = "error" | "info" | "success" | null;
+
+export function syncHistoryRowTint(status: string): SyncHistoryRowTint {
+    if (status === "FAILED" || status === "TIMEOUT") {
+        return "error";
+    }
+    if (status === "RUNNING") {
+        return "info";
+    }
+    if (status === "SUCCESS") {
+        return "success";
+    }
+    return null;
+}
+
 export type SyncHistoryGridRow = {
     id: string;
     started: string;
