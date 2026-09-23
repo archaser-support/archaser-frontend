@@ -1,13 +1,15 @@
 "use client";
 
 import { Box, Tooltip, Typography } from "@mui/material";
+import { alpha, useTheme } from "@mui/material/styles";
 import { GridColDef, GridRenderCellParams } from "@/shared/layout-components/grid/gridColumnTypes";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import EndlessScrollDataGrid from "@/shared/layout-components/grid/EndlessScrollDataGrid";
 import type { SyncRunSummary } from "@/shared/services/billingConnectorService";
 import {
+    syncHistoryRowTint,
     toSyncHistoryGridRow,
     type SyncHistoryGridRow,
 } from "@/shared/services/syncHistoryGrid";
@@ -163,10 +165,28 @@ export default function ConnectorSyncHistoryGrid({
     isLoading = false,
 }: ConnectorSyncHistoryGridProps) {
     const { i18n } = useTranslation();
+    const theme = useTheme();
 
     const rows = useMemo(
         () => runs.map((run) => toSyncHistoryGridRow(run)),
         [runs]
+    );
+
+    const getRowBackgroundColor = useCallback(
+        (row: SyncHistoryGridRow) => {
+            const tint = syncHistoryRowTint(row.status);
+            if (tint === "error") {
+                return alpha(theme.palette.error.main, 0.12);
+            }
+            if (tint === "info") {
+                return alpha(theme.palette.info.main, 0.12);
+            }
+            if (tint === "success") {
+                return alpha(theme.palette.success.main, 0.12);
+            }
+            return undefined;
+        },
+        [theme]
     );
 
     return (
@@ -189,6 +209,7 @@ export default function ConnectorSyncHistoryGrid({
                 resizableColumns
                 visibleRows={Math.min(Math.max(rows.length, 1), 8)}
                 language={i18n.language}
+                getRowBackgroundColor={getRowBackgroundColor}
             />
         </Box>
     );
