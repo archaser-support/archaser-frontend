@@ -6,6 +6,7 @@ import {
     BadgePercent,
     FileText,
     Landmark,
+    Percent,
     Shield,
 } from "lucide-react";
 import { useMemo } from "react";
@@ -25,6 +26,7 @@ import {
     dclSdlCoverAmount,
     formatPolicyDate,
     namedRowCount,
+    showPolicySummaryCommercialTerms,
     toFiniteNumber,
     type PolicySummaryDetail,
 } from "./policySummaryModel";
@@ -121,6 +123,23 @@ function costMethodLabel(
         );
     }
     return null;
+}
+
+function productTypeLabel(
+    productType: string | null | undefined,
+    t: (key: string, opts: Record<string, unknown>) => string
+): string | null {
+    if (productType === "TailorMade") {
+        return t("credit_insurance.fields.product_type_tailor_made", {
+            ns: "settings",
+        });
+    }
+    if (productType === "Commodity") {
+        return t("credit_insurance.fields.product_type_commodity", {
+            ns: "settings",
+        });
+    }
+    return productType?.trim() ? productType : null;
 }
 
 function policyLabel(
@@ -368,6 +387,117 @@ export function PolicySummarySectionView({
         },
     ];
 
+    const showCommercialTerms = showPolicySummaryCommercialTerms(detail);
+    const insuredPercentage = toFiniteNumber(detail.insured_percentage);
+    const nql = toFiniteNumber(detail.non_qualifying_loss_threshold);
+    const minimumPremium = toFiniteNumber(detail.minimum_premium);
+    const minimumPremiumYears =
+        detail.minimum_premium_period_years != null &&
+        Number.isFinite(detail.minimum_premium_period_years)
+            ? detail.minimum_premium_period_years
+            : null;
+    const aggregateExcess = toFiniteNumber(detail.aggregate_excess);
+    const sdlExcess = toFiniteNumber(detail.sdl_excess);
+    const productType = productTypeLabel(detail.product_type, t);
+
+    const commercialBullets: { key: string; text: string }[] = [
+        {
+            key: "insured_percentage",
+            text: `${t(
+                "credit_portfolio_health.policy_summary_insured_percentage",
+                {
+                    ...ns,
+                    defaultValue: "Insured percentage",
+                }
+            )}: ${
+                insuredPercentage != null
+                    ? formatPercent(insuredPercentage, language, empty)
+                    : empty
+            }`,
+        },
+        {
+            key: "nql",
+            text: `${t("credit_portfolio_health.policy_summary_nql", {
+                ...ns,
+                defaultValue: "Non-qualifying loss threshold",
+            })}: ${
+                nql != null
+                    ? formatPortfolioMoney(nql, currency, language)
+                    : empty
+            }`,
+        },
+        {
+            key: "aggregate_excess",
+            text: `${t(
+                "credit_portfolio_health.policy_summary_aggregate_excess",
+                {
+                    ...ns,
+                    defaultValue: "Aggregate excess",
+                }
+            )}: ${
+                aggregateExcess != null
+                    ? formatPortfolioMoney(aggregateExcess, currency, language)
+                    : empty
+            }`,
+        },
+        {
+            key: "sdl_excess",
+            text: `${t("credit_portfolio_health.policy_summary_sdl_excess", {
+                ...ns,
+                defaultValue: "SDL excess",
+            })}: ${
+                sdlExcess != null
+                    ? formatPortfolioMoney(sdlExcess, currency, language)
+                    : empty
+            }`,
+        },
+        {
+            key: "minimum_premium",
+            text: (() => {
+                const yearsPart =
+                    minimumPremiumYears != null
+                        ? t(
+                              "credit_portfolio_health.policy_summary_minimum_premium_years",
+                              {
+                                  ...ns,
+                                  defaultValue: "{{years}} years",
+                                  years: minimumPremiumYears,
+                              }
+                          )
+                        : null;
+                let valueText = empty;
+                if (minimumPremium != null && yearsPart) {
+                    valueText = `${formatPortfolioMoney(minimumPremium, currency, language)} / ${yearsPart}`;
+                } else if (minimumPremium != null) {
+                    valueText = formatPortfolioMoney(
+                        minimumPremium,
+                        currency,
+                        language
+                    );
+                } else if (yearsPart) {
+                    valueText = yearsPart;
+                }
+                return `${t(
+                    "credit_portfolio_health.policy_summary_minimum_premium",
+                    {
+                        ...ns,
+                        defaultValue: "Minimum premium",
+                    }
+                )}: ${valueText}`;
+            })(),
+        },
+        {
+            key: "product_type",
+            text: `${t(
+                "credit_portfolio_health.policy_summary_product_type",
+                {
+                    ...ns,
+                    defaultValue: "Product type",
+                }
+            )}: ${productType ?? empty}`,
+        },
+    ];
+
     return (
         <div className={layout.stack}>
             <div className={layout.grid12}>
@@ -516,24 +646,69 @@ export function PolicySummarySectionView({
                     ) : null}
                 </IslandCard>
             </div>
-            <IslandCard accent="slate" className={layout.cardPad}>
-                <Eyebrow icon={FileText}>
-                    {t("credit_portfolio_health.policy_summary_details", {
-                        ...ns,
-                        defaultValue: "Policy settings",
-                    })}
-                </Eyebrow>
-                <ul
-                    className="m-0 list-disc ps-5 text-sm"
-                    style={{ color: CPH.slate }}
+            <div className={layout.grid12}>
+                <IslandCard
+                    accent="slate"
+                    className={`${
+                        showCommercialTerms
+                            ? `${layout.span6} ${layout.mdSpan6}`
+                            : layout.span12
+                    } ${layout.cardPad}`}
                 >
-                    {bullets.map((item) => (
-                        <li key={item.key} className="mb-1">
-                            {item.text}
-                        </li>
-                    ))}
-                </ul>
-            </IslandCard>
+                    <Eyebrow icon={FileText}>
+                        {t("credit_portfolio_health.policy_summary_details", {
+                            ...ns,
+                            defaultValue: "Policy settings",
+                        })}
+                    </Eyebrow>
+                    <ul
+                        className="m-0 list-disc ps-5 text-sm"
+                        style={{ color: CPH.slate }}
+                    >
+                        {bullets.map((item) => (
+                            <li key={item.key} className="mb-1">
+                                {item.text}
+                            </li>
+                        ))}
+                    </ul>
+                </IslandCard>
+                {showCommercialTerms ? (
+                    <IslandCard
+                        accent="slate"
+                        className={`${layout.span6} ${layout.mdSpan6} ${layout.cardPad}`}
+                    >
+                        <Eyebrow
+                            icon={Percent}
+                            help={t(
+                                "credit_portfolio_health.policy_summary_commercial_terms_help",
+                                {
+                                    ...ns,
+                                    defaultValue:
+                                        "Shows key commercial policy terms (cover share, excesses, minimum premium, product type) for this Primary policy.",
+                                }
+                            )}
+                        >
+                            {t(
+                                "credit_portfolio_health.policy_summary_commercial_terms",
+                                {
+                                    ...ns,
+                                    defaultValue: "Commercial terms",
+                                }
+                            )}
+                        </Eyebrow>
+                        <ul
+                            className="m-0 list-disc ps-5 text-sm"
+                            style={{ color: CPH.slate }}
+                        >
+                            {commercialBullets.map((item) => (
+                                <li key={item.key} className="mb-1">
+                                    {item.text}
+                                </li>
+                            ))}
+                        </ul>
+                    </IslandCard>
+                ) : null}
+            </div>
         </div>
     );
 }
