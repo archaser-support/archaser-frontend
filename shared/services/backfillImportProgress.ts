@@ -39,7 +39,7 @@ export const PROCESS_OVERDUE_ENTITY_STATS_KEY = "_process_overdue";
 export const INSURANCE_TARGETS_ENTITY_STATS_KEY = "_insurance_targets";
 export const PENDING_CLOSES_ENTITY_STATS_KEY = "_pending_closes";
 export const BALANCES_ENTITY_STATS_KEY = "_balances";
-/** Post-SUCCESS CTP day catch-up (Customer×Policy Trend). */
+/** Post-SUCCESS: queue Portfolio Health Generate for the pending rewrite window. */
 export const CTP_ENTITY_STATS_KEY = "_ctp";
 
 export const BACKFILL_LINK_PAYMENTS_LABEL = "Link payments";
@@ -50,7 +50,7 @@ export const BACKFILL_PROCESS_OVERDUE_LABEL = "Recompute overdue";
 export const BACKFILL_INSURANCE_TARGETS_LABEL = "Refresh insurance dates";
 export const BACKFILL_PENDING_CLOSES_LABEL = "Settle closed invoices";
 export const BACKFILL_BALANCES_LABEL = "Recalculate balances";
-export const BACKFILL_CTP_LABEL = "CTP catch-up";
+export const BACKFILL_CTP_LABEL = "Start Generate";
 
 /** Rendered in run order, after the entity rows. */
 export const BACKFILL_TAIL_STEPS = [
@@ -132,8 +132,8 @@ const BACKFILL_PROGRESS_STEP_TOOLTIPS: Record<BackfillProgressRowKey, string> =
             "Refreshes credit-insurance fields (MEP block, capacity gap, and related columns) for imported invoices.",
         "Recalculate balances":
             "Recomputes each customer's denormalized due and overdue totals from their open invoices.",
-        "CTP catch-up":
-            "Fills missing Customer×Policy Trend snapshot days for this account (up to 30) after a successful sync.",
+        "Start Generate":
+            "Queues Portfolio Health Generate for every day in the pending rewrite window from this import (same job as Generate on the Portfolio Health page).",
     };
 
 /** Explains what a progress-row step counts or calculates. */
