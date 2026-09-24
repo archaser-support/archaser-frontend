@@ -86,7 +86,8 @@
             "payment_term": "Payment Term",
             "mep": "MEP",
             "reporting": "Reporting",
-            "commercial_terms": "Commercial Terms"
+            "commercial_terms": "Commercial Terms",
+            "remaining_excess": "Remaining Excess (Access Amount)"
         },
         "tabs": {
             "general": "General",
@@ -133,12 +134,19 @@
             "minimum_premium_period_years": "Minimum Premium Period (Years)",
             "aggregate_excess": "Aggregate Excess",
             "sdl_excess": "SDL Excess",
+            "remaining_sdl_excess": "Remaining SDL Excess",
+            "remaining_aggregate_excess": "Remaining Aggregate Excess",
             "ncb_zero_claims_bonus_percent": "No-Claim Bonus — Zero Claims (%)",
             "ncb_claims_ratio_threshold_percent": "No-Claim Bonus — Claims Ratio Threshold (%)",
             "ncb_up_to_threshold_bonus_percent": "No-Claim Bonus — Up to Threshold (%)",
             "product_type": "Product Type",
             "product_type_tailor_made": "Tailor-made",
             "product_type_commodity": "Commodity"
+        },
+        "remaining_excess": {
+            "help": "Derived access amount left after Approved/Paid claims for each Primary policy anniversary year. Updates when claims are approved, paid, canceled, or rejected.",
+            "year_label": "Policy year {{year}} ({{range}})",
+            "load_failed": "Could not load remaining excess."
         },
         "tooltips": {
             "auto_activate_on_term_start": "When checked, the policy becomes Active automatically on the start date.",

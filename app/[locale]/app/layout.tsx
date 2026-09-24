@@ -13,6 +13,7 @@ const appI18nNamespaces = [
     "accounts",
     "invoices",
     "disputes",
+    "claims",
     "promise_to_pay",
     "agents",
     "activities",

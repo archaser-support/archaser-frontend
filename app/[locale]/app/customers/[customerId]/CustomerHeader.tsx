@@ -46,15 +46,20 @@ import {
     resolveInvoiceBucketRatioArPair,
 } from "@/shared/creditInsurance/invoiceBucketAmounts";
 import {
-    type CustomerWithPolicyFields,
+    CUSTOMER_UNPAID_INVOICES_CLAIMS_REPORT_UNIQUE_NAME,
+    CUSTOMER_UNPAID_INVOICES_CONTEXT,
+} from "@/shared/constants/customerUnpaidInvoiceClaimsReport";
+import {
     getActiveCustomerPolicyFromCustomer,
     isZeroApprovedLimit,
+    type CustomerWithPolicyFields,
 } from "@/shared/customerPolicyAdapter";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import {
     fetchCustomerById,
     fetchStuckActivities,
 } from "@/shared/services/customerService";
+import { listClaims } from "@/shared/services/claimsService";
 import { isCreditOnlyAccount as isCreditOnlyAccountUtil } from "@/shared/utils/accountProducts";
 import { Customer } from "@/types/Customer";
 import { getCustomerPortalUrl } from "@/utils/appUrls";
@@ -285,6 +290,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
         userDate: string;
         userTime: string;
     } | null>(null);
+    const [openingClaimsReport, setOpeningClaimsReport] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
     const customerIdNumber = parseInt(customer_id, 10);
@@ -403,6 +409,77 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
         staleTime: 30 * 1000,
         gcTime: 2 * 60 * 1000,
     });
+
+    const { data: openClaimsData } = useQuery({
+        queryKey: ["claims", "open", "unpaid-invoice", customerIdNumber],
+        queryFn: () =>
+            listClaims({
+                customer_id: customerIdNumber,
+                open_only: true,
+                unpaid_invoice_only: true,
+                page: 1,
+                limit: 1,
+            }),
+        enabled:
+            !!customerIdNumber &&
+            hasCreditInsuranceProductForKpis &&
+            Number.isFinite(customerIdNumber),
+        staleTime: 30 * 1000,
+    });
+    const openClaimsCount = openClaimsData?.totalRecords ?? 0;
+
+    const handleViewOpenClaimsReport = useCallback(async () => {
+        if (openingClaimsReport || !pathname) {
+            return;
+        }
+        setOpeningClaimsReport(true);
+        try {
+            const response = await apiFetch(
+                `/api/reports?context=${CUSTOMER_UNPAID_INVOICES_CONTEXT}`
+            );
+            if (!response.ok) {
+                throw new Error(
+                    t("credit_insurance.claims_report_missing", {
+                        ns: "customers",
+                    })
+                );
+            }
+            const data = await response.json();
+            const reports = (data.reports || []) as Array<{
+                id: number;
+                unique_name?: string;
+            }>;
+            const match = reports.find(
+                (r) =>
+                    r.unique_name ===
+                    CUSTOMER_UNPAID_INVOICES_CLAIMS_REPORT_UNIQUE_NAME
+            );
+            if (match?.id == null || !Number.isFinite(match.id)) {
+                showToast(
+                    t("credit_insurance.claims_report_missing", {
+                        ns: "customers",
+                    }),
+                    "error"
+                );
+                return;
+            }
+            const params = new URLSearchParams();
+            params.set("tab", "invoices");
+            params.set("reportId", String(match.id));
+            router.push(`${pathname}?${params.toString()}`);
+        } catch (e: unknown) {
+            showToast(
+                e instanceof Error
+                    ? e.message
+                    : t("credit_insurance.claims_report_missing", {
+                          ns: "customers",
+                      }),
+                "error"
+            );
+        } finally {
+            setOpeningClaimsReport(false);
+        }
+    }, [openingClaimsReport, pathname, router, showToast, t]);
 
     // Check SMS blocking status for the customer's country with SMS activities validation
     const { data: smsBlockingStatus } = useQuery({
@@ -1672,6 +1749,49 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                             defaultValue:
                                 "Overdue block: this customer is past the MEP deadline from the oldest overdue invoice.",
                         })}
+                    />
+                )}
+
+                {openClaimsCount > 0 && hasCreditInsuranceProductForKpis && (
+                    <CustomerHeaderNotificationBanner
+                        variant="warning"
+                        borderRadius={notificationBannerBorderRadius}
+                        icon={
+                            <GavelIcon
+                                sx={{ fontSize: 18, color: "warning.main" }}
+                            />
+                        }
+                        message={
+                            openClaimsCount === 1
+                                ? t("credit_insurance.open_claims_banner_one", {
+                                      ns: "customers",
+                                  })
+                                : t("credit_insurance.open_claims_banner", {
+                                      ns: "customers",
+                                      count: openClaimsCount,
+                                  })
+                        }
+                        action={
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                color="warning"
+                                disabled={openingClaimsReport}
+                                sx={{
+                                    fontSize: "0.7rem",
+                                    height: 28,
+                                    minWidth: 80,
+                                    "& .MuiButton-label": { px: 1 },
+                                }}
+                                onClick={() => {
+                                    void handleViewOpenClaimsReport();
+                                }}
+                            >
+                                {t("credit_insurance.view_claims", {
+                                    ns: "customers",
+                                })}
+                            </Button>
+                        }
                     />
                 )}
 

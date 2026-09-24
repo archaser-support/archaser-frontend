@@ -86,7 +86,8 @@
             "payment_term": "תנאי תשלום",
             "mep": "MEP",
             "reporting": "דיווח",
-            "commercial_terms": "תנאים מסחריים"
+            "commercial_terms": "תנאים מסחריים",
+            "remaining_excess": "יתרת אקסס (סכום גישה)"
         },
         "tabs": {
             "general": "כללי",
@@ -133,12 +134,19 @@
             "minimum_premium_period_years": "תקופת דמי ביטוח מינימום (שנים)",
             "aggregate_excess": "סכום אקסס כללי",
             "sdl_excess": "אקסס חיתום עצמי",
+            "remaining_sdl_excess": "יתרת אקסס חיתום עצמי",
+            "remaining_aggregate_excess": "יתרת אקסס כללי",
             "ncb_zero_claims_bonus_percent": "הנחת העדר תביעות — ללא תביעות (%)",
             "ncb_claims_ratio_threshold_percent": "הנחת העדר תביעות — סף יחס תביעות (%)",
             "ncb_up_to_threshold_bonus_percent": "הנחת העדר תביעות — עד הסף (%)",
             "product_type": "סוג מוצר",
             "product_type_tailor_made": "מותאם אישית",
             "product_type_commodity": "סחורה"
+        },
+        "remaining_excess": {
+            "help": "סכום הגישה שנותר לאחר תביעות מאושרות/שולמו לכל שנת יום־שנה של הפוליסה הראשית. מתעדכן כשתביעות מאושרות, משולמות, מבוטלות או נדחות.",
+            "year_label": "שנת פוליסה {{year}} ({{range}})",
+            "load_failed": "לא ניתן לטעון את יתרת האקסס."
         },
         "tooltips": {
             "auto_activate_on_term_start": "כשמסומן, הפוליסה הופכת לפעילה אוטומטית בתאריך ההתחלה.",

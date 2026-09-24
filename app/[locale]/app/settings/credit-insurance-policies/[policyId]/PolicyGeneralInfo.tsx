@@ -29,6 +29,7 @@ import { useTranslation } from "react-i18next";
 
 import { CreditInsuranceReadonlyField } from "@/app/[locale]/app/customers/[customerId]/CustomerGeneralInfo";
 import { PolicyCommercialTermsFields } from "./PolicyCommercialTermsFields";
+import { PolicyRemainingExcessPanel } from "./PolicyRemainingExcessPanel";
 import { CurrencySelect } from "@/components/LocationSelects";
 import { shouldNotifyPolicyEligibleForActivation } from "@/shared/creditInsurance/insurancePolicyLifecycle";
 import { MonthEndFieldLabelWithTooltip } from "@/shared/creditInsurance/MonthEndFieldLabelWithTooltip";
@@ -141,6 +142,8 @@ export interface PolicyGeneralInfoProps {
         React.SetStateAction<CommercialTermsFormInputs>
     >;
     showCommercialTermsTab: boolean;
+    /** Primary policy id — used for remaining excess display on commercial tab. */
+    policyId?: number | null;
     tCi: (key: string, options?: Record<string, unknown>) => string;
     tCommon: (key: string) => string;
 }
@@ -230,6 +233,7 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
         commercialTermsInput,
         setCommercialTermsInput,
         showCommercialTermsTab,
+        policyId,
         tCi,
         tCommon,
     } = props;
@@ -1431,6 +1435,15 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                             sanitizeIntegerInput={sanitizeIntegerInput}
                             decimalToInputString={decimalToInputString}
                         />
+                        {!isEditing &&
+                        policyId != null &&
+                        Number.isFinite(policyId) ? (
+                            <PolicyRemainingExcessPanel
+                                policyId={policyId}
+                                currency={currencyValue}
+                                tCi={tCi}
+                            />
+                        ) : null}
                     </Box>
                 ) : null}
             </CardContent>

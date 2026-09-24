@@ -7,6 +7,7 @@ import {
     CalendarToday as CalendarTodayIcon,
     CloudUpload as CloudUploadIcon,
     Dashboard as DashboardIcon,
+    Description as DescriptionIcon,
     Mail as EmailIcon,
     Gavel as GavelIcon,
     MenuOpen as MenuOpenIcon,
@@ -1065,6 +1066,17 @@ const AppLayout = ({ children }: any) => {
                                 icon: <PeopleIcon />,
                                 href: AppUrls.CUSTOMERS || "/app/customers",
                             },
+                            ...(hasCreditInsuranceProduct
+                                ? [
+                                    {
+                                        label: t("actions.navigation_claims", {
+                                            defaultValue: "Claims",
+                                        }),
+                                        icon: <DescriptionIcon />,
+                                        href: AppUrls.CLAIMS || "/app/claims",
+                                    },
+                                ]
+                                : []),
                         ],
                     },
                 ]
