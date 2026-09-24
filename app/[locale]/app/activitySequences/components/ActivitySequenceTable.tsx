@@ -915,7 +915,7 @@ export default function ActivitySequenceTable({
                     fontSize: { xs: "0.75rem", sm: "0.8rem", md: "0.875rem" },
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
+                    justifyContent: "flex-start",
                     width: { xs: "80px", sm: "120px" },
                     minWidth: { xs: "80px", sm: "120px" },
                     maxWidth: { xs: "80px", sm: "120px" },
