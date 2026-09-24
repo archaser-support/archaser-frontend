@@ -30,6 +30,7 @@ import api from "@/app/api";
 import AppDialog from "@/shared/layout-components/modal/AppDialog";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import CustomerNumberAutocomplete from "@/shared/components/CustomerNumberAutocomplete";
+import { MonthEndFieldLabelWithTooltip } from "@/shared/creditInsurance/MonthEndFieldLabelWithTooltip";
 import {
     CLAIM_STATUSES,
     canOverrideRecognizedLoss,
@@ -158,20 +159,41 @@ export default function ClaimFormDialog({
         isError: invoicesFailed,
         isFetching: invoicesLoading,
     } = useQuery({
-        queryKey: ["claims", "customer-invoices", "overdue", customerIdNumber],
+        queryKey: ["claims", "customer-invoices", "due-overdue", customerIdNumber],
         queryFn: async () => {
-            const response = await api.get("/entities/invoices", {
-                params: {
-                    customer_id: customerIdNumber,
-                    status: "Overdue",
-                    page: 1,
-                    limit: 500,
-                    sortField: "invoice_date",
-                    sortDirection: "desc",
-                },
-            });
-            return response.data as {
-                invoices?: Array<Record<string, unknown>>;
+            const sharedParams = {
+                customer_id: customerIdNumber,
+                page: 1,
+                limit: 500,
+                sortField: "invoice_date",
+                sortDirection: "desc",
+            };
+            const [dueResponse, overdueResponse] = await Promise.all([
+                api.get("/entities/invoices", {
+                    params: { ...sharedParams, status: "Due" },
+                }),
+                api.get("/entities/invoices", {
+                    params: { ...sharedParams, status: "Overdue" },
+                }),
+            ]);
+            const dueInvoices =
+                (dueResponse.data as { invoices?: Array<Record<string, unknown>> })
+                    ?.invoices ?? [];
+            const overdueInvoices =
+                (
+                    overdueResponse.data as {
+                        invoices?: Array<Record<string, unknown>>;
+                    }
+                )?.invoices ?? [];
+            const byId = new Map<number, Record<string, unknown>>();
+            for (const invoice of [...dueInvoices, ...overdueInvoices]) {
+                const id = Number(invoice.id);
+                if (Number.isFinite(id)) {
+                    byId.set(id, invoice);
+                }
+            }
+            return {
+                invoices: Array.from(byId.values()),
             };
         },
         enabled: open && !isEdit && hasSelectedCustomer,
@@ -547,6 +569,19 @@ export default function ClaimFormDialog({
         return parts.join(" · ");
     }, [claim, t]);
 
+    const fieldLabel = useCallback(
+        (fieldKey: string, labelText: string) => (
+            <MonthEndFieldLabelWithTooltip
+                label={labelText}
+                tooltip={t(`tooltips.${fieldKey}`, { ns: "claims" })}
+                isRtl={isRTL}
+            />
+        ),
+        [isRTL, t]
+    );
+
+    const invoiceFieldLabelText = `${t("fields.invoice", { ns: "claims" })} (${t("fields.optional", { ns: "claims" })})`;
+
     return (
         <AppDialog
             open={open}
@@ -597,7 +632,10 @@ export default function ClaimFormDialog({
                             onChange={handleCustomerNumberChange}
                             onCustomerSelect={handleCustomerSelect}
                             error={fieldErrors.customer_id}
-                            label={t("fields.customer", { ns: "claims" })}
+                            label={fieldLabel(
+                                "customer",
+                                t("fields.customer", { ns: "claims" })
+                            )}
                             size="small"
                         />
 
@@ -613,7 +651,7 @@ export default function ClaimFormDialog({
                             })}
                         >
                             <InputLabel id="claim-invoices-label" shrink>
-                                {`${t("fields.invoice", { ns: "claims" })} (${t("fields.optional", { ns: "claims" })})`}
+                                {fieldLabel("invoice", invoiceFieldLabelText)}
                             </InputLabel>
                             <Select<string[]>
                                 labelId="claim-invoices-label"
@@ -635,7 +673,7 @@ export default function ClaimFormDialog({
                                     <OutlinedInput
                                         size="small"
                                         notched
-                                        label={`${t("fields.invoice", { ns: "claims" })} (${t("fields.optional", { ns: "claims" })})`}
+                                        label={invoiceFieldLabelText}
                                         className="input-toolbar-labeled"
                                     />
                                 }
@@ -863,7 +901,10 @@ export default function ClaimFormDialog({
 
                 <TextField
                     select
-                    label={t("fields.status", { ns: "claims" })}
+                    label={fieldLabel(
+                        "status",
+                        t("fields.status", { ns: "claims" })
+                    )}
                     value={form.status}
                     onChange={(e) =>
                         setField("status", e.target.value as ClaimStatus)
@@ -879,7 +920,10 @@ export default function ClaimFormDialog({
                 </TextField>
 
                 <TextField
-                    label={t("fields.recognized_loss", { ns: "claims" })}
+                    label={fieldLabel(
+                        "recognized_loss",
+                        t("fields.recognized_loss", { ns: "claims" })
+                    )}
                     value={form.recognized_loss}
                     onChange={(e) =>
                         setField("recognized_loss", e.target.value)
@@ -901,7 +945,10 @@ export default function ClaimFormDialog({
                     }}
                 >
                     <TextField
-                        label={t("fields.submission_date", { ns: "claims" })}
+                        label={fieldLabel(
+                            "submission_date",
+                            t("fields.submission_date", { ns: "claims" })
+                        )}
                         type="date"
                         value={form.submission_date}
                         onChange={(e) =>
@@ -919,7 +966,10 @@ export default function ClaimFormDialog({
                         ((!isEdit || claim?.invoice_id == null) &&
                             !hasLinkedInvoice)) && (
                         <TextField
-                            label={t("fields.loss_date", { ns: "claims" })}
+                            label={fieldLabel(
+                                "loss_date",
+                                t("fields.loss_date", { ns: "claims" })
+                            )}
                             type="date"
                             value={form.loss_date}
                             onChange={(e) =>
@@ -937,9 +987,12 @@ export default function ClaimFormDialog({
                 </Box>
 
                 <TextField
-                    label={t("fields.insurer_submission_reference", {
-                        ns: "claims",
-                    })}
+                    label={fieldLabel(
+                        "insurer_submission_reference",
+                        t("fields.insurer_submission_reference", {
+                            ns: "claims",
+                        })
+                    )}
                     value={form.insurer_submission_reference}
                     onChange={(e) =>
                         setField(
@@ -955,7 +1008,10 @@ export default function ClaimFormDialog({
                 />
 
                 <TextField
-                    label={t("fields.notes", { ns: "claims" })}
+                    label={fieldLabel(
+                        "notes",
+                        t("fields.notes", { ns: "claims" })
+                    )}
                     value={form.notes}
                     onChange={(e) => setField("notes", e.target.value)}
                     fullWidth
