@@ -119,6 +119,20 @@ fi
 log "✅ Bare amount display guard passed"
 log ""
 
+# Step 1c: FE ↔ Nest OpenAPI parity (method+path vs vendored openapi/openapi.json)
+log "🔗 Checking Nest API parity..."
+if ! npm run check:api-parity >&2; then
+    log ""
+    log "❌ Nest API parity check failed"
+    log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    log "FE apiFetch paths must exist in openapi/openapi.json (or the allowlist)."
+    log "Sync OpenAPI from the backend, or fix the call site, then retry."
+    log ""
+    exit 1
+fi
+log "✅ Nest API parity passed"
+log ""
+
 # Step 2: Run type checking (fast check)
 log "📝 Type checking TypeScript..."
 if ! npm run type-check >&2; then
