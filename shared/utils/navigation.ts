@@ -127,6 +127,12 @@ export const sidebarStructure: NavSection[] = [
                 label: "actions.navigation_customers",
                 href: AppUrls.CUSTOMERS || "/app/customers",
             },
+            {
+                label: "actions.navigation_claims",
+                href: AppUrls.CLAIMS || "/app/claims",
+                show: (_permissions, _accountId, accountProducts) =>
+                    accountProducts?.has_credit_insurance === true,
+            },
         ],
     },
     {
