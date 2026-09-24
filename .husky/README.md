@@ -6,13 +6,15 @@ This project uses [Husky](https://typicode.github.io/husky/) to enforce code qua
 
 The pre-commit hook automatically runs before each commit and performs:
 
-1. **TypeScript Type Checking** (`npm run type-check`)
+1. **Lint / format** (`npx lint-staged`)
+2. **Bare amount display guard** (`npm run check:bare-amount-display`)
+3. **Nest API parity** (`npm run check:api-parity`)
+   - Ensures FE `apiFetch` paths exist in vendored `openapi/openapi.json`
+4. **TypeScript type checking** (`npm run type-check`)
    - Ensures no TypeScript errors exist
    - Uses increased memory allocation for large codebase
 
-2. **Unit Tests** (`npm run test:unit`)
-   - Runs all unit tests to ensure functionality
-   - Uses Vitest with jsdom environment
+Unit tests and build are skipped in pre-commit (run manually / CI).
 
 ### What Happens When Tests Fail?
 
@@ -40,6 +42,7 @@ You can run the same checks manually at any time:
 npm run pre-commit
 
 # Run individual checks
+npm run check:api-parity
 npm run type-check
 npm run test:unit
 npm run test:business-logic
