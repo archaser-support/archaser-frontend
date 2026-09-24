@@ -21,7 +21,7 @@ interface CustomerNumberAutocompleteProps {
     onCustomerSelect?: (customer: CustomerOption | null) => void;
     error?: string;
     disabled?: boolean;
-    label?: string;
+    label?: React.ReactNode;
     size?: "small" | "medium";
     sx?: SxProps<Theme>;
     /** Customer numbers to omit from search results (case-insensitive). */
