@@ -184,7 +184,8 @@
     "tables": {
         "customers": "לקוחות",
         "invoices": "חשבוניות",
-        "disputes": "תביעות",
+        "disputes": "מחלוקות",
+        "claims": "תביעות",
         "activities": "פעילויות",
         "invoice_payments": "תשלומים",
         "collection_periods": "תקופות גבייה",

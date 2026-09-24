@@ -258,6 +258,11 @@
         "no_overdue_block": "No Overdue Block",
         "no_breaches": "No breaches",
         "overdue_block_banner": "Overdue block: this customer is past the MEP deadline from the oldest overdue invoice.",
+        "open_claims_banner": "This customer has {{count}} open claim(s).",
+        "open_claims_banner_one": "This customer has an open claim.",
+        "view_claims": "View claims",
+        "open_claim_failed": "Could not open claim",
+        "claims_report_missing": "Could not open the invoices-with-claims report. Ask an admin to sync system reports.",
         "zero_limit_alert_banner": "Zero-limit alert: this customer has open invoices issued before the zero-limit effective date.",
         "zero_approved_limit_banner": "Approved limit is 0 on the active customer policy.",
         "zero_approved_limit_banner_with_date": "Approved limit is 0 on the active customer policy (effective from {{date}}).",
@@ -286,6 +291,19 @@
         "actual_reporting_date": "Actual Reporting Date",
         "required_indicator": "*",
         "reference_or_comment": "Reference / comment (optional)"
+    },
+    "issue_claim": {
+        "action": "Open claim",
+        "success": "Draft claim created",
+        "invalid_invoice": "Invalid invoice",
+        "failed": "Could not open claim",
+        "not_eligible": "This invoice is not eligible for a claim",
+        "reasons": {
+            "open_not_above_nql": "Open amount must be greater than the Primary policy NQL",
+            "not_overdue": "Invoice must be overdue",
+            "reporting_breach_required": "Invoice must be in reporting breach",
+            "claim_already_exists": "A claim already exists for this invoice"
+        }
     },
     "last_payment_date": {
         "dialog_title": "Last payment date",
