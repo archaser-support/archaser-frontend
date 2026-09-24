@@ -809,6 +809,25 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
         useState(false);
     const policyIdAtEditStartRef = useRef<number | null>(null);
 
+    // Keep active tab in sync when URL ?tab= changes (e.g. View claims → invoices).
+    useEffect(() => {
+        if (!tabParam) {
+            return;
+        }
+        const fromUrl = getInitialTab();
+        setActiveTab((prev) => (prev === fromUrl ? prev : fromUrl));
+        setLoadedTabs((prev) => {
+            if (prev.has(fromUrl)) {
+                return prev;
+            }
+            const next = new Set(prev);
+            next.add(fromUrl);
+            return next;
+        });
+        // getInitialTab closes over tabParam; only re-run when tabParam changes.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tabParam]);
+
     // Force cache invalidation on mount to ensure fresh data
     useEffect(() => {
         queryClient.invalidateQueries({

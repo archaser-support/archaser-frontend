@@ -151,6 +151,7 @@ const FormulaColumnEditor = forwardRef<
         Customer: "tables.customers",
         Invoice: "tables.invoices",
         Dispute: "tables.disputes",
+        Claim: "tables.claims",
         Activity: "tables.activities",
         InvoicePayment: "tables.invoice_payments",
         CustomerCollectionPeriod: "tables.collection_periods",

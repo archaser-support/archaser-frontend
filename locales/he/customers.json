@@ -250,6 +250,11 @@
         "no_overdue_block": "ללא חסימת פיגור",
         "no_breaches": "אין הפרות",
         "overdue_block_banner": "חסימת פיגור: לקוח זה עבר את מועד ה-MEP מהחשבונית הפגועה הישנה ביותר.",
+        "open_claims_banner": "ללקוח זה יש {{count}} תביעות פתוחות.",
+        "open_claims_banner_one": "ללקוח זה יש תביעה פתוחה.",
+        "view_claims": "הצג תביעות",
+        "open_claim_failed": "לא ניתן לפתוח תביעה",
+        "claims_report_missing": "לא ניתן לפתוח את דוח החשבוניות עם תביעות. בקשו ממנהל לסנכרן דוחות מערכת.",
         "zero_limit_alert_banner": "התראת מסגרת אפס: ללקוח זה יש חשבוניות פתוחות שהונפקו לפני תאריך תחילת תוקף מסגרת האפס.",
         "zero_approved_limit_banner": "מסגרת מאושרת היא 0 בפוליסה הפעילה של הלקוח.",
         "zero_approved_limit_banner_with_date": "מסגרת מאושרת היא 0 בפוליסה הפעילה של הלקוח (החל מ-{{date}}).",
@@ -278,6 +283,19 @@
         "actual_reporting_date": "תאריך דיווח בפועל",
         "required_indicator": "*",
         "reference_or_comment": "אסמכתה / הערה (רשות)"
+    },
+    "issue_claim": {
+        "action": "פתיחת תביעה",
+        "success": "נוצרה טיוטת תביעה",
+        "invalid_invoice": "חשבונית לא תקינה",
+        "failed": "לא ניתן לפתוח תביעה",
+        "not_eligible": "חשבונית זו אינה זכאית לתביעה",
+        "reasons": {
+            "open_not_above_nql": "הסכום הפתוח חייב להיות גבוה מסף ה-NQL של הפוליסה הראשית",
+            "not_overdue": "החשבונית חייבת להיות בפיגור",
+            "reporting_breach_required": "החשבונית חייבת להיות בחריגת דיווח",
+            "claim_already_exists": "כבר קיימת תביעה עבור חשבונית זו"
+        }
     },
     "last_payment_date": {
         "dialog_title": "תאריך תשלום אחרון",
