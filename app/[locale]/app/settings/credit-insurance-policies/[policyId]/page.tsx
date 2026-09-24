@@ -717,6 +717,9 @@ export default function CreditInsurancePolicyDetailPage() {
             queryClient.invalidateQueries({
                 queryKey: ["insurance-policy", accountId],
             }),
+            queryClient.invalidateQueries({
+                queryKey: ["claims", "policy-excess-summary", policyId],
+            }),
         ]);
     };
 
@@ -1696,8 +1699,8 @@ export default function CreditInsurancePolicyDetailPage() {
                 sortable: false,
                 filterable: false,
                 disableColumnMenu: true,
-                align: "center",
-                headerAlign: "center",
+                align: "left",
+                headerAlign: "left",
                 renderCell: (params) => {
                     const busy =
                         deleteCountryMutation.isPending || saveCountryMutation.isPending;
@@ -1706,7 +1709,7 @@ export default function CreditInsurancePolicyDetailPage() {
                             sx={{
                                 display: "flex",
                                 alignItems: "center",
-                                justifyContent: "center",
+                                justifyContent: "flex-start",
                             }}
                         >
                             <Tooltip title={t("actions.delete", { ns: "common" })}>
@@ -2075,8 +2078,8 @@ export default function CreditInsurancePolicyDetailPage() {
                 sortable: false,
                 filterable: false,
                 disableColumnMenu: true,
-                align: "center",
-                headerAlign: "center",
+                align: "left",
+                headerAlign: "left",
                 renderCell: (params) => {
                     const busy =
                         deleteNamedMutation.isPending ||
@@ -2086,7 +2089,7 @@ export default function CreditInsurancePolicyDetailPage() {
                             sx={{
                                 display: "flex",
                                 alignItems: "center",
-                                justifyContent: "center",
+                                justifyContent: "flex-start",
                             }}
                         >
                             <Tooltip title={t("actions.delete", { ns: "common" })}>
@@ -2367,6 +2370,7 @@ export default function CreditInsurancePolicyDetailPage() {
                     commercialTermsInput={commercialTermsInput}
                     setCommercialTermsInput={setCommercialTermsInput}
                     showCommercialTermsTab={showPrimaryOnlySections}
+                    policyId={policyId}
                     policyKindInput={policyKindInput}
                     setPolicyKindInput={setPolicyKindInput}
                     parentInsurancePolicyIdInput={parentInsurancePolicyIdInput}

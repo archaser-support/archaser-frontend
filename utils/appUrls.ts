@@ -92,6 +92,7 @@ const AppUrls = {
     LOGIN: "/login",
     CUSTOMERS: "/app/customers",
     DISPUTES: "/app/disputes",
+    CLAIMS: "/app/claims",
     AGENTS: "/app/agents",
     IMPORT: "/app/import",
     PROMISE_TO_PAY_INTERNAL: "/app/promise-to-pay",

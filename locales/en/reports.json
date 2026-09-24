@@ -185,6 +185,7 @@
         "customers": "Customers",
         "invoices": "Invoices",
         "disputes": "Disputes",
+        "claims": "Claims",
         "activities": "Activities",
         "invoice_payments": "Payments",
         "collection_periods": "Collection Periods",
