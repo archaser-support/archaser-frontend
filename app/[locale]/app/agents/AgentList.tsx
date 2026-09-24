@@ -1460,6 +1460,7 @@ const AgentList: React.FC<AgentListProps> = ({
                         sx={{
                             display: "flex",
                             alignItems: "center",
+                            justifyContent: "flex-start",
                             height: "100%",
                             width: "100%",
                         }}
