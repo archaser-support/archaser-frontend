@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { GenericStats, STAT_ICONS } from "@/shared/layout-components/stats";
 import type { DisputeStats as DisputeStatsType } from "@/types/CustomerDispute";
-import { formatAmountWithoutSymbol, formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
+import { formatMoney } from "@/utils/stringFormatters";
 
 interface DisputeStatsProps {
     statsData?: { stats: DisputeStatsType };
@@ -15,6 +15,7 @@ const DisputeStats: React.FC<DisputeStatsProps> = ({
     statsLoading,
 }) => {
     const { t, i18n } = useTranslation(["disputes", "common"]);
+    const locale = i18n.language === "he" ? "he-IL" : "en-US";
     // Create custom stat configs for disputes since they have unique data structure
     const statConfigs = [
         {
@@ -50,7 +51,12 @@ const DisputeStats: React.FC<DisputeStatsProps> = ({
             status: "warning" as const,
             formatter: (val: any) => {
                 const currency = statsData?.stats?.counts?.currency || "";
-                return formatCurrencyWithRTLSupport(Number(val), currency, i18n.language === "he" ? "he-IL" : "en-US", i18n.language, { wholeNumbers: true });
+                return formatMoney(Number(val), currency, {
+                    style: "symbol",
+                    locale,
+                    language: i18n.language,
+                    wholeNumbers: true,
+                });
             },
         },
     ];

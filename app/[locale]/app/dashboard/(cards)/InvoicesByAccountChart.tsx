@@ -4,16 +4,12 @@ import { alpha } from "@mui/material/styles";
 import dynamic from "next/dynamic";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { formatMoney } from "@/utils/stringFormatters";
 import { FinancialDashboardChartCard } from "./FinancialDashboardChartCard";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), {
     ssr: false,
 });
-
-// Helper function to get currency code (use code instead of symbol)
-const getCurrencySymbol = (currencyCode: string): string => {
-    return currencyCode;
-};
 
 type AccountData = {
     customer: string;
@@ -41,7 +37,8 @@ const InvoicesByAccountChart = ({
 }: InvoicesByAccountChartProps) => {
     const { t, i18n } = useTranslation(["dashboard", "common"]);
     const theme = useTheme();
-    const currencySymbol = getCurrencySymbol(currency);
+    const locale = i18n.language === "he" ? "he-IL" : "en-US";
+    const language = i18n.language;
 
     // Generate theme-based colors for donut/bar - variations of chart palette
     const getThemeColors = () => [
@@ -141,7 +138,11 @@ const InvoicesByAccountChart = ({
         dataLabels: {
             enabled: true,
             formatter: function (val: number) {
-                return `${currencySymbol} ${val.toLocaleString()}`;
+                return formatMoney(val, currency, {
+                    style: "symbol",
+                    locale,
+                    language,
+                });
             },
             style: {
                 colors: ["#ffffff"],
@@ -193,7 +194,11 @@ const InvoicesByAccountChart = ({
             : {
                 labels: {
                     formatter: function (val: number) {
-                        return `${currencySymbol} ${val.toLocaleString()}`;
+                        return formatMoney(val, currency, {
+                            style: "iso",
+                            locale,
+                            language,
+                        });
                     },
                     style: {
                         colors: theme.palette.text.secondary,
@@ -209,11 +214,15 @@ const InvoicesByAccountChart = ({
         tooltip: {
             y: {
                 formatter: function (val: number) {
-                    return `${currencySymbol} ${val.toLocaleString()}`;
+                    return formatMoney(val, currency, {
+                        style: "symbol",
+                        locale,
+                        language,
+                    });
                 },
             },
         },
-    }), [chartData, currencySymbol, theme, horizontal]);
+    }), [chartData, currency, locale, language, theme, horizontal]);
 
     const barChartSeries = useMemo(() => [
         {
@@ -248,7 +257,11 @@ const InvoicesByAccountChart = ({
             y: {
                 formatter: function (val: number, { seriesIndex }: any) {
                     const item = chartData[seriesIndex];
-                    return `${currencySymbol} ${item.amount.toLocaleString()} (${item.percentage}%)`;
+                    return `${formatMoney(item.amount, currency, {
+                        style: "symbol",
+                        locale,
+                        language,
+                    })} (${item.percentage}%)`;
                 },
             },
         },
@@ -268,7 +281,7 @@ const InvoicesByAccountChart = ({
                 enabled: false,
             },
         },
-    }), [chartData, currencySymbol, theme]);
+    }), [chartData, currency, locale, language, theme]);
 
     const doughnutChartSeries = useMemo(() =>
         chartData.map((item) => item.amount),

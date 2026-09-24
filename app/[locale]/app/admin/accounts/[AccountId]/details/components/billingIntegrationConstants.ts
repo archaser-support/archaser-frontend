@@ -92,10 +92,3 @@ export function parsePaidToleranceInput(raw: string): number | null {
     }
     return rounded;
 }
-
-export const NONE_EXTENSION_OPTION = {
-    key: "",
-    label: "None (standard account)",
-} as const;
-
-export type ExtensionKeyOption = { key: string; label: string };

@@ -1116,12 +1116,23 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                     { key: "tables.disputes", ns: "reports" },
                     { key: "navigation_disputes", ns: "common" },
                 ],
+                Claim: [
+                    { key: "sections.title", ns: "claims" },
+                    { key: "tables.claims", ns: "reports" },
+                    { key: "actions.navigation_claims", ns: "common" },
+                ],
                 Activity: [
                     { key: "sections.title", ns: "activities" },
                     { key: "tables.activities", ns: "reports" },
                 ],
                 InvoicePayment: [
                     { key: "tables.invoice_payments", ns: "reports" },
+                ],
+                CustomerCollectionPeriod: [
+                    { key: "tables.collection_periods", ns: "reports" },
+                ],
+                CustomerPolicy: [
+                    { key: "tables.customer_policies", ns: "reports" },
                 ],
                 Contact: [
                     { key: "sections.title", ns: "contacts" },
@@ -1390,6 +1401,24 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
                 const translationKey = `values.status_${stringValue.toLowerCase()}`;
                 const translation = t(translationKey, {
                     ns: "activities",
+                    defaultValue: stringValue,
+                });
+                if (translation && translation !== translationKey) {
+                    return translation;
+                }
+                return stringValue.replace(/_/g, " ");
+            }
+
+            // Special handling for Claim.status - uses 'claims' namespace
+            if (
+                normalizedTableName === "claim" &&
+                normalizedFieldName === "status"
+            ) {
+                const translationKey = `values.status_${stringValue
+                    .toLowerCase()
+                    .replace(/\s+/g, "_")}`;
+                const translation = t(translationKey, {
+                    ns: "claims",
                     defaultValue: stringValue,
                 });
                 if (translation && translation !== translationKey) {

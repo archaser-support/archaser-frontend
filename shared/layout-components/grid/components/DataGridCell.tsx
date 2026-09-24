@@ -156,7 +156,9 @@ const DataGridCell: React.FC<DataGridCellProps> = React.memo(
                     justifyContent:
                         column.field === "__rowNumber"
                             ? "center"
-                            : "space-between",
+                            : column.field === "actions"
+                              ? "flex-start"
+                              : "space-between",
                     // If column should use flex, don't set width in sx (let inline styles handle it)
                     // Otherwise use fixed width
                     width:
@@ -198,7 +200,9 @@ const DataGridCell: React.FC<DataGridCellProps> = React.memo(
                     textAlign:
                         column.field === "__rowNumber"
                             ? "center"
-                            : language === "he"
+                            : column.field === "actions"
+                              ? "left"
+                              : language === "he"
                                 ? "right"
                                 : "left",
                     overflow: "visible",

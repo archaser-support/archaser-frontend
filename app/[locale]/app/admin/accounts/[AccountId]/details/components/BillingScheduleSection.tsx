@@ -5,7 +5,6 @@ import {
     Accordion,
     AccordionDetails,
     AccordionSummary,
-    Autocomplete,
     Box,
     Card,
     CardContent,
@@ -38,7 +37,6 @@ import {
     PAID_TOLERANCE_MIN,
     SCHEDULE_PRESET_OPTIONS,
     WEEKDAY_OPTIONS,
-    type ExtensionKeyOption,
     type SchedulePresetValue,
 } from "./billingIntegrationConstants";
 import { getBillingAccordionStyles } from "./billingAccordionStyles";
@@ -72,6 +70,11 @@ function FieldWithTrailingInfoTooltip({
                 alignItems: "center",
                 gap: 0.75,
                 width: "100%",
+                // Theme FormControl adds marginBottom: 16px; that pads the flex
+                // line and mis-centers the trailing icon against the input.
+                "& .MuiFormControl-root": {
+                    marginBottom: 0,
+                },
             }}
         >
             <Box sx={{ flex: 1, minWidth: 0 }}>{children}</Box>
@@ -108,8 +111,10 @@ export interface BillingScheduleSectionProps {
     onSyncEnabledChange: (value: boolean) => void;
     syncMode: string | null | undefined;
     scheduleSummary: string | null | undefined;
+    /** Stored extension key (for accordion summary + attached panel). */
     extensionKey: string;
-    onExtensionKeyChange: (value: string) => void;
+    /** Read-only label when a matching account_{id} registry entry exists. */
+    matchedExtensionLabel: string | null;
     schedulePreset: SchedulePresetValue;
     onSchedulePresetChange: (value: SchedulePresetValue) => void;
     syncCron: string;
@@ -138,8 +143,6 @@ export interface BillingScheduleSectionProps {
     onIncludeOlderOpenInvoicesChange: (value: boolean) => void;
     backfillOptionsLocked: boolean;
     persistCutoverOptions: (patch: UpsertBillingConnectorPayload) => void | Promise<void>;
-    extensionKeyOptions: ExtensionKeyOption[];
-    selectedExtensionOption: ExtensionKeyOption;
     extensionConfig: Record<string, unknown>;
     onExtensionConfigChange: (value: Record<string, unknown>) => void;
     accountId: number;
@@ -158,7 +161,7 @@ const BillingScheduleSection = memo(function BillingScheduleSection(props: Billi
         syncMode,
         scheduleSummary,
         extensionKey,
-        onExtensionKeyChange,
+        matchedExtensionLabel,
         schedulePreset,
         onSchedulePresetChange,
         syncCron,
@@ -187,8 +190,6 @@ const BillingScheduleSection = memo(function BillingScheduleSection(props: Billi
         onIncludeOlderOpenInvoicesChange,
         backfillOptionsLocked,
         persistCutoverOptions,
-        extensionKeyOptions,
-        selectedExtensionOption,
         extensionConfig,
         onExtensionConfigChange,
         accountId,
@@ -250,8 +251,8 @@ const BillingScheduleSection = memo(function BillingScheduleSection(props: Billi
                                                 ? `Sync: Enabled · ${scheduleSummary}`
                                                 : "Sync: Enabled · choose how often sync runs."
                                             : "Sync: disabled"}
-                                        {extensionKey
-                                            ? ` · Extension: ${extensionKey}`
+                                        {matchedExtensionLabel
+                                            ? ` · ${matchedExtensionLabel}`
                                             : ""}
                                     </Typography>
                                 </Box>
@@ -390,49 +391,73 @@ const BillingScheduleSection = memo(function BillingScheduleSection(props: Billi
                                     nextScheduledSyncAtUtc ||
                                     syncEnabled) && (
                                     <Grid size={{ xs: 12 }}>
-                                        <Typography
-                                            variant="body2"
-                                            color="text.secondary"
+                                        <Box
+                                            sx={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "space-between",
+                                                gap: 2,
+                                                flexWrap: "wrap",
+                                            }}
+                                            dir={isHebrew ? "rtl" : "ltr"}
                                         >
-                                            {t(
-                                                "billing_connector.last_sync_at_label"
-                                            )}
-                                            :{" "}
-                                            {lastSyncAt
-                                                ? formatUtcTimestamp(lastSyncAt)
-                                                : t(
-                                                      "billing_connector.last_sync_at_empty"
-                                                  )}
-                                        </Typography>
-                                        {nextScheduledSyncAtUtc ? (
                                             <Typography
                                                 variant="body2"
                                                 color="text.secondary"
-                                                sx={{ mt: 0.5 }}
                                             >
-                                                {t(
-                                                    "billing_connector.next_scheduled_sync_at_label"
-                                                )}
-                                                :{" "}
-                                                {formatUtcTimestamp(
-                                                    nextScheduledSyncAtUtc
-                                                )}
+                                                <Box
+                                                    component="span"
+                                                    sx={{ fontWeight: 700 }}
+                                                >
+                                                    {t(
+                                                        "billing_connector.last_sync_at_label"
+                                                    )}
+                                                    :
+                                                </Box>{" "}
+                                                {lastSyncAt
+                                                    ? formatUtcTimestamp(lastSyncAt)
+                                                    : t(
+                                                          "billing_connector.last_sync_at_empty"
+                                                      )}
                                             </Typography>
-                                        ) : syncEnabled ? (
-                                            <Typography
-                                                variant="body2"
-                                                color="text.secondary"
-                                                sx={{ mt: 0.5 }}
-                                            >
-                                                {t(
-                                                    "billing_connector.next_scheduled_sync_at_label"
-                                                )}
-                                                :{" "}
-                                                {t(
-                                                    "billing_connector.last_sync_at_empty"
-                                                )}
-                                            </Typography>
-                                        ) : null}
+                                            {nextScheduledSyncAtUtc ? (
+                                                <Typography
+                                                    variant="body2"
+                                                    color="text.secondary"
+                                                >
+                                                    <Box
+                                                        component="span"
+                                                        sx={{ fontWeight: 700 }}
+                                                    >
+                                                        {t(
+                                                            "billing_connector.next_scheduled_sync_at_label"
+                                                        )}
+                                                        :
+                                                    </Box>{" "}
+                                                    {formatUtcTimestamp(
+                                                        nextScheduledSyncAtUtc
+                                                    )}
+                                                </Typography>
+                                            ) : syncEnabled ? (
+                                                <Typography
+                                                    variant="body2"
+                                                    color="text.secondary"
+                                                >
+                                                    <Box
+                                                        component="span"
+                                                        sx={{ fontWeight: 700 }}
+                                                    >
+                                                        {t(
+                                                            "billing_connector.next_scheduled_sync_at_label"
+                                                        )}
+                                                        :
+                                                    </Box>{" "}
+                                                    {t(
+                                                        "billing_connector.last_sync_at_empty"
+                                                    )}
+                                                </Typography>
+                                            ) : null}
+                                        </Box>
                                     </Grid>
                                 )}
         
@@ -703,87 +728,6 @@ const BillingScheduleSection = memo(function BillingScheduleSection(props: Billi
                                             )}
                                         </>
                                     )}
-        
-                                {canManage && (
-                                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                                        <FieldWithTrailingInfoTooltip
-                                            isHebrew={isHebrew}
-                                            title="Optional. Attach a registered extension for account-specific import logic. Use the account Save button to persist this field."
-                                        >
-                                            <Autocomplete
-                                                id="billing-extension-key"
-                                                options={extensionKeyOptions}
-                                                value={selectedExtensionOption}
-                                                disableClearable
-                                                fullWidth
-                                                size="small"
-                                                getOptionLabel={(option) =>
-                                                    option.label
-                                                }
-                                                isOptionEqualToValue={(option, value) =>
-                                                    option.key === value.key
-                                                }
-                                                onChange={(_event, next) => {
-                                                    const nextKey = next?.key ?? "";
-                                                    onExtensionKeyChange(nextKey);
-                                                    if (!nextKey) {
-                                                        onExtensionConfigChange({});
-                                                    }
-                                                }}
-                                                dir={isHebrew ? "rtl" : "ltr"}
-                                                {...(isHebrew && {
-                                                    "data-hebrew": true,
-                                                    "data-rtl": true,
-                                                })}
-                                                renderInput={(params) => (
-                                                    <TextField
-                                                        {...params}
-                                                        label="Extension Key"
-                                                        variant="outlined"
-                                                        size="small"
-                                                        fullWidth
-                                                        dir={isHebrew ? "rtl" : "ltr"}
-                                                        {...(isHebrew && {
-                                                            "data-hebrew": true,
-                                                        })}
-                                                    />
-                                                )}
-                                                renderOption={(props, option) => {
-                                                    const { key, ...otherProps } = props;
-                                                    return (
-                                                        <Box
-                                                            key={key}
-                                                            component="li"
-                                                            {...otherProps}
-                                                            sx={{
-                                                                direction: isHebrew
-                                                                    ? "rtl"
-                                                                    : "ltr",
-                                                                textAlign: isHebrew
-                                                                    ? "right"
-                                                                    : "left",
-                                                            }}
-                                                        >
-                                                            <Typography
-                                                                sx={{
-                                                                    direction: isHebrew
-                                                                        ? "rtl"
-                                                                        : "ltr",
-                                                                    textAlign: isHebrew
-                                                                        ? "right"
-                                                                        : "left",
-                                                                    width: "100%",
-                                                                }}
-                                                            >
-                                                                {option.label}
-                                                            </Typography>
-                                                        </Box>
-                                                    );
-                                                }}
-                                            />
-                                        </FieldWithTrailingInfoTooltip>
-                                    </Grid>
-                                )}
         
                                 {Boolean(extensionKey.trim()) &&
                                     ExtensionPanel &&

@@ -1,10 +1,12 @@
 "use client";
 
-import { useTheme } from "@mui/material/styles";
 import { useTranslation } from "react-i18next";
 
 import { PortalInvoice, InvoiceColumn } from "@/types/PortalInvoice";
-import { formatAmountWithoutSymbol } from "@/utils/stringFormatters";
+import {
+    formatCurrencyWithRTLSupport,
+    resolveCustomerFirstCurrency,
+} from "@/utils/stringFormatters";
 
 /**
  * Shared column definitions for invoice tables
@@ -12,7 +14,6 @@ import { formatAmountWithoutSymbol } from "@/utils/stringFormatters";
  */
 export const useInvoiceColumns = (): InvoiceColumn[] => {
     const { t, i18n } = useTranslation(["invoices", "portal", "common"]);
-    const theme = useTheme();
 
     return [
         {
@@ -27,14 +28,19 @@ export const useInvoiceColumns = (): InvoiceColumn[] => {
             mobilePriority: 4,
             tooltip: t("fields.amount"),
             render: (row: PortalInvoice) => {
-                const currency = row.customerCurrency
-                    ? `${row.customerCurrency} `
-                    : "";
-                const amount =
-                    row.customerAmount != null
-                        ? formatAmountWithoutSymbol(row.customerAmount)
-                        : "N/A";
-                return `${currency}${amount}`;
+                if (row.customerAmount == null) {
+                    return "N/A";
+                }
+                const currency = resolveCustomerFirstCurrency({
+                    customerCurrencyPrimary: row.customerCurrency,
+                    fallbackCurrency: row.currency,
+                });
+                return formatCurrencyWithRTLSupport(
+                    row.customerAmount,
+                    currency,
+                    "en-US",
+                    i18n.language
+                );
             },
         },
         {
@@ -49,14 +55,19 @@ export const useInvoiceColumns = (): InvoiceColumn[] => {
             mobilePriority: 2,
             tooltip: t("fields.total_paid"),
             render: (row: PortalInvoice) => {
-                const currency = row.customerCurrency
-                    ? `${row.customerCurrency} `
-                    : "";
-                const totalPaid =
-                    row.customerTotalPaid != null
-                        ? formatAmountWithoutSymbol(row.customerTotalPaid)
-                        : "N/A";
-                return `${currency}${totalPaid}`;
+                if (row.customerTotalPaid == null) {
+                    return "N/A";
+                }
+                const currency = resolveCustomerFirstCurrency({
+                    customerCurrencyPrimary: row.customerCurrency,
+                    fallbackCurrency: row.currency,
+                });
+                return formatCurrencyWithRTLSupport(
+                    row.customerTotalPaid,
+                    currency,
+                    "en-US",
+                    i18n.language
+                );
             },
         },
         {
@@ -65,14 +76,19 @@ export const useInvoiceColumns = (): InvoiceColumn[] => {
             mobilePriority: 4,
             tooltip: t("fields.outstanding_debt"),
             render: (row: PortalInvoice) => {
-                const currency = row.customerCurrency
-                    ? `${row.customerCurrency} `
-                    : "";
-                const outstandingDebt =
-                    row.customerOutstandingDebt != null
-                        ? formatAmountWithoutSymbol(row.customerOutstandingDebt)
-                        : "N/A";
-                return `${currency}${outstandingDebt}`;
+                if (row.customerOutstandingDebt == null) {
+                    return "N/A";
+                }
+                const currency = resolveCustomerFirstCurrency({
+                    customerCurrencyPrimary: row.customerCurrency,
+                    fallbackCurrency: row.currency,
+                });
+                return formatCurrencyWithRTLSupport(
+                    row.customerOutstandingDebt,
+                    currency,
+                    "en-US",
+                    i18n.language
+                );
             },
         },
     ];
@@ -84,7 +100,7 @@ export const useInvoiceColumns = (): InvoiceColumn[] => {
 export const useDisputeInvoiceColumns = (
     customerCurrency: string | null
 ): InvoiceColumn[] => {
-    const { t } = useTranslation(["invoices", "portal", "common"]);
+    const { t, i18n } = useTranslation(["invoices", "portal", "common"]);
 
     return [
         {
@@ -99,12 +115,27 @@ export const useDisputeInvoiceColumns = (
             mobilePriority: 4,
             tooltip: t("fields.amount"),
             render: (row: PortalInvoice) => {
+                const rowCurrency = resolveCustomerFirstCurrency({
+                    fallbackCurrency: row.currency,
+                });
+                const primary = formatCurrencyWithRTLSupport(
+                    row.customerAmount ?? 0,
+                    rowCurrency,
+                    "en-US",
+                    i18n.language
+                );
                 const showCustomerCurrency =
                     customerCurrency && customerCurrency !== row.currency;
-                const amount = showCustomerCurrency
-                    ? `${row.currency} ${formatAmountWithoutSymbol(row.customerAmount)} (${customerCurrency} ${formatAmountWithoutSymbol(row.amount)})`
-                    : `${row.currency} ${formatAmountWithoutSymbol(row.customerAmount)}`;
-                return amount;
+                if (showCustomerCurrency && row.amount != null) {
+                    const secondary = formatCurrencyWithRTLSupport(
+                        row.amount,
+                        customerCurrency,
+                        "en-US",
+                        i18n.language
+                    );
+                    return `${primary} (${secondary})`;
+                }
+                return primary;
             },
         },
         {

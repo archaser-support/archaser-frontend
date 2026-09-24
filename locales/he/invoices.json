@@ -27,6 +27,7 @@
     "view_invoices": "צפה בחשבוניות",
     "status_filter": "מסנן סטטוס",
     "last_payment_date": "תאריך תשלום אחרון",
+    "close_date": "תאריך סגירת חשבונית",
     "customer_currency": "מטבע לקוח",
     "payment_date": "תאריך תשלום",
     "payment_method": "שיטת תשלום",

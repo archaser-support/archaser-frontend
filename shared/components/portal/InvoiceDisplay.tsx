@@ -35,7 +35,10 @@ import { useMobileDetection } from "@/shared/hooks/useMobileDetection";
 import { portalInvoiceListRadius } from "@/shared/components/portal/portalInvoiceListStyles";
 import { InvoiceDisplayProps, PortalInvoice } from "@/types/PortalInvoice";
 import { formatDateForDisplay } from "@/utils/datetimeOperations";
-import { formatAmountWithoutSymbol } from "@/utils/stringFormatters";
+import {
+    formatCurrencyWithRTLSupport,
+    resolveCustomerFirstCurrency,
+} from "@/utils/stringFormatters";
 
 /**
  * Unified Invoice Display Component
@@ -89,11 +92,16 @@ export default function InvoiceDisplay({
             displayAmount = originalAmount;
         } else if (typeof originalAmount === "number") {
             // Fallback if no render function
-            const currency = invoice.customerCurrency || invoice.currency || "";
-            const numericAmount = formatAmountWithoutSymbol(originalAmount);
-            displayAmount = currency
-                ? `${currency} ${numericAmount}`
-                : `$${numericAmount}`;
+            const currency = resolveCustomerFirstCurrency({
+                customerCurrencyPrimary: invoice.customerCurrency,
+                fallbackCurrency: invoice.currency,
+            });
+            displayAmount = formatCurrencyWithRTLSupport(
+                originalAmount,
+                currency,
+                "en-US",
+                i18n.language
+            );
         } else {
             // Fallback for other types
             displayAmount = String(originalAmount);

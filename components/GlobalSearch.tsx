@@ -54,7 +54,7 @@ import {
     GlobalSearchResult,
 } from "@/shared/services/globalSearchService";
 import AppUrls from "@/utils/appUrls";
-import { formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
+import { formatCurrencyWithRTLSupport, resolveCustomerFirstCurrency } from "@/utils/stringFormatters";
 import { resolveTextDirection } from "@/utils/textDirection";
 
 interface GlobalSearchProps {
@@ -1087,11 +1087,11 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
             if (key.includes("amount") || key.includes("Amount")) {
                 if (typeof value === "number") {
                     // Get currency code from metadata (try currency, currency_code, or default to USD)
-                    const currencyCode =
-                        metadata?.currency ||
-                        metadata?.currency_code ||
-                        session?.user?.currency ||
-                        "USD";
+                    const currencyCode = resolveCustomerFirstCurrency({
+                        fallbackCurrency:
+                            metadata?.currency || metadata?.currency_code,
+                        accountCurrency: session?.user?.currency,
+                    });
                     // Use user's locale from session, or fallback to i18n language
                     const userLocale = session?.user?.locale;
                     const userLanguage = session?.user?.language;
@@ -1140,10 +1140,10 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
             if (amount == null || !Number.isFinite(Number(amount))) {
                 return "—";
             }
-            const currencyCode =
-                currency?.trim() ||
-                session?.user?.currency ||
-                "USD";
+            const currencyCode = resolveCustomerFirstCurrency({
+                fallbackCurrency: currency,
+                accountCurrency: session?.user?.currency,
+            });
             const userLocale = session?.user?.locale;
             const userLanguage = session?.user?.language;
             let locale = "en-US";
@@ -2623,15 +2623,21 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                                                 "number"
                                                             ) {
                                                                 const currencyCode =
-                                                                    hoveredResult
-                                                                        .metadata
-                                                                        ?.currency ||
-                                                                    hoveredResult
-                                                                        .metadata
-                                                                        ?.currency_code ||
-                                                                    session?.user
-                                                                        ?.currency ||
-                                                                    "USD";
+                                                                    resolveCustomerFirstCurrency(
+                                                                        {
+                                                                            fallbackCurrency:
+                                                                                hoveredResult
+                                                                                    .metadata
+                                                                                    ?.currency ||
+                                                                                hoveredResult
+                                                                                    .metadata
+                                                                                    ?.currency_code,
+                                                                            accountCurrency:
+                                                                                session
+                                                                                    ?.user
+                                                                                    ?.currency,
+                                                                        }
+                                                                    );
                                                                 // Use user's locale from session, or fallback to i18n language
                                                                 const userLocale =
                                                                     session?.user

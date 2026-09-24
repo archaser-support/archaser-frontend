@@ -247,7 +247,8 @@
         "sync_mode_label": "מצב סנכרון",
         "last_sync_at_label": "סנכרון אחרון (UTC)",
         "last_sync_at_empty": "—",
-        "next_scheduled_sync_at_label": "הסנכרון המתוזמן הבא (UTC)"
+        "next_scheduled_sync_at_label": "הסנכרון המתוזמן הבא (UTC)",
+        "extension_matched": "{{label}} ({{key}})"
     },
     "as_of_backfill": {
         "open_button": "מילוי היסטוריה לפי תאריך",

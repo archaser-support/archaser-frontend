@@ -85,7 +85,13 @@
             "limits": "Limits & Scoring",
             "payment_term": "Payment Term",
             "mep": "MEP",
-            "reporting": "Reporting"
+            "reporting": "Reporting",
+            "commercial_terms": "Commercial Terms",
+            "remaining_excess": "Remaining Excess (Access Amount)"
+        },
+        "tabs": {
+            "general": "General",
+            "commercial_terms": "Commercial Terms"
         },
         "fields": {
             "country": "Country",
@@ -121,7 +127,26 @@
             "policy_kind_top_up": "Top-Up",
             "parent_insurance_policy": "Parent Policy",
             "allow_concurrent_top_ups": "Allow Concurrent Top-Ups",
-            "auto_activate_on_term_start": "Automatically activate on start date"
+            "auto_activate_on_term_start": "Automatically activate on start date",
+            "insured_percentage": "Insured Percentage (%)",
+            "non_qualifying_loss_threshold": "Non-Qualifying Loss Threshold",
+            "minimum_premium": "Minimum Premium",
+            "minimum_premium_period_years": "Minimum Premium Period (Years)",
+            "aggregate_excess": "Aggregate Excess",
+            "sdl_excess": "SDL Excess",
+            "remaining_sdl_excess": "Remaining SDL Excess",
+            "remaining_aggregate_excess": "Remaining Aggregate Excess",
+            "ncb_zero_claims_bonus_percent": "No-Claim Bonus — Zero Claims (%)",
+            "ncb_claims_ratio_threshold_percent": "No-Claim Bonus — Claims Ratio Threshold (%)",
+            "ncb_up_to_threshold_bonus_percent": "No-Claim Bonus — Up to Threshold (%)",
+            "product_type": "Product Type",
+            "product_type_tailor_made": "Tailor-made",
+            "product_type_commodity": "Commodity"
+        },
+        "remaining_excess": {
+            "help": "Derived access amount left after Approved/Paid claims for each Primary policy anniversary year. Updates when claims are approved, paid, canceled, or rejected.",
+            "year_label": "Policy year {{year}} ({{range}})",
+            "load_failed": "Could not load remaining excess."
         },
         "tooltips": {
             "auto_activate_on_term_start": "When checked, the policy becomes Active automatically on the start date.",
@@ -151,7 +176,17 @@
             "reporting_substitute_extra_days": "Added to due date + reporting days when cutoff applies.",
             "score_validity_period_months": "How many months a credit score remains valid before re-check.",
             "start_date": "First day this policy term is in force.",
-            "status": "Draft while configuring, Active when in force, Inactive when retired."
+            "status": "Draft while configuring, Active when in force, Inactive when retired.",
+            "insured_percentage": "Share of loss covered by the insurer (e.g. 85%). Leave blank if not set.",
+            "non_qualifying_loss_threshold": "Minimum loss amount in policy currency before a claim can qualify. Leave blank if not set.",
+            "minimum_premium": "Minimum premium amount in policy currency. Leave blank if not set.",
+            "minimum_premium_period_years": "Number of years the minimum premium applies to (e.g. 3). Leave blank if not set.",
+            "aggregate_excess": "General excess in policy currency. Enter 0 for none; leave blank if not set.",
+            "sdl_excess": "Annual Special Discretionary Limit (SDL) excess in policy currency. Leave blank if not set.",
+            "ncb_zero_claims_bonus_percent": "No-claim bonus percent when claims ratio is 0%. Leave blank if not set.",
+            "ncb_claims_ratio_threshold_percent": "Claims-ratio threshold percent for the lower no-claim bonus tier (e.g. 20). Leave blank if not set.",
+            "ncb_up_to_threshold_bonus_percent": "No-claim bonus percent when claims ratio is up to the threshold. Leave blank if not set.",
+            "product_type": "Whether products under this policy are tailor-made or commodity. Leave blank if not set."
         },
         "status": {
             "active": "Active",
@@ -173,6 +208,10 @@
             "cost_percent_required_when_method_set": "Insurance Fee Rate (%) is required when Cost Calculation Method is set",
             "registration_fee_out_of_range": "Registration Fee (%) must be between 0 and 100",
             "annual_credit_assessment_fee_negative": "Annual Credit Assessment Fee must be 0 or greater",
+            "commercial_value_negative": "Value must be 0 or greater",
+            "commercial_percent_out_of_range": "Percent must be between 0 and 100",
+            "minimum_premium_period_years_invalid": "Period must be a whole number of 1 or more years",
+            "invalid_product_type": "Select a valid product type",
             "invalid_number": "Enter a valid number",
             "invalid_integer": "Enter a valid whole number",
             "day_of_month_out_of_range": "Enter a day between 1 and 31",

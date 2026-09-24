@@ -1,19 +1,30 @@
 "use client";
 import {
     EditNote as EditNoteIcon,
+    Gavel as GavelIcon,
     Payments as PaymentsIcon,
     Receipt as ReceiptIcon,
 } from "@mui/icons-material";
-import { Box, IconButton, Tooltip, Typography } from "@mui/material";
+import { Box, CircularProgress, IconButton, Tooltip, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { GridColDef, GridRenderCellParams } from "@/shared/layout-components/grid/gridColumnTypes";
+import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 import { useSession } from "next-auth/react";
 import { useParams, useSearchParams } from "next/navigation";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import ClaimFormDialog from "@/app/[locale]/app/claims/ClaimFormDialog";
 import { ViewBasedDataGrid } from "@/shared/components/ViewBasedDataGrid/ViewBasedDataGrid";
+import {
+    ClaimEligibilityFailureReason,
+    getClaim,
+    listClaims,
+    openClaimFromInvoice,
+    type ClaimRecord,
+} from "@/shared/services/claimsService";
 import { fetchCustomerById } from "@/shared/services/customerService";
 import { Customer } from "@/types/Customer";
 import {
@@ -21,7 +32,11 @@ import {
     getUserDateLocale,
     getUserTimezone,
 } from "@/utils/datetimeOperations";
-import { formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
+import { getRTLTooltipProps } from "@/utils/reportFieldUtils";
+import {
+    formatCurrencyWithRTLSupport,
+    resolveCustomerFirstCurrency,
+} from "@/utils/stringFormatters";
 
 import { CreditInsuranceViolationsCell } from "./CreditInsuranceViolationsCell";
 import InvoiceCreditInsuranceReportingModal from "./InvoiceCreditInsuranceReportingModal";
@@ -35,6 +50,22 @@ interface CustomerProp {
     isCollectionAccount?: boolean;
 }
 
+function getInvoiceStatusName(row: Record<string, unknown>): string {
+    const status = row.status ?? row["Invoice.status"];
+    if (typeof status === "string") {
+        return status;
+    }
+    if (
+        status != null &&
+        typeof status === "object" &&
+        "name" in (status as object)
+    ) {
+        const name = (status as { name?: unknown }).name;
+        return typeof name === "string" ? name : "";
+    }
+    return "";
+}
+
 const UnpaidInvoiceList: React.FC<CustomerProp> = ({
     customer: propCustomer,
     isCreditInsuranceAccount = false,
@@ -42,6 +73,7 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
 }) => {
     const queryClient = useQueryClient();
     const { t, i18n } = useTranslation(["customers", "common", "invoices"]);
+    const { showToast } = useToast();
     const params = useParams();
     const searchParams = useSearchParams();
     const customerId = params?.customerId as string;
@@ -70,6 +102,11 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
     > | null>(null);
     const [ptpDialogOpen, setPtpDialogOpen] = useState(false);
     const [ptpInvoiceId, setPtpInvoiceId] = useState<number | null>(null);
+    const [issuingClaimInvoiceId, setIssuingClaimInvoiceId] = useState<
+        number | null
+    >(null);
+    const [claimDialogOpen, setClaimDialogOpen] = useState(false);
+    const [editingClaim, setEditingClaim] = useState<ClaimRecord | null>(null);
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
     const { data: fetchedCustomer } = useQuery<Customer>({
@@ -85,6 +122,36 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
             ?.InsurancePolicy?.id ??
         (customer as Customer & { policy_id?: number | null })?.policy_id
     );
+
+    const parsedCustomerId = useMemo(() => {
+        const n = parseInt(customerId, 10);
+        return Number.isFinite(n) ? n : null;
+    }, [customerId]);
+
+    const { data: customerClaimsData } = useQuery({
+        queryKey: ["claims", "customer-invoice-ids", parsedCustomerId],
+        queryFn: () =>
+            listClaims({
+                customer_id: parsedCustomerId!,
+                page: 1,
+                limit: 200,
+            }),
+        enabled:
+            isCreditInsuranceAccount &&
+            hasCustomerPolicy &&
+            parsedCustomerId != null,
+        staleTime: 30 * 1000,
+    });
+
+    const claimedInvoiceIds = useMemo(() => {
+        const ids = new Set<number>();
+        for (const claim of customerClaimsData?.claims ?? []) {
+            if (claim.invoice_id != null && Number.isFinite(claim.invoice_id)) {
+                ids.add(claim.invoice_id);
+            }
+        }
+        return ids;
+    }, [customerClaimsData?.claims]);
 
     // Helper function to translate invoice status names
     const translateStatusName = useCallback(
@@ -128,6 +195,127 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
         },
         []
     );
+
+    const formatEligibilityReasons = useCallback(
+        (reasons: ClaimEligibilityFailureReason[] | undefined): string => {
+            if (!reasons || reasons.length === 0) {
+                return t("issue_claim.not_eligible", { ns: "customers" });
+            }
+            return reasons
+                .map((reason) =>
+                    t(`issue_claim.reasons.${reason}`, {
+                        ns: "customers",
+                        defaultValue: reason,
+                    })
+                )
+                .join(" · ");
+        },
+        [t]
+    );
+
+    const handleOpenClaim = useCallback(
+        async (invoiceId: number) => {
+            if (!Number.isFinite(invoiceId) || invoiceId <= 0) {
+                showToast(
+                    t("issue_claim.invalid_invoice", { ns: "customers" }),
+                    "error"
+                );
+                return;
+            }
+            if (issuingClaimInvoiceId != null) {
+                return;
+            }
+            setIssuingClaimInvoiceId(invoiceId);
+            try {
+                const { claimId, created } = await openClaimFromInvoice(invoiceId);
+                const claim = await getClaim(claimId);
+                setEditingClaim(claim);
+                setClaimDialogOpen(true);
+                if (created) {
+                    if (parsedCustomerId != null) {
+                        void queryClient.invalidateQueries({
+                            queryKey: ["claims", "open"],
+                        });
+                        void queryClient.invalidateQueries({
+                            queryKey: [
+                                "claims",
+                                "customer-invoice-ids",
+                                parsedCustomerId,
+                            ],
+                        });
+                    }
+                    void queryClient.invalidateQueries({
+                        queryKey: ["claims", "policy-excess-summary"],
+                    });
+                }
+            } catch (e: unknown) {
+                if (axios.isAxiosError(e)) {
+                    const data = e.response?.data as
+                        | {
+                              error?: string;
+                              code?: string;
+                              reasons?: ClaimEligibilityFailureReason[];
+                          }
+                        | undefined;
+                    if (
+                        data?.code === "claim_not_eligible" ||
+                        data?.code === "claim_already_exists" ||
+                        Array.isArray(data?.reasons)
+                    ) {
+                        const reasons =
+                            data?.code === "claim_already_exists" &&
+                            !data.reasons?.length
+                                ? ([
+                                      "claim_already_exists",
+                                  ] as ClaimEligibilityFailureReason[])
+                                : data?.reasons;
+                        showToast(formatEligibilityReasons(reasons), "error");
+                        return;
+                    }
+                    showToast(
+                        String(
+                            data?.error ??
+                                e.message ??
+                                t("issue_claim.failed", { ns: "customers" })
+                        ),
+                        "error"
+                    );
+                    return;
+                }
+                showToast(
+                    e instanceof Error
+                        ? e.message
+                        : t("issue_claim.failed", { ns: "customers" }),
+                    "error"
+                );
+            } finally {
+                setIssuingClaimInvoiceId(null);
+            }
+        },
+        [
+            formatEligibilityReasons,
+            issuingClaimInvoiceId,
+            parsedCustomerId,
+            queryClient,
+            showToast,
+            t,
+        ]
+    );
+
+    const handleClaimDialogSuccess = useCallback(() => {
+        setGridRefreshTrigger((n) => n + 1);
+        if (parsedCustomerId != null) {
+            void queryClient.invalidateQueries({
+                queryKey: ["claims", "open"],
+            });
+            void queryClient.invalidateQueries({
+                queryKey: ["claims", "customer-invoice-ids", parsedCustomerId],
+            });
+        }
+        void queryClient.invalidateQueries({
+            queryKey: ["claims", "policy-excess-summary"],
+        });
+    }, [parsedCustomerId, queryClient]);
 
     const renderCreditInsuranceInvoiceNumberCell = useCallback(
         (params: any) => {
@@ -176,7 +364,10 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
     const formatAmountCell = useCallback(
         (val: any, rowCurrency: string) => {
             if (val === undefined || val === null || val === "") return "";
-            const currency = rowCurrency || "";
+            const currency = resolveCustomerFirstCurrency({
+                fallbackCurrency: rowCurrency,
+                accountCurrency: session?.user?.currency,
+            });
             if (typeof val === "number") {
                 return formatCurrencyWithRTLSupport(
                     val,
@@ -314,7 +505,13 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
             },
             customer_total_paid: (params: any) => {
                 const totalPaid = params?.value !== undefined && params?.value !== null ? params.value : params?.row?.customer_total_paid || 0;
-                const currency = params?.row?.customer_currency || "";
+                const currency = resolveCustomerFirstCurrency({
+                    fallbackCurrency:
+                        params?.row?.customer_currency ||
+                        params?.row?.["Invoice.customer_currency"] ||
+                        params?.row?.currency,
+                    accountCurrency: session?.user?.currency,
+                });
                 const formattedAmount = typeof totalPaid === "string" ? totalPaid : formatCurrencyWithRTLSupport(
                     totalPaid,
                     currency,
@@ -418,12 +615,19 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
             const invoiceId =
                 typeof rawId === "number" ? rawId : Number(rawId);
             const row = params.row as Record<string, unknown>;
+            const isIssuingThis =
+                issuingClaimInvoiceId != null &&
+                issuingClaimInvoiceId === invoiceId;
+            const invoiceStatusName = getInvoiceStatusName(row);
+            const showOpenClaim =
+                invoiceStatusName === "Overdue" ||
+                (Number.isFinite(invoiceId) &&
+                    claimedInvoiceIds.has(invoiceId));
             return (
                 <Box
                     sx={{
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "center",
                         gap: 0.25,
                     }}
                 >
@@ -432,6 +636,7 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
                             title={t("credit_insurance_reporting.edit_title", {
                                 ns: "customers",
                             })}
+                            {...getRTLTooltipProps(i18n)}
                         >
                             <IconButton
                                 size="small"
@@ -458,11 +663,60 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
                             </IconButton>
                         </Tooltip>
                     )}
+                    {isCreditInsuranceAccount &&
+                        hasCustomerPolicy &&
+                        showOpenClaim && (
+                        <Tooltip
+                            title={t("issue_claim.action", {
+                                ns: "customers",
+                            })}
+                            {...getRTLTooltipProps(i18n)}
+                        >
+                            <span>
+                                <IconButton
+                                    size="small"
+                                    disabled={
+                                        issuingClaimInvoiceId != null ||
+                                        !Number.isFinite(invoiceId) ||
+                                        invoiceId <= 0
+                                    }
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        if (
+                                            Number.isFinite(invoiceId) &&
+                                            invoiceId > 0
+                                        ) {
+                                            void handleOpenClaim(invoiceId);
+                                        }
+                                    }}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    sx={{
+                                        color: "primary.main",
+                                        "&:hover": {
+                                            backgroundColor:
+                                                "rgba(var(--primary-rgb), 0.08)",
+                                        },
+                                    }}
+                                    aria-label={t("issue_claim.action", {
+                                        ns: "customers",
+                                    })}
+                                >
+                                    {isIssuingThis ? (
+                                        <CircularProgress size={16} />
+                                    ) : (
+                                        <GavelIcon fontSize="small" />
+                                    )}
+                                </IconButton>
+                            </span>
+                        </Tooltip>
+                    )}
                     {isCollectionAccount && hasCustomerPolicy && (
                         <Tooltip
                             title={t("last_payment_date.set_action", {
                                 ns: "customers",
                             })}
+                            {...getRTLTooltipProps(i18n)}
                         >
                             <IconButton
                                 size="small"
@@ -495,10 +749,14 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
         },
         [
             t,
+            i18n,
             isCreditInsuranceAccount,
             isCollectionAccount,
             hasCustomerPolicy,
             openCreditInsuranceReportingModal,
+            handleOpenClaim,
+            issuingClaimInvoiceId,
+            claimedInvoiceIds,
         ]
     );
 
@@ -523,8 +781,10 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
                 ? {
                     minWidth:
                         isCreditInsuranceAccount && isCollectionAccount
-                            ? 88
-                            : 52,
+                            ? 120
+                            : isCreditInsuranceAccount
+                              ? 88
+                              : 52,
                     flex: 0.55,
                 }
                 : undefined,
@@ -723,6 +983,18 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
                             exact: false,
                         });
                     }}
+                />
+            )}
+
+            {isCreditInsuranceAccount && (
+                <ClaimFormDialog
+                    open={claimDialogOpen}
+                    onClose={() => {
+                        setClaimDialogOpen(false);
+                        setEditingClaim(null);
+                    }}
+                    onSuccess={handleClaimDialogSuccess}
+                    claim={editingClaim}
                 />
             )}
         </Box>

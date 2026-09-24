@@ -17,9 +17,11 @@ import { searchCustomers } from "@/shared/services/customerService";
 interface CustomerNumberAutocompleteProps {
     value: string;
     onChange: (customerNumber: string) => void;
+    /** Fired with the selected customer (includes id) whenever selection changes. */
+    onCustomerSelect?: (customer: CustomerOption | null) => void;
     error?: string;
     disabled?: boolean;
-    label?: string;
+    label?: React.ReactNode;
     size?: "small" | "medium";
     sx?: SxProps<Theme>;
     /** Customer numbers to omit from search results (case-insensitive). */
@@ -61,6 +63,7 @@ function getCustomerDisplayLabel(option: CustomerOption): string {
 const CustomerNumberAutocomplete: React.FC<CustomerNumberAutocompleteProps> = ({
     value,
     onChange,
+    onCustomerSelect,
     error,
     disabled = false,
     label,
@@ -225,6 +228,7 @@ const CustomerNumberAutocomplete: React.FC<CustomerNumberAutocompleteProps> = ({
                 const customerNumber = newValue?.customer_number?.trim() ?? "";
                 lastResolvedValueRef.current = customerNumber || null;
                 onChange(customerNumber);
+                onCustomerSelect?.(newValue);
             }}
             onInputChange={(_, newInputValue) => {
                 setSearchTerm(newInputValue);

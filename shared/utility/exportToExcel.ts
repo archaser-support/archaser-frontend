@@ -1,6 +1,7 @@
 import * as ExcelJS from "exceljs";
 
 import { formatDateForDisplay } from "@/utils/datetimeOperations";
+import { formatMoney } from "@/utils/stringFormatters";
 
 export type ExportFormat = "excel" | "csv" | "pdf";
 
@@ -286,7 +287,8 @@ export const safeAmount = (value: any, fieldName?: string): number => {
 };
 
 /**
- * Format a numeric amount with currency code (English format: "1,234 USD")
+ * Format a numeric amount with currency code (English format: "1,234.00 USD").
+ * Prefer this combined string for exports instead of splitting amount/currency columns.
  *
  * @param amount - The numeric amount
  * @param currencyCode - The currency code (e.g., "USD", "EUR")
@@ -294,7 +296,7 @@ export const safeAmount = (value: any, fieldName?: string): number => {
  * @returns Formatted currency string
  *
  * @example
- * formatCurrencyWithCode(1234, "USD") // "1,234 USD"
+ * formatCurrencyWithCode(1234, "USD") // "1,234.00 USD"
  * formatCurrencyWithCode(1234.56, "EUR") // "1,234.56 EUR"
  */
 export const formatCurrencyWithCode = (
@@ -302,16 +304,14 @@ export const formatCurrencyWithCode = (
     currencyCode: string,
     locale: string = "en-US"
 ): string => {
-    if (amount === null || amount === undefined || isNaN(amount)) {
-        return `0.00 ${currencyCode}`;
-    }
-
-    const formatter = new Intl.NumberFormat(locale, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
+    const language = locale.toLowerCase().startsWith("he") ? "he" : "en";
+    const safeAmount =
+        amount === null || amount === undefined || isNaN(amount) ? 0 : amount;
+    return formatMoney(safeAmount, currencyCode, {
+        style: "iso",
+        locale,
+        language,
     });
-
-    return `${formatter.format(amount)} ${currencyCode}`;
 };
 
 /**

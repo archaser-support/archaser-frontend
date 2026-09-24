@@ -16,15 +16,9 @@ import { useTranslation } from "react-i18next";
 
 import { currencies } from "@/shared/data/common/currencies";
 import { CollectionStat } from "@/types/Dashboard";
-import { formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
+import { formatMoney } from "@/utils/stringFormatters";
 
 import { FinancialDashboardChartCard } from "./FinancialDashboardChartCard";
-
-// Helper function to get currency code (returns code instead of symbol)
-const getCurrencySymbol = (currencyCode: string): string => {
-    // Return the currency code directly (e.g., "ILS" instead of "₪")
-    return currencyCode;
-};
 
 // Helper function to clean amount values by removing "Customers" text
 const cleanAmountValue = (amount: string): string => {
@@ -190,15 +184,9 @@ const CollectionPhasesCard = ({
                                         whiteSpace: "nowrap",
                                     }}
                                 >
-                                    {formatCurrencyWithRTLSupport(
-                                        parseFloat(
+                                    {formatMoney(parseFloat(
                                             cleanAmountValue(automatedStats.amount)
-                                        ) || 0,
-                                        currency,
-                                        i18n.language,
-                                        i18n.language,
-                                        { wholeNumbers: true }
-                                    )}
+                                        ) || 0, currency, { style: "symbol", locale: i18n.language === "he" ? "he-IL" : "en-US", language: i18n.language, wholeNumbers: true })}
                                 </Typography>
                             </Box>
                         </Stack>
@@ -323,15 +311,9 @@ const CollectionPhasesCard = ({
                                         whiteSpace: "nowrap",
                                     }}
                                 >
-                                    {formatCurrencyWithRTLSupport(
-                                        parseFloat(
+                                    {formatMoney(parseFloat(
                                             cleanAmountValue(agentStats.amount)
-                                        ) || 0,
-                                        currency,
-                                        i18n.language,
-                                        i18n.language,
-                                        { wholeNumbers: true }
-                                    )}
+                                        ) || 0, currency, { style: "symbol", locale: i18n.language === "he" ? "he-IL" : "en-US", language: i18n.language, wholeNumbers: true })}
                                 </Typography>
                             </Box>
                         </Stack>
@@ -483,15 +465,9 @@ const DisputeAndPromiseCard = ({
                                         whiteSpace: "nowrap",
                                     }}
                                 >
-                                    {formatCurrencyWithRTLSupport(
-                                        parseFloat(
+                                    {formatMoney(parseFloat(
                                             cleanAmountValue(disputeStats.amount)
-                                        ) || 0,
-                                        currency,
-                                        i18n.language,
-                                        i18n.language,
-                                        { wholeNumbers: true }
-                                    )}
+                                        ) || 0, currency, { style: "symbol", locale: i18n.language === "he" ? "he-IL" : "en-US", language: i18n.language, wholeNumbers: true })}
                                 </Typography>
                             </Box>
                         </Stack>
@@ -618,15 +594,9 @@ const DisputeAndPromiseCard = ({
                                         whiteSpace: "nowrap",
                                     }}
                                 >
-                                    {formatCurrencyWithRTLSupport(
-                                        parseFloat(
+                                    {formatMoney(parseFloat(
                                             cleanAmountValue(promiseStats.amount)
-                                        ) || 0,
-                                        currency,
-                                        i18n.language,
-                                        i18n.language,
-                                        { wholeNumbers: true }
-                                    )}
+                                        ) || 0, currency, { style: "symbol", locale: i18n.language === "he" ? "he-IL" : "en-US", language: i18n.language, wholeNumbers: true })}
                                 </Typography>
                             </Box>
                         </Stack>

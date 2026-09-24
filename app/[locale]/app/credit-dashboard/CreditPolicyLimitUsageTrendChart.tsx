@@ -13,6 +13,10 @@ import {
     formatDateForDisplay,
     getUserDateLocale,
 } from "@/utils/datetimeOperations";
+import {
+    formatPortfolioAxisMoney,
+    formatPortfolioMoney,
+} from "@/app/[locale]/app/credit-portfolio-health/formatPortfolioMoney";
 
 import { CreditDashboardTitleInfoIcon } from "./creditDashboardTitleTooltip";
 
@@ -47,7 +51,8 @@ export function CreditPolicyLimitUsageTrendChart({
     const { data: session } = useSession();
     const { t, i18n } = useTranslation(["dashboard", "common"]);
     const isRtl = i18n.language === "he";
-    const numLocale = i18n.language === "he" ? "he-IL" : "en-US";
+    const language = i18n.language;
+    const accountCurrency = data?.accountCurrency || "USD";
     const nsDashboard = { ns: "dashboard" as const };
     const isLight = theme.palette.mode === "light";
 
@@ -66,21 +71,6 @@ export function CreditPolicyLimitUsageTrendChart({
     const topCustomers = data?.topCustomers ?? [];
     const showTopUpStack = data?.hasTopUpPolicies === true;
 
-    const amountFormatter = useMemo(
-        () =>
-            new Intl.NumberFormat(numLocale, {
-                maximumFractionDigits: 0,
-            }),
-        [numLocale]
-    );
-    const pillCompactFormatter = useMemo(
-        () =>
-            new Intl.NumberFormat("en-US", {
-                notation: "compact",
-                maximumFractionDigits: 1,
-            }),
-        []
-    );
     const pillPercentFormatter = useMemo(
         () =>
             new Intl.NumberFormat("en-US", {
@@ -91,11 +81,14 @@ export function CreditPolicyLimitUsageTrendChart({
     );
     const percentFormatter = useMemo(
         () =>
-            new Intl.NumberFormat(numLocale, {
-                maximumFractionDigits: 1,
-                minimumFractionDigits: 0,
-            }),
-        [numLocale]
+            new Intl.NumberFormat(
+                i18n.language === "he" ? "he-IL" : "en-US",
+                {
+                    maximumFractionDigits: 1,
+                    minimumFractionDigits: 0,
+                }
+            ),
+        [i18n.language]
     );
 
     const policyBarColor = theme.palette.chartPalette.main;
@@ -282,13 +275,21 @@ export function CreditPolicyLimitUsageTrendChart({
                 points: chartData.map((item) => {
                     const limitText =
                         item.limit != null && item.limit > 0
-                            ? pillCompactFormatter.format(item.limit)
+                            ? formatPortfolioAxisMoney(
+                                  item.limit,
+                                  accountCurrency,
+                                  language
+                              )
                             : null;
                     const topUpText =
                         showTopUpStack &&
                         item.topUpTotal != null &&
                         item.topUpTotal > 0
-                            ? pillCompactFormatter.format(item.topUpTotal)
+                            ? formatPortfolioAxisMoney(
+                                  item.topUpTotal,
+                                  accountCurrency,
+                                  language
+                              )
                             : null;
                     const pctText =
                         item.usagePct != null
@@ -418,15 +419,27 @@ export function CreditPolicyLimitUsageTrendChart({
 
                     const limitText =
                         item.limit != null && item.limit > 0
-                            ? amountFormatter.format(item.limit)
+                            ? formatPortfolioMoney(
+                                  item.limit,
+                                  accountCurrency,
+                                  language
+                              )
                             : "-";
                     const topUpText =
                         item.topUpTotal != null && item.topUpTotal > 0
-                            ? amountFormatter.format(item.topUpTotal)
+                            ? formatPortfolioMoney(
+                                  item.topUpTotal,
+                                  accountCurrency,
+                                  language
+                              )
                             : "-";
                     const effectiveText =
                         item.effectiveLimit != null && item.effectiveLimit > 0
-                            ? amountFormatter.format(item.effectiveLimit)
+                            ? formatPortfolioMoney(
+                                  item.effectiveLimit,
+                                  accountCurrency,
+                                  language
+                              )
                             : "-";
 
                     let tooltipContent =
@@ -435,7 +448,11 @@ export function CreditPolicyLimitUsageTrendChart({
 
                     tooltipContent += row(
                         currentArLabel,
-                        amountFormatter.format(item.amount)
+                        formatPortfolioMoney(
+                            item.amount,
+                            accountCurrency,
+                            language
+                        )
                     );
                     tooltipContent += row(approvedLimitLabel, limitText);
                     if (showTopUpStack) {
@@ -484,9 +501,9 @@ export function CreditPolicyLimitUsageTrendChart({
             theme,
             isRtl,
             showTopUpStack,
-            amountFormatter,
+            accountCurrency,
+            language,
             percentFormatter,
-            pillCompactFormatter,
             pillPercentFormatter,
             currentArLabel,
             approvedLimitLabel,

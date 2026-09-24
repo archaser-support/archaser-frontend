@@ -15,6 +15,7 @@ const i18nNamespaces = [
     "invoices",
     "activities",
     "disputes",
+    "claims",
     "reports",
     "generic_fields",
     "settings",

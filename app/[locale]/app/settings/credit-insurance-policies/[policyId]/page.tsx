@@ -60,6 +60,12 @@ import { validateAnnualCreditAssessmentFeeFormField } from "@/shared/creditInsur
 import { validateRegistrationFeePercentFormField } from "@/shared/creditInsurance/registrationFeePercent";
 import { filterTopUpParentPolicyOptions } from "@/shared/creditInsurance/topUpParentPolicy";
 import {
+    commercialTermValidationMessage,
+    emptyCommercialTermsFormInputs,
+    type CommercialTermsFormInputs,
+    validateCommercialTermsFormFields,
+} from "@/shared/creditInsurance/policyCommercialTerms";
+import {
     formatDateOnlyYmdForSession,
     formatDateForDisplay,
     getDatePickerFormat,
@@ -159,6 +165,16 @@ type PolicyDetail = {
     cost_percent?: string | number | null;
     registration_fee_percent?: string | number | null;
     annual_credit_assessment_fee?: string | number | null;
+    insured_percentage?: string | number | null;
+    non_qualifying_loss_threshold?: string | number | null;
+    minimum_premium?: string | number | null;
+    minimum_premium_period_years?: number | null;
+    aggregate_excess?: string | number | null;
+    sdl_excess?: string | number | null;
+    ncb_zero_claims_bonus_percent?: string | number | null;
+    ncb_claims_ratio_threshold_percent?: string | number | null;
+    ncb_up_to_threshold_bonus_percent?: string | number | null;
+    product_type?: "TailorMade" | "Commodity" | null;
     InsurancePolicyCountry?: PolicyCountryRow[];
     NamedPolicy?: NamedPolicyRow[];
     insurer_name?: string | null;
@@ -340,6 +356,8 @@ export default function CreditInsurancePolicyDetailPage() {
         useState("");
     const [annualCreditAssessmentFeeInput, setAnnualCreditAssessmentFeeInput] =
         useState("");
+    const [commercialTermsInput, setCommercialTermsInput] =
+        useState<CommercialTermsFormInputs>(emptyCommercialTermsFormInputs);
     const [policyKindInput, setPolicyKindInput] = useState<"Primary" | "TopUp">("Primary");
     const [parentInsurancePolicyIdInput, setParentInsurancePolicyIdInput] = useState<number | null>(null);
     const [autoActivateOnTermStart, setAutoActivateOnTermStart] = useState(false);
@@ -650,6 +668,32 @@ export default function CreditInsurancePolicyDetailPage() {
         setAnnualCreditAssessmentFeeInput(
             decimalToInputString(d.annual_credit_assessment_fee)
         );
+        setCommercialTermsInput({
+            insured_percentage: decimalToInputString(d.insured_percentage),
+            non_qualifying_loss_threshold: decimalToInputString(
+                d.non_qualifying_loss_threshold
+            ),
+            minimum_premium: decimalToInputString(d.minimum_premium),
+            minimum_premium_period_years:
+                d.minimum_premium_period_years != null
+                    ? String(d.minimum_premium_period_years)
+                    : "",
+            aggregate_excess: decimalToInputString(d.aggregate_excess),
+            sdl_excess: decimalToInputString(d.sdl_excess),
+            ncb_zero_claims_bonus_percent: decimalToInputString(
+                d.ncb_zero_claims_bonus_percent
+            ),
+            ncb_claims_ratio_threshold_percent: decimalToInputString(
+                d.ncb_claims_ratio_threshold_percent
+            ),
+            ncb_up_to_threshold_bonus_percent: decimalToInputString(
+                d.ncb_up_to_threshold_bonus_percent
+            ),
+            product_type:
+                d.product_type === "TailorMade" || d.product_type === "Commodity"
+                    ? d.product_type
+                    : "",
+        });
         setPolicyFormErrors({});
     }, []);
 
@@ -672,6 +716,9 @@ export default function CreditInsurancePolicyDetailPage() {
             }),
             queryClient.invalidateQueries({
                 queryKey: ["insurance-policy", accountId],
+            }),
+            queryClient.invalidateQueries({
+                queryKey: ["claims", "policy-excess-summary", policyId],
             }),
         ]);
     };
@@ -820,6 +867,16 @@ export default function CreditInsurancePolicyDetailPage() {
                 );
             }
 
+            const commercialTerms = validateCommercialTermsFormFields(
+                commercialTermsInput,
+                policyKindInput
+            );
+            for (const [field, code] of Object.entries(commercialTerms.errors)) {
+                if (code) {
+                    errors[field] = commercialTermValidationMessage(code, tCi);
+                }
+            }
+
             if (policyKindInput !== "TopUp") {
                 if (!maxPaymentTermInput.trim()) {
                     errors.max_payment_term = requiredMessage;
@@ -916,6 +973,21 @@ export default function CreditInsurancePolicyDetailPage() {
                     policyKindInput === "TopUp"
                         ? null
                         : annualAssessmentFee.value,
+                insured_percentage: commercialTerms.values.insured_percentage,
+                non_qualifying_loss_threshold:
+                    commercialTerms.values.non_qualifying_loss_threshold,
+                minimum_premium: commercialTerms.values.minimum_premium,
+                minimum_premium_period_years:
+                    commercialTerms.values.minimum_premium_period_years,
+                aggregate_excess: commercialTerms.values.aggregate_excess,
+                sdl_excess: commercialTerms.values.sdl_excess,
+                ncb_zero_claims_bonus_percent:
+                    commercialTerms.values.ncb_zero_claims_bonus_percent,
+                ncb_claims_ratio_threshold_percent:
+                    commercialTerms.values.ncb_claims_ratio_threshold_percent,
+                ncb_up_to_threshold_bonus_percent:
+                    commercialTerms.values.ncb_up_to_threshold_bonus_percent,
+                product_type: commercialTerms.values.product_type,
                 auto_activate_on_term_start:
                     policyKindInput === "Primary"
                         ? autoActivateOnTermStart
@@ -1209,6 +1281,35 @@ export default function CreditInsurancePolicyDetailPage() {
     const initialAnnualCreditAssessmentFee = data
         ? decimalToInputString(data.annual_credit_assessment_fee)
         : "";
+    const initialCommercialTerms: CommercialTermsFormInputs = data
+        ? {
+              insured_percentage: decimalToInputString(data.insured_percentage),
+              non_qualifying_loss_threshold: decimalToInputString(
+                  data.non_qualifying_loss_threshold
+              ),
+              minimum_premium: decimalToInputString(data.minimum_premium),
+              minimum_premium_period_years:
+                  data.minimum_premium_period_years != null
+                      ? String(data.minimum_premium_period_years)
+                      : "",
+              aggregate_excess: decimalToInputString(data.aggregate_excess),
+              sdl_excess: decimalToInputString(data.sdl_excess),
+              ncb_zero_claims_bonus_percent: decimalToInputString(
+                  data.ncb_zero_claims_bonus_percent
+              ),
+              ncb_claims_ratio_threshold_percent: decimalToInputString(
+                  data.ncb_claims_ratio_threshold_percent
+              ),
+              ncb_up_to_threshold_bonus_percent: decimalToInputString(
+                  data.ncb_up_to_threshold_bonus_percent
+              ),
+              product_type:
+                  data.product_type === "TailorMade" ||
+                  data.product_type === "Commodity"
+                      ? data.product_type
+                      : "",
+          }
+        : emptyCommercialTermsFormInputs();
     const showPrimaryOnlySections = isEditing
         ? policyKindInput !== "TopUp"
         : data?.policy_kind !== "TopUp";
@@ -1241,7 +1342,26 @@ export default function CreditInsurancePolicyDetailPage() {
         costCalculationMethodInput !== initialCostCalculationMethod ||
         costPercentInput !== initialCostPercent ||
         registrationFeePercentInput !== initialRegistrationFeePercent ||
-        annualCreditAssessmentFeeInput !== initialAnnualCreditAssessmentFee;
+        annualCreditAssessmentFeeInput !== initialAnnualCreditAssessmentFee ||
+        commercialTermsInput.insured_percentage !==
+            initialCommercialTerms.insured_percentage ||
+        commercialTermsInput.non_qualifying_loss_threshold !==
+            initialCommercialTerms.non_qualifying_loss_threshold ||
+        commercialTermsInput.minimum_premium !==
+            initialCommercialTerms.minimum_premium ||
+        commercialTermsInput.minimum_premium_period_years !==
+            initialCommercialTerms.minimum_premium_period_years ||
+        commercialTermsInput.aggregate_excess !==
+            initialCommercialTerms.aggregate_excess ||
+        commercialTermsInput.sdl_excess !== initialCommercialTerms.sdl_excess ||
+        commercialTermsInput.ncb_zero_claims_bonus_percent !==
+            initialCommercialTerms.ncb_zero_claims_bonus_percent ||
+        commercialTermsInput.ncb_claims_ratio_threshold_percent !==
+            initialCommercialTerms.ncb_claims_ratio_threshold_percent ||
+        commercialTermsInput.ncb_up_to_threshold_bonus_percent !==
+            initialCommercialTerms.ncb_up_to_threshold_bonus_percent ||
+        commercialTermsInput.product_type !==
+            initialCommercialTerms.product_type;
     const policyFormDisabled = savePolicyMutation.isPending || !isEditing;
     const countryFormDisabled = saveCountryMutation.isPending;
     const namedFormDisabled = saveNamedMutation.isPending;
@@ -1579,8 +1699,8 @@ export default function CreditInsurancePolicyDetailPage() {
                 sortable: false,
                 filterable: false,
                 disableColumnMenu: true,
-                align: "center",
-                headerAlign: "center",
+                align: "left",
+                headerAlign: "left",
                 renderCell: (params) => {
                     const busy =
                         deleteCountryMutation.isPending || saveCountryMutation.isPending;
@@ -1589,7 +1709,7 @@ export default function CreditInsurancePolicyDetailPage() {
                             sx={{
                                 display: "flex",
                                 alignItems: "center",
-                                justifyContent: "center",
+                                justifyContent: "flex-start",
                             }}
                         >
                             <Tooltip title={t("actions.delete", { ns: "common" })}>
@@ -1958,8 +2078,8 @@ export default function CreditInsurancePolicyDetailPage() {
                 sortable: false,
                 filterable: false,
                 disableColumnMenu: true,
-                align: "center",
-                headerAlign: "center",
+                align: "left",
+                headerAlign: "left",
                 renderCell: (params) => {
                     const busy =
                         deleteNamedMutation.isPending ||
@@ -1969,7 +2089,7 @@ export default function CreditInsurancePolicyDetailPage() {
                             sx={{
                                 display: "flex",
                                 alignItems: "center",
-                                justifyContent: "center",
+                                justifyContent: "flex-start",
                             }}
                         >
                             <Tooltip title={t("actions.delete", { ns: "common" })}>
@@ -2247,6 +2367,10 @@ export default function CreditInsurancePolicyDetailPage() {
                     setAnnualCreditAssessmentFeeInput={
                         setAnnualCreditAssessmentFeeInput
                     }
+                    commercialTermsInput={commercialTermsInput}
+                    setCommercialTermsInput={setCommercialTermsInput}
+                    showCommercialTermsTab={showPrimaryOnlySections}
+                    policyId={policyId}
                     policyKindInput={policyKindInput}
                     setPolicyKindInput={setPolicyKindInput}
                     parentInsurancePolicyIdInput={parentInsurancePolicyIdInput}

@@ -13,6 +13,8 @@ import {
     MenuItem,
     Select,
     SelectChangeEvent,
+    Tab,
+    Tabs,
     TextField,
     Typography,
 } from "@mui/material";
@@ -22,13 +24,19 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import moment from "moment";
 import { Session } from "next-auth";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { CreditInsuranceReadonlyField } from "@/app/[locale]/app/customers/[customerId]/CustomerGeneralInfo";
+import { PolicyCommercialTermsFields } from "./PolicyCommercialTermsFields";
+import { PolicyRemainingExcessPanel } from "./PolicyRemainingExcessPanel";
 import { CurrencySelect } from "@/components/LocationSelects";
 import { shouldNotifyPolicyEligibleForActivation } from "@/shared/creditInsurance/insurancePolicyLifecycle";
 import { MonthEndFieldLabelWithTooltip } from "@/shared/creditInsurance/MonthEndFieldLabelWithTooltip";
+import {
+    COMMERCIAL_TERM_FIELD_NAMES,
+    type CommercialTermsFormInputs,
+} from "@/shared/creditInsurance/policyCommercialTerms";
 import { getDatePickerFormat } from "@/utils/datetimeOperations";
 
 export type PolicyGeneralInfoPolicyData = {
@@ -129,6 +137,13 @@ export interface PolicyGeneralInfoProps {
     onCancelEdit: () => void;
     onSave: () => void;
     onEligibleForActivationToast: () => void;
+    commercialTermsInput: CommercialTermsFormInputs;
+    setCommercialTermsInput: React.Dispatch<
+        React.SetStateAction<CommercialTermsFormInputs>
+    >;
+    showCommercialTermsTab: boolean;
+    /** Primary policy id — used for remaining excess display on commercial tab. */
+    policyId?: number | null;
     tCi: (key: string, options?: Record<string, unknown>) => string;
     tCommon: (key: string) => string;
 }
@@ -215,6 +230,10 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
         onCancelEdit,
         onSave,
         onEligibleForActivationToast,
+        commercialTermsInput,
+        setCommercialTermsInput,
+        showCommercialTermsTab,
+        policyId,
         tCi,
         tCommon,
     } = props;
@@ -222,6 +241,23 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
     const theme = useTheme();
     const { i18n } = useTranslation();
     const isRTL = i18n.language === "he";
+    const [detailTab, setDetailTab] = useState(0);
+
+    useEffect(() => {
+        if (!showCommercialTermsTab && detailTab !== 0) {
+            setDetailTab(0);
+        }
+    }, [showCommercialTermsTab, detailTab]);
+
+    useEffect(() => {
+        if (!showCommercialTermsTab) return;
+        const hasCommercialError = COMMERCIAL_TERM_FIELD_NAMES.some(
+            (field) => Boolean(policyFormErrors[field])
+        );
+        if (hasCommercialError) {
+            setDetailTab(1);
+        }
+    }, [policyFormErrors, showCommercialTermsTab]);
 
     const fieldLabel = (fieldKey: string) => (
         <MonthEndFieldLabelWithTooltip
@@ -368,6 +404,59 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                 ) : null}
             </Box>
             <CardContent sx={{ p: { xs: 1.5, sm: 2 }, pt: 0 }}>
+                {showCommercialTermsTab ? (
+                    <Tabs
+                        value={detailTab}
+                        onChange={(_, next) => setDetailTab(next)}
+                        aria-label={tCi("credit_insurance.policy_details_title")}
+                        variant="scrollable"
+                        scrollButtons="auto"
+                        sx={{
+                            mb: 1.5,
+                            minHeight: "unset",
+                            "& .MuiTabs-indicator": {
+                                height: 2,
+                                borderRadius: "3px 3px 0 0",
+                                backgroundColor: "primary.main",
+                            },
+                            "& .MuiTab-root": {
+                                textTransform: "uppercase",
+                                fontWeight: 500,
+                                minWidth: 120,
+                                py: 1,
+                                px: { xs: 1.5, sm: 2 },
+                                minHeight: "unset",
+                                height: theme.spacing(5),
+                                color: "text.secondary",
+                                "&.Mui-selected": {
+                                    color: "primary.main",
+                                    fontWeight: 600,
+                                },
+                            },
+                        }}
+                    >
+                        <Tab
+                            label={tCi("credit_insurance.tabs.general")}
+                            id="policy-detail-tab-general"
+                            aria-controls="policy-detail-tabpanel-general"
+                        />
+                        <Tab
+                            label={tCi("credit_insurance.tabs.commercial_terms")}
+                            id="policy-detail-tab-commercial"
+                            aria-controls="policy-detail-tabpanel-commercial"
+                        />
+                    </Tabs>
+                ) : null}
+
+                {(!showCommercialTermsTab || detailTab === 0) && (
+                    <Box
+                        role="tabpanel"
+                        id="policy-detail-tabpanel-general"
+                        aria-labelledby="policy-detail-tab-general"
+                        hidden={
+                            showCommercialTermsTab ? detailTab !== 0 : false
+                        }
+                    >
                     {isEditing ? (
                         <LocalizationProvider
                             dateAdapter={AdapterMoment}
@@ -1314,6 +1403,49 @@ const PolicyGeneralInfo: React.FC<PolicyGeneralInfoProps> = (props) => {
                             )}
                         </Box>
                     )}
+                    </Box>
+                )}
+
+                {showCommercialTermsTab && detailTab === 1 ? (
+                    <Box
+                        role="tabpanel"
+                        id="policy-detail-tabpanel-commercial"
+                        aria-labelledby="policy-detail-tab-commercial"
+                    >
+                        <PolicyCommercialTermsFields
+                            isEditing={isEditing}
+                            disabled={policyFormDisabled}
+                            values={commercialTermsInput}
+                            errors={policyFormErrors}
+                            onChange={(field, value) => {
+                                setCommercialTermsInput((prev) => ({
+                                    ...prev,
+                                    [field]: value,
+                                }));
+                            }}
+                            clearError={clearPolicyFormError}
+                            modalTextFieldProps={modalTextFieldProps}
+                            textFieldSx={editFieldSx}
+                            menuItemSx={menuItemSx}
+                            hideSectionTitle
+                            denseDetailGrid
+                            currencyCode={currencyValue}
+                            tCi={tCi}
+                            sanitizeDecimalInput={sanitizeDecimalInput}
+                            sanitizeIntegerInput={sanitizeIntegerInput}
+                            decimalToInputString={decimalToInputString}
+                        />
+                        {!isEditing &&
+                        policyId != null &&
+                        Number.isFinite(policyId) ? (
+                            <PolicyRemainingExcessPanel
+                                policyId={policyId}
+                                currency={currencyValue}
+                                tCi={tCi}
+                            />
+                        ) : null}
+                    </Box>
+                ) : null}
             </CardContent>
         </Card>
     );
