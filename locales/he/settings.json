@@ -85,7 +85,13 @@
             "limits": "מגבלות ודירוג",
             "payment_term": "תנאי תשלום",
             "mep": "MEP",
-            "reporting": "דיווח"
+            "reporting": "דיווח",
+            "commercial_terms": "תנאים מסחריים",
+            "remaining_excess": "יתרת אקסס (סכום גישה)"
+        },
+        "tabs": {
+            "general": "כללי",
+            "commercial_terms": "תנאים מסחריים"
         },
         "fields": {
             "country": "מדינה",
@@ -121,7 +127,26 @@
             "policy_kind_top_up": "השלמה",
             "parent_insurance_policy": "פוליסת אם",
             "allow_concurrent_top_ups": "אפשר השלמות מקבילות",
-            "auto_activate_on_term_start": "הפעלה אוטומטית בתאריך ההתחלה"
+            "auto_activate_on_term_start": "הפעלה אוטומטית בתאריך ההתחלה",
+            "insured_percentage": "אחוז כיסוי ביטוחי (%)",
+            "non_qualifying_loss_threshold": "סף כיסוי לפוליסה",
+            "minimum_premium": "דמי ביטוח מינימום",
+            "minimum_premium_period_years": "תקופת דמי ביטוח מינימום (שנים)",
+            "aggregate_excess": "סכום אקסס כללי",
+            "sdl_excess": "אקסס חיתום עצמי",
+            "remaining_sdl_excess": "יתרת אקסס חיתום עצמי",
+            "remaining_aggregate_excess": "יתרת אקסס כללי",
+            "ncb_zero_claims_bonus_percent": "הנחת העדר תביעות — ללא תביעות (%)",
+            "ncb_claims_ratio_threshold_percent": "הנחת העדר תביעות — סף יחס תביעות (%)",
+            "ncb_up_to_threshold_bonus_percent": "הנחת העדר תביעות — עד הסף (%)",
+            "product_type": "סוג מוצר",
+            "product_type_tailor_made": "מותאם אישית",
+            "product_type_commodity": "סחורה"
+        },
+        "remaining_excess": {
+            "help": "סכום הגישה שנותר לאחר תביעות מאושרות/שולמו לכל שנת יום־שנה של הפוליסה הראשית. מתעדכן כשתביעות מאושרות, משולמות, מבוטלות או נדחות.",
+            "year_label": "שנת פוליסה {{year}} ({{range}})",
+            "load_failed": "לא ניתן לטעון את יתרת האקסס."
         },
         "tooltips": {
             "auto_activate_on_term_start": "כשמסומן, הפוליסה הופכת לפעילה אוטומטית בתאריך ההתחלה.",
@@ -151,7 +176,17 @@
             "reporting_substitute_extra_days": "מתווספים לתאריך הפירעון + ימי דיווח כאשר חל חיתוך.",
             "score_validity_period_months": "כמה חודשים ציון אשראי נשאר בתוקף לפני בדיקה מחדש.",
             "start_date": "היום הראשון שבו תקופת הפוליסה בתוקף.",
-            "status": "טיוטה בזמן הגדרה, פעיל כשהפוליסה בתוקף, לא פעיל כשאינה בשימוש."
+            "status": "טיוטה בזמן הגדרה, פעיל כשהפוליסה בתוקף, לא פעיל כשאינה בשימוש.",
+            "insured_percentage": "חלק ההפסד המכוסה על ידי המבטח (לדוגמה 85%). השאירו ריק אם לא הוגדר.",
+            "non_qualifying_loss_threshold": "סכום הפסד מינימלי במטבע הפוליסה לפני שתביעה יכולה להיות כשירה. השאירו ריק אם לא הוגדר.",
+            "minimum_premium": "סכום דמי ביטוח מינימום במטבע הפוליסה. השאירו ריק אם לא הוגדר.",
+            "minimum_premium_period_years": "מספר השנים שעליהן חלים דמי הביטוח המינימליים (לדוגמה 3). השאירו ריק אם לא הוגדר.",
+            "aggregate_excess": "אקסס כללי במטבע הפוליסה. הזינו 0 ל\"ללא\"; השאירו ריק אם לא הוגדר.",
+            "sdl_excess": "אקסס שנתי לחיתום עצמי (SDL) במטבע הפוליסה. השאירו ריק אם לא הוגדר.",
+            "ncb_zero_claims_bonus_percent": "אחוז הנחת העדר תביעות כאשר יחס התביעות הוא 0%. השאירו ריק אם לא הוגדר.",
+            "ncb_claims_ratio_threshold_percent": "סף יחס תביעות באחוזים לשכבת הנחה נמוכה יותר (לדוגמה 20). השאירו ריק אם לא הוגדר.",
+            "ncb_up_to_threshold_bonus_percent": "אחוז הנחת העדר תביעות כאשר יחס התביעות עד הסף. השאירו ריק אם לא הוגדר.",
+            "product_type": "האם המוצרים תחת פוליסה זו מותאמים אישית או סחורה. השאירו ריק אם לא הוגדר."
         },
         "status": {
             "active": "פעיל",
@@ -173,6 +208,10 @@
             "cost_percent_required_when_method_set": "שיעור דמי ביטוח (%) נדרש כאשר נבחרה שיטת חישוב עלות",
             "registration_fee_out_of_range": "דמי רישום (%) חייבים להיות בין 0 ל-100",
             "annual_credit_assessment_fee_negative": "דמי הערכת אשראי שנתיים חייבים להיות 0 או יותר",
+            "commercial_value_negative": "הערך חייב להיות 0 או יותר",
+            "commercial_percent_out_of_range": "האחוז חייב להיות בין 0 ל-100",
+            "minimum_premium_period_years_invalid": "התקופה חייבת להיות מספר שלם של שנה אחת לפחות",
+            "invalid_product_type": "בחרו סוג מוצר תקין",
             "invalid_number": "הזן מספר תקין",
             "invalid_integer": "הזן מספר שלם תקין",
             "day_of_month_out_of_range": "הזן יום בין 1 ל-31",

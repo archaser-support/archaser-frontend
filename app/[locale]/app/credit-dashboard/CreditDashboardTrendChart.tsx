@@ -20,6 +20,7 @@ import {
     getUserDateLocale,
     getUserTimezone,
 } from "@/utils/datetimeOperations";
+import { formatMoney } from "@/utils/stringFormatters";
 
 import { CreditDashboardTitleInfoIcon } from "./creditDashboardTitleTooltip";
 import {
@@ -57,6 +58,7 @@ function formatChartDate(
 
 function fmtSigned(
     value: number | null,
+    currency: string,
     language: string,
     naLabel: string
 ): string {
@@ -64,7 +66,12 @@ function fmtSigned(
         return naLabel;
     }
     const rounded = Math.round(value);
-    const abs = Math.abs(rounded).toLocaleString(numberLocale(language));
+    const abs = formatMoney(Math.abs(rounded), currency, {
+        style: "iso",
+        locale: numberLocale(language),
+        language: language.startsWith("he") ? "he" : language,
+        wholeNumbers: true,
+    });
     const signed = rounded > 0 ? `+${abs}` : rounded < 0 ? `-${abs}` : abs;
     // LRM keeps the sign to the left of digits in Hebrew (RTL) card headers.
     return language === "he" || language.startsWith("he")
@@ -394,7 +401,12 @@ function CreditDashboardTrendChartInner({
                                             : {}),
                                     }}
                                 >
-                                    {fmtSigned(item.value, language, naLabel)}
+                                    {fmtSigned(
+                                        item.value,
+                                        accountCurrency,
+                                        language,
+                                        naLabel
+                                    )}
                                 </Typography>
                             </Box>
                         ))}

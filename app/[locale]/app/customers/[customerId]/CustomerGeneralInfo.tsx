@@ -36,6 +36,10 @@ import {
     getFieldType,
     type GenericFieldKey,
 } from "@/utils/genericFieldUtils";
+import {
+    formatMoney,
+    resolveCustomerFirstCurrency,
+} from "@/utils/stringFormatters";
 import { POLICY_EXCLUSION_REASONS } from "@/shared/creditInsurance/policyExclusion";
 
 import CustomerFormField from "./CustomerFormField";
@@ -742,8 +746,34 @@ const CustomerGeneralInfo: React.FC<CustomerGeneralInfoProps> = ({
                                     <CreditInsuranceReadonlyField
                                         label={creditInsuranceLabels.approvedLimit}
                                         value={
-                                            customer?.approved_limit != null
-                                                ? String(customer.approved_limit)
+                                            customer?.approved_limit != null &&
+                                            Number.isFinite(
+                                                Number(customer.approved_limit)
+                                            )
+                                                ? formatMoney(
+                                                      Number(
+                                                          customer.approved_limit
+                                                      ),
+                                                      resolveCustomerFirstCurrency(
+                                                          {
+                                                              customerCurrencyPrimary:
+                                                                  customer?.approved_limit_currency,
+                                                              accountCurrency:
+                                                                  session?.user
+                                                                      ?.currency,
+                                                          }
+                                                      ),
+                                                      {
+                                                          style: "iso",
+                                                          locale:
+                                                              i18n.language ===
+                                                              "he"
+                                                                  ? "he-IL"
+                                                                  : "en-US",
+                                                          language:
+                                                              i18n.language,
+                                                      }
+                                                  )
                                                 : null
                                         }
                                     />

@@ -73,7 +73,8 @@ import {
 } from "@/shared/services/billingConnectorSyncActions";
 import {
     getBillingExtensionPanel,
-    listBillingExtensionPanelOptions,
+    getMatchingAccountExtensionKey,
+    getMatchingAccountExtensionPanel,
 } from "@/shared/billing-extensions/registry";
 import {
     buildPlannedBackfillStepKeys,
@@ -106,12 +107,10 @@ import BillingSyncHistorySection from "./BillingSyncHistorySection";
 import {
     DEFAULT_PAID_TOLERANCE,
     ENTITY_OPTIONS,
-    NONE_EXTENSION_OPTION,
     firstEnabledEntityTabIndex,
     formatPaidTolerance,
     isClearBeforeImportEntity,
     parsePaidToleranceInput,
-    type ExtensionKeyOption,
     type SchedulePresetValue,
 } from "./billingIntegrationConstants";
 
@@ -489,6 +488,8 @@ const BillingIntegrationSettings = forwardRef<
     const saveMutation = useMutation({
         mutationFn: async (extras?: { pull_filters?: PullFiltersMap }) => {
             const credentials = buildCredentials();
+            const resolvedExtensionKey =
+                getMatchingAccountExtensionKey(accountId);
             const payload: UpsertBillingConnectorPayload = {
                 provider,
                 base_url: baseUrl.trim() || null,
@@ -503,8 +504,8 @@ const BillingIntegrationSettings = forwardRef<
                 invoice_paid_tolerance:
                     parsePaidToleranceInput(invoicePaidTolerance) ??
                     DEFAULT_PAID_TOLERANCE,
-                extension_key: extensionKey.trim() || null,
-                extension_config: extensionKey.trim()
+                extension_key: resolvedExtensionKey,
+                extension_config: resolvedExtensionKey
                     ? extensionConfig
                     : null,
             };
@@ -1902,7 +1903,7 @@ const BillingIntegrationSettings = forwardRef<
         return (
             <Box display="flex" flexDirection="column" gap={1.5}>
                 <Typography variant="body2">
-                    Import backups within the 6-month retention window are
+                    Import backups within the 30-day retention window are
                     available. Pick a day, then a run, then select entities to
                     load from that run&apos;s cache. Leave all unchecked (or
                     cancel) to fetch everything from the ERP.
@@ -2142,31 +2143,26 @@ const BillingIntegrationSettings = forwardRef<
         ? primaryPendingLabel
         : (actionStage?.primaryLabel ?? "");
 
-    const extensionKeyOptions = useMemo<ExtensionKeyOption[]>(() => {
-        const registered = listBillingExtensionPanelOptions().map((option) => ({
-            key: option.key,
-            label: `${option.label} (${option.key})`,
-        }));
-        if (
-            extensionKey &&
-            !registered.some((option) => option.key === extensionKey)
-        ) {
-            return [
-                NONE_EXTENSION_OPTION,
-                { key: extensionKey, label: extensionKey },
-                ...registered,
-            ];
-        }
-        return [NONE_EXTENSION_OPTION, ...registered];
-    }, [extensionKey]);
+    const matchedExtensionPanel = useMemo(
+        () => getMatchingAccountExtensionPanel(accountId),
+        [accountId]
+    );
+    const matchedExtensionKey = matchedExtensionPanel?.key ?? null;
+    const matchedExtensionLabel = matchedExtensionPanel
+        ? t("accounts:billing_connector.extension_matched", {
+              label: matchedExtensionPanel.label,
+              key: matchedExtensionPanel.key,
+              defaultValue: `${matchedExtensionPanel.label} (${matchedExtensionPanel.key})`,
+          })
+        : null;
 
-    const selectedExtensionOption =
-        extensionKeyOptions.find((option) => option.key === extensionKey) ??
-        NONE_EXTENSION_OPTION;
-
+    // Panel only when the stored key is the account-matched registry key.
     const extensionRegistration = useMemo(
-        () => getBillingExtensionPanel(extensionKey),
-        [extensionKey]
+        () =>
+            matchedExtensionKey && extensionKey === matchedExtensionKey
+                ? getBillingExtensionPanel(extensionKey)
+                : undefined,
+        [extensionKey, matchedExtensionKey]
     );
 
     const circuitBreakerActive = useMemo(
@@ -2396,7 +2392,7 @@ const BillingIntegrationSettings = forwardRef<
                 syncMode={config?.sync_mode}
                 scheduleSummary={config?.schedule_summary}
                 extensionKey={extensionKey}
-                onExtensionKeyChange={setExtensionKey}
+                matchedExtensionLabel={matchedExtensionLabel}
                 schedulePreset={schedulePreset}
                 onSchedulePresetChange={setSchedulePreset}
                 syncCron={syncCron}
@@ -2425,8 +2421,6 @@ const BillingIntegrationSettings = forwardRef<
                 onIncludeOlderOpenInvoicesChange={setIncludeOlderOpenInvoices}
                 backfillOptionsLocked={Boolean(config?.backfill_options_locked)}
                 persistCutoverOptions={persistCutoverOptions}
-                extensionKeyOptions={extensionKeyOptions}
-                selectedExtensionOption={selectedExtensionOption}
                 extensionConfig={extensionConfig}
                 onExtensionConfigChange={setExtensionConfig}
                 accountId={accountId}

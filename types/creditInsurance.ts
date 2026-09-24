@@ -262,6 +262,33 @@ export type PortfolioHealthMonthlyPoint = {
     atRiskExposure: number;
 };
 
+/** Discrete top-N cohort sizes for Health Credit Protection Level card. */
+export const PORTFOLIO_HEALTH_TOP_N_OPTIONS = [5, 10, 20] as const;
+export type PortfolioHealthTopNOption =
+    (typeof PORTFOLIO_HEALTH_TOP_N_OPTIONS)[number];
+export const PORTFOLIO_HEALTH_TOP_N_DEFAULT = 10 as const;
+
+export type PortfolioTopCustomerCreditProtectionCohort = {
+    nRequested: number;
+    nActual: number;
+    creditProtectionLevel: number;
+    totalReceivables: number;
+    totalReceivablesSharePct: number;
+    compliantExposure: number;
+    compliantExposureSharePct: number;
+    atRiskExposure: number;
+    atRiskExposureSharePct: number;
+};
+
+export type PortfolioTopCustomerCreditProtectionSection = {
+    defaultN: typeof PORTFOLIO_HEALTH_TOP_N_DEFAULT;
+    options: typeof PORTFOLIO_HEALTH_TOP_N_OPTIONS;
+    cohorts: Record<
+        PortfolioHealthTopNOption,
+        PortfolioTopCustomerCreditProtectionCohort
+    >;
+};
+
 export type PortfolioHealthSection = {
     seriesA: PortfolioHealthSeriesMetrics;
     seriesB: PortfolioHealthSeriesMetrics;
@@ -277,6 +304,11 @@ export type PortfolioHealthSection = {
     exposureReconciliation?: PortfolioExposureReconciliationSection | null;
     /** Breach dilution + clean-streak (Bucket 1 KPIs #11 / #12). */
     breachDilutionStreak?: PortfolioBreachDilutionStreakSection | null;
+    /**
+     * Precomputed top-N Credit Protection cohorts (N ∈ {5,10,20}) for local
+     * UI switching without a second request.
+     */
+    topCustomerCreditProtection?: PortfolioTopCustomerCreditProtectionSection | null;
 };
 
 export type PortfolioOverLimitGapSection = {
@@ -628,6 +660,7 @@ export type CustomerPolicyUsageTrendResponse = {
     snapshotDate: string | null;
     hasTopUpPolicies: boolean;
     topCustomers: CustomerPolicyTrendTopRow[];
+    accountCurrency?: string | null;
 };
 
 export type RiskExposurePolicySeries = {

@@ -6,25 +6,33 @@ import {
     BadgePercent,
     FileText,
     Landmark,
+    Percent,
+    Scale,
     Shield,
 } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { CreditDashboardPolicyItem } from "@/app/[locale]/app/credit-dashboard/CreditDashboardPolicySelect";
+import {
+    claimCustomerDisplayName,
+    getPolicyExcessSummary,
+    type RemainingExcessYear,
+} from "@/shared/services/claimsService";
 import { apiFetch } from "@/utils/apiFetch";
 
+import { CPH } from "./designTokens";
 import { Eyebrow } from "./Eyebrow";
+import { SPACE_GROTESK_FONT_FAMILY } from "./fontTokens";
 import { formatPortfolioMoney } from "./formatPortfolioMoney";
 import { IslandCard } from "./IslandCard";
-import { CPH } from "./designTokens";
-import { SPACE_GROTESK_FONT_FAMILY } from "./fontTokens";
 import layout from "./islandLayout.module.css";
 import {
     countryRowCount,
     dclSdlCoverAmount,
     formatPolicyDate,
     namedRowCount,
+    showPolicySummaryCommercialTerms,
     toFiniteNumber,
     type PolicySummaryDetail,
 } from "./policySummaryModel";
@@ -123,6 +131,23 @@ function costMethodLabel(
     return null;
 }
 
+function productTypeLabel(
+    productType: string | null | undefined,
+    t: (key: string, opts: Record<string, unknown>) => string
+): string | null {
+    if (productType === "TailorMade") {
+        return t("credit_insurance.fields.product_type_tailor_made", {
+            ns: "settings",
+        });
+    }
+    if (productType === "Commodity") {
+        return t("credit_insurance.fields.product_type_commodity", {
+            ns: "settings",
+        });
+    }
+    return productType?.trim() ? productType : null;
+}
+
 function policyLabel(
     policy: { id: number; policy_number?: string | null },
     t: (key: string, opts: Record<string, unknown>) => string
@@ -135,6 +160,50 @@ function policyLabel(
         ns: "dashboard",
         defaultValue: "Policy {{id}}",
         id: policy.id,
+    });
+}
+
+function formatMoneyOrDash(
+    value: number | null | undefined,
+    currency: string,
+    language: string,
+    empty: string
+): string {
+    if (value == null || !Number.isFinite(value)) {
+        return empty;
+    }
+    return formatPortfolioMoney(value, currency, language);
+}
+
+function yearWindowLabel(
+    year: RemainingExcessYear,
+    language: string
+): string {
+    const start = formatPolicyDate(
+        typeof year.policy_year_start === "string"
+            ? year.policy_year_start
+            : year.policy_year_start.toISOString(),
+        language
+    );
+    const end = formatPolicyDate(
+        typeof year.policy_year_end === "string"
+            ? year.policy_year_end
+            : year.policy_year_end.toISOString(),
+        language
+    );
+    if (start && end) {
+        return `${start} – ${end}`;
+    }
+    return start || end || "";
+}
+
+function claimStatusLabel(
+    status: string,
+    t: (key: string, opts: Record<string, unknown>) => string
+): string {
+    return t(`statuses.${status}`, {
+        ns: "claims",
+        defaultValue: status.replace(/_/g, " "),
     });
 }
 
@@ -155,7 +224,7 @@ export function PolicySummarySectionView({
     policyId,
     onSelectPolicy,
 }: PolicySummarySectionViewProps) {
-    const { t, i18n } = useTranslation(["dashboard", "settings"]);
+    const { t, i18n } = useTranslation(["dashboard", "settings", "claims"]);
     const language = i18n.language;
     const ns = { ns: "dashboard" as const };
     const empty = dash(t);
@@ -178,6 +247,27 @@ export function PolicySummarySectionView({
         queryFn: () => fetchPolicySummary(effectivePolicyId!),
         enabled: effectivePolicyId != null,
         staleTime: 60_000,
+    });
+
+    const showClaimsExcess =
+        detailQuery.data != null &&
+        showPolicySummaryCommercialTerms(detailQuery.data);
+
+    const excessSummaryQuery = useQuery({
+        queryKey: [
+            "claims",
+            "policy-excess-summary",
+            effectivePolicyId,
+            "recent-3",
+        ],
+        queryFn: () =>
+            getPolicyExcessSummary({
+                insurance_policy_id: effectivePolicyId!,
+                recent_years: 3,
+                include_claims: true,
+            }),
+        enabled: effectivePolicyId != null && showClaimsExcess,
+        staleTime: 30_000,
     });
 
     if (policies.length === 0) {
@@ -368,6 +458,119 @@ export function PolicySummarySectionView({
         },
     ];
 
+    const showCommercialTerms = showPolicySummaryCommercialTerms(detail);
+    const insuredPercentage = toFiniteNumber(detail.insured_percentage);
+    const nql = toFiniteNumber(detail.non_qualifying_loss_threshold);
+    const minimumPremium = toFiniteNumber(detail.minimum_premium);
+    const minimumPremiumYears =
+        detail.minimum_premium_period_years != null &&
+        Number.isFinite(detail.minimum_premium_period_years)
+            ? detail.minimum_premium_period_years
+            : null;
+    const aggregateExcess = toFiniteNumber(detail.aggregate_excess);
+    const sdlExcess = toFiniteNumber(detail.sdl_excess);
+    const productType = productTypeLabel(detail.product_type, t);
+
+    const commercialBullets: { key: string; text: string }[] = [
+        {
+            key: "insured_percentage",
+            text: `${t(
+                "credit_portfolio_health.policy_summary_insured_percentage",
+                {
+                    ...ns,
+                    defaultValue: "Insured percentage",
+                }
+            )}: ${
+                insuredPercentage != null
+                    ? formatPercent(insuredPercentage, language, empty)
+                    : empty
+            }`,
+        },
+        {
+            key: "nql",
+            text: `${t("credit_portfolio_health.policy_summary_nql", {
+                ...ns,
+                defaultValue: "Non-qualifying loss threshold",
+            })}: ${
+                nql != null
+                    ? formatPortfolioMoney(nql, currency, language)
+                    : empty
+            }`,
+        },
+        {
+            key: "aggregate_excess",
+            text: `${t(
+                "credit_portfolio_health.policy_summary_aggregate_excess",
+                {
+                    ...ns,
+                    defaultValue: "Aggregate excess",
+                }
+            )}: ${
+                aggregateExcess != null
+                    ? formatPortfolioMoney(aggregateExcess, currency, language)
+                    : empty
+            }`,
+        },
+        {
+            key: "sdl_excess",
+            text: `${t("credit_portfolio_health.policy_summary_sdl_excess", {
+                ...ns,
+                defaultValue: "SDL excess",
+            })}: ${
+                sdlExcess != null
+                    ? formatPortfolioMoney(sdlExcess, currency, language)
+                    : empty
+            }`,
+        },
+        {
+            key: "minimum_premium",
+            text: (() => {
+                const yearsPart =
+                    minimumPremiumYears != null
+                        ? t(
+                              "credit_portfolio_health.policy_summary_minimum_premium_years",
+                              {
+                                  ...ns,
+                                  defaultValue: "{{years}} years",
+                                  years: minimumPremiumYears,
+                              }
+                          )
+                        : null;
+                let valueText = empty;
+                if (minimumPremium != null && yearsPart) {
+                    valueText = `${formatPortfolioMoney(minimumPremium, currency, language)} / ${yearsPart}`;
+                } else if (minimumPremium != null) {
+                    valueText = formatPortfolioMoney(
+                        minimumPremium,
+                        currency,
+                        language
+                    );
+                } else if (yearsPart) {
+                    valueText = yearsPart;
+                }
+                return `${t(
+                    "credit_portfolio_health.policy_summary_minimum_premium",
+                    {
+                        ...ns,
+                        defaultValue: "Minimum premium",
+                    }
+                )}: ${valueText}`;
+            })(),
+        },
+        {
+            key: "product_type",
+            text: `${t(
+                "credit_portfolio_health.policy_summary_product_type",
+                {
+                    ...ns,
+                    defaultValue: "Product type",
+                }
+            )}: ${productType ?? empty}`,
+        },
+    ];
+
+    const excessYears = excessSummaryQuery.data?.years ?? [];
+
     return (
         <div className={layout.stack}>
             <div className={layout.grid12}>
@@ -516,24 +719,285 @@ export function PolicySummarySectionView({
                     ) : null}
                 </IslandCard>
             </div>
-            <IslandCard accent="slate" className={layout.cardPad}>
-                <Eyebrow icon={FileText}>
-                    {t("credit_portfolio_health.policy_summary_details", {
-                        ...ns,
-                        defaultValue: "Policy settings",
-                    })}
-                </Eyebrow>
-                <ul
-                    className="m-0 list-disc ps-5 text-sm"
-                    style={{ color: CPH.slate }}
+            <div className={layout.grid12}>
+                <IslandCard
+                    accent="slate"
+                    className={`${
+                        showCommercialTerms
+                            ? `${layout.span6} ${layout.mdSpan6}`
+                            : layout.span12
+                    } ${layout.cardPad}`}
                 >
-                    {bullets.map((item) => (
-                        <li key={item.key} className="mb-1">
-                            {item.text}
-                        </li>
-                    ))}
-                </ul>
-            </IslandCard>
+                    <Eyebrow icon={FileText}>
+                        {t("credit_portfolio_health.policy_summary_details", {
+                            ...ns,
+                            defaultValue: "Policy settings",
+                        })}
+                    </Eyebrow>
+                    <ul
+                        className="m-0 list-disc ps-5 text-sm"
+                        style={{ color: CPH.slate }}
+                    >
+                        {bullets.map((item) => (
+                            <li key={item.key} className="mb-1">
+                                {item.text}
+                            </li>
+                        ))}
+                    </ul>
+                </IslandCard>
+                {showCommercialTerms ? (
+                    <IslandCard
+                        accent="slate"
+                        className={`${layout.span6} ${layout.mdSpan6} ${layout.cardPad}`}
+                    >
+                        <Eyebrow
+                            icon={Percent}
+                            help={t(
+                                "credit_portfolio_health.policy_summary_commercial_terms_help",
+                                {
+                                    ...ns,
+                                    defaultValue:
+                                        "Shows key commercial policy terms (cover share, excesses, minimum premium, product type) for this Primary policy.",
+                                }
+                            )}
+                        >
+                            {t(
+                                "credit_portfolio_health.policy_summary_commercial_terms",
+                                {
+                                    ...ns,
+                                    defaultValue: "Commercial terms",
+                                }
+                            )}
+                        </Eyebrow>
+                        <ul
+                            className="m-0 list-disc ps-5 text-sm"
+                            style={{ color: CPH.slate }}
+                        >
+                            {commercialBullets.map((item) => (
+                                <li key={item.key} className="mb-1">
+                                    {item.text}
+                                </li>
+                            ))}
+                        </ul>
+                    </IslandCard>
+                ) : null}
+            </div>
+            {showClaimsExcess ? (
+                <div className={layout.grid12}>
+                    <IslandCard
+                        accent="slate"
+                        className={`${layout.span12} ${layout.cardPad}`}
+                    >
+                        <Eyebrow
+                            icon={Scale}
+                            help={t(
+                                "credit_portfolio_health.policy_summary_claims_excess_help",
+                                {
+                                    ...ns,
+                                    defaultValue:
+                                        "Shows remaining Aggregate/SDL excess (access amount) and claims for the current Primary policy year and the prior two anniversary years.",
+                                }
+                            )}
+                        >
+                            {t(
+                                "credit_portfolio_health.policy_summary_claims_excess",
+                                {
+                                    ...ns,
+                                    defaultValue:
+                                        "Claims & remaining excess",
+                                }
+                            )}
+                        </Eyebrow>
+                        {excessSummaryQuery.isPending ? (
+                            <Box sx={{ width: "100%", mt: 1 }}>
+                                <LinearProgress />
+                            </Box>
+                        ) : excessSummaryQuery.isError ? (
+                            <Typography color="error" variant="body2">
+                                {t(
+                                    "credit_portfolio_health.policy_summary_claims_excess_load_failed",
+                                    {
+                                        ...ns,
+                                        defaultValue:
+                                            "Could not load claims and remaining excess.",
+                                    }
+                                )}
+                            </Typography>
+                        ) : excessYears.length === 0 ? (
+                            <p
+                                className="m-0 mt-2 text-sm"
+                                style={{ color: CPH.slate }}
+                            >
+                                {t(
+                                    "credit_portfolio_health.policy_summary_claims_excess_empty",
+                                    {
+                                        ...ns,
+                                        defaultValue:
+                                            "No anniversary years in range for this policy.",
+                                    }
+                                )}
+                            </p>
+                        ) : (
+                            <div className="mt-2 flex flex-col gap-4">
+                                {excessYears.map((year) => {
+                                    const range = yearWindowLabel(
+                                        year,
+                                        language
+                                    );
+                                    const claims = year.claims ?? [];
+                                    return (
+                                        <div key={year.policy_year}>
+                                            <div
+                                                className="text-sm font-semibold"
+                                                style={{
+                                                    color: CPH.ink,
+                                                    fontFamily:
+                                                        SPACE_GROTESK_FONT_FAMILY,
+                                                }}
+                                            >
+                                                {t(
+                                                    "credit_portfolio_health.policy_summary_policy_year",
+                                                    {
+                                                        ...ns,
+                                                        defaultValue:
+                                                            "Policy year {{year}}",
+                                                        year: year.policy_year,
+                                                    }
+                                                )}
+                                                {range ? ` (${range})` : ""}
+                                            </div>
+                                            <ul
+                                                className="m-0 mt-1 list-disc ps-5 text-sm"
+                                                style={{ color: CPH.slate }}
+                                            >
+                                                <li className="mb-1">
+                                                    {t(
+                                                        "credit_portfolio_health.policy_summary_remaining_sdl_excess",
+                                                        {
+                                                            ...ns,
+                                                            defaultValue:
+                                                                "Remaining SDL excess",
+                                                        }
+                                                    )}
+                                                    {`: ${formatMoneyOrDash(
+                                                        year.remaining_sdl_excess,
+                                                        currency,
+                                                        language,
+                                                        empty
+                                                    )}`}
+                                                </li>
+                                                <li className="mb-1">
+                                                    {t(
+                                                        "credit_portfolio_health.policy_summary_remaining_aggregate_excess",
+                                                        {
+                                                            ...ns,
+                                                            defaultValue:
+                                                                "Remaining Aggregate excess",
+                                                        }
+                                                    )}
+                                                    {`: ${formatMoneyOrDash(
+                                                        year.remaining_aggregate_excess,
+                                                        currency,
+                                                        language,
+                                                        empty
+                                                    )}`}
+                                                </li>
+                                            </ul>
+                                            {claims.length === 0 ? (
+                                                <p
+                                                    className="m-0 mt-1 text-sm"
+                                                    style={{ color: CPH.slate }}
+                                                >
+                                                    {t(
+                                                        "credit_portfolio_health.policy_summary_no_claims_in_year",
+                                                        {
+                                                            ...ns,
+                                                            defaultValue:
+                                                                "No claims in this policy year.",
+                                                        }
+                                                    )}
+                                                </p>
+                                            ) : (
+                                                <ul
+                                                    className="m-0 mt-1 list-disc ps-5 text-sm"
+                                                    style={{
+                                                        color: CPH.slate,
+                                                    }}
+                                                >
+                                                    {claims.map((claim) => {
+                                                        const customer =
+                                                            claimCustomerDisplayName(
+                                                                claim.Customer
+                                                            );
+                                                        const invoice =
+                                                            claim.Invoice
+                                                                ?.invoice_number?.trim() ||
+                                                            (claim.invoice_id !=
+                                                            null
+                                                                ? `#${claim.invoice_id}`
+                                                                : null);
+                                                        const loss =
+                                                            toFiniteNumber(
+                                                                claim.recognized_loss
+                                                            );
+                                                        const parts = [
+                                                            claimStatusLabel(
+                                                                String(
+                                                                    claim.status
+                                                                ),
+                                                                t
+                                                            ),
+                                                            loss != null
+                                                                ? formatPortfolioMoney(
+                                                                      loss,
+                                                                      currency,
+                                                                      language
+                                                                  )
+                                                                : null,
+                                                            customer || null,
+                                                            invoice
+                                                                ? t(
+                                                                      "credit_portfolio_health.policy_summary_claim_invoice",
+                                                                      {
+                                                                          ...ns,
+                                                                          defaultValue:
+                                                                              "Invoice {{invoice}}",
+                                                                          invoice,
+                                                                      }
+                                                                  )
+                                                                : null,
+                                                        ].filter(Boolean);
+                                                        return (
+                                                            <li
+                                                                key={claim.id}
+                                                                className="mb-1"
+                                                            >
+                                                                {t(
+                                                                    "credit_portfolio_health.policy_summary_claim_row",
+                                                                    {
+                                                                        ...ns,
+                                                                        defaultValue:
+                                                                            "Claim #{{id}}: {{details}}",
+                                                                        id: claim.id,
+                                                                        details:
+                                                                            parts.join(
+                                                                                " · "
+                                                                            ),
+                                                                    }
+                                                                )}
+                                                            </li>
+                                                        );
+                                                    })}
+                                                </ul>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </IslandCard>
+                </div>
+            ) : null}
         </div>
     );
 }

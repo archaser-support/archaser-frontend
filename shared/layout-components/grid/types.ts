@@ -192,6 +192,8 @@ export interface DataGridRowProps {
     isHighlighted: boolean;
     /** Whether row is selected (for multi-select) */
     isSelected?: boolean;
+    /** Optional status/palette tint; overrides zebra when set (selection/highlight still win). */
+    backgroundColor?: string;
     /** Language for RTL/LTR */
     language: string;
     /** Row click handler - receives row and event for multi-select support */

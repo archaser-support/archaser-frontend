@@ -1,0 +1,82 @@
+{
+    "sections": {
+        "title": "Claims",
+        "description": "Track credit insurance claims across the account"
+    },
+    "fields": {
+        "id": "Claim ID",
+        "status": "Status",
+        "customer": "Customer",
+        "customer_number": "Customer #",
+        "invoice": "Invoice",
+        "invoice_id": "Invoice ID",
+        "recognized_loss": "Claim amount",
+        "policy_year": "Policy year",
+        "policy_number": "Policy",
+        "loss_date": "Loss date",
+        "submission_date": "Submission date",
+        "insurer_submission_reference": "Insurer claim reference",
+        "applied_sdl_excess": "Applied SDL excess",
+        "applied_aggregate_excess": "Applied aggregate excess",
+        "excess_applied": "Excess applied",
+        "notes": "Notes",
+        "customer_id": "Customer",
+        "optional": "Optional",
+        "status_filter": "Status",
+        "all_statuses": "All statuses",
+        "select_invoices": "Select invoices",
+        "no_invoices_found": "No invoices match your search",
+        "no_invoices_available": "No invoices for this customer"
+    },
+    "tooltips": {
+        "customer": "Customer this claim relates to.",
+        "invoice": "Optional. Link one or more Due or Overdue invoices. Each selected invoice creates its own claim.",
+        "status": "Current stage of the claim with the insurer.",
+        "recognized_loss": "Amount claimed from the insurer. When invoices are linked, it defaults from each invoice’s open amount × insured %.",
+        "submission_date": "Date the claim was submitted to the insurer. Required once the status is Submitted or later.",
+        "loss_date": "Date used to assign the claim to a Primary policy year (for excess). Defaults from the invoice date when linked; required when status is Rejected or when no invoice is linked.",
+        "insurer_submission_reference": "Reference number from the insurer. Required once the status is Submitted or later.",
+        "notes": "Internal notes for this claim. Not sent to the insurer."
+    },
+    "statuses": {
+        "Draft": "Draft",
+        "Submitted": "Submitted",
+        "Under_Inquiry": "Under Inquiry",
+        "Approved": "Approved",
+        "Paid": "Paid",
+        "Rejected": "Rejected",
+        "Canceled": "Canceled"
+    },
+    "values": {
+        "status_draft": "Draft",
+        "status_submitted": "Submitted",
+        "status_under_inquiry": "Under Inquiry",
+        "status_approved": "Approved",
+        "status_paid": "Paid",
+        "status_rejected": "Rejected",
+        "status_canceled": "Canceled"
+    },
+    "actions": {
+        "create": "Create claim",
+        "edit": "Edit claim",
+        "save": "Save",
+        "cancel": "Cancel"
+    },
+    "messages": {
+        "create_success": "Claim created",
+        "create_success_multiple": "{{count}} claims created",
+        "update_success": "Claim updated",
+        "create_failed": "Could not create claim",
+        "update_failed": "Could not update claim",
+        "load_failed": "Could not load claims",
+        "no_claims": "No claims yet",
+        "no_claims_description": "Issue a claim from an invoice or create one manually for historical backfill.",
+        "submitted_requires_fields": "Submission date and insurer claim reference are required for this status",
+        "submission_date_required": "Submission date is required for this status",
+        "insurer_reference_required": "Insurer claim reference is required for this status",
+        "recognized_loss_required": "Claim amount is required when no invoice is linked",
+        "loss_date_required": "Loss date is required when status is Rejected",
+        "customer_id_required": "Customer ID is required",
+        "invoice_id_invalid": "Invoice ID must be a positive number"
+    }
+}

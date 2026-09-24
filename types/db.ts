@@ -1796,6 +1796,7 @@ export type Invoice = {
     total_paid: number | null;
     status: invoice_status;
     last_payment_date: Date | null;
+    close_date: Date | null;
     zero_limit_alert: boolean;
     invoice_date: Date;
     outstanding_debt: number | null;

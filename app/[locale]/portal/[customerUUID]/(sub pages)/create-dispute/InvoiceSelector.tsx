@@ -38,6 +38,7 @@ import { useTranslation } from "react-i18next";
 
 import { useInvoiceColumns } from "@/shared/components/portal/invoiceColumns";
 import InvoiceDisplay from "@/shared/components/portal/InvoiceDisplay";
+import { formatMoney } from "@/utils/stringFormatters";
 import { PortalInvoice } from "@/types/PortalInvoice";
 import { broadcast } from "@/utils/broadcast";
 import { BROADCAST_CONSTANTS } from "@/utils/constants";
@@ -69,7 +70,7 @@ type ValidationErrors = {
 
 type SubmittedData = {
     selectedInvoicesCount: number;
-    totalAmount: string;
+    totalAmount: number;
     reasonName: string;
     currency: string;
     disputeMessage: string;
@@ -213,7 +214,7 @@ export default function InvoiceSelector({
 
             const submittedDataObj = {
                 selectedInvoicesCount: selectedInvoices.size,
-                totalAmount: selectedAmount,
+                totalAmount: Number(selectedAmount),
                 reasonName:
                     reasons.find((r) => r.id.toString() === disputeReason)
                         ?.name || "",
@@ -1014,8 +1015,18 @@ export default function InvoiceSelector({
                                 sx={{ color: "#4a5568" }}
                             >
                                 <strong>{t("fields.total_amount")}:</strong>{" "}
-                                {submittedData?.currency}{" "}
-                                {submittedData?.totalAmount || "0.00"}
+                                {formatMoney(
+                                    Number(submittedData?.totalAmount ?? 0),
+                                    submittedData?.currency,
+                                    {
+                                        style: "iso",
+                                        locale:
+                                            i18n.language === "he"
+                                                ? "he-IL"
+                                                : "en-US",
+                                        language: i18n.language,
+                                    }
+                                )}
                             </Typography>
                             <Typography
                                 variant="body2"

@@ -1313,6 +1313,11 @@ const DragDropFieldSelector: React.FC<DragDropFieldSelectorProps> = ({
                     { key: "tables.disputes", ns: "reports" },
                     { key: "navigation_disputes", ns: "common" },
                 ],
+                Claim: [
+                    { key: "sections.title", ns: "claims" },
+                    { key: "tables.claims", ns: "reports" },
+                    { key: "actions.navigation_claims", ns: "common" },
+                ],
                 Activity: [
                     { key: "sections.title", ns: "activities" },
                     { key: "tables.activities", ns: "reports" },
@@ -1322,6 +1327,9 @@ const DragDropFieldSelector: React.FC<DragDropFieldSelectorProps> = ({
                 ],
                 CustomerCollectionPeriod: [
                     { key: "tables.collection_periods", ns: "reports" },
+                ],
+                CustomerPolicy: [
+                    { key: "tables.customer_policies", ns: "reports" },
                 ],
                 Contact: [
                     { key: "sections.title", ns: "contacts" },

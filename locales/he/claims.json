@@ -1,0 +1,82 @@
+{
+    "sections": {
+        "title": "תביעות",
+        "description": "מעקב אחר תביעות ביטוח אשראי בחשבון"
+    },
+    "fields": {
+        "id": "מזהה תביעה",
+        "status": "סטטוס",
+        "customer": "לקוח",
+        "customer_number": "מספר לקוח",
+        "invoice": "חשבונית",
+        "invoice_id": "מזהה חשבונית",
+        "recognized_loss": "סכום תביעה",
+        "policy_year": "שנת פוליסה",
+        "policy_number": "פוליסה",
+        "loss_date": "תאריך הפסד",
+        "submission_date": "תאריך הגשה",
+        "insurer_submission_reference": "אסמכתת תביעה של המבטח",
+        "applied_sdl_excess": "השתתפות עצמית SDL שהוחלה",
+        "applied_aggregate_excess": "השתתפות עצמית מצטברת שהוחלה",
+        "excess_applied": "השתתפות עצמית הוחלה",
+        "notes": "הערות",
+        "customer_id": "לקוח",
+        "optional": "אופציונלי",
+        "status_filter": "סטטוס",
+        "all_statuses": "כל הסטטוסים",
+        "select_invoices": "בחר חשבוניות",
+        "no_invoices_found": "לא נמצאו חשבוניות התואמות לחיפוש",
+        "no_invoices_available": "אין חשבוניות ללקוח זה"
+    },
+    "tooltips": {
+        "customer": "הלקוח שאליו מתייחסת התביעה.",
+        "invoice": "אופציונלי. קישור לחשבוניות בסטטוס לתשלום או באיחור. כל חשבונית שנבחרת יוצרת תביעה נפרדת.",
+        "status": "השלב הנוכחי של התביעה מול המבטח.",
+        "recognized_loss": "הסכום הנתבע מהמבטח. כשמקושרות חשבוניות, ברירת המחדל היא יתרת החוב הפתוחה × אחוז הביטוח.",
+        "submission_date": "תאריך הגשת התביעה למבטח. נדרש כאשר הסטטוס הוא הוגשה או מאוחר יותר.",
+        "loss_date": "התאריך שקובע לאיזו שנת פוליסה ראשית שייכת התביעה (עבור השתתפות עצמית). ברירת המחדל מתאריך החשבונית כשמקושרת; נדרש כאשר הסטטוס נדחתה או כשאין חשבונית.",
+        "insurer_submission_reference": "מספר אסמכתא מהמבטח. נדרש כאשר הסטטוס הוא הוגשה או מאוחר יותר.",
+        "notes": "הערות פנימיות לתביעה. לא נשלחות למבטח."
+    },
+    "statuses": {
+        "Draft": "טיוטה",
+        "Submitted": "הוגשה",
+        "Under_Inquiry": "בבירור",
+        "Approved": "אושרה",
+        "Paid": "שולמה",
+        "Rejected": "נדחתה",
+        "Canceled": "בוטלה"
+    },
+    "values": {
+        "status_draft": "טיוטה",
+        "status_submitted": "הוגשה",
+        "status_under_inquiry": "בבירור",
+        "status_approved": "אושרה",
+        "status_paid": "שולמה",
+        "status_rejected": "נדחתה",
+        "status_canceled": "בוטלה"
+    },
+    "actions": {
+        "create": "יצירת תביעה",
+        "edit": "עריכת תביעה",
+        "save": "שמירה",
+        "cancel": "ביטול"
+    },
+    "messages": {
+        "create_success": "התביעה נוצרה",
+        "create_success_multiple": "נוצרו {{count}} תביעות",
+        "update_success": "התביעה עודכנה",
+        "create_failed": "לא ניתן ליצור תביעה",
+        "update_failed": "לא ניתן לעדכן תביעה",
+        "load_failed": "לא ניתן לטעון תביעות",
+        "no_claims": "אין תביעות עדיין",
+        "no_claims_description": "ניתן להנפיק תביעה מחשבונית או ליצור תביעה ידנית להשלמת היסטוריה.",
+        "submitted_requires_fields": "תאריך הגשה ואסמכתת תביעה של המבטח נדרשים לסטטוס זה",
+        "submission_date_required": "תאריך הגשה נדרש לסטטוס זה",
+        "insurer_reference_required": "אסמכתת תביעה של המבטח נדרשת לסטטוס זה",
+        "recognized_loss_required": "סכום תביעה נדרש כאשר אין חשבונית מקושרת",
+        "loss_date_required": "תאריך הפסד נדרש כאשר הסטטוס הוא נדחתה",
+        "customer_id_required": "מזהה לקוח נדרש",
+        "invoice_id_invalid": "מזהה חשבונית חייב להיות מספר חיובי"
+    }
+}

@@ -891,7 +891,21 @@ export const ViewBasedDataGrid: React.FC<ViewBasedDataGridProps> = ({
                 filterable: false,
                 disableColumnMenu: true,
                 resizable: false,
-                renderCell: actionsColumn,
+                align: "left",
+                headerAlign: "left",
+                renderCell: (params) => (
+                    <Box
+                        sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "flex-start",
+                            width: "100%",
+                            gap: 0.25,
+                        }}
+                    >
+                        {actionsColumn(params)}
+                    </Box>
+                ),
             };
             finalColumns.push(actionsCol);
         }

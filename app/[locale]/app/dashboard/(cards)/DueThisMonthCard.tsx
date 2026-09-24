@@ -9,7 +9,7 @@ import { useDashboardBusinessUnitId } from "@/shared/dashboard/DashboardBusiness
 import { appendDashboardBusinessUnitId } from "@/shared/dashboard/dashboardBusinessUnitParams";
 import AppUrls from "@/utils/appUrls";
 import { pushFinancialChartDetails } from "@/shared/dashboard/financialChartDetailsTitle";
-import { formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
+import { formatMoney } from "@/utils/stringFormatters";
 
 type DueThisMonthCardProps = {
     count?: number;
@@ -50,12 +50,15 @@ const DueThisMonthCard = ({
             icon={<MoneyIcon />}
             iconAccent="receivables"
             label={t("fields.stats_due_this_month")}
-            value={formatCurrencyWithRTLSupport(
+            value={formatMoney(
                 count || 0,
                 currency,
-                locale,
-                i18n.language,
-                { wholeNumbers: true }
+                {
+                    style: "symbol",
+                    locale: i18n.language === "he" ? "he-IL" : "en-US",
+                    language: i18n.language,
+                    wholeNumbers: true,
+                }
             )}
             tooltip={t("tooltips.financial_metric_due_this_month")}
             onClick={handleCardClick}

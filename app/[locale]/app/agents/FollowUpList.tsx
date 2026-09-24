@@ -26,7 +26,7 @@ import EndlessScrollDataGrid, {
 } from "@/shared/layout-components/grid/EndlessScrollDataGrid";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import { fetchAgentsWithFollowUpCall } from "@/shared/services/agentService";
-import { ExportFormat } from "@/shared/utility/exportToExcel";
+import { ExportFormat, formatCurrencyWithCode } from "@/shared/utility/exportToExcel";
 import { CustomerAgent } from "@/types/CustomerWithAgentDispute";
 import AppUrls from "@/utils/appUrls";
 import { formatCallOutcome } from "@/utils/callFormatters";
@@ -36,7 +36,10 @@ import {
     getCountryTimezone,
     getCurrentTimeForCountry,
 } from "@/utils/datetimeOperations";
-import { formatAmountWithoutSymbol } from "@/utils/stringFormatters";
+import {
+    formatCurrencyWithRTLSupport,
+    resolveCustomerFirstCurrency,
+} from "@/utils/stringFormatters";
 import { translateStoredI18nKey } from "@/shared/utils/resolveI18nPlaceholders";
 
 const rowsPerPage = 5;
@@ -163,7 +166,10 @@ const FollowUpList: React.FC = () => {
                             t("fields.unknown");
                         const amountOverdue =
                             agent?.total_outstanding_amount ?? 0;
-                        const currency = agent?.currency || "";
+                        const currency = resolveCustomerFirstCurrency({
+                            fallbackCurrency: agent?.currency,
+                            accountCurrency: session?.user?.currency,
+                        });
 
                         // Calculate days past due - simplified for follow-up list
                         const _daysPastDue = t("values.days_overdue_n_a", {
@@ -200,10 +206,10 @@ const FollowUpList: React.FC = () => {
                             customer_id: agent.Customer?.id || null,
                             customer: customerName,
                             customer_number: customerNumber,
-                            amount_overdue:
-                                amountOverdue === 0
-                                    ? `0.00 ${currency}`
-                                    : `${formatAmountWithoutSymbol(amountOverdue)} ${currency}`,
+                            amount_overdue: formatCurrencyWithCode(
+                                amountOverdue,
+                                currency
+                            ),
                             customer_country: country,
                             customer_current_time: t("fields.unknown"), // This would need timezone calculation
                             last_call: lastCallDate,
@@ -483,8 +489,14 @@ const FollowUpList: React.FC = () => {
             case "amount_overdue":
                 return (
                     <Typography variant="body2">
-                        {formatAmountWithoutSymbol(
-                            row?.total_outstanding_amount ?? 0
+                        {formatCurrencyWithRTLSupport(
+                            row?.total_outstanding_amount ?? 0,
+                            resolveCustomerFirstCurrency({
+                                fallbackCurrency: row?.currency,
+                                accountCurrency: session?.user?.currency,
+                            }),
+                            getUserDateLocale(session),
+                            i18n.language
                         )}
                     </Typography>
                 );
