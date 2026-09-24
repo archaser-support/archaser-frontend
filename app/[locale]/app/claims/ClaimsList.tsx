@@ -16,7 +16,7 @@ import {
 } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -157,7 +157,6 @@ export default function ClaimsList() {
             customer_number: claim.Customer?.customer_number || "",
             invoice_number: claim.Invoice?.invoice_number || "",
             policy_number: claim.InsurancePolicy?.policy_number || "",
-            recognized_loss_number: moneyNumber(claim.recognized_loss),
         }));
     }, [claims]);
 

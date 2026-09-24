@@ -23,7 +23,7 @@ import {
 import { useTheme } from "@mui/material/styles";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import api from "@/app/api";
