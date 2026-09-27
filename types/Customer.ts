@@ -139,6 +139,8 @@ export type CustomerPolicyHistoryItem = {
     approved_limit_currency?: string | null;
     approved_limit_expiration_date?: Date | string | null;
     zero_limit_date?: Date | string | null;
+    policy_change_start_date?: Date | string | null;
+    status?: string | null;
     limit_type?: string | null;
     max_payment_term?: number | null;
     max_allowed_mep?: number | null;
@@ -184,6 +186,7 @@ export type CustomerPolicyHistoryItem = {
 export type CustomerWithPolicyHistory = Customer & {
     customerPolicies?: CustomerPolicyHistoryItem[];
     activeCustomerPolicy?: CustomerPolicyHistoryItem | null;
+    pendingCustomerPolicy?: CustomerPolicyHistoryItem | null;
 };
 
 export interface CustomerStats {
