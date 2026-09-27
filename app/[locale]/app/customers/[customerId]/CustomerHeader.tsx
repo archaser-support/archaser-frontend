@@ -29,7 +29,7 @@ import {
 import type { Theme } from "@mui/material/styles";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api, { apiFetch } from "@/app/api";
-import { addDays, parseISO, startOfDay } from "date-fns";
+import { addDays, startOfDay } from "date-fns";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -65,6 +65,7 @@ import { Customer } from "@/types/Customer";
 import { getCustomerPortalUrl } from "@/utils/appUrls";
 import {
     formatDateForDisplay,
+    formatDateOnlyYmdForSession,
     getCountryTimezone,
     getUserDateLocale,
     getUserTimezone,
@@ -253,7 +254,13 @@ function isTopUpExpiringWithinDays(
     if (!isoDate) {
         return false;
     }
-    const end = startOfDay(parseISO(isoDate));
+    const ymd = String(isoDate).trim().slice(0, 10);
+    const parts = ymd.split("-").map(Number);
+    if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) {
+        return false;
+    }
+    const [y, m, d] = parts;
+    const end = startOfDay(new Date(y, m - 1, d));
     const today = startOfDay(new Date());
     const limit = addDays(today, days);
     return end >= today && end <= limit;
@@ -1074,6 +1081,23 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
         activePolicyForZeroLimit != null &&
         isZeroApprovedLimit(activePolicyForZeroLimit.approved_limit);
 
+    const topUpCustomer = customer as {
+        has_top_up_policies?: boolean;
+        has_active_top_up?: boolean;
+        has_scheduled_top_up?: boolean;
+        top_up_expires_soonest?: string | null;
+    };
+    const showTopUpHeaderChip =
+        showCreditSection && Boolean(topUpCustomer.has_top_up_policies);
+    const topUpExpiresSoonest = topUpCustomer.top_up_expires_soonest ?? null;
+    const topUpIsExpiringSoon = isTopUpExpiringWithinDays(topUpExpiresSoonest, 30);
+    const topUpExpiresDateLabel = topUpIsExpiringSoon
+        ? formatDateOnlyYmdForSession(topUpExpiresSoonest, session ?? null)
+        : "";
+    const showActiveTopUpChip = Boolean(topUpCustomer.has_active_top_up);
+    const showScheduledTopUpChip =
+        !showActiveTopUpChip && Boolean(topUpCustomer.has_scheduled_top_up);
+
     const locale = isRtl ? "he-IL" : "en-US";
     const customerTimezone = getCountryTimezone(
         customer.Country?.iso2,
@@ -1333,106 +1357,78 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                         </Box>
                                     </>
                                 ) : null}
-                                {showCreditSection &&
-                                    (customer as { has_top_up_policies?: boolean })
-                                        ?.has_top_up_policies ? (
-                                    <>
-                                        {(customer as { has_active_top_up?: boolean })
-                                            .has_active_top_up ? (
-                                            <Chip
-                                                label={t(
-                                                    "credit_insurance.top_up_active_chip",
-                                                    { ns: "customers" }
-                                                )}
-                                                size="small"
-                                                icon={
-                                                    <SecurityIcon
-                                                        sx={{ fontSize: 14 }}
-                                                    />
-                                                }
-                                                onClick={goToTopUpPoliciesTab}
-                                                sx={{
-                                                    ...METADATA_CHIP_SX,
-                                                    cursor: "pointer",
-                                                    backgroundColor: alpha(
-                                                        theme.palette.success.main,
-                                                        0.12
-                                                    ),
-                                                    color: theme.palette.success
-                                                        .dark,
-                                                }}
-                                            />
-                                        ) : null}
-                                        {(customer as { has_scheduled_top_up?: boolean })
-                                            .has_scheduled_top_up &&
-                                            !(customer as { has_active_top_up?: boolean })
-                                                .has_active_top_up ? (
-                                            <Chip
-                                                label={t(
-                                                    "credit_insurance.top_up_scheduled_chip",
-                                                    { ns: "customers" }
-                                                )}
-                                                size="small"
-                                                onClick={goToTopUpPoliciesTab}
-                                                sx={{
-                                                    ...METADATA_CHIP_SX,
-                                                    cursor: "pointer",
-                                                    backgroundColor: alpha(
-                                                        theme.palette.text.secondary,
-                                                        0.08
-                                                    ),
-                                                }}
-                                            />
-                                        ) : null}
-                                        {isTopUpExpiringWithinDays(
-                                            (
-                                                customer as {
-                                                    top_up_expires_soonest?: string | null;
-                                                }
-                                            ).top_up_expires_soonest,
-                                            30
-                                        ) ? (
-                                            <Chip
-                                                label={t(
-                                                    "credit_insurance.top_up_expires_chip",
-                                                    {
-                                                        ns: "customers",
-                                                        date: formatDateForDisplay(
-                                                            (
-                                                                customer as {
-                                                                    top_up_expires_soonest?: string | null;
-                                                                }
-                                                            ).top_up_expires_soonest!,
-                                                            "date",
-                                                            getUserDateLocale(
-                                                                session
-                                                            ),
-                                                            getUserTimezone(
-                                                                session
-                                                            )
-                                                        ),
-                                                    }
-                                                )}
-                                                size="small"
-                                                icon={
+                                {showTopUpHeaderChip ? (
+                                    showActiveTopUpChip ? (
+                                        <Chip
+                                            label={
+                                                topUpIsExpiringSoon
+                                                    ? t(
+                                                          "credit_insurance.top_up_active_expires_chip",
+                                                          {
+                                                              ns: "customers",
+                                                              date: topUpExpiresDateLabel,
+                                                          }
+                                                      )
+                                                    : t(
+                                                          "credit_insurance.top_up_active_chip",
+                                                          { ns: "customers" }
+                                                      )
+                                            }
+                                            size="small"
+                                            icon={
+                                                topUpIsExpiringSoon ? (
                                                     <WarningIcon
                                                         sx={{ fontSize: 14 }}
                                                     />
-                                                }
-                                                onClick={goToTopUpPoliciesTab}
-                                                sx={{
-                                                    ...METADATA_CHIP_SX,
-                                                    cursor: "pointer",
-                                                    backgroundColor: alpha(
-                                                        theme.palette.warning.main,
-                                                        0.15
-                                                    ),
-                                                    color: theme.palette.warning
-                                                        .dark,
-                                                }}
-                                            />
-                                        ) : null}
-                                    </>
+                                                ) : (
+                                                    <SecurityIcon
+                                                        sx={{ fontSize: 14 }}
+                                                    />
+                                                )
+                                            }
+                                            onClick={goToTopUpPoliciesTab}
+                                            sx={{
+                                                ...METADATA_CHIP_SX,
+                                                cursor: "pointer",
+                                                ...(topUpIsExpiringSoon
+                                                    ? {
+                                                          backgroundColor: alpha(
+                                                              theme.palette.warning
+                                                                  .main,
+                                                              0.15
+                                                          ),
+                                                          color: theme.palette
+                                                              .warning.dark,
+                                                      }
+                                                    : {
+                                                          backgroundColor: alpha(
+                                                              theme.palette.success
+                                                                  .main,
+                                                              0.12
+                                                          ),
+                                                          color: theme.palette
+                                                              .success.dark,
+                                                      }),
+                                            }}
+                                        />
+                                    ) : showScheduledTopUpChip ? (
+                                        <Chip
+                                            label={t(
+                                                "credit_insurance.top_up_scheduled_chip",
+                                                { ns: "customers" }
+                                            )}
+                                            size="small"
+                                            onClick={goToTopUpPoliciesTab}
+                                            sx={{
+                                                ...METADATA_CHIP_SX,
+                                                cursor: "pointer",
+                                                backgroundColor: alpha(
+                                                    theme.palette.text.secondary,
+                                                    0.08
+                                                ),
+                                            }}
+                                        />
+                                    ) : null
                                 ) : null}
                                 {customer?.account_id ? (
                                     <CustomerCheckpointActions

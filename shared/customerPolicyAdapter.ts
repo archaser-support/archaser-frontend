@@ -11,6 +11,8 @@ export type CustomerPolicyHistoryRow = {
     approved_limit_currency?: string | null;
     approved_limit_expiration_date?: string | Date | null;
     zero_limit_date?: string | Date | null;
+    policy_change_start_date?: string | Date | null;
+    status?: string | null;
     limit_type?: string | null;
     max_payment_term?: number | null;
     max_allowed_mep?: number | null;
@@ -63,6 +65,7 @@ export type CustomerPolicyHistoryRow = {
 export type CustomerWithPolicyFields = Record<string, unknown> & {
     policy_id?: number | null;
     activeCustomerPolicy?: CustomerPolicyHistoryRow | null;
+    pendingCustomerPolicy?: CustomerPolicyHistoryRow | null;
     customerPolicies?: CustomerPolicyHistoryRow[];
 };
 
@@ -82,6 +85,20 @@ export function getActiveCustomerPolicyFromCustomer(
     return (
         customer.activeCustomerPolicy ??
         customer.customerPolicies?.find((p) => p.is_active) ??
+        null
+    );
+}
+
+/** Resolve the single pending future policy row, if any. */
+export function getPendingCustomerPolicyFromCustomer(
+    customer: CustomerWithPolicyFields | null | undefined
+): CustomerPolicyHistoryRow | null {
+    if (!customer) {
+        return null;
+    }
+    return (
+        customer.pendingCustomerPolicy ??
+        customer.customerPolicies?.find((p) => p.status === "pending") ??
         null
     );
 }
@@ -238,6 +255,7 @@ export function applyEffectivePolicyFieldsToCustomer<T extends CustomerWithPolic
         approved_limit_expiration_date:
             active.approved_limit_expiration_date ?? null,
         zero_limit_date: active.zero_limit_date ?? null,
+        policy_change_start_date: active.policy_change_start_date ?? null,
         limit_type: active.limit_type ?? null,
         max_payment_term: active.max_payment_term ?? null,
         max_allowed_mep: active.max_allowed_mep ?? null,
@@ -322,6 +340,7 @@ export function buildCustomerPutPayload(
         approved_limit: edited.approved_limit,
         approved_limit_expiration_date: edited.approved_limit_expiration_date,
         zero_limit_date: edited.zero_limit_date,
+        policy_change_start_date: edited.policy_change_start_date,
         limit_type: edited.limit_type,
         max_payment_term: edited.max_payment_term,
         max_allowed_mep: edited.max_allowed_mep,
@@ -358,6 +377,7 @@ export function stripLegacyPolicyFieldsFromPayload(
         approved_limit_currency: _alc,
         approved_limit_expiration_date: _ale,
         zero_limit_date: _zld,
+        policy_change_start_date: _pcd,
         limit_type: _lt,
         max_payment_term: _mpt,
         max_allowed_mep: _mam,
