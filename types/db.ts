@@ -118,6 +118,14 @@ export const customer_limit_type = {
 } as const;
 export type customer_limit_type = (typeof customer_limit_type)[keyof typeof customer_limit_type];
 
+export const customer_policy_status = {
+    active: "active",
+    pending: "pending",
+    inactive: "inactive",
+} as const;
+export type customer_policy_status =
+    (typeof customer_policy_status)[keyof typeof customer_policy_status];
+
 export const customer_top_up_type = {
     Fixed: "Fixed",
     Percentage: "Percentage",
@@ -1371,6 +1379,8 @@ export type CustomerPolicy = {
     outdated_dcl: boolean;
     cost_percent: Decimal | null;
     registration_fee_percent: Decimal | null;
+    policy_change_start_date: Date;
+    status: customer_policy_status;
     is_active: boolean;
     capacity_gap_amount: number | null;
     capacity_gap_amount_date: Date | null;
