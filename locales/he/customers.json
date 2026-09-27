@@ -117,6 +117,7 @@
         "insurance_policy_id": "מזהה פוליסת ביטוח",
         "is_active": "פעיל",
         "zero_limit_date": "תאריך ירידה למסגרת אפס",
+        "policy_change_start_date": "תאריך תחילת שינוי הפוליסה",
         "customer_id": "מזהה לקוח",
         "period_start_date": "תאריך התחלת תקופה",
         "period_end_date": "תאריך סיום תקופה"
@@ -216,7 +217,7 @@
         "top_up_fixed": "סכום קבוע",
         "top_up_percentage": "אחוז",
         "top_up_percentage_desc": "אחוז מגבול האשראי המאושר",
-        "premium": "פרמיה",
+        "premium": "סכום פרמיה",
         "premium_currency": "מטבע פרמיה",
         "effective_limit": "תקרה אפקטיבית",
         "top_up_total": "סכום השלמה כולל",
@@ -228,13 +229,24 @@
         "top_up_start_date": "תאריך התחלת השלמה",
         "top_up_end_date": "תאריך סיום השלמה",
         "top_up_notes": "הערות",
+        "tooltips": {
+            "top_up": "בחר את פוליסת ההשלמה שמספקת את הכיסוי הנוסף.",
+            "type": "סכום קבוע מוסיף ערך כיסוי מוגדר. אחוז מוסיף כיסוי כאחוז מגבול האשראי המאושר.",
+            "top_up_value": "הכיסוי להוספה: סכום במטבע כאשר סוג קבוע, או אחוז מגבול האשראי המאושר כאשר סוג אחוז.",
+            "currency": "מטבע סכום הכיסוי הקבוע של ההשלמה.",
+            "top_up_start_date": "היום הראשון שבו כיסוי ההשלמה פעיל.",
+            "top_up_end_date": "היום האחרון שבו כיסוי ההשלמה פעיל (כולל).",
+            "premium": "עלות הפרמיה הכוללת להשלמה זו כסכום כספי — לא באחוזים.",
+            "premium_currency": "מטבע סכום הפרמיה.",
+            "top_up_notes": "הערות אופציונליות על השלמה זו."
+        },
         "delete_top_up_title": "מחק השלמה",
         "delete_top_up_confirm": "האם אתה בטוח שברצונך למחוק השלמה זו?",
         "cancelled": "בוטל",
         "no_top_ups": "לא הוגדרו השלמות",
         "top_up_active_chip": "השלמה פעילה",
+        "top_up_active_expires_chip": "השלמה פעילה · פג ב-{{date}}",
         "top_up_scheduled_chip": "השלמה מתוזמנת",
-        "top_up_expires_chip": "פג ב-{{date}}",
         "top_up_cover_banner": "+{{amount}} כיסוי השלמה עד {{date}}",
         "view_top_ups": "הצג השלמות",
         "effective_limit_breakdown": "בסיס + השלמה: {{breakdown}}",
@@ -269,7 +281,17 @@
         "history_unavailable": "אין היסטוריית פוליסה זמינה לתקופה שנבחרה.",
         "all_policies": "כל הפוליסות",
         "dashboard_no_policy_title": "לא מקושרת פוליסת ביטוח",
-        "dashboard_no_policy_description": "קשרו פוליסת ביטוח בלשונית פוליסות כדי לצפות במדדי האשראי בלוח הבקרה."
+        "dashboard_no_policy_description": "קשרו פוליסת ביטוח בלשונית פוליסות כדי לצפות במדדי האשראי בלוח הבקרה.",
+        "validation": {
+            "policy_change_start_date_required": "תאריך תחילת שינוי הפוליסה הוא שדה חובה",
+            "pending_policy_change_exists": "קיים שינוי פוליסה ממתין. בטלו אותו לפני שינויים נוספים בלשונית הפוליסות.",
+            "pending_policy_change_not_found": "לא נמצא שינוי פוליסה ממתין לביטול",
+            "top_up_date_overlap": "ההשלמה חופפת להשלמה קיימת עבור אותו מוצר. השלמות מקבילות אינן מותרות בפוליסה זו."
+        },
+        "pending_change_banner": "שינוי פוליסה מתוזמן ל-{{date}}. בטלו אותו לפני שינויים נוספים בלשונית הפוליסות.",
+        "cancel_pending_change": "בטל שינוי ממתין",
+        "cancel_pending_success": "שינוי הפוליסה הממתין בוטל",
+        "cancel_pending_error": "ביטול שינוי הפוליסה הממתין נכשל"
     },
     "credit_insurance_reporting": {
         "edit_title": "עריכת סטטוס דיווח",
