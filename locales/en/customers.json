@@ -124,6 +124,7 @@
         "insurance_policy_id": "Insurance Policy ID",
         "is_active": "Active",
         "zero_limit_date": "Zero Limit Drop Date",
+        "policy_change_start_date": "Policy Change Start Date",
         "customer_id": "Customer ID",
         "period_start_date": "Period Start Date",
         "period_end_date": "Period End Date"
@@ -224,7 +225,7 @@
         "top_up_fixed": "Fixed Amount",
         "top_up_percentage": "Percentage",
         "top_up_percentage_desc": "Percentage of approved limit",
-        "premium": "Premium",
+        "premium": "Premium Amount",
         "premium_currency": "Premium Currency",
         "effective_limit": "Effective Limit",
         "top_up_total": "Total Top-Up Amount",
@@ -236,13 +237,24 @@
         "top_up_start_date": "Top-Up Start Date",
         "top_up_end_date": "Top-Up End Date",
         "top_up_notes": "Notes",
+        "tooltips": {
+            "top_up": "Select the Top-Up insurance policy that provides this additional cover.",
+            "type": "Fixed Amount adds a set cover value. Percentage adds cover as a percent of the approved limit.",
+            "top_up_value": "Cover to add: a currency amount when Fixed, or a percent of the approved limit when Percentage.",
+            "currency": "Currency for the fixed top-up cover amount.",
+            "top_up_start_date": "First day this top-up cover is active.",
+            "top_up_end_date": "Last day this top-up cover is active (inclusive).",
+            "premium": "Total premium cost for this top-up as a money amount — not a percentage.",
+            "premium_currency": "Currency of the premium amount.",
+            "top_up_notes": "Optional notes about this top-up."
+        },
         "delete_top_up_title": "Delete Top-Up",
         "delete_top_up_confirm": "Are you sure you want to delete this top-up?",
         "cancelled": "Cancelled",
         "no_top_ups": "No top-ups configured",
         "top_up_active_chip": "Top-up active",
+        "top_up_active_expires_chip": "Top-up active · Expires {{date}}",
         "top_up_scheduled_chip": "Top-up scheduled",
-        "top_up_expires_chip": "Expires {{date}}",
         "top_up_cover_banner": "+{{amount}} top-up cover until {{date}}",
         "view_top_ups": "View top-ups",
         "effective_limit_breakdown": "Base + top-up: {{breakdown}}",
@@ -277,7 +289,17 @@
         "history_unavailable": "Policy history is unavailable for the selected period.",
         "all_policies": "All Policies",
         "dashboard_no_policy_title": "No Insurance Policy Linked",
-        "dashboard_no_policy_description": "Link an insurance policy on the Policies tab to view credit metrics on this dashboard."
+        "dashboard_no_policy_description": "Link an insurance policy on the Policies tab to view credit metrics on this dashboard.",
+        "validation": {
+            "policy_change_start_date_required": "Policy change start date is required",
+            "pending_policy_change_exists": "A pending policy change exists. Cancel it before making further Policies changes.",
+            "pending_policy_change_not_found": "No pending policy change to cancel",
+            "top_up_date_overlap": "This top-up overlaps an existing top-up for the same product. Concurrent top-ups are not allowed for this policy."
+        },
+        "pending_change_banner": "A policy change is scheduled for {{date}}. Cancel it before making further Policies changes.",
+        "cancel_pending_change": "Cancel pending change",
+        "cancel_pending_success": "Pending policy change cancelled",
+        "cancel_pending_error": "Failed to cancel pending policy change"
     },
     "credit_insurance_reporting": {
         "edit_title": "Edit Reporting Status",

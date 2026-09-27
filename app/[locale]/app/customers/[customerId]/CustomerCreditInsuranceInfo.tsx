@@ -7,6 +7,7 @@ import {
     Accordion,
     AccordionDetails,
     AccordionSummary,
+    Alert,
     Autocomplete,
     Box,
     Button,
@@ -37,7 +38,7 @@ import {
     formatMoney,
     resolveCustomerFirstCurrency,
 } from "@/utils/stringFormatters";
-import { getEffectivePolicyId, getActiveCustomerPolicyFromCustomer } from "@/shared/customerPolicyAdapter";
+import { getEffectivePolicyId, getActiveCustomerPolicyFromCustomer, getPendingCustomerPolicyFromCustomer } from "@/shared/customerPolicyAdapter";
 import {
     buildPolicyHistoryHeaderAuditSegment,
     resolveCustomerPolicyHistoryChipKind,
@@ -69,6 +70,8 @@ interface CustomerCreditInsuranceInfoProps {
     onSave?: () => void;
     isSaving?: boolean;
     customerId?: number;
+    onCancelPendingPolicyChange?: () => void;
+    isCancellingPending?: boolean;
 }
 
 const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = ({
@@ -85,6 +88,8 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
     onSave,
     isSaving = false,
     customerId,
+    onCancelPendingPolicyChange,
+    isCancellingPending = false,
 }) => {
     const { t, i18n } = useTranslation(["customers", "common", "settings"]);
     const { data: session } = useSession();
@@ -371,6 +376,12 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                     defaultValue: "Approve zero limit date",
                 })
             ),
+            policyChangeStartDate: toTitleCaseLabel(
+                t("fields.policy_change_start_date", {
+                    ns: "customers",
+                    defaultValue: "Policy change date",
+                })
+            ),
             activeCustomerSince: toTitleCaseLabel(
                 t("fields.active_customer_since", {
                     ns: "customers",
@@ -532,9 +543,33 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
     }, [customer?.customerPolicies]);
 
     const inactivePolicyHistory = useMemo(
-        () => policyHistory.filter((p) => !p.is_active),
+        () =>
+            policyHistory.filter(
+                (p) => !p.is_active && p.status !== "pending"
+            ),
         [policyHistory]
     );
+
+    const pendingCustomerPolicy = useMemo(
+        () => getPendingCustomerPolicyFromCustomer(customer),
+        [customer]
+    );
+
+    const pendingChangeDateLabel = useMemo(() => {
+        if (!pendingCustomerPolicy?.policy_change_start_date) {
+            return null;
+        }
+        return formatDateForDisplay(
+            pendingCustomerPolicy.policy_change_start_date,
+            "date",
+            userLocale,
+            userTimezone
+        );
+    }, [
+        pendingCustomerPolicy?.policy_change_start_date,
+        userLocale,
+        userTimezone,
+    ]);
 
     const activeInsurancePolicyId = useMemo(
         () => getEffectivePolicyId(customer) ?? null,
@@ -773,6 +808,10 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
             <CreditInsuranceReadonlyField
                 label={creditInsuranceLabels.zeroLimitDate}
                 value={formatRowDate(row.zero_limit_date)}
+            />
+            <CreditInsuranceReadonlyField
+                label={creditInsuranceLabels.policyChangeStartDate}
+                value={formatRowDate(row.policy_change_start_date)}
             />
             <CreditInsuranceReadonlyField
                 label={creditInsuranceLabels.maxPaymentTermDays}
@@ -1047,6 +1086,55 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                             customer?.zero_limit_date
                                 ? formatDateForDisplay(
                                     customer.zero_limit_date,
+                                    "date",
+                                    userLocale,
+                                    userTimezone
+                                )
+                                : null
+                        }
+                    />
+                )}
+            </Box>
+
+            <Box sx={fieldCellSx}>
+                {isEditing ? (
+                    <DatePicker
+                        label={creditInsuranceLabels.policyChangeStartDate}
+                        value={
+                            customer?.policy_change_start_date
+                                ? moment(customer.policy_change_start_date)
+                                : null
+                        }
+                        onChange={(newVal) =>
+                            onChange(
+                                "policy_change_start_date",
+                                newVal ? newVal.format("YYYY-MM-DD") : null
+                            )
+                        }
+                        format={getDatePickerFormat(session ?? null, "DD/MM/YYYY")}
+                        slotProps={{
+                            textField: {
+                                fullWidth: true,
+                                size: "small",
+                                required: policyRelatedRequired,
+                                error: !!errors.policy_change_start_date,
+                                helperText: errors.policy_change_start_date,
+                                InputLabelProps: { shrink: true },
+                                sx: creditInsuranceFieldSx,
+                                ...(isRTL && {
+                                    dir: "rtl",
+                                    "data-hebrew": true as const,
+                                }),
+                            },
+                        }}
+                    />
+                ) : (
+                    <CreditInsuranceReadonlyField
+                        label={creditInsuranceLabels.policyChangeStartDate}
+                        value={
+                            customer?.policy_change_start_date
+                                ? formatDateForDisplay(
+                                    customer.policy_change_start_date,
                                     "date",
                                     userLocale,
                                     userTimezone
@@ -1809,9 +1897,11 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                 </Box>
                 {onEditClick && onCancelEdit && onSave &&
                     (!isEditing ? (
-                        <Button variant="contained" size="small" onClick={onEditClick}>
-                            {t("actions.edit", { ns: "common" })}
-                        </Button>
+                        pendingCustomerPolicy ? null : (
+                            <Button variant="contained" size="small" onClick={onEditClick}>
+                                {t("actions.edit", { ns: "common" })}
+                            </Button>
+                        )
                     ) : (
                         <Box
                             sx={{
@@ -1837,7 +1927,7 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                                 variant="contained"
                                 size="small"
                                 onClick={isSaving ? undefined : onSave}
-                                disabled={isSaving}
+                                disabled={isSaving || !!pendingCustomerPolicy}
                                 className="save-button"
                             >
                                 {t("actions.save", { ns: "common" })}
@@ -1847,6 +1937,33 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
             </Box>
 
             <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
+                {pendingCustomerPolicy && pendingChangeDateLabel ? (
+                    <Alert
+                        severity="warning"
+                        sx={{ mb: 2 }}
+                        action={
+                            onCancelPendingPolicyChange ? (
+                                <Button
+                                    color="inherit"
+                                    size="small"
+                                    onClick={onCancelPendingPolicyChange}
+                                    disabled={isCancellingPending}
+                                >
+                                    {t(
+                                        "credit_insurance.cancel_pending_change",
+                                        { ns: "customers" }
+                                    )}
+                                </Button>
+                            ) : undefined
+                        }
+                    >
+                        {t("credit_insurance.pending_change_banner", {
+                            ns: "customers",
+                            date: pendingChangeDateLabel,
+                        })}
+                    </Alert>
+                ) : null}
+
                 {activePolicyGrid}
 
                 {customerId &&

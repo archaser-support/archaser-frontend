@@ -33,6 +33,7 @@ import { useDebounce } from "use-debounce";
 import { useSession } from "next-auth/react";
 
 import { CurrencySelect } from "@/components/LocationSelects";
+import { MonthEndFieldLabelWithTooltip } from "@/shared/creditInsurance/MonthEndFieldLabelWithTooltip";
 import EndlessScrollDataGrid, {
     createQueryFn,
     useVirtualInfiniteScroll,
@@ -43,10 +44,8 @@ import ModalScrollBox from "@/shared/layout-components/modal/ModalScrollBox";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 
 import {
-    formatDateForDisplay,
+    formatDateOnlyYmdForSession,
     getDatePickerFormat,
-    getUserDateLocale,
-    getUserTimezone,
 } from "@/utils/datetimeOperations";
 import {
     formatMoney,
@@ -90,9 +89,6 @@ export function CustomerTopUpList({
         session?.user?.view_as_user_account_id ?? session?.user?.account_id;
     const [addDialogOpen, setAddDialogOpen] = useState(false);
     const [deleteDialogRow, setDeleteDialogRow] = useState<TopUpRow | null>(null);
-
-    const userLocale = useMemo(() => getUserDateLocale(session), [session]);
-    const userTimezone = useMemo(() => getUserTimezone(session), [session]);
 
     const [sortModel, setSortModel] = useState<GridSortModel>([
         { field: "start_date", sort: "desc" },
@@ -213,10 +209,14 @@ export function CustomerTopUpList({
         [i18n.language, session?.user?.currency]
     );
 
-    const formatDate = useCallback((dateStr: string | null) => {
-        if (!dateStr) return "\u2014";
-        return formatDateForDisplay(dateStr, "date", userLocale, userTimezone);
-    }, [userLocale, userTimezone]);
+    const formatDate = useCallback(
+        (dateStr: string | null) => {
+            if (!dateStr) return "\u2014";
+            const ymd = String(dateStr).trim().slice(0, 10);
+            return formatDateOnlyYmdForSession(ymd, session ?? null) || "\u2014";
+        },
+        [session]
+    );
 
     const columns: GridColDef[] = useMemo(
         () => [
@@ -609,6 +609,62 @@ function AddTopUpDialog({
         [isRTL]
     );
 
+    const fieldLabel = useCallback(
+        (label: string, tooltipKey: string) => (
+            <MonthEndFieldLabelWithTooltip
+                label={label}
+                tooltip={t(`credit_insurance.tooltips.${tooltipKey}`, {
+                    ns: "customers",
+                })}
+                isRtl={isRTL}
+            />
+        ),
+        [isRTL, t]
+    );
+
+    const topUpPolicyLabel = fieldLabel(
+        t("credit_insurance.top_up", { ns: "customers" }),
+        "top_up"
+    );
+    const topUpTypeLabel = fieldLabel(
+        t("fields.type", { ns: "common", defaultValue: "Type" }),
+        "type"
+    );
+    const topUpValueLabel = fieldLabel(
+        t("credit_insurance.top_up_value", { ns: "customers" }),
+        "top_up_value"
+    );
+    const currencyLabel = fieldLabel(
+        t("fields.currency", { ns: "customers" }),
+        "currency"
+    );
+    const startDateLabel = fieldLabel(
+        t("credit_insurance.top_up_start_date", { ns: "customers" }),
+        "top_up_start_date"
+    );
+    const endDateLabel = fieldLabel(
+        t("credit_insurance.top_up_end_date", { ns: "customers" }),
+        "top_up_end_date"
+    );
+    const premiumLabel = fieldLabel(
+        t("credit_insurance.premium", {
+            ns: "customers",
+            defaultValue: "Premium Amount",
+        }),
+        "premium"
+    );
+    const premiumCurrencyLabel = fieldLabel(
+        t("credit_insurance.premium_currency", {
+            ns: "customers",
+            defaultValue: "Premium Currency",
+        }),
+        "premium_currency"
+    );
+    const notesLabel = fieldLabel(
+        t("credit_insurance.top_up_notes", { ns: "customers" }),
+        "top_up_notes"
+    );
+
     useEffect(() => {
         if (!open || typeof document === "undefined") return;
         const trackBg = alpha(theme.palette.primary.main, 0.1);
@@ -685,6 +741,16 @@ function AddTopUpDialog({
             setFieldErrors({});
         },
         onError: (err: unknown) => {
+            const errBody = isAxiosError(err) ? err.response?.data : null;
+            if (errBody?.code === "TOP_UP_DATE_OVERLAP") {
+                showToast(
+                    t("credit_insurance.validation.top_up_date_overlap", {
+                        ns: "customers",
+                    }),
+                    "error"
+                );
+                return;
+            }
             const msg = isAxiosError(err)
                 ? err.response?.data?.error || err.message
                 : String(err);
@@ -847,11 +913,11 @@ function AddTopUpDialog({
                             sx={selectControlSx}
                         >
                             <InputLabel id="top-up-policy-label">
-                                {t("credit_insurance.top_up", { ns: "customers" })}
+                                {topUpPolicyLabel}
                             </InputLabel>
                             <Select
                                 labelId="top-up-policy-label"
-                                label={t("credit_insurance.top_up", { ns: "customers" })}
+                                label={topUpPolicyLabel}
                                 value={insurancePolicyId ?? ""}
                                 disabled={noTopUpAvailableForPolicy}
                                 onChange={(e) =>
@@ -876,14 +942,11 @@ function AddTopUpDialog({
                         </FormControl>
                         <FormControl fullWidth size="small" required sx={selectControlSx}>
                             <InputLabel id="top-up-type-label">
-                                {t("fields.type", {
-                                    ns: "common",
-                                    defaultValue: "Type",
-                                })}
+                                {topUpTypeLabel}
                             </InputLabel>
                             <Select
                                 labelId="top-up-type-label"
-                                label={t("fields.type", { ns: "common", defaultValue: "Type" })}
+                                label={topUpTypeLabel}
                                 value={topUpType}
                                 onChange={(e) =>
                                     setTopUpType(e.target.value as "Fixed" | "Percentage")
@@ -903,7 +966,7 @@ function AddTopUpDialog({
                             fullWidth
                             size="small"
                             required
-                            label={t("credit_insurance.top_up_value", { ns: "customers" })}
+                            label={topUpValueLabel}
                             type="number"
                             value={topUpValue}
                             onChange={(e) => setTopUpValue(e.target.value)}
@@ -928,7 +991,7 @@ function AddTopUpDialog({
                                             return next;
                                         });
                                     }}
-                                    label={t("fields.currency", { ns: "customers" })}
+                                    label={currencyLabel}
                                     error={!!fieldErrors.currency}
                                     helperText={fieldErrors.currency}
                                 />
@@ -937,7 +1000,7 @@ function AddTopUpDialog({
                             <Box sx={{ display: { xs: "none", sm: "block" } }} />
                         )}
                         <DatePicker
-                            label={t("credit_insurance.top_up_start_date", { ns: "customers" })}
+                            label={startDateLabel}
                             value={startDate ? moment(startDate) : null}
                             onChange={(newVal) => {
                                 setStartDate(newVal ? newVal.format("YYYY-MM-DD") : "");
@@ -964,7 +1027,7 @@ function AddTopUpDialog({
                             }}
                         />
                         <DatePicker
-                            label={t("credit_insurance.top_up_end_date", { ns: "customers" })}
+                            label={endDateLabel}
                             value={endDate ? moment(endDate) : null}
                             onChange={(newVal) => {
                                 setEndDate(newVal ? newVal.format("YYYY-MM-DD") : "");
@@ -993,7 +1056,7 @@ function AddTopUpDialog({
                         <TextField
                             fullWidth
                             size="small"
-                            label={t("credit_insurance.premium", { ns: "customers", defaultValue: "Premium" })}
+                            label={premiumLabel}
                             type="number"
                             value={premium}
                             onChange={(e) => setPremium(e.target.value)}
@@ -1017,7 +1080,7 @@ function AddTopUpDialog({
                                         return next;
                                     });
                                 }}
-                                label={t("credit_insurance.premium_currency", { ns: "customers", defaultValue: "Premium Currency" })}
+                                label={premiumCurrencyLabel}
                                 error={!!fieldErrors.premiumCurrency}
                                 helperText={fieldErrors.premiumCurrency}
                             />
@@ -1025,7 +1088,7 @@ function AddTopUpDialog({
                         <TextField
                             fullWidth
                             size="small"
-                            label={t("credit_insurance.top_up_notes", { ns: "customers" })}
+                            label={notesLabel}
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
                             multiline
