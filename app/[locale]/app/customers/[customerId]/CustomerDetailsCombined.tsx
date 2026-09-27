@@ -444,6 +444,8 @@ const TabContent = React.memo(
         onCancelEdit,
         onSave,
         isSaving,
+        onCancelPendingPolicyChange,
+        isCancellingPending,
         validationErrors,
         sequenceContainers,
         businessUnits,
@@ -480,6 +482,8 @@ const TabContent = React.memo(
         onCancelEdit: () => void;
         onSave: () => void;
         isSaving: boolean;
+        onCancelPendingPolicyChange?: () => void;
+        isCancellingPending?: boolean;
         validationErrors: { [key: string]: string };
         sequenceContainers: any[];
         businessUnits: any[];
@@ -695,6 +699,12 @@ const TabContent = React.memo(
                                     : undefined
                             }
                             isSaving={isSaving}
+                            onCancelPendingPolicyChange={
+                                hasEditCustomerPermission
+                                    ? onCancelPendingPolicyChange
+                                    : undefined
+                            }
+                            isCancellingPending={isCancellingPending}
                             customerId={customerIdNumber}
                         />
                     )}
@@ -802,6 +812,7 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
     const [isEditing, setIsEditing] = useState(false);
     const [editedCustomer, setEditedCustomer] = useState<any>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [isCancellingPending, setIsCancellingPending] = useState(false);
     const [validationErrors, setValidationErrors] = useState<{
         [key: string]: string;
     }>({});
@@ -1173,6 +1184,11 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
         const base = editedCustomer ?? customer;
         if (base) {
             policyIdAtEditStartRef.current = getEffectivePolicyId(base);
+            const todayUtc = new Date().toISOString().slice(0, 10);
+            setEditedCustomer({
+                ...base,
+                policy_change_start_date: todayUtc,
+            });
         }
         setIsEditing(true);
         setValidationErrors({});
@@ -1583,6 +1599,18 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
             ) {
                 newErrors.limit_type = req;
             }
+            const pcd = (editedCustomer as { policy_change_start_date?: unknown })
+                .policy_change_start_date;
+            if (
+                pcd === null ||
+                pcd === undefined ||
+                (typeof pcd === "string" && pcd.trim() === "")
+            ) {
+                newErrors.policy_change_start_date = t(
+                    "credit_insurance.validation.policy_change_start_date_required",
+                    { ns: "customers" }
+                );
+            }
             const mpt = (editedCustomer as { max_payment_term?: unknown })
                 .max_payment_term;
             if (mpt === null || mpt === undefined) {
@@ -1741,9 +1769,14 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                         setPolicySwitchConfirmOpen(true);
                     } else {
                         const apiError =
-                            typeof errBody?.error === "string"
-                                ? errBody.error
-                                : null;
+                            errBody?.code === "PENDING_POLICY_CHANGE_EXISTS"
+                                ? t(
+                                      "credit_insurance.validation.pending_policy_change_exists",
+                                      { ns: "customers" }
+                                  )
+                                : typeof errBody?.error === "string"
+                                  ? errBody.error
+                                  : null;
                         showToast(
                             apiError ?? t("messages.save_error"),
                             "error"
@@ -1765,6 +1798,61 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
             queryClient,
         ]
     );
+
+    const handleCancelPendingPolicyChange = useCallback(async () => {
+        setIsCancellingPending(true);
+        try {
+            const response = await apiFetch(
+                `/api/entities/customers/${customerIdNumber}/policies/cancel-pending`,
+                { method: "POST" }
+            );
+            if (response.ok) {
+                await queryClient.invalidateQueries({
+                    queryKey: ["customer", customerIdNumber],
+                });
+                const { data: freshCustomer } = await refetch();
+                if (freshCustomer) {
+                    setEditedCustomer(
+                        applyEffectivePolicyFieldsToCustomer({
+                            ...freshCustomer,
+                            customer_name: freshCustomer?.Person
+                                ? `${freshCustomer.Person.first_name || ""} ${freshCustomer.Person.last_name || ""}`.trim()
+                                : freshCustomer?.Company?.name || "",
+                            category_for_new_collection:
+                                freshCustomer?.category_for_new_collection ||
+                                "Automated",
+                        })
+                    );
+                }
+                showToast(
+                    t("credit_insurance.cancel_pending_success", {
+                        ns: "customers",
+                    }),
+                    "success"
+                );
+            } else {
+                const errBody = await response.json().catch(() => ({}));
+                const apiError =
+                    typeof errBody?.error === "string" ? errBody.error : null;
+                showToast(
+                    apiError ??
+                        t("credit_insurance.cancel_pending_error", {
+                            ns: "customers",
+                        }),
+                    "error"
+                );
+            }
+        } catch {
+            showToast(
+                t("credit_insurance.cancel_pending_error", {
+                    ns: "customers",
+                }),
+                "error"
+            );
+        } finally {
+            setIsCancellingPending(false);
+        }
+    }, [customerIdNumber, queryClient, refetch, showToast, t]);
 
     const handleSave = useCallback(async () => {
         if (!editedCustomer) return;
@@ -2084,6 +2172,10 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                         onCancelEdit={handleCancelEdit}
                         onSave={handleSave}
                         isSaving={isSaving}
+                        onCancelPendingPolicyChange={
+                            handleCancelPendingPolicyChange
+                        }
+                        isCancellingPending={isCancellingPending}
                         validationErrors={validationErrors}
                         sequenceContainers={sequenceContainers}
                         businessUnits={businessUnits}
