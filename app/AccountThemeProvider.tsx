@@ -7,6 +7,7 @@ import React, { useEffect, useMemo, useState } from "react";
 
 import { apiFetch } from "@/utils/apiFetch";
 import { getNestApiBaseUrl } from "@/utils/nestAuth";
+import { fetchSessionAccountById } from "@/shared/services/sessionAccountQuery";
 
 import {
     createAppTheme,
@@ -116,9 +117,7 @@ export default function AccountThemeProvider({
         (async () => {
             try {
                 const accountColors = readAccountThemeColors(
-                    await fetchJsonWithNestBearer(
-                        `/api/entities/accounts/${accountId}`
-                    )
+                    await fetchSessionAccountById(accountId)
                 );
                 const profileColors = accountColors?.chart_palette_color
                     ? null
