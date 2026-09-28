@@ -183,8 +183,9 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
             return response.data;
         },
         enabled: !!session?.user,
-        staleTime: 0, // Don't cache - always fetch fresh permissions
-        gcTime: 0,
+        staleTime: 2 * 60 * 1000,
+        refetchOnWindowFocus: false,
+        refetchOnMount: false,
     });
 
     const userPermissions = userPermissionsData?.permissions || [];
@@ -470,7 +471,8 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
         queryKey: ["states", countryIdForStates],
         queryFn: async () => {
             if (!countryIdForStates) return [];
-            const response = await apiFetch(`/api/state?country_id=${countryIdForStates}`
+            const response = await apiFetch(
+                `/api/state?country_id=${countryIdForStates}`
             );
             if (!response.ok) {
                 throw new Error("Failed to fetch states");
@@ -647,7 +649,8 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
         try {
             setLoadingUserProviders(true);
             // Only fetch customer-specific preferences
-            const response = await apiFetch(`/api/accounts/${accountId}/sms-preferences`
+            const response = await apiFetch(
+                `/api/accounts/${accountId}/sms-preferences`
             );
             if (response.ok) {
                 const data = await response.json();
@@ -692,13 +695,18 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
     };
 
     useEffect(() => {
-        // Only fetch SMS preferences when we have a valid account ID (skip for "new" account)
+        // SMS list endpoints are only needed on Communication tab (or SMS modal).
+        // Loading them on every details mount was a major admin-panel cost.
+        const needsSmsData = activeTab === 1 || openSMSConfigModal;
+        if (!needsSmsData) {
+            return;
+        }
         if (accountId !== "new" && !isNaN(Number(accountId))) {
             loadUserProviders();
         }
         loadCountriesWithSMSVendors();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [activeTab, openSMSConfigModal, accountId]);
 
     const handleCancel = () => {
         // Always navigate back to the accounts list
