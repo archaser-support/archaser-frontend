@@ -2,17 +2,54 @@
 
 import { broadcastQueryClient } from "@tanstack/query-broadcast-client-experimental";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, type Query } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import React from "react";
 
 const MINUTE = 1000 * 60;
 
+/** List/grid/search payloads are large — never write them into localStorage. */
+function shouldPersistQuery(query: Query): boolean {
+    if (query.state.status !== "success") {
+        return false;
+    }
+    const root = query.queryKey[0];
+    if (typeof root !== "string") {
+        return false;
+    }
+    const skipPrefixes = [
+        "globalSearch",
+        "customers",
+        "customer",
+        "invoices",
+        "invoice",
+        "contacts",
+        "disputes",
+        "activities",
+        "billing-connector",
+        "endless",
+        "grid",
+        "report",
+        "credit",
+        "portfolio",
+        "claims",
+        "controlCenter",
+        "import",
+    ];
+    return !skipPrefixes.some(
+        (prefix) =>
+            root === prefix ||
+            root.startsWith(`${prefix}-`) ||
+            root.startsWith(prefix)
+    );
+}
+
 const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
-            // Default stale time to 0 for real-time data
-            staleTime: 0,
+            // Short stale window avoids refetch storms on every focus/navigation
+            // while still feeling fresh for collections work.
+            staleTime: 30 * 1000,
             // Keep data in cache for 5 minutes
             gcTime: 5 * MINUTE,
             // Refetch on window focus for better session handling
@@ -56,7 +93,12 @@ export default function ReactQueryProvider({
             client={queryClient}
             persistOptions={{
                 persister,
-                maxAge: 5 * MINUTE, // Increased max age for better persistence
+                maxAge: 5 * MINUTE,
+                // Drop pre-filter localStorage blobs that rehydrated full grids into heap.
+                buster: "rq-persist-v2-skip-lists",
+                dehydrateOptions: {
+                    shouldDehydrateQuery: shouldPersistQuery,
+                },
             }}
         >
             {children}
