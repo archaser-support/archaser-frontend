@@ -676,6 +676,132 @@ export function CreditReportSummaryCards({
         );
     }
 
+    if (type === "top_up") {
+        return (
+            <Box
+                sx={{
+                    display: "flex",
+                    gap: { xs: 2, sm: 3 },
+                    mb: { xs: 3, sm: 4 },
+                    flexWrap: "wrap",
+                    flexDirection: { xs: "column", sm: "row" },
+                }}
+            >
+                <Box sx={{ flex: { xs: "1 1 auto", sm: "1 1 300px" }, minWidth: 0 }}>
+                    <Card sx={cardStyle}>
+                        <Box className="card-icon" sx={iconAtStart("secondary")}>
+                            <GroupIcon
+                                sx={{
+                                    fontSize: { xs: 20, sm: 24 },
+                                    color: theme.palette.secondary.main,
+                                }}
+                            />
+                        </Box>
+                        <CardContent sx={contentPadding}>
+                            <Typography variant="body2" sx={labelSx}>
+                                {t(
+                                    "credit_insurance_report.summary_customers_with_top_up"
+                                )}
+                            </Typography>
+                            <Typography sx={valueSx}>
+                                {(
+                                    summary.topUp?.customersWithActiveCount ?? 0
+                                ).toLocaleString(userLocale)}
+                            </Typography>
+                        </CardContent>
+                    </Card>
+                </Box>
+                <Box sx={{ flex: { xs: "1 1 auto", sm: "1 1 300px" }, minWidth: 0 }}>
+                    <Card sx={cardStyle}>
+                        <Box className="card-icon" sx={iconAtStart("success")}>
+                            <AccountBalanceIcon
+                                sx={{
+                                    fontSize: { xs: 20, sm: 24 },
+                                    color: theme.palette.success.main,
+                                }}
+                            />
+                        </Box>
+                        <CardContent sx={contentPadding}>
+                            <Typography variant="body2" sx={labelSx}>
+                                {t(
+                                    "credit_insurance_report.summary_top_up_amount"
+                                )}
+                            </Typography>
+                            <Typography sx={valueSx}>
+                                {fmt(summary.topUp?.activeCoverTotal ?? 0)}
+                            </Typography>
+                        </CardContent>
+                    </Card>
+                </Box>
+            </Box>
+        );
+    }
+
+    if (type === "top_up_expiring") {
+        return (
+            <Box
+                sx={{
+                    display: "flex",
+                    gap: { xs: 2, sm: 3 },
+                    mb: { xs: 3, sm: 4 },
+                    flexWrap: "wrap",
+                    flexDirection: { xs: "column", sm: "row" },
+                }}
+            >
+                <Box sx={{ flex: { xs: "1 1 auto", sm: "1 1 300px" }, minWidth: 0 }}>
+                    <Card sx={cardStyle}>
+                        <Box className="card-icon" sx={iconAtStart("secondary")}>
+                            <GroupIcon
+                                sx={{
+                                    fontSize: { xs: 20, sm: 24 },
+                                    color: theme.palette.secondary.main,
+                                }}
+                            />
+                        </Box>
+                        <CardContent sx={contentPadding}>
+                            <Typography variant="body2" sx={labelSx}>
+                                {t(
+                                    "credit_insurance_report.summary_customers_top_up_expiring"
+                                )}
+                            </Typography>
+                            <Typography sx={valueSx}>
+                                {(
+                                    summary.topUp?.expiringWithinDays
+                                        .customerCount ?? 0
+                                ).toLocaleString(userLocale)}
+                            </Typography>
+                        </CardContent>
+                    </Card>
+                </Box>
+                <Box sx={{ flex: { xs: "1 1 auto", sm: "1 1 300px" }, minWidth: 0 }}>
+                    <Card sx={cardStyle}>
+                        <Box className="card-icon" sx={iconAtStart("success")}>
+                            <AccountBalanceIcon
+                                sx={{
+                                    fontSize: { xs: 20, sm: 24 },
+                                    color: theme.palette.success.main,
+                                }}
+                            />
+                        </Box>
+                        <CardContent sx={contentPadding}>
+                            <Typography variant="body2" sx={labelSx}>
+                                {t(
+                                    "credit_insurance_report.summary_top_up_expiring_amount"
+                                )}
+                            </Typography>
+                            <Typography sx={valueSx}>
+                                {fmt(
+                                    summary.topUp?.expiringWithinDays
+                                        .totalAmount ?? 0
+                                )}
+                            </Typography>
+                        </CardContent>
+                    </Card>
+                </Box>
+            </Box>
+        );
+    }
+
     // terms
     return (
         <Box

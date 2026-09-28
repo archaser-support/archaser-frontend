@@ -2908,7 +2908,15 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                 getOptionLabel={(option) => option.name}
                 loading={isLoading}
                 inputValue={searchTerm}
-                onInputChange={(_, newValue) => {
+                onInputChange={(_, newValue, reason) => {
+                    // Ignore Autocomplete "reset" / blur sync — those re-fire
+                    // every render with a controlled inputValue and loop.
+                    if (reason !== "input" && reason !== "clear") {
+                        return;
+                    }
+                    if (newValue === searchTerm) {
+                        return;
+                    }
                     setSearchTerm(newValue);
                     setSelectedIndex(-1);
                     // Keep expanded if there's text
