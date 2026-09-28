@@ -348,13 +348,9 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
         }
     }, []);
 
-    // Auto-focus search input on mount only (not on every route change)
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            searchInputRef.current?.focus();
-        }, 100);
-        return () => clearTimeout(timer);
-    }, []);
+    // Do not auto-focus on mount — focusing expands the pill, runs width
+    // transitions / ResizeObserver work, and previously fed Autocomplete
+    // "reset" loops that burned memory on every app open. Use Ctrl/Cmd+K or /.
 
     // Keep dropdown width in sync with the search pill (focus expand + resize).
     useEffect(() => {
@@ -366,9 +362,12 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
 
         const updateWidth = () => {
             const next = autocompleteRoot.getBoundingClientRect().width;
-            if (next > 0) {
-                setAnchorWidthPx(next);
+            if (!(next > 0)) {
+                return;
             }
+            setAnchorWidthPx((prev) =>
+                Math.abs(prev - next) < 0.5 ? prev : next
+            );
         };
 
         updateWidth();
@@ -389,7 +388,6 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
     // Reset filters to all selected if they become empty (safety check)
     useEffect(() => {
         setSelectedEntityTypes((prev) => {
-            // If somehow all filters are deselected, reset to all selected
             if (prev.size === 0) {
                 return new Set(["customer", "invoice", "contact", "dispute"]);
             }
