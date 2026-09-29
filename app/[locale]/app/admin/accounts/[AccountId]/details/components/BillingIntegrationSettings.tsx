@@ -121,6 +121,8 @@ export type BillingIntegrationSettingsHandle = {
 interface BillingIntegrationSettingsProps {
     accountId: number;
     canManage: boolean;
+    /** False while another account-details tab is shown (keeps form mounted but pauses polls). */
+    isActive?: boolean;
 }
 
 function renderClearBeforeImportConfirmDescription(
@@ -164,7 +166,7 @@ const BillingIntegrationSettings = forwardRef<
     BillingIntegrationSettingsHandle,
     BillingIntegrationSettingsProps
 >(function BillingIntegrationSettings(
-    { accountId, canManage },
+    { accountId, canManage, isActive = true },
     ref
 ) {
     const { success, error: showError } = useToast();
@@ -174,8 +176,33 @@ const BillingIntegrationSettings = forwardRef<
 
     const { data: config, isLoading } = useQuery({
         queryKey: billingConnectorQueryKey(accountId),
-        queryFn: () => fetchBillingConnectorConfig(accountId),
-        enabled: accountId > 0,
+        queryFn: async () => {
+            const previous = queryClient.getQueryData<BillingConnectorConfig | null>(
+                billingConnectorQueryKey(accountId)
+            );
+            const fresh = await fetchBillingConnectorConfig(accountId);
+            if (!fresh) {
+                return null;
+            }
+            // Lite GET omits entity_set_catalog; keep a prior full catalog in cache.
+            if (
+                previous?.entity_set_catalog &&
+                previous.entity_set_catalog.length > 0 &&
+                (!fresh.entity_set_catalog ||
+                    fresh.entity_set_catalog.length === 0) &&
+                previous.entity_set_catalog_fetched_at ===
+                    fresh.entity_set_catalog_fetched_at
+            ) {
+                return {
+                    ...fresh,
+                    entity_set_catalog: previous.entity_set_catalog,
+                    entity_set_catalog_fetched_at:
+                        previous.entity_set_catalog_fetched_at,
+                };
+            }
+            return fresh;
+        },
+        enabled: accountId > 0 && isActive,
     });
 
     const [provider, setProvider] = useState<"PRIORITY" | "SAP_BUSINESS_ONE">(
@@ -432,7 +459,27 @@ const BillingIntegrationSettings = forwardRef<
                 ? { ...config.extension_config }
                 : {}
         );
-    }, [config?.id, config?.modified_at]);
+        // Do not depend on modified_at / sync_states — busy polls rewrite those
+        // and would rehydrate the whole form every few seconds.
+    }, [
+        config?.id,
+        config?.provider,
+        config?.base_url,
+        config?.auth_type,
+        config?.sync_enabled,
+        config?.schedule_preset,
+        config?.daily_time_utc,
+        config?.weekly_day,
+        config?.sync_cron_expression,
+        config?.enabled_entities,
+        config?.backfill_start_date,
+        config?.mep_breach_start_date,
+        config?.reporting_breach_start_date,
+        config?.include_older_open_invoices,
+        config?.invoice_paid_tolerance,
+        config?.extension_key,
+        config?.extension_config,
+    ]);
 
     useEffect(() => {
         if (!config || previewStaleRef.current) {
@@ -1152,16 +1199,8 @@ const BillingIntegrationSettings = forwardRef<
                 previous
             );
         },
-        enabled: accountId > 0 && Boolean(config?.has_credentials),
-        refetchInterval: (query) => {
-            const runs = query.state.data ?? [];
-            const busy =
-                backfillMutation.isPending ||
-                progressSession?.phase === "seeding" ||
-                progressSession?.phase === "running" ||
-                runs.some(isActiveConnectorSyncRun);
-            return busy ? BILLING_CONNECTOR_BUSY_POLL_MS : false;
-        },
+        enabled: accountId > 0 && Boolean(config?.has_credentials) && isActive,
+        // Busy refresh is owned by the setInterval poller below — avoid double fetch.
     });
 
     const {
@@ -1171,7 +1210,11 @@ const BillingIntegrationSettings = forwardRef<
     } = useQuery({
         queryKey: billingConnectorSyncHistoryQueryKey(accountId),
         queryFn: () => fetchBillingConnectorSyncHistory(accountId),
-        enabled: accountId > 0 && Boolean(config?.has_credentials),
+        enabled:
+            accountId > 0 &&
+            Boolean(config?.has_credentials) &&
+            isActive &&
+            historyExpanded,
     });
 
     const syncInProgress = syncRuns.some(isActiveConnectorSyncRun);
@@ -1290,8 +1333,13 @@ const BillingIntegrationSettings = forwardRef<
         writeBackfillProgressSession(accountId, next);
     }, [accountId, progressSessionResolved, progressSession]);
 
-    // Single busy poller — replaces stacked refetchInterval + invalidate loops.
+    // Single busy poller — paused when billing tab is hidden or the browser tab
+    // is backgrounded. Prefer sync-runs ticks; config is heavier (Mongo + pending
+    // AR count) so refresh it less often unless deferred-drain is config-only.
     useEffect(() => {
+        if (!isActive) {
+            return;
+        }
         const shouldPoll =
             backfillMutation.isPending ||
             progressSessionResolved.phase === "seeding" ||
@@ -1305,16 +1353,40 @@ const BillingIntegrationSettings = forwardRef<
         if (!shouldPoll) {
             return;
         }
+        // Deferred AR drain without an active sync: config-only (lighter).
+        const configOnly =
+            deferredArPostIngestPending &&
+            !syncInProgress &&
+            !backfillMutation.isPending &&
+            !incrementalMutation.isPending &&
+            !previewMutation.isPending &&
+            progressSessionResolved.phase === "deferred_drain";
+        let tick = 0;
         const poll = () => {
-            void invalidateBillingConnectorQueries(queryClient, accountId);
+            if (
+                typeof document !== "undefined" &&
+                document.visibilityState === "hidden"
+            ) {
+                return;
+            }
+            tick += 1;
+            const refreshConfig = configOnly || tick % 4 === 1;
+            void invalidateBillingConnectorQueries(queryClient, accountId, {
+                config: refreshConfig,
+                syncRuns: !configOnly,
+                history: false,
+            });
         };
         poll();
         const timer = window.setInterval(
             poll,
-            BILLING_CONNECTOR_BUSY_POLL_MS
+            configOnly
+                ? BILLING_CONNECTOR_BUSY_POLL_MS * 4
+                : BILLING_CONNECTOR_BUSY_POLL_MS
         );
         return () => window.clearInterval(timer);
     }, [
+        isActive,
         accountId,
         queryClient,
         backfillMutation.isPending,
@@ -2296,7 +2368,6 @@ const BillingIntegrationSettings = forwardRef<
      */
     const entityWorkspaceConfig = useMemo(() => config, [
         config?.id,
-        config?.modified_at,
         config?.entity_sets,
         config?.default_entity_sets,
         config?.entity_set_catalog,
@@ -2326,6 +2397,59 @@ const BillingIntegrationSettings = forwardRef<
         selectedMappingEntityTab,
     ]);
 
+    const isMappingExpanded = mappingExpanded ?? false;
+
+    // Load the Priority entity-set name list only when Field mapping is open.
+    useEffect(() => {
+        if (!isActive || !isMappingExpanded || !config?.has_credentials) {
+            return;
+        }
+        if ((config.entity_set_catalog?.length ?? 0) > 0) {
+            return;
+        }
+        if (!config.entity_set_catalog_fetched_at) {
+            return;
+        }
+        let cancelled = false;
+        void (async () => {
+            try {
+                const full = await fetchBillingConnectorConfig(accountId, {
+                    includeEntitySetCatalog: true,
+                });
+                if (cancelled || !full) {
+                    return;
+                }
+                queryClient.setQueryData(
+                    billingConnectorQueryKey(accountId),
+                    (previous: BillingConnectorConfig | null | undefined) => {
+                        if (!previous) {
+                            return full;
+                        }
+                        return {
+                            ...previous,
+                            entity_set_catalog: full.entity_set_catalog,
+                            entity_set_catalog_fetched_at:
+                                full.entity_set_catalog_fetched_at,
+                        };
+                    }
+                );
+            } catch {
+                // Mapper still works with typed entity-set names.
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [
+        accountId,
+        config?.entity_set_catalog?.length,
+        config?.entity_set_catalog_fetched_at,
+        config?.has_credentials,
+        isActive,
+        isMappingExpanded,
+        queryClient,
+    ]);
+
     if (isLoading && config === undefined) {
         return (
             <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
@@ -2338,8 +2462,12 @@ const BillingIntegrationSettings = forwardRef<
     const connectionAlreadySet = Boolean(config?.has_credentials);
     const isConnectionExpanded = connectionExpanded ?? !connectionAlreadySet;
     const isScheduleExpanded = scheduleExpanded ?? !connectionAlreadySet;
-    const isMappingExpanded = mappingExpanded ?? false;
-    const isProgressExpanded = progressExpanded ?? true;
+    const isProgressExpanded =
+        progressExpanded ??
+        (progressSessionResolved.phase === "seeding" ||
+            progressSessionResolved.phase === "running" ||
+            progressSessionResolved.phase === "deferred_drain" ||
+            Boolean(displayProgressRun));
 
     return (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
