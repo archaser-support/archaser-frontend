@@ -2580,6 +2580,9 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
                                             <BillingIntegrationSettings
                                                 ref={billingSettingsRef}
                                                 accountId={Number(accountId)}
+                                                isActive={
+                                                    activeTab === billingTabIndex
+                                                }
                                                 canManage={
                                                     hasManageBillingConnectorPermission &&
                                                     !isAccountViewOnly
