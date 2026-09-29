@@ -55,6 +55,11 @@ import { SpinnerProvider } from "@/shared/layout-components/spinner/SpinnerProvi
 import { ToastProvider, useToast } from "@/shared/layout-components/toast/ToastProvider";
 import { isFileImportVisible } from "@/shared/utils/accountProducts";
 import {
+    accountProductsFromSessionAccount,
+    fetchSessionAccountById,
+    sessionAccountQueryKey,
+} from "@/shared/services/sessionAccountQuery";
+import {
     getDefaultLandingPage,
     getFirstAccessiblePage,
     isAppRouteAccessible,
@@ -423,7 +428,8 @@ const AppLayout = ({ children }: any) => {
 
             try {
                 setLoading(true);
-                const response = await apiFetch("/api/entities/users/collection-agents"
+                const response = await apiFetch(
+                    "/api/entities/users/collection-agents"
                 );
                 if (!response.ok) {
                     // Silently handle 403 (Forbidden) - expected for users without permissions
@@ -459,8 +465,8 @@ const AppLayout = ({ children }: any) => {
             return response.data;
         },
         refetchInterval: 1000 * 60 * 5, // Refresh every 5 minutes
-        refetchOnWindowFocus: true, // Refetch when window regains focus
-        staleTime: 1000 * 60 * 2, // Consider data stale after 2 minutes
+        refetchOnWindowFocus: false,
+        staleTime: 1000 * 60 * 5, // Keep fresh for the poll interval
         enabled: mounted && status === "authenticated", // Only run query after component is mounted and user is authenticated
     });
 
@@ -596,59 +602,31 @@ const AppLayout = ({ children }: any) => {
                 return response.data;
             },
             enabled: !!session?.user && status === "authenticated",
-            staleTime: 0, // Don't cache - always fetch fresh permissions
-            gcTime: 0, // Don't keep in cache
-            refetchOnWindowFocus: true, // Refetch when window regains focus
-            refetchOnMount: true, // Always refetch on mount
+            staleTime: 2 * 60 * 1000,
+            refetchOnWindowFocus: false,
+            refetchOnMount: false,
         });
 
-    const { data: effectiveAccountProducts, isLoading: isLoadingAccountProducts } = useQuery<{
-        has_collection?: boolean;
-        has_credit_insurance?: boolean;
-        is_demo?: boolean;
-    }>({
-        queryKey: ["account-products", effectiveUser.account_id],
+    const {
+        data: sessionAccount,
+        isLoading: isLoadingSessionAccount,
+    } = useQuery({
+        queryKey: sessionAccountQueryKey(effectiveUser.account_id),
         queryFn: async () => {
             if (!effectiveUser.account_id) {
-                return {
-                    has_collection: true,
-                    has_credit_insurance: false,
-                    is_demo: false,
-                };
+                return null;
             }
-            const response = await api.get(
-                `/api/entities/accounts/${effectiveUser.account_id}`
-            );
-            return {
-                has_collection:
-                    response.data?.has_collection !== undefined
-                        ? response.data.has_collection
-                        : true,
-                has_credit_insurance:
-                    response.data?.has_credit_insurance === true,
-                is_demo: response.data?.is_demo === true,
-            };
-        },
-        enabled: !!effectiveUser.account_id,
-        staleTime: 60 * 1000,
-    });
-
-    const { isLoading: isLoadingAccountTheme } = useQuery({
-        queryKey: ["account-theme-colors", effectiveUser.account_id],
-        queryFn: async () => {
-            if (!effectiveUser.account_id) return null;
-            const response = await api.get(
-                `/api/entities/accounts/${effectiveUser.account_id}`
-            );
-            return {
-                primary_color: response.data?.primary_color ?? null,
-                secondary_color: response.data?.secondary_color ?? null,
-                chart_palette_color: response.data?.chart_palette_color ?? null,
-            };
+            return fetchSessionAccountById(effectiveUser.account_id);
         },
         enabled: !!effectiveUser.account_id && status === "authenticated",
         staleTime: 60 * 1000,
     });
+
+    const effectiveAccountProducts = useMemo(
+        () => accountProductsFromSessionAccount(sessionAccount),
+        [sessionAccount]
+    );
+    const isLoadingAccountProducts = isLoadingSessionAccount;
 
     const hasCollectionProduct =
         effectiveAccountProducts?.has_collection !== undefined
@@ -2077,9 +2055,7 @@ const AppLayout = ({ children }: any) => {
     const shouldBlockLayoutRender =
         status === "authenticated" &&
         isSessionReady &&
-        (isLoadingAccountProducts ||
-            isLoadingAccountTheme ||
-            isLoadingPermissions);
+        (isLoadingAccountProducts || isLoadingPermissions);
 
     if (shouldBlockLayoutRender) {
         return (
@@ -2133,6 +2109,15 @@ const AppLayout = ({ children }: any) => {
                     handleLogout={handleLogout}
                     isHebrewUser={isHebrewUser}
                     sidebarOpen={sidebarOpen}
+                    lastSyncLoading={isLoadingSessionAccount}
+                    sessionAccount={sessionAccount}
+                    onRefreshLastSync={() => {
+                        queryClient.invalidateQueries({
+                            queryKey: sessionAccountQueryKey(
+                                effectiveUser.account_id
+                            ),
+                        });
+                    }}
                 />
                 <Box
                     component="nav"

@@ -224,10 +224,16 @@ const basePath = (accountId: number) =>
     `/api/entities/accounts/${accountId}/billing-connector`;
 
 export async function fetchBillingConnectorConfig(
-    accountId: number
+    accountId: number,
+    options?: { includeEntitySetCatalog?: boolean }
 ): Promise<BillingConnectorConfig | null> {
     const response = await api.get<{ config: BillingConnectorConfig | null }>(
-        basePath(accountId)
+        basePath(accountId),
+        {
+            params: options?.includeEntitySetCatalog
+                ? { include_entity_set_catalog: "1" }
+                : undefined,
+        }
     );
     return response.data.config;
 }
