@@ -448,6 +448,9 @@ export default function BackfillImportProgress({
                     }
                     onExpandedChange(next);
                 }}
+                slotProps={{
+                    transition: { unmountOnExit: true },
+                }}
                 sx={billingAccordionSx}
             >
                 <AccordionSummary

@@ -18,8 +18,8 @@ import {
     useTheme,
 } from "@mui/material";
 import { keyframes } from "@mui/system";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import api, { apiFetch } from "@/app/api";
+import { useQuery } from "@tanstack/react-query";
+import api from "@/app/api";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -60,6 +60,13 @@ interface AppHeaderProps {
     handleLogout: () => void;
     isHebrewUser?: boolean;
     sidebarOpen?: boolean;
+    /** Shared session-account payload from AppShell (avoids a duplicate GET). */
+    sessionAccount?: {
+        name?: string | null;
+        last_sync_date?: string | Date | null;
+    } | null;
+    lastSyncLoading?: boolean;
+    onRefreshLastSync?: () => void;
 }
 
 const AppHeader: React.FC<AppHeaderProps> = ({
@@ -75,6 +82,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     handleLogout,
     isHebrewUser = false,
     sidebarOpen = true,
+    sessionAccount = null,
+    lastSyncLoading = false,
+    onRefreshLastSync,
 }) => {
     const theme = useTheme();
     const { t: tCommon } = useTranslation(["common"]);
@@ -83,7 +93,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     const [viewAsAnchorEl, setViewAsAnchorEl] = useState<null | HTMLElement>(
         null
     );
-    const queryClient = useQueryClient();
     const [mounted, setMounted] = useState(false);
 
     // Prevent hydration mismatch by only calculating current time after mount
@@ -91,63 +100,36 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         setMounted(true);
     }, []);
 
-    // Fetch user permissions for View As button visibility
+    // Fetch user permissions for View As button visibility (same key/cache as AppShell)
     const { data: userPermissionsData } = useQuery<{ permissions: string[] }>({
         queryKey: [
             "user-permissions",
             session?.user?.id,
-            session?.user?.role,
-            session?.user?.account_id,
+            effectiveUser?.role ?? session?.user?.role,
+            effectiveUser?.account_id ?? session?.user?.account_id,
         ],
         queryFn: async () => {
             const response = await api.get("/api/permissions/me");
             return response.data;
         },
         enabled: !!session?.user,
-        staleTime: 2 * 60 * 1000, // Cache for 2 minutes
+        staleTime: 2 * 60 * 1000,
         refetchOnWindowFocus: false,
+        refetchOnMount: false,
     });
 
     const userPermissions = userPermissionsData?.permissions || [];
     const hasUseViewAsPermission = userPermissions.includes("use_view_as");
     const hasViewSettingsPermission = userPermissions.includes("view_settings");
 
-    // Fetch customer data using React Query for proper cache management
-    const { data: customerData, isLoading: lastSyncLoading } = useQuery({
-        queryKey: ["customer", session?.user?.account_id],
-        queryFn: async () => {
-            if (!session?.user?.account_id) {
-                throw new Error("No customer ID available");
-            }
-            const response = await apiFetch(`/api/entities/accounts/${session.user.account_id}`
-            );
-            if (!response.ok) {
-                throw new Error("Failed to fetch customer data");
-            }
-            const data = await response.json();
-            return data;
-        },
-        enabled: !!session?.user?.account_id,
-        staleTime: 30000, // Consider data stale after 30 seconds
-        refetchOnWindowFocus: true, // Refetch when window regains focus
-    });
-
-    const lastSyncDate = customerData?.last_sync_date
-        ? customerData.last_sync_date instanceof Date
-            ? customerData.last_sync_date
-            : new Date(customerData.last_sync_date)
+    const lastSyncDate = sessionAccount?.last_sync_date
+        ? sessionAccount.last_sync_date instanceof Date
+            ? sessionAccount.last_sync_date
+            : new Date(sessionAccount.last_sync_date)
         : null;
 
-    // Function to manually refresh customer data
-    const refreshLastSync = async () => {
-        try {
-            // Invalidate the customer query to refetch the data
-            queryClient.invalidateQueries({
-                queryKey: ["customer", session?.user?.account_id],
-            });
-        } catch {
-            // Silently handle errors
-        }
+    const refreshLastSync = () => {
+        onRefreshLastSync?.();
     };
 
     const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -294,9 +276,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
             return session.user.view_as_user_account_name;
         }
 
-        // Use fetched customer data name if available
-        if (customerData?.name) {
-            return customerData.name;
+        // Use shared session-account name if available
+        if (sessionAccount?.name) {
+            return sessionAccount.name;
         }
 
         // Otherwise, use the session user's customer name

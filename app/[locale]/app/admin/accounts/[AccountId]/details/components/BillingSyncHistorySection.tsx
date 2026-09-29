@@ -56,6 +56,9 @@ const BillingSyncHistorySection = memo(function BillingSyncHistorySection({
                                 elevation={0}
                                 expanded={expanded}
                                 onChange={(_, next) => onExpandedChange(next)}
+                                slotProps={{
+                                    transition: { unmountOnExit: true },
+                                }}
                                 sx={billingAccordionSx}
                             >
                                 <AccordionSummary
@@ -88,14 +91,16 @@ const BillingSyncHistorySection = memo(function BillingSyncHistorySection({
                                 </AccordionSummary>
                                 <AccordionDetails sx={billingAccordionDetailsSx}>
                                     <CardContent sx={billingAccordionContentSx}>
-                                        <ConnectorSyncHistoryGrid
-                                            runs={syncHistory}
-                                            isLoading={
-                                                syncHistoryLoading ||
-                                                (syncHistoryFetching &&
-                                                    syncHistory.length === 0)
-                                            }
-                                        />
+                                        {expanded ? (
+                                            <ConnectorSyncHistoryGrid
+                                                runs={syncHistory}
+                                                isLoading={
+                                                    syncHistoryLoading ||
+                                                    (syncHistoryFetching &&
+                                                        syncHistory.length === 0)
+                                                }
+                                            />
+                                        ) : null}
                                     </CardContent>
                                 </AccordionDetails>
                             </Accordion>

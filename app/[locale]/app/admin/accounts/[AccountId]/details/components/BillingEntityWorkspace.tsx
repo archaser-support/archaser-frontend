@@ -157,6 +157,7 @@ const BillingEntityWorkspace = memo(function BillingEntityWorkspace({
                                 </AccordionSummary>
                                 <AccordionDetails sx={billingAccordionDetailsSx}>
                                     <CardContent sx={billingAccordionContentSx}>
+                                {expanded ? (
                                 <Box>
                                     {entitiesForMapping.length === 0 && (
                                         <Alert severity="info" sx={{ mb: 2 }}>
@@ -270,7 +271,8 @@ const BillingEntityWorkspace = memo(function BillingEntityWorkspace({
                                                     />
                                                 ) : null}
                                             </Box>
-                                            {entityEnabled ? (
+                                            {entityEnabled &&
+                                            selectedMappingEntityTab === index ? (
                                                 <>
                                             <Tabs
                                                 value={entityWorkspaceTab}
@@ -292,12 +294,8 @@ const BillingEntityWorkspace = memo(function BillingEntityWorkspace({
                                                             value="preview"
                                                         />
                                                     </Tabs>
-                                                    <Box
-                                                        hidden={
-                                                            entityWorkspaceTab !==
-                                                            "mapping"
-                                                        }
-                                                    >
+                                                    {entityWorkspaceTab ===
+                                                    "mapping" ? (
                                                         <ConnectorFieldMapper
                                                             ref={(handle) => {
                                                                 mapperRefs.current[
@@ -340,13 +338,9 @@ const BillingEntityWorkspace = memo(function BillingEntityWorkspace({
                                                                 handleEntityConfigDirtyChange
                                                             }
                                                         />
-                                                    </Box>
-                                                    <Box
-                                                        hidden={
-                                                            entityWorkspaceTab !==
-                                                            "pullFilter"
-                                                        }
-                                                    >
+                                                    ) : null}
+                                                    {entityWorkspaceTab ===
+                                                    "pullFilter" ? (
                                                         <ConnectorEntityPullFilterEditor
                                                             ref={(handle) => {
                                                                 pullFilterRefs.current[
@@ -368,38 +362,30 @@ const BillingEntityWorkspace = memo(function BillingEntityWorkspace({
                                                                 onPullFilterSaved(saved);
                                                             }}
                                                         />
-                                                    </Box>
-                                                    <Box
-                                                        hidden={
-                                                            entityWorkspaceTab !==
-                                                            "preview"
-                                                        }
-                                                    >
-                                                        {entityWorkspaceTab ===
-                                                            "preview" &&
-                                                        selectedMappingEntityTab ===
-                                                            index ? (
-                                                            previewEntity ? (
-                                                                <ConnectorPreviewSyncResults
-                                                                    entity={
-                                                                        previewEntity
-                                                                    }
-                                                                />
-                                                            ) : (
-                                                                <Alert severity="info">
-                                                                    Run preview sync to
-                                                                    pull sample rows for{" "}
-                                                                    {entity}.
-                                                                </Alert>
-                                                            )
-                                                        ) : null}
-                                                    </Box>
+                                                    ) : null}
+                                                    {entityWorkspaceTab ===
+                                                    "preview" ? (
+                                                        previewEntity ? (
+                                                            <ConnectorPreviewSyncResults
+                                                                entity={
+                                                                    previewEntity
+                                                                }
+                                                            />
+                                                        ) : (
+                                                            <Alert severity="info">
+                                                                Run preview sync to
+                                                                pull sample rows for{" "}
+                                                                {entity}.
+                                                            </Alert>
+                                                        )
+                                                    ) : null}
                                                 </>
                                             ) : null}
                                                 </Box>
                                                 );
                                             })}
                                 </Box>
+                                ) : null}
                                     </CardContent>
                                 </AccordionDetails>
                             </Accordion>

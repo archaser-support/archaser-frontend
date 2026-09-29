@@ -214,6 +214,9 @@ const BillingScheduleSection = memo(function BillingScheduleSection(props: Billi
                             elevation={0}
                             expanded={expanded}
                             onChange={(_, next) => onExpandedChange(next)}
+                            slotProps={{
+                                transition: { unmountOnExit: true },
+                            }}
                             sx={billingAccordionSx}
                         >
                             <AccordionSummary
