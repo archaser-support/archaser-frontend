@@ -2614,7 +2614,6 @@ const BillingIntegrationSettings = forwardRef<
                         }
                         expanded={isProgressExpanded}
                         onExpandedChange={setProgressExpanded}
-                        allEnabledMappingsComplete={allEnabledMappingsComplete}
                         showPrimaryAction={Boolean(showPrimaryAction)}
                         actionStage={actionStage}
                         primaryTooltipTitle={primaryTooltipTitle}

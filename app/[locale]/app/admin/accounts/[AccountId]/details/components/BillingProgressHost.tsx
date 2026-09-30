@@ -34,7 +34,6 @@ export interface BillingProgressHostProps {
     pendingArPostIngestCustomers: number | undefined;
     expanded: boolean;
     onExpandedChange: (expanded: boolean) => void;
-    allEnabledMappingsComplete: boolean;
     showPrimaryAction: boolean;
     actionStage: BackfillActionStageView | null;
     primaryTooltipTitle: ReactNode;
@@ -67,7 +66,6 @@ const BillingProgressHost = memo(function BillingProgressHost({
     pendingArPostIngestCustomers,
     expanded,
     onExpandedChange,
-    allEnabledMappingsComplete,
     showPrimaryAction,
     actionStage,
     primaryTooltipTitle,
@@ -95,134 +93,128 @@ const BillingProgressHost = memo(function BillingProgressHost({
             expanded={expanded}
             onExpandedChange={onExpandedChange}
             actions={
-                // Show operator controls whenever mappings are ready, or when a
-                // progress/failed run is on screen / Reset is available. Gating
-                // only on mappings hid Reset after FAILED when completeness
-                // briefly/falsely read as incomplete.
-                allEnabledMappingsComplete ||
-                Boolean(displayProgressRun) ||
-                Boolean(actionStage?.showReset) ||
-                Boolean(actionStage?.showStop) ||
-                importBusy ? (
-                    <Box
-                        sx={{
-                            display: "flex",
-                            gap: 2,
-                            flexWrap: "wrap",
-                            alignItems: "center",
-                            width: "100%",
-                        }}
-                    >
-                        {showPrimaryAction && actionStage ? (
-                            <Tooltip
-                                title={primaryTooltipTitle}
-                                arrow
-                                enterDelay={300}
-                                leaveDelay={100}
-                                placement="bottom"
-                            >
-                                <span>
-                                    <Button
-                                        variant="contained"
-                                        color={
-                                            actionStage.primaryAction === "stop"
-                                                ? "error"
-                                                : "primary"
-                                        }
-                                        className={
-                                            actionStage.primaryAction === "stop"
-                                                ? undefined
-                                                : "save-button"
-                                        }
-                                        size={
-                                            actionStage.primaryAction === "stop"
-                                                ? "small"
-                                                : undefined
-                                        }
-                                        onClick={onPrimaryAction}
-                                        disabled={Boolean(
-                                            primaryDisabledReason ||
-                                                primaryPending
-                                        )}
-                                        startIcon={
-                                            primaryPending ? (
-                                                <CircularProgress
-                                                    size={16}
-                                                    color="inherit"
-                                                />
-                                            ) : undefined
-                                        }
-                                    >
-                                        {primaryButtonLabel}
-                                    </Button>
-                                </span>
-                            </Tooltip>
-                        ) : importBusy ? (
-                            <Tooltip
-                                title={importBusyTooltipTitle}
-                                arrow
-                                enterDelay={300}
-                                leaveDelay={100}
-                                placement="bottom"
-                            >
-                                <span>
-                                    <CircularProgress size={24} />
-                                </span>
-                            </Tooltip>
-                        ) : null}
-                        {actionStage?.showReset ? (
-                            <Tooltip
-                                title={
-                                    resetBackfillDisabledReason ? (
-                                        <Box>
-                                            <Typography variant="body2">
-                                                {getResetBackfillPurpose()}
-                                            </Typography>
-                                            <Typography
-                                                variant="body2"
-                                                sx={{ mt: 1 }}
-                                            >
-                                                {resetBackfillDisabledReason}
-                                            </Typography>
-                                        </Box>
-                                    ) : (
-                                        getResetBackfillPurpose()
-                                    )
-                                }
-                                arrow
-                                enterDelay={300}
-                                leaveDelay={100}
-                                placement="bottom"
-                            >
-                                <span>
-                                    <Button
-                                        variant="outlined"
-                                        color="warning"
-                                        size="small"
-                                        onClick={() => onOpenResetDialog()}
-                                        disabled={Boolean(
-                                            resetBackfillDisabledReason
-                                        )}
-                                    >
-                                        {resetBackfillPending
-                                            ? "Resetting..."
-                                            : "Reset backfill"}
-                                    </Button>
-                                </span>
-                            </Tooltip>
-                        ) : null}
-                        <BillingCustomerAutocomplete
-                            accountId={accountId}
-                            value={clearBeforeImportCustomerId}
-                            onChange={onClearBeforeImportCustomerChange}
-                            error={clearBeforeImportCustomerError}
-                            disabled={!canManage || importBusy}
-                            label="Customer"
-                            isHebrew={isHebrew}
-                            helperTooltip="Limits Run preview and Start backfill to that customer for all enabled entities. Delete switches still control wipe. Leave empty for the whole account. Resume ignores this field."
-                        />
-                    </Box>
-                ) : undefined
+                // Always paint operator controls when the accordion is open.
+                // Gating on mapping completeness hid the whole strip after Reset
+                // / FAILED (completeness often still false until mappers remount),
+                // leaving an empty Backfill progress body.
+                <Box
+                    sx={{
+                        display: "flex",
+                        gap: 2,
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                        width: "100%",
+                    }}
+                >
+                    {showPrimaryAction && actionStage ? (
+                        <Tooltip
+                            title={primaryTooltipTitle}
+                            arrow
+                            enterDelay={300}
+                            leaveDelay={100}
+                            placement="bottom"
+                        >
+                            <span>
+                                <Button
+                                    variant="contained"
+                                    color={
+                                        actionStage.primaryAction === "stop"
+                                            ? "error"
+                                            : "primary"
+                                    }
+                                    className={
+                                        actionStage.primaryAction === "stop"
+                                            ? undefined
+                                            : "save-button"
+                                    }
+                                    size={
+                                        actionStage.primaryAction === "stop"
+                                            ? "small"
+                                            : undefined
+                                    }
+                                    onClick={onPrimaryAction}
+                                    disabled={Boolean(
+                                        primaryDisabledReason ||
+                                            primaryPending
+                                    )}
+                                    startIcon={
+                                        primaryPending ? (
+                                            <CircularProgress
+                                                size={16}
+                                                color="inherit"
+                                            />
+                                        ) : undefined
+                                    }
+                                >
+                                    {primaryButtonLabel}
+                                </Button>
+                            </span>
+                        </Tooltip>
+                    ) : importBusy ? (
+                        <Tooltip
+                            title={importBusyTooltipTitle}
+                            arrow
+                            enterDelay={300}
+                            leaveDelay={100}
+                            placement="bottom"
+                        >
+                            <span>
+                                <CircularProgress size={24} />
+                            </span>
+                        </Tooltip>
+                    ) : null}
+                    {actionStage?.showReset ? (
+                        <Tooltip
+                            title={
+                                resetBackfillDisabledReason ? (
+                                    <Box>
+                                        <Typography variant="body2">
+                                            {getResetBackfillPurpose()}
+                                        </Typography>
+                                        <Typography
+                                            variant="body2"
+                                            sx={{ mt: 1 }}
+                                        >
+                                            {resetBackfillDisabledReason}
+                                        </Typography>
+                                    </Box>
+                                ) : (
+                                    getResetBackfillPurpose()
+                                )
+                            }
+                            arrow
+                            enterDelay={300}
+                            leaveDelay={100}
+                            placement="bottom"
+                        >
+                            <span>
+                                <Button
+                                    variant="outlined"
+                                    color="warning"
+                                    size="small"
+                                    onClick={() => onOpenResetDialog()}
+                                    disabled={Boolean(
+                                        resetBackfillDisabledReason
+                                    )}
+                                >
+                                    {resetBackfillPending
+                                        ? "Resetting..."
+                                        : "Reset backfill"}
+                                </Button>
+                            </span>
+                        </Tooltip>
+                    ) : null}
+                    <BillingCustomerAutocomplete
+                        accountId={accountId}
+                        value={clearBeforeImportCustomerId}
+                        onChange={onClearBeforeImportCustomerChange}
+                        error={clearBeforeImportCustomerError}
+                        disabled={!canManage || importBusy}
+                        label="Customer"
+                        isHebrew={isHebrew}
+                        helperTooltip="Limits Run preview and Start backfill to that customer for all enabled entities. Delete switches still control wipe. Leave empty for the whole account. Resume ignores this field."
+                    />
+                </Box>
             }
         />
     );
