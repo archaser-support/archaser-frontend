@@ -92,7 +92,15 @@ function readRules(
 ): PullFilterRule[] {
     const entry = config?.pull_filters?.[importType];
     if (entry && entry.mode === "rules" && entry.rules.length > 0) {
-        return entry.rules.map((rule) => ({ ...rule }));
+        const rules = entry.rules
+            .map((rule) => ({ ...rule }))
+            .filter(
+                (rule) =>
+                    importType === "Invoice" ||
+                    importType === "Payment" ||
+                    rule.field.trim().toUpperCase() !== "UDATE"
+            );
+        return rules.length > 0 ? rules : [emptyRule()];
     }
     return [emptyRule()];
 }
@@ -213,22 +221,29 @@ export default React.forwardRef<
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            const next = draftConfig;
+            let next = draftConfig;
             if (
                 (importType === "Customer" || importType === "Contact") &&
                 next
             ) {
-                const mentionsUdate =
-                    (next.mode === "rules" &&
-                        next.rules.some(
-                            (rule) =>
-                                rule.field.trim().toUpperCase() === "UDATE"
-                        )) ||
-                    (next.mode === "advanced" &&
-                        /\bUDATE\b/i.test(next.odata));
-                if (mentionsUdate) {
+                if (next.mode === "rules") {
+                    const withoutUdate = next.rules.filter(
+                        (rule) =>
+                            rule.field.trim().toUpperCase() !== "UDATE"
+                    );
+                    if (withoutUdate.length !== next.rules.length) {
+                        next =
+                            withoutUdate.length > 0
+                                ? { mode: "rules", rules: withoutUdate }
+                                : null;
+                        setRules(withoutUdate);
+                    }
+                } else if (/\bUDATE\b/i.test(next.odata)) {
+                    // Advanced OData: drop UDATE AND-conjuncts client-side by
+                    // clearing only when the whole expression is UDATE-only;
+                    // otherwise ask the operator to edit — backend also strips.
                     showError(
-                        `${importType} pull filters cannot use UDATE — Priority has no UDATE on that table. Remove the UDATE rule and put date floors on Invoice or Payment instead.`
+                        `${importType} pull filters cannot use UDATE — Priority has no UDATE on that table. Remove the UDATE clause (keep CTYPE2NAME / other fields). Put date floors on Invoice or Payment instead.`
                     );
                     return;
                 }
