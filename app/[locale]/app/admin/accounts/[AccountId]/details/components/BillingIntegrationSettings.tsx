@@ -1085,9 +1085,12 @@ const BillingIntegrationSettings = forwardRef<
             setProgressSession(cleared);
             writeBackfillProgressSession(accountId, cleared);
             lastLiveProgressRunRef.current = null;
+            // Keep the accordion open so Start / Preview / Reset stay visible.
+            setProgressExpanded(true);
         },
         onSuccess: () => {
             setResetDialogOpen(false);
+            setProgressExpanded(true);
             success("Backfill reset — start date is editable again");
             void invalidateBillingConnectorQueries(queryClient, accountId, {
                 history: true,
@@ -2467,6 +2470,8 @@ const BillingIntegrationSettings = forwardRef<
         (progressSessionResolved.phase === "seeding" ||
             progressSessionResolved.phase === "running" ||
             progressSessionResolved.phase === "deferred_drain" ||
+            progressSessionResolved.phase === "cleared" ||
+            progressSessionResolved.phase === "idle" ||
             Boolean(displayProgressRun));
 
     return (
@@ -2593,11 +2598,7 @@ const BillingIntegrationSettings = forwardRef<
                 />
             )}
 
-            {config?.has_credentials &&
-                (allEnabledMappingsComplete ||
-                    Boolean(displayProgressRun) ||
-                    progressSessionResolved.phase === "seeding" ||
-                    progressSessionResolved.phase === "deferred_drain") && (
+            {config?.has_credentials && (
                     <BillingProgressHost
                         canManage={canManage}
                         isHebrew={isHebrew}
@@ -2613,7 +2614,6 @@ const BillingIntegrationSettings = forwardRef<
                         }
                         expanded={isProgressExpanded}
                         onExpandedChange={setProgressExpanded}
-                        allEnabledMappingsComplete={allEnabledMappingsComplete}
                         showPrimaryAction={Boolean(showPrimaryAction)}
                         actionStage={actionStage}
                         primaryTooltipTitle={primaryTooltipTitle}
