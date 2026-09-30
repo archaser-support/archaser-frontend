@@ -92,14 +92,25 @@ function readRules(
 ): PullFilterRule[] {
     const entry = config?.pull_filters?.[importType];
     if (entry && entry.mode === "rules" && entry.rules.length > 0) {
+        const stripOnContact = new Set([
+            "UDATE",
+            "CTYPE2NAME",
+            "CTYPE2CODE",
+            "CDES",
+            "CUSTDES",
+        ]);
         const rules = entry.rules
             .map((rule) => ({ ...rule }))
-            .filter(
-                (rule) =>
-                    importType === "Invoice" ||
-                    importType === "Payment" ||
-                    rule.field.trim().toUpperCase() !== "UDATE"
-            );
+            .filter((rule) => {
+                const field = rule.field.trim().toUpperCase();
+                if (importType === "Contact") {
+                    return !stripOnContact.has(field);
+                }
+                if (importType === "Customer") {
+                    return field !== "UDATE";
+                }
+                return true;
+            });
         return rules.length > 0 ? rules : [emptyRule()];
     }
     return [emptyRule()];
@@ -227,23 +238,39 @@ export default React.forwardRef<
                 next
             ) {
                 if (next.mode === "rules") {
-                    const withoutUdate = next.rules.filter(
+                    const stripFields =
+                        importType === "Contact"
+                            ? new Set([
+                                  "UDATE",
+                                  "CTYPE2NAME",
+                                  "CTYPE2CODE",
+                                  "CDES",
+                                  "CUSTDES",
+                              ])
+                            : new Set(["UDATE"]);
+                    const withoutBad = next.rules.filter(
                         (rule) =>
-                            rule.field.trim().toUpperCase() !== "UDATE"
+                            !stripFields.has(rule.field.trim().toUpperCase())
                     );
-                    if (withoutUdate.length !== next.rules.length) {
+                    if (withoutBad.length !== next.rules.length) {
                         next =
-                            withoutUdate.length > 0
-                                ? { mode: "rules", rules: withoutUdate }
+                            withoutBad.length > 0
+                                ? { mode: "rules", rules: withoutBad }
                                 : null;
-                        setRules(withoutUdate);
+                        setRules(withoutBad);
                     }
-                } else if (/\bUDATE\b/i.test(next.odata)) {
-                    // Advanced OData: drop UDATE AND-conjuncts client-side by
-                    // clearing only when the whole expression is UDATE-only;
-                    // otherwise ask the operator to edit — backend also strips.
+                } else if (
+                    next.mode === "advanced" &&
+                    (/\bUDATE\b/i.test(next.odata) ||
+                        (importType === "Contact" &&
+                            /\b(CTYPE2NAME|CTYPE2CODE|CDES|CUSTDES)\b/i.test(
+                                next.odata
+                            )))
+                ) {
                     showError(
-                        `${importType} pull filters cannot use UDATE — Priority has no UDATE on that table. Remove the UDATE clause (keep CTYPE2NAME / other fields). Put date floors on Invoice or Payment instead.`
+                        importType === "Contact"
+                            ? "Contact pull filters cannot use UDATE or CUSTOMERS-only fields (CTYPE2NAME, …). Put CTYPE2NAME on Customer; put date floors on Invoice or Payment. Contact uses CUSTPERSONNEL."
+                            : `${importType} pull filters cannot use UDATE — Priority has no UDATE on that table. Remove the UDATE clause (keep CTYPE2NAME / other fields). Put date floors on Invoice or Payment instead.`
                     );
                     return;
                 }
