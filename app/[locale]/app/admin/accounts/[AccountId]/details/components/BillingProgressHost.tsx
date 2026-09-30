@@ -95,7 +95,15 @@ const BillingProgressHost = memo(function BillingProgressHost({
             expanded={expanded}
             onExpandedChange={onExpandedChange}
             actions={
-                allEnabledMappingsComplete ? (
+                // Show operator controls whenever mappings are ready, or when a
+                // progress/failed run is on screen / Reset is available. Gating
+                // only on mappings hid Reset after FAILED when completeness
+                // briefly/falsely read as incomplete.
+                allEnabledMappingsComplete ||
+                Boolean(displayProgressRun) ||
+                Boolean(actionStage?.showReset) ||
+                Boolean(actionStage?.showStop) ||
+                importBusy ? (
                     <Box
                         sx={{
                             display: "flex",
