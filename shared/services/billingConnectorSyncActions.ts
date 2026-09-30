@@ -73,6 +73,7 @@ export function getStartBackfillDisabledReason(params: {
 export function getResetBackfillDisabledReason(params: {
     canManage: boolean;
     resetPending: boolean;
+    /** Kept for call-site compat; Reset is allowed while busy (API cancels first). */
     syncInProgress: boolean;
 }): string | null {
     if (!params.canManage) {
@@ -80,9 +81,6 @@ export function getResetBackfillDisabledReason(params: {
     }
     if (params.resetPending) {
         return "Reset is still in progress.";
-    }
-    if (params.syncInProgress) {
-        return "A sync is already running. Stop it or wait for it to finish.";
     }
     return null;
 }
@@ -274,7 +272,9 @@ export function resolveBackfillActionStage(params: {
                 : "Starting import…",
             primaryAction: "stop",
             primaryLabel: "Stop import",
-            showReset: false,
+            // Keep Reset visible when options are locked — a failed/stuck run
+            // previously hid the button behind importBusy and trapped admins.
+            showReset: params.backfillOptionsLocked,
             showStop: params.showStopImport,
         };
     }
