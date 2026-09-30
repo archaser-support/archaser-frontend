@@ -214,6 +214,25 @@ export default React.forwardRef<
         setIsSaving(true);
         try {
             const next = draftConfig;
+            if (
+                (importType === "Customer" || importType === "Contact") &&
+                next
+            ) {
+                const mentionsUdate =
+                    (next.mode === "rules" &&
+                        next.rules.some(
+                            (rule) =>
+                                rule.field.trim().toUpperCase() === "UDATE"
+                        )) ||
+                    (next.mode === "advanced" &&
+                        /\bUDATE\b/i.test(next.odata));
+                if (mentionsUdate) {
+                    showError(
+                        `${importType} pull filters cannot use UDATE — Priority has no UDATE on that table. Remove the UDATE rule and put date floors on Invoice or Payment instead.`
+                    );
+                    return;
+                }
+            }
             const saved = await saveBillingConnectorConfig(accountId, {
                 pull_filters: {
                     [importType]: next,
