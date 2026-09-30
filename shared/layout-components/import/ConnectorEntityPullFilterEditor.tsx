@@ -92,7 +92,26 @@ function readRules(
 ): PullFilterRule[] {
     const entry = config?.pull_filters?.[importType];
     if (entry && entry.mode === "rules" && entry.rules.length > 0) {
-        return entry.rules.map((rule) => ({ ...rule }));
+        const stripOnContact = new Set([
+            "UDATE",
+            "CTYPE2NAME",
+            "CTYPE2CODE",
+            "CDES",
+            "CUSTDES",
+        ]);
+        const rules = entry.rules
+            .map((rule) => ({ ...rule }))
+            .filter((rule) => {
+                const field = rule.field.trim().toUpperCase();
+                if (importType === "Contact") {
+                    return !stripOnContact.has(field);
+                }
+                if (importType === "Customer") {
+                    return field !== "UDATE";
+                }
+                return true;
+            });
+        return rules.length > 0 ? rules : [emptyRule()];
     }
     return [emptyRule()];
 }
@@ -213,7 +232,49 @@ export default React.forwardRef<
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            const next = draftConfig;
+            let next = draftConfig;
+            if (
+                (importType === "Customer" || importType === "Contact") &&
+                next
+            ) {
+                if (next.mode === "rules") {
+                    const stripFields =
+                        importType === "Contact"
+                            ? new Set([
+                                  "UDATE",
+                                  "CTYPE2NAME",
+                                  "CTYPE2CODE",
+                                  "CDES",
+                                  "CUSTDES",
+                              ])
+                            : new Set(["UDATE"]);
+                    const withoutBad = next.rules.filter(
+                        (rule) =>
+                            !stripFields.has(rule.field.trim().toUpperCase())
+                    );
+                    if (withoutBad.length !== next.rules.length) {
+                        next =
+                            withoutBad.length > 0
+                                ? { mode: "rules", rules: withoutBad }
+                                : null;
+                        setRules(withoutBad);
+                    }
+                } else if (
+                    next.mode === "advanced" &&
+                    (/\bUDATE\b/i.test(next.odata) ||
+                        (importType === "Contact" &&
+                            /\b(CTYPE2NAME|CTYPE2CODE|CDES|CUSTDES)\b/i.test(
+                                next.odata
+                            )))
+                ) {
+                    showError(
+                        importType === "Contact"
+                            ? "Contact pull filters cannot use UDATE or CUSTOMERS-only fields (CTYPE2NAME, …). Put CTYPE2NAME on Customer; put date floors on Invoice or Payment. Contact uses CUSTPERSONNEL."
+                            : `${importType} pull filters cannot use UDATE — Priority has no UDATE on that table. Remove the UDATE clause (keep CTYPE2NAME / other fields). Put date floors on Invoice or Payment instead.`
+                    );
+                    return;
+                }
+            }
             const saved = await saveBillingConnectorConfig(accountId, {
                 pull_filters: {
                     [importType]: next,

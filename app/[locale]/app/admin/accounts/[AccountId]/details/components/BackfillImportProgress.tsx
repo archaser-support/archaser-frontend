@@ -302,7 +302,13 @@ export default function BackfillImportProgress({
 
     const rows = useMemo(() => {
         if (isSeeding || isPlaceholderRun || !run) {
-            if (isSeeding || expectDeletingStep) {
+            // Idle / cleared / seeding: still show planned entity steps so the
+            // expanded accordion is not an empty shell after Reset.
+            if (
+                isSeeding ||
+                expectDeletingStep ||
+                enabledEntities.length > 0
+            ) {
                 return buildSeedingEntityProgressRows({
                     enabledEntities,
                     expectPurge: expectDeletingStep,

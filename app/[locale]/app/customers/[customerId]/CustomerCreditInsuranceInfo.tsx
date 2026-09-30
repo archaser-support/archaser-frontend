@@ -14,6 +14,7 @@ import {
     Card,
     CardContent,
     Chip,
+    CircularProgress,
     FormControlLabel,
     MenuItem,
     Switch,
@@ -1929,6 +1930,25 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                                 onClick={isSaving ? undefined : onSave}
                                 disabled={isSaving || !!pendingCustomerPolicy}
                                 className="save-button"
+                                endIcon={
+                                    isSaving ? (
+                                        <CircularProgress
+                                            size={16}
+                                            sx={{ color: "inherit" }}
+                                        />
+                                    ) : undefined
+                                }
+                                sx={{
+                                    direction: isRTL ? "rtl" : "ltr",
+                                    "& .MuiButton-endIcon": {
+                                        marginLeft: isRTL
+                                            ? 0
+                                            : theme.spacing(1),
+                                        marginRight: isRTL
+                                            ? theme.spacing(1)
+                                            : 0,
+                                    },
+                                }}
                             >
                                 {t("actions.save", { ns: "common" })}
                             </Button>

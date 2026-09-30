@@ -12,6 +12,7 @@ import {
     Badge,
     Box,
     Button,
+    CircularProgress,
     Tab,
     Tabs,
     Typography,
@@ -1763,6 +1764,12 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                     setIsEditing(false);
                     setPolicySwitchConfirmOpen(false);
                     setRefreshTrigger((prev) => prev + 1);
+                    showToast(
+                        t("messages.customer_saved_success", {
+                            ns: "customers",
+                        }),
+                        "success"
+                    );
                 } else {
                     const errBody = await response.json().catch(() => ({}));
                     if (errBody?.code === "CONFIRM_POLICY_SWITCH_REQUIRED") {
@@ -2216,6 +2223,14 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                             variant="contained"
                             disabled={isSaving}
                             onClick={() => void performSave(true)}
+                            endIcon={
+                                isSaving ? (
+                                    <CircularProgress
+                                        size={16}
+                                        sx={{ color: "inherit" }}
+                                    />
+                                ) : undefined
+                            }
                         >
                             {t("actions.ok", { ns: "common" })}
                         </Button>
