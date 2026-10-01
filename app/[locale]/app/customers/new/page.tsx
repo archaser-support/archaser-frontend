@@ -83,10 +83,7 @@ import {
 } from "@/shared/redux/action";
 import { useAppDispatch, useAppSelector } from "@/shared/redux/hooks";
 
-import {
-    GroupAdd as GroupAddIcon,
-    LocationOn as LocationIcon,
-} from "@mui/icons-material";
+import { LocationOn as LocationIcon } from "@mui/icons-material";
 import BusinessIcon from "@mui/icons-material/Business";
 import InfoIcon from "@mui/icons-material/Info";
 import LanguageIcon from "@mui/icons-material/Language";
@@ -551,7 +548,7 @@ export default function CreateCustomerPage() {
             };
 
             const response = await api.post(
-                "/api/import/customer",
+                "/api/entities/customers",
                 customerData,
                 {
                     headers: {

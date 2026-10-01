@@ -9,7 +9,10 @@ import {
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
-import { searchCustomersForParent } from "@/shared/services/customerService";
+import {
+    fetchCustomerForParentSelect,
+    searchCustomersForParent,
+} from "@/shared/services/customerService";
 
 interface ParentCustomerAutocompleteProps {
     value: number | null;
@@ -18,9 +21,11 @@ interface ParentCustomerAutocompleteProps {
     error?: string;
     disabled?: boolean;
     label?: string;
+    /** Seed from GET customer ParentCustomer so edit shows the current parent. */
+    initialOption?: CustomerOption | null;
 }
 
-interface CustomerOption {
+export interface CustomerOption {
     id: number;
     name: string;
     customer_number: string | null;
@@ -34,18 +39,22 @@ const ParentCustomerAutocomplete: React.FC<ParentCustomerAutocompleteProps> = ({
     error,
     disabled = false,
     label,
+    initialOption = null,
 }) => {
     const { t, i18n } = useTranslation(["customers", "common"]);
     const [searchTerm, setSearchTerm] = useState("");
     const [options, setOptions] = useState<CustomerOption[]>([]);
     const [loading, setLoading] = useState(false);
     const [selectedOption, setSelectedOption] = useState<CustomerOption | null>(
-        null
+        () =>
+            initialOption && value != null && initialOption.id === value
+                ? initialOption
+                : null
     );
     const [isOpen, setIsOpen] = useState(false);
     const hasLoadedInitialOptions = useRef(false);
+    const loadRequestId = useRef(0);
 
-    // Define handleSearch before useEffects that use it
     const handleSearch = useCallback(
         async (term: string) => {
             try {
@@ -78,32 +87,38 @@ const ParentCustomerAutocomplete: React.FC<ParentCustomerAutocompleteProps> = ({
         [excludeId]
     );
 
-    const loadSelectedCustomer = useCallback(
-        async (customerId: number) => {
-            try {
-                setLoading(true);
-                const customers = await searchCustomersForParent("", excludeId);
-                const customer = customers.find((c) => c.id === customerId);
-                if (customer) {
-                    const name =
-                        customer.name ||
-                        customer.customer_number ||
-                        `Customer ${customer.id}`;
-                    setSelectedOption({
-                        id: customer.id,
-                        name,
-                        customer_number: customer.customer_number,
-                        type: customer.type,
-                    });
-                }
-            } catch {
-                // Error handled silently
-            } finally {
+    const loadSelectedCustomer = useCallback(async (customerId: number) => {
+        const requestId = ++loadRequestId.current;
+        try {
+            setLoading(true);
+            const customer = await fetchCustomerForParentSelect(customerId);
+            if (requestId !== loadRequestId.current) {
+                return;
+            }
+            if (customer) {
+                const name =
+                    customer.name ||
+                    customer.customer_number ||
+                    `Customer ${customer.id}`;
+                setSelectedOption({
+                    id: customer.id,
+                    name,
+                    customer_number: customer.customer_number,
+                    type: customer.type,
+                });
+            } else {
+                setSelectedOption(null);
+            }
+        } catch {
+            if (requestId === loadRequestId.current) {
+                setSelectedOption(null);
+            }
+        } finally {
+            if (requestId === loadRequestId.current) {
                 setLoading(false);
             }
-        },
-        [excludeId]
-    );
+        }
+    }, []);
 
     // Load initial options when dropdown opens
     useEffect(() => {
@@ -127,7 +142,6 @@ const ParentCustomerAutocomplete: React.FC<ParentCustomerAutocompleteProps> = ({
             if (searchTerm.trim().length >= 2) {
                 handleSearch(searchTerm.trim());
             } else if (searchTerm.trim().length === 0 && isOpen) {
-                // Load initial options when search is cleared and dropdown is open
                 handleSearch("");
             } else if (searchTerm.trim().length === 0 && !isOpen) {
                 setOptions([]);
@@ -139,14 +153,21 @@ const ParentCustomerAutocomplete: React.FC<ParentCustomerAutocompleteProps> = ({
         };
     }, [searchTerm, isOpen, handleSearch]);
 
-    // Load selected customer when value changes
+    // Hydrate selected parent when value changes (by id, not blank search page)
     useEffect(() => {
-        if (value && !selectedOption) {
-            loadSelectedCustomer(value);
-        } else if (!value) {
+        if (!value) {
             setSelectedOption(null);
+            return;
         }
-    }, [value, selectedOption, loadSelectedCustomer]);
+        if (selectedOption?.id === value) {
+            return;
+        }
+        if (initialOption?.id === value) {
+            setSelectedOption(initialOption);
+            return;
+        }
+        void loadSelectedCustomer(value);
+    }, [value, selectedOption?.id, initialOption, loadSelectedCustomer]);
 
     const displayLabel =
         label || t("fields.parent_customer", { ns: "customers" });
@@ -181,7 +202,7 @@ const ParentCustomerAutocomplete: React.FC<ParentCustomerAutocompleteProps> = ({
             isOptionEqualToValue={(option, value) => option.id === value.id}
             loading={loading}
             disabled={disabled}
-            filterOptions={(x) => x} // Disable client-side filtering, we do it server-side
+            filterOptions={(x) => x}
             dir={isHebrew ? "rtl" : "ltr"}
             {...(isHebrew && { "data-hebrew": true, "data-rtl": true })}
             renderOption={(props, option) => {
