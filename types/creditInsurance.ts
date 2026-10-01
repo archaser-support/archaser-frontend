@@ -602,6 +602,7 @@ export type PortfolioExposureReconciliationSection = {
 export type CreditAsOfBackfillJobStatus =
     | "idle"
     | "running"
+    | "syncing"
     | "paused"
     | "failed"
     | "complete";
@@ -621,6 +622,12 @@ export type CreditAsOfBackfillJobView = {
     estimatedSecondsRemaining?: number | null;
     /** Pending rewrite queue window only; null when processing/done/missing. */
     pendingRewrite?: { from: string; to: string } | null;
+    /** Parent-change: Save-time sync vs async history. */
+    phase?: "sync" | "history" | null;
+    /** Parent-change sync checklist step key. */
+    step?: string | null;
+    syncStepsTotal?: number | null;
+    syncStepsDone?: number | null;
 };
 
 export type CreditPortfolioHealthResponse = {
