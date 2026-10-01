@@ -861,6 +861,7 @@ export const ViewBasedDataGrid: React.FC<ViewBasedDataGridProps> = ({
             linkHandlers: config.linkHandlers,
             customCellRenderers,
             hideCollectionCategoryDisplay,
+            accountCurrency: session?.user?.currency,
         });
 
         // Add checkbox column at the beginning
@@ -926,10 +927,13 @@ export const ViewBasedDataGrid: React.FC<ViewBasedDataGridProps> = ({
         selectedRows,
         customCellRenderers,
         handleSelectionChange,
+        handleMultiSelectChange,
+        enableMultiSelect,
         actionsColumn,
         actionsColumnConfig,
         additionalDataColumns,
         hideCollectionCategoryDisplay,
+        session?.user?.currency,
     ]);
 
 
