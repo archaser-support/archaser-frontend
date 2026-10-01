@@ -3,6 +3,7 @@ import { QueryFunction } from "@tanstack/react-query";
 
 import api from "@/app/api";
 import { applyEffectivePolicyFieldsToCustomer } from "@/shared/customerPolicyAdapter";
+import type { CustomerAggregatedCreditBlock } from "@/shared/customerCreditPool";
 import { ContactResponse, InvalidContactResponse } from "@/types/contact";
 import { Customer, CustomerResponse, CustomerStats } from "@/types/Customer";
 import { OpenDisputeResponse } from "@/types/CustomerDispute";
@@ -606,42 +607,7 @@ export const getCustomerAggregatedData = async (
     customerTotalDueCurrency2?: string | null;
     has_collection?: boolean;
     has_credit_insurance?: boolean;
-    credit?: {
-        root_customer_id: number;
-        approved_limit: number | null;
-        approved_limit_currency: string | null;
-        effective_limit: number | null;
-        total_due_amount: number;
-        total_overdue_amount: number;
-        total_ar: number;
-        capacity_gap_amount: number | null;
-        at_risk_exposure: number;
-        uninsured_amount: number | null;
-        capacity_gap_amount1: number | null;
-        capacity_gap_currency1: string | null;
-        capacity_gap_amount2: number | null;
-        capacity_gap_currency2: string | null;
-        uninsured_amount1: number | null;
-        uninsured_currency1: string | null;
-        uninsured_amount2: number | null;
-        uninsured_currency2: string | null;
-        open_claims_count: number;
-        total_claims_count: number;
-        members: Array<{
-            id: number;
-            customer_number: string | null;
-            name: string;
-            type: "Person" | "Company";
-            parent_customer_id: number | null;
-            total_due_amount: number;
-            total_overdue_amount: number;
-            total_ar: number;
-            capacity_gap_amount: number;
-            at_risk_exposure: number;
-            open_claims_count: number;
-            total_claims_count: number;
-        }>;
-    } | null;
+    credit?: CustomerAggregatedCreditBlock | null;
 }> => {
     try {
         const response = await api.get(
