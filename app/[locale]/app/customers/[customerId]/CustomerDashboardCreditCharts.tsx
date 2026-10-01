@@ -41,6 +41,11 @@ export type CustomerDashboardCreditChartsProps = {
         totalArNormalized: number;
         compliantNormalized: number;
     }>;
+    /**
+     * Linked credit-pool children: hide At Risk Exposure and Capacity Gap
+     * lines (pool KPIs live on the shell parent Dashboard).
+     */
+    hideAtRiskAndCapacityGapSeries?: boolean;
     isRtl: boolean;
 };
 
@@ -56,6 +61,7 @@ export function CustomerDashboardCreditCharts({
     termsBreachReasonTooltip,
     termsBreachSupplementaryLine,
     limitCappedNormalizedSeries,
+    hideAtRiskAndCapacityGapSeries = false,
     isRtl,
 }: CustomerDashboardCreditChartsProps) {
     const theme = useTheme();
@@ -107,22 +113,26 @@ export function CustomerDashboardCreditCharts({
                 Math.max(0, Number(p.openArAmount ?? 0))
             ),
         }));
-        const atRiskSeries = effectivePolicies.map((policy) => ({
-            name: seriesName(
-                atRiskSeriesLabel,
-                policy.policyLabel || riskExposureTitle
-            ),
-            data: policy.series.map((p) => p.amount),
-        }));
-        const capacityGapSeries = effectivePolicies.map((policy) => ({
-            name: seriesName(
-                capacityGapSeriesLabel,
-                policy.policyLabel || riskExposureTitle
-            ),
-            data: policy.series.map((p) =>
-                Math.max(0, Number(p.capacityGapAmount ?? 0))
-            ),
-        }));
+        const atRiskSeries = hideAtRiskAndCapacityGapSeries
+            ? []
+            : effectivePolicies.map((policy) => ({
+                  name: seriesName(
+                      atRiskSeriesLabel,
+                      policy.policyLabel || riskExposureTitle
+                  ),
+                  data: policy.series.map((p) => p.amount),
+              }));
+        const capacityGapSeries = hideAtRiskAndCapacityGapSeries
+            ? []
+            : effectivePolicies.map((policy) => ({
+                  name: seriesName(
+                      capacityGapSeriesLabel,
+                      policy.policyLabel || riskExposureTitle
+                  ),
+                  data: policy.series.map((p) =>
+                      Math.max(0, Number(p.capacityGapAmount ?? 0))
+                  ),
+              }));
         const termsBreachSeries = effectivePolicies.map((policy) => ({
             name: seriesName(
                 termsBreachSeriesLabel,
@@ -234,6 +244,7 @@ export function CustomerDashboardCreditCharts({
     }, [
         riskExposureByPolicy,
         riskExposureTitle,
+        hideAtRiskAndCapacityGapSeries,
         openArSeriesLabel,
         atRiskSeriesLabel,
         capacityGapSeriesLabel,

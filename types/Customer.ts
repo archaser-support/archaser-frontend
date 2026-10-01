@@ -43,6 +43,13 @@ export type Customer = CustomerRow & {
     Person: Person | null;
     Company: Company | null;
     Account: Account;
+    ParentCustomer?: (Pick<
+        CustomerRow,
+        "id" | "customer_number" | "type"
+    > & {
+        Person?: Pick<Person, "first_name" | "last_name" | "full_name"> | null;
+        Company?: Pick<Company, "name"> | null;
+    }) | null;
     ChildCustomers: Pick<CustomerRow, "id">[];
     SequenceContainer: Pick<
         SequenceContainer,
