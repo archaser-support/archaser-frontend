@@ -884,6 +884,10 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
     ] = useState<"parent_pool_history" | "asof_backfill">(
         "parent_pool_history"
     );
+    const [
+        creditHistoryRefreshLockDismiss,
+        setCreditHistoryRefreshLockDismiss,
+    ] = useState(false);
     const [validationErrors, setValidationErrors] = useState<{
         [key: string]: string;
     }>({});
@@ -1840,16 +1844,37 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                     strippedPolicyFields: requestPayload !== putPayload,
                     startedAt: new Date().toISOString(),
                 });
+                // Open progress modal before the long fail-closed sync so the UI
+                // can poll syncing steps while Save is still in flight.
+                if (parentLinkWillChange && isCreditInsuranceAccount) {
+                    setCreditHistoryRefreshReason("started");
+                    setCreditHistoryRefreshStatusKind("parent_pool_history");
+                    setCreditHistoryRefreshJob(null);
+                    setCreditHistoryRefreshLockDismiss(true);
+                    setCreditHistoryRefreshOpen(true);
+                    void queryClient.invalidateQueries({
+                        queryKey: [
+                            "credit-insurance",
+                            "credit-history-refresh-status",
+                        ],
+                    });
+                }
                 const putStartedMs = Date.now();
-                const response = await apiFetch(`/api/entities/customers/${customerIdNumber}`,
-                    {
-                        method: "PUT",
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify(requestPayload),
-                    }
-                );
+                let response: Response;
+                try {
+                    response = await apiFetch(
+                        `/api/entities/customers/${customerIdNumber}`,
+                        {
+                            method: "PUT",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify(requestPayload),
+                        }
+                    );
+                } finally {
+                    setCreditHistoryRefreshLockDismiss(false);
+                }
                 console.warn("[ParentCustomerLink] PUT response", {
                     customerId: customerIdNumber,
                     responseOk: response.ok,
@@ -1922,21 +1947,18 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                         }),
                         "success"
                     );
-                    if (
-                        parentLinkWillChange &&
-                        saveBody?.creditHistoryRefresh?.status === "running"
-                    ) {
-                        setCreditHistoryRefreshReason("started");
-                        setCreditHistoryRefreshStatusKind(
-                            saveBody.creditHistoryRefreshKind ===
-                                "asof_backfill"
-                                ? "asof_backfill"
-                                : "parent_pool_history"
-                        );
-                        setCreditHistoryRefreshJob(
-                            saveBody.creditHistoryRefresh
-                        );
-                        setCreditHistoryRefreshOpen(true);
+                    if (parentLinkWillChange && isCreditInsuranceAccount) {
+                        if (saveBody?.creditHistoryRefresh) {
+                            setCreditHistoryRefreshJob(
+                                saveBody.creditHistoryRefresh
+                            );
+                            setCreditHistoryRefreshStatusKind(
+                                saveBody.creditHistoryRefreshKind ===
+                                    "asof_backfill"
+                                    ? "asof_backfill"
+                                    : "parent_pool_history"
+                            );
+                        }
                         await queryClient.invalidateQueries({
                             queryKey: [
                                 "credit-insurance",
@@ -1983,6 +2005,7 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                         setCreditHistoryRefreshJob(
                             errBody.creditHistoryRefresh ?? null
                         );
+                        setCreditHistoryRefreshLockDismiss(false);
                         setCreditHistoryRefreshOpen(true);
                         await queryClient.invalidateQueries({
                             queryKey: [
@@ -1990,6 +2013,26 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                                 "credit-history-refresh-status",
                             ],
                         });
+                    } else if (
+                        parentLinkWillChange &&
+                        isCreditInsuranceAccount
+                    ) {
+                        // Sync failed — keep modal open; poll shows failed step.
+                        setCreditHistoryRefreshLockDismiss(false);
+                        await queryClient.invalidateQueries({
+                            queryKey: [
+                                "credit-insurance",
+                                "credit-history-refresh-status",
+                            ],
+                        });
+                        showToast(
+                            typeof errBody?.error === "string"
+                                ? errBody.error
+                                : t("messages.save_error", {
+                                      ns: "customers",
+                                  }),
+                            "error"
+                        );
                     } else {
                         const apiError =
                             errBody?.code === "PENDING_POLICY_CHANGE_EXISTS"
@@ -2025,6 +2068,7 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                     errorMessage:
                         error instanceof Error ? error.message : String(error),
                 });
+                setCreditHistoryRefreshLockDismiss(false);
                 showToast(
                     t("messages.save_error_network", { ns: "customers" }),
                     "error"
@@ -2041,6 +2085,7 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
             showToast,
             t,
             queryClient,
+            isCreditInsuranceAccount,
         ]
     );
 
@@ -2492,9 +2537,11 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                 initialJob={creditHistoryRefreshJob}
                 reason={creditHistoryRefreshReason}
                 statusKind={creditHistoryRefreshStatusKind}
+                lockDismiss={creditHistoryRefreshLockDismiss}
                 onClose={() => {
                     setCreditHistoryRefreshOpen(false);
                     setCreditHistoryRefreshJob(null);
+                    setCreditHistoryRefreshLockDismiss(false);
                 }}
             />
 
