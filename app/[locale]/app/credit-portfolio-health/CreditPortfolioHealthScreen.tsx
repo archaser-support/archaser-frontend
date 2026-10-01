@@ -22,7 +22,10 @@ import {
 } from "@/app/[locale]/app/credit-dashboard/CreditDashboardPolicySelect";
 import { CreditDashboardExcludedCustomersFilter } from "@/app/[locale]/app/credit-dashboard/CreditDashboardExcludedCustomersFilter";
 import BusinessUnitDashboardFilter from "@/shared/components/BusinessUnitDashboardFilter";
-import { resolveGenerateModalAutoOpen } from "@/shared/creditInsurance/generateModalAttention";
+import {
+    resolveGenerateModalAutoOpen,
+    type GenerateModalJobStatus,
+} from "@/shared/creditInsurance/generateModalAttention";
 import {
     countInclusiveCalendarDays,
     PORTFOLIO_HEALTH_LARGE_RANGE_DAYS,
@@ -198,7 +201,7 @@ export function CreditPortfolioHealthScreen({
     const [confirmingLargeGenerate, setConfirmingLargeGenerate] = useState<
         null | "full" | "recent"
     >(null);
-    const previousBackfillStatusRef = useRef<CreditAsOfBackfillJobStatus | null>(
+    const previousBackfillStatusRef = useRef<GenerateModalJobStatus | null>(
         null
     );
     const isLargeGenerateRange =
@@ -415,7 +418,10 @@ export function CreditPortfolioHealthScreen({
     ]);
 
     useEffect(() => {
-        const status = backfillStatus;
+        // Parent-pool Save uses `syncing` on a different job kind; as-of Generate
+        // never emits it — normalize so GenerateModalJobStatus stays narrow.
+        const status: GenerateModalJobStatus =
+            backfillStatus === "syncing" ? "idle" : backfillStatus;
         const result = resolveGenerateModalAutoOpen({
             status,
             previousStatus: previousBackfillStatusRef.current,
