@@ -604,6 +604,44 @@ export const getCustomerAggregatedData = async (
     customerTotalDueCurrency1?: string | null;
     customerTotalDueAmount2?: number | null;
     customerTotalDueCurrency2?: string | null;
+    has_collection?: boolean;
+    has_credit_insurance?: boolean;
+    credit?: {
+        root_customer_id: number;
+        approved_limit: number | null;
+        approved_limit_currency: string | null;
+        effective_limit: number | null;
+        total_due_amount: number;
+        total_overdue_amount: number;
+        total_ar: number;
+        capacity_gap_amount: number | null;
+        at_risk_exposure: number;
+        uninsured_amount: number | null;
+        capacity_gap_amount1: number | null;
+        capacity_gap_currency1: string | null;
+        capacity_gap_amount2: number | null;
+        capacity_gap_currency2: string | null;
+        uninsured_amount1: number | null;
+        uninsured_currency1: string | null;
+        uninsured_amount2: number | null;
+        uninsured_currency2: string | null;
+        open_claims_count: number;
+        total_claims_count: number;
+        members: Array<{
+            id: number;
+            customer_number: string | null;
+            name: string;
+            type: "Person" | "Company";
+            parent_customer_id: number | null;
+            total_due_amount: number;
+            total_overdue_amount: number;
+            total_ar: number;
+            capacity_gap_amount: number;
+            at_risk_exposure: number;
+            open_claims_count: number;
+            total_claims_count: number;
+        }>;
+    } | null;
 }> => {
     try {
         const response = await api.get(
@@ -642,6 +680,31 @@ export const searchCustomersForParent = async (
     excludeId: number
 ): Promise<Array<Customer & { name?: string }>> =>
     searchCustomers(searchTerm, { excludeId });
+
+/** Resolve one customer for parent Autocomplete hydration (by id, not search page). */
+export const fetchCustomerForParentSelect = async (
+    customerId: number
+): Promise<(Customer & { name?: string }) | null> => {
+    try {
+        const response = await api.get(`${API_BASE_URL}/${customerId}`);
+        const customer = applyEffectivePolicyFieldsToCustomer(
+            response.data as Record<string, unknown>
+        ) as Customer & { name?: string };
+        if (!customer?.id) {
+            return null;
+        }
+        const name =
+            customer.name ||
+            (customer as { Company?: { name?: string } }).Company?.name ||
+            (customer as { Person?: { full_name?: string } }).Person
+                ?.full_name ||
+            customer.customer_number ||
+            undefined;
+        return { ...customer, name };
+    } catch {
+        return null;
+    }
+};
 
 // Customer Statistics
 export const fetchCustomerStats: QueryFunction<{

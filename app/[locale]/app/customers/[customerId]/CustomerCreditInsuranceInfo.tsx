@@ -1937,6 +1937,13 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
             </Box>
 
             <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
+                {customer?.parent_customer_id != null ? (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                        {t("fields.parent_customer_inherited_policy", {
+                            ns: "customers",
+                        })}
+                    </Alert>
+                ) : null}
                 {pendingCustomerPolicy && pendingChangeDateLabel ? (
                     <Alert
                         severity="warning"
@@ -1967,6 +1974,7 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                 {activePolicyGrid}
 
                 {customerId &&
+                    customer?.parent_customer_id == null &&
                     (customer as { has_top_up_policies?: boolean })
                         ?.has_top_up_policies === true && (
                         <CustomerTopUpList
