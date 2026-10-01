@@ -259,6 +259,74 @@ const BillingScheduleSection = memo(function BillingScheduleSection(props: Billi
                                             : ""}
                                     </Typography>
                                 </Box>
+                                {(lastSyncAt ||
+                                    nextScheduledSyncAtUtc ||
+                                    syncEnabled) && (
+                                    <Box
+                                        sx={{
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            alignItems: "flex-end",
+                                            gap: 0.25,
+                                            flexShrink: 0,
+                                            ml: 1,
+                                            textAlign: "right",
+                                        }}
+                                        dir={isHebrew ? "rtl" : "ltr"}
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                            sx={{ mt: 0.25, lineHeight: 1.35 }}
+                                        >
+                                            {t(
+                                                "billing_connector.last_sync_at_label"
+                                            )}
+                                            :{" "}
+                                            {lastSyncAt
+                                                ? formatUtcTimestamp(lastSyncAt)
+                                                : t(
+                                                      "billing_connector.last_sync_at_empty"
+                                                  )}
+                                        </Typography>
+                                        {nextScheduledSyncAtUtc ? (
+                                            <Typography
+                                                variant="body2"
+                                                color="text.secondary"
+                                                sx={{
+                                                    mt: 0.25,
+                                                    lineHeight: 1.35,
+                                                }}
+                                            >
+                                                {t(
+                                                    "billing_connector.next_scheduled_sync_at_label"
+                                                )}
+                                                :{" "}
+                                                {formatUtcTimestamp(
+                                                    nextScheduledSyncAtUtc
+                                                )}
+                                            </Typography>
+                                        ) : syncEnabled ? (
+                                            <Typography
+                                                variant="body2"
+                                                color="text.secondary"
+                                                sx={{
+                                                    mt: 0.25,
+                                                    lineHeight: 1.35,
+                                                }}
+                                            >
+                                                {t(
+                                                    "billing_connector.next_scheduled_sync_at_label"
+                                                )}
+                                                :{" "}
+                                                {t(
+                                                    "billing_connector.last_sync_at_empty"
+                                                )}
+                                            </Typography>
+                                        ) : null}
+                                    </Box>
+                                )}
                             </AccordionSummary>
                             <AccordionDetails sx={billingAccordionDetailsSx}>
                         <CardContent sx={billingAccordionContentSx}>
@@ -389,81 +457,7 @@ const BillingScheduleSection = memo(function BillingScheduleSection(props: Billi
                                         </Alert>
                                     </Grid>
                                 ) : null}
-        
-                                {(lastSyncAt ||
-                                    nextScheduledSyncAtUtc ||
-                                    syncEnabled) && (
-                                    <Grid size={{ xs: 12 }}>
-                                        <Box
-                                            sx={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "space-between",
-                                                gap: 2,
-                                                flexWrap: "wrap",
-                                            }}
-                                            dir={isHebrew ? "rtl" : "ltr"}
-                                        >
-                                            <Typography
-                                                variant="body2"
-                                                color="text.secondary"
-                                            >
-                                                <Box
-                                                    component="span"
-                                                    sx={{ fontWeight: 700 }}
-                                                >
-                                                    {t(
-                                                        "billing_connector.last_sync_at_label"
-                                                    )}
-                                                    :
-                                                </Box>{" "}
-                                                {lastSyncAt
-                                                    ? formatUtcTimestamp(lastSyncAt)
-                                                    : t(
-                                                          "billing_connector.last_sync_at_empty"
-                                                      )}
-                                            </Typography>
-                                            {nextScheduledSyncAtUtc ? (
-                                                <Typography
-                                                    variant="body2"
-                                                    color="text.secondary"
-                                                >
-                                                    <Box
-                                                        component="span"
-                                                        sx={{ fontWeight: 700 }}
-                                                    >
-                                                        {t(
-                                                            "billing_connector.next_scheduled_sync_at_label"
-                                                        )}
-                                                        :
-                                                    </Box>{" "}
-                                                    {formatUtcTimestamp(
-                                                        nextScheduledSyncAtUtc
-                                                    )}
-                                                </Typography>
-                                            ) : syncEnabled ? (
-                                                <Typography
-                                                    variant="body2"
-                                                    color="text.secondary"
-                                                >
-                                                    <Box
-                                                        component="span"
-                                                        sx={{ fontWeight: 700 }}
-                                                    >
-                                                        {t(
-                                                            "billing_connector.next_scheduled_sync_at_label"
-                                                        )}
-                                                        :
-                                                    </Box>{" "}
-                                                    {t(
-                                                        "billing_connector.last_sync_at_empty"
-                                                    )}
-                                                </Typography>
-                                            ) : null}
-                                        </Box>
-                                    </Grid>
-                                )}
-        
+
                                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                     <FieldWithTrailingInfoTooltip
                                         isHebrew={isHebrew}
