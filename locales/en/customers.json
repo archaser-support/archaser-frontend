@@ -3,7 +3,9 @@
         "circular_relationship": "Cannot create circular relationship",
         "self_reference": "Customer cannot be its own parent",
         "parent_not_found": "Parent customer not found",
-        "different_account": "Parent customer must belong to the same account"
+        "different_account": "Parent customer must belong to the same account",
+        "parent_has_invoices_or_payments": "Parent customer must not have invoices or payments",
+        "customer_has_children_no_ar": "Customers with children cannot have invoices or payments"
     },
     "fields": {
         "name": "Name",
@@ -47,6 +49,10 @@
         "time_remaining_minutes_remaining_other": "{{count}} minutes remaining",
         "business_unit": "Business Unit",
         "parent_customer": "Parent Customer",
+        "parent_customer_inherited_policy": "Policy settings are inherited from the parent customer",
+        "child_customers_indication": "Child customers",
+        "child_customers_count_value_one": "{{count}} child",
+        "child_customers_count_value_other": "{{count}} children",
         "child_customers_count": "Child Customers Count",
         "total_invoices_count": "Total Invoices",
         "total_paid_amount": "Total Paid Amount",
@@ -151,6 +157,10 @@
         "try_adjusting_your_filters": "Try adjusting your filters",
         "error_loading_customer_data": "Error loading customer data",
         "customer_saved_success": "Customer Saved Successfully",
+        "save_error": "Failed to save customer",
+        "save_error_network": "Could not reach the server while saving. If you changed the parent customer, wait for the API to finish syncing and try again.",
+        "parent_credit_pool_sync_failed": "Parent link saved but credit pool sync failed. Try again in a moment.",
+        "credit_asof_backfill_in_progress": "Cannot update parent while a credit history backfill is running. Try again when it finishes.",
         "follow_up_notification_same_date": "Follow-up scheduled for {{date}} at {{customerTime}}",
         "follow_up_notification_different_date": "Follow-up scheduled for {{customerDate}} at {{customerTime}} ({{companyDate}} at {{companyTime}} according to {{companyName}} timezone)",
         "follow_up_notification_dual_time": "Follow-up scheduled for {{customerDate}} at {{customerTime}} (Customer Time) / {{userDate}} at {{userTime}} (User Time)",
@@ -214,7 +224,10 @@
         "child_customers": "Child Customers",
         "outstanding_by_child": "Outstanding Amounts by Child Customer",
         "invoices_by_child": "Invoices by Child Customer",
-        "overdue_and_due_invoices": "Overdue and Due Invoices"
+        "overdue_and_due_invoices": "Overdue and Due Invoices",
+        "shared_credit_pool": "Shared credit pool",
+        "credit_pool_members": "Credit pool members",
+        "credit_pool_root": "Pool root"
     },
     "collection": {
         "metrics_section_title": "Collection metrics"
@@ -264,6 +277,9 @@
         "usage_pct": "Usage %",
         "over_limit_amount": "Over-limit amount",
         "capacity_gap": "Capacity Gap",
+        "pool_dashboard_metric_na": "N/A",
+        "pool_dashboard_metric_see_aggregated": "Shared across the credit pool",
+        "pool_dashboard_metric_shared_pool": "Shared across the credit pool",
         "uninsured_amount": "Uninsured amount",
         "oldest_overdue_invoice_date": "Oldest Overdue Invoice Date",
         "overdue_block": "Overdue Block",
@@ -285,6 +301,13 @@
         "breach_invoice_count_one": "{{count}} invoice",
         "breach_invoice_count_other": "{{count}} invoices",
         "metrics_section_title": "Credit insurance metrics",
+        "aggregated_open_claims": "Open claims",
+        "aggregated_total_claims": "Total claims",
+        "aggregated_total_overdue": "Total Overdue",
+        "aggregated_total_due": "Total Due",
+        "aggregated_total_ar": "Total AR",
+        "aggregated_total_capacity_gap": "Total Capacity Gap",
+        "aggregated_total_at_risk": "Total At-Risk Exposure",
         "policy_trend": "Policy trend",
         "history_unavailable": "Policy history is unavailable for the selected period.",
         "all_policies": "All Policies",
@@ -345,5 +368,18 @@
             "outdated_dcl": "Outdated DCL at creation",
             "invoice_after_policy_end": "Invoice dated after policy end"
         }
+    },
+    "credit_history_refresh": {
+        "title": "Refreshing credit history",
+        "body": "Parent link is saved. Customer credit history is updating in the background. Dashboard charts will catch up overnight.",
+        "body_blocked": "A credit history refresh is already running. Parent link changes are blocked until it finishes. Dashboard charts will catch up overnight.",
+        "progress": "Updating history: {{done}} of {{total}} days",
+        "run_in_background": "Run in background",
+        "close": "Close",
+        "complete": "Customer credit history is up to date. Dashboard charts will catch up overnight.",
+        "eta_seconds": "~{{count}} sec",
+        "eta_minutes": "~{{count}} min",
+        "eta_hours": "~{{hours}} hr",
+        "eta_hours_minutes": "~{{hours}} hr {{mins}} min"
     }
 }

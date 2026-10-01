@@ -76,7 +76,7 @@ interface AggregatedData {
 const CustomerAggregatedDataTab: React.FC<CustomerAggregatedDataTabProps> = ({
     customerId,
 }) => {
-    const { t, i18n } = useTranslation(["customers", "common"]);
+    const { t, i18n } = useTranslation(["customers", "common", "dashboard"]);
     const theme = useTheme();
     const router = useRouter();
     const params = useParams();
@@ -93,6 +93,7 @@ const CustomerAggregatedDataTab: React.FC<CustomerAggregatedDataTabProps> = ({
         () => data?.childCustomers || [],
         [data?.childCustomers]
     );
+    const hasCollection = data?.has_collection !== false;
     const totalDueAmount: number = data?.totalDueAmount || 0;
     const accountCurrency: string = resolveCustomerFirstCurrency({
         fallbackCurrency: data?.accountCurrency,
@@ -540,6 +541,23 @@ const CustomerAggregatedDataTab: React.FC<CustomerAggregatedDataTabProps> = ({
     const handleChildCustomerClick = (childId: number) => {
         router.push(`/${locale}${AppUrls.Customer_DETAILS(childId)}`);
     };
+
+    if (!hasCollection) {
+        return (
+            <Box
+                sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    p: 4,
+                }}
+            >
+                <Typography color="text.secondary">
+                    {t("messages.no_data", { ns: "common" })}
+                </Typography>
+            </Box>
+        );
+    }
 
     return (
         <Box

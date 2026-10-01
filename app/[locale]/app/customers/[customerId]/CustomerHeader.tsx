@@ -20,6 +20,7 @@ import {
     Chip,
     Divider,
     IconButton,
+    Link,
     Paper,
     Stack,
     Tooltip,
@@ -30,7 +31,7 @@ import type { Theme } from "@mui/material/styles";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api, { apiFetch } from "@/app/api";
 import { addDays, startOfDay } from "date-fns";
-import { usePathname, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -54,6 +55,11 @@ import {
     isZeroApprovedLimit,
     type CustomerWithPolicyFields,
 } from "@/shared/customerPolicyAdapter";
+import {
+    customerHasCreditPoolChildren,
+    isLinkedCreditPoolChildCustomer,
+} from "@/shared/customerCreditPool";
+import { useCustomerCreditPool } from "@/shared/hooks/useCustomerCreditPool";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import {
     fetchCustomerById,
@@ -62,7 +68,8 @@ import {
 import { listClaims } from "@/shared/services/claimsService";
 import { isCreditOnlyAccount as isCreditOnlyAccountUtil } from "@/shared/utils/accountProducts";
 import { Customer } from "@/types/Customer";
-import { getCustomerPortalUrl } from "@/utils/appUrls";
+import AppUrls, { getCustomerPortalUrl } from "@/utils/appUrls";
+import { getCustomerDisplayName } from "@/utils/customerDisplayName";
 import {
     formatDateForDisplay,
     formatDateOnlyYmdForSession,
@@ -285,9 +292,11 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
     const queryClient = useQueryClient();
     const router = useRouter();
     const pathname = usePathname();
+    const params = useParams();
+    const locale = (params?.locale as string) || "en";
     const { showToast } = useToast();
     const theme = useTheme();
-    const notificationBannerBorderRadius = `${theme.appButton.borderRadius}px`;
+    const notificationBannerBorderRadius = "6px";
     const [isCategoryChangeModalOpen, setIsCategoryChangeModalOpen] = useState(false);
     const [isContactModalOpen, setIsContactModalOpen] = useState(false);
     const [showNotification, setShowNotification] = useState(false);
@@ -307,6 +316,25 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
             return;
         }
         router.push(`${pathname}?tab=policies#top-up-cover`);
+    }, [pathname, router]);
+
+    const goToCreditPoolMembers = useCallback(() => {
+        if (!pathname) {
+            return;
+        }
+        router.push(`${pathname}?tab=dashboard#credit-pool-members`);
+        const tryScroll = (attemptsLeft: number) => {
+            const el = document.getElementById("credit-pool-members");
+            // offsetParent is null while the Dashboard tab is display:none
+            if (el != null && el.offsetParent != null) {
+                el.scrollIntoView({ behavior: "smooth", block: "start" });
+                return;
+            }
+            if (attemptsLeft > 0) {
+                window.setTimeout(() => tryScroll(attemptsLeft - 1), 50);
+            }
+        };
+        window.setTimeout(() => tryScroll(20), 50);
     }, [pathname, router]);
 
     useEffect(() => {
@@ -391,6 +419,8 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
             (customer as Customer & { Account?: { has_credit_insurance?: boolean } })
                 ?.Account?.has_credit_insurance === true;
 
+    const hasCreditPoolChildren = customerHasCreditPoolChildren(customer);
+
     const creditKpiQuery = useQuery({
         queryKey: customerDashboardKpisQueryKey(
             customer!.id,
@@ -407,6 +437,12 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
             ),
         staleTime: 60_000,
     });
+
+    const creditPoolHeaderQuery = useCustomerCreditPool(
+        customer?.id,
+        hasCreditInsuranceProductForKpis && hasCreditPoolChildren
+    );
+    const creditPoolHeader = creditPoolHeaderQuery.data?.credit ?? null;
 
     const { data: stuckActivitiesData } = useQuery({
         queryKey: ["stuck_activities", customerIdNumber],
@@ -857,12 +893,39 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
         creditKpiCards?.accountCurrency?.trim() ||
         undefined;
 
+    // Linked leaf children keep N/A on pool cards. Shell parents show local∩BU
+    // rollups (capacity gap from credit pool API).
+    const isLinkedCreditPoolChild = isLinkedCreditPoolChildCustomer(customer);
+
+    const poolDashboardMetricNa = t("credit_insurance.pool_dashboard_metric_na", {
+        ns: "customers",
+        defaultValue: "N/A",
+    });
+    const poolDashboardMetricSharedHint = t(
+        "credit_insurance.pool_dashboard_metric_shared_pool",
+        {
+            ns: "customers",
+            defaultValue: "Shared across the credit pool",
+        }
+    );
+
     const capacityGapDisplay = useMemo(() => {
         if (!customer) {
             return {
                 primary: 0,
                 secondary: null as number | null,
                 secondaryCurrency: null as string | null,
+            };
+        }
+        if (hasCreditPoolChildren && creditPoolHeader) {
+            return {
+                primary: Number(creditPoolHeader.capacity_gap_amount ?? 0) || 0,
+                secondary:
+                    creditPoolHeader.capacity_gap_amount2 != null
+                        ? Number(creditPoolHeader.capacity_gap_amount2)
+                        : null,
+                secondaryCurrency:
+                    creditPoolHeader.capacity_gap_currency2 ?? null,
             };
         }
         return resolveCapacityGapDisplayAmounts(
@@ -875,6 +938,8 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
         );
     }, [
         customer,
+        hasCreditPoolChildren,
+        creditPoolHeader,
         creditKpiCards?.capacityGapAmount,
         creditKpiCards?.capacityGapAmountSecondary,
         creditKpiCards?.capacityGapLimitCurrency,
@@ -900,7 +965,14 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
             accountCurrencyCode &&
             headerSecondaryCurrencyCode !== accountCurrencyCode
     );
-    const headerArPrimary = Math.max(0, Number(customer?.total_ar ?? 0));
+    const headerArPrimary = Math.max(
+        0,
+        Number(
+            hasCreditPoolChildren && creditPoolHeader
+                ? creditPoolHeader.total_ar
+                : customer?.total_ar ?? 0
+        )
+    );
     const headerArSecondary = useMemo(() => {
         if (!customer || !headerSecondaryCurrencyCode) {
             return null;
@@ -993,10 +1065,22 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
         ]
     );
     // Signed: overdue can be negative when only credit notes are overdue.
-    const overduePrimaryAmount = Number(customer?.total_overdue_amount ?? 0);
-    const duePrimaryAmount = Math.max(0, Number(customer?.total_due_amount ?? 0));
+    // Shell parents: local∩BU pool rollup (children hold the AR).
+    const overduePrimaryAmount = Number(
+        hasCreditPoolChildren && creditPoolHeader
+            ? creditPoolHeader.total_overdue_amount ?? 0
+            : customer?.total_overdue_amount ?? 0
+    );
+    const duePrimaryAmount = Math.max(
+        0,
+        Number(
+            hasCreditPoolChildren && creditPoolHeader
+                ? creditPoolHeader.total_due_amount ?? 0
+                : customer?.total_due_amount ?? 0
+        )
+    );
     const overdueSecondaryAmount = useMemo(() => {
-        if (!customer) {
+        if (!customer || (hasCreditPoolChildren && creditPoolHeader)) {
             return null;
         }
         return resolveHeaderSecondaryAmount(
@@ -1010,12 +1094,14 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
         );
     }, [
         customer,
+        hasCreditPoolChildren,
+        creditPoolHeader,
         headerSecondaryCurrencyCode,
         overduePrimaryAmount,
         resolveHeaderSecondaryAmount,
     ]);
     const dueSecondaryAmount = useMemo(() => {
-        if (!customer) {
+        if (!customer || (hasCreditPoolChildren && creditPoolHeader)) {
             return null;
         }
         return resolveHeaderSecondaryAmount(
@@ -1029,6 +1115,8 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
         );
     }, [
         customer,
+        hasCreditPoolChildren,
+        creditPoolHeader,
         duePrimaryAmount,
         headerSecondaryCurrencyCode,
         resolveHeaderSecondaryAmount,
@@ -1098,7 +1186,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
     const showScheduledTopUpChip =
         !showActiveTopUpChip && Boolean(topUpCustomer.has_scheduled_top_up);
 
-    const locale = isRtl ? "he-IL" : "en-US";
+    const dateLocale = isRtl ? "he-IL" : "en-US";
     const customerTimezone = getCountryTimezone(
         customer.Country?.iso2,
         customer.State?.iso2
@@ -1109,7 +1197,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
             ? formatDateForDisplay(
                 activePolicyForZeroLimit.zero_limit_date,
                 "date",
-                locale,
+                dateLocale,
                 customerTimezone
             )
             : null;
@@ -1153,8 +1241,12 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
     // The ungated column counts invoices issued before the MEP breach start date;
     // the gated one is only a fallback for rows synced before it existed.
     const oldestOverdueDateForDisplay =
-        customer.oldest_invoice_overdue_date_all ??
-        customer.oldest_invoice_overdue_date;
+        hasCreditPoolChildren && creditPoolHeader
+            ? creditPoolHeader.oldest_invoice_overdue_date ??
+              customer.oldest_invoice_overdue_date_all ??
+              customer.oldest_invoice_overdue_date
+            : customer.oldest_invoice_overdue_date_all ??
+              customer.oldest_invoice_overdue_date;
     const overdueDays = oldestOverdueDateForDisplay
         ? Math.max(
             0,
@@ -1165,6 +1257,20 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
             )
         )
         : 0;
+
+    const headerOverdueInvoiceCount =
+        hasCreditPoolChildren && creditPoolHeader
+            ? Number(creditPoolHeader.number_of_overdue_invoices ?? 0) ||
+              customer.number_of_overdue_invoices ||
+              0
+            : customer.number_of_overdue_invoices ??
+              overdueDisplay.invoiceCount;
+    const headerDueInvoiceCount =
+        hasCreditPoolChildren && creditPoolHeader
+            ? Number(creditPoolHeader.no_of_due_invoices ?? 0) ||
+              customer.no_of_due_invoices ||
+              0
+            : customer.no_of_due_invoices ?? 0;
 
     return (
         <Paper
@@ -1482,6 +1588,119 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                         </Box>
                                     </Tooltip>
                                 )}
+                                {customer?.parent_customer_id != null && (
+                                    <>
+                                        <Divider
+                                            orientation="vertical"
+                                            flexItem
+                                            sx={{
+                                                alignSelf: "center",
+                                                height: 20,
+                                                mx: 0.25,
+                                            }}
+                                        />
+                                        <Box
+                                            sx={{
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                gap: 0.5,
+                                                minHeight: 24,
+                                            }}
+                                        >
+                                            <Typography
+                                                component="span"
+                                                variant="body2"
+                                                color="text.secondary"
+                                                sx={METADATA_LABEL_SX}
+                                            >
+                                                {t("fields.parent_customer")}:
+                                            </Typography>
+                                            <Link
+                                                component="button"
+                                                type="button"
+                                                variant="body2"
+                                                underline="hover"
+                                                onClick={() => {
+                                                    const parentId =
+                                                        customer.parent_customer_id;
+                                                    if (parentId == null) {
+                                                        return;
+                                                    }
+                                                    router.push(
+                                                        `/${locale}${AppUrls.Customer_DETAILS(parentId)}`
+                                                    );
+                                                }}
+                                                sx={{
+                                                    fontWeight: 500,
+                                                    cursor: "pointer",
+                                                }}
+                                            >
+                                                {getCustomerDisplayName(
+                                                    customer.ParentCustomer
+                                                ) ||
+                                                    customer.ParentCustomer
+                                                        ?.customer_number ||
+                                                    String(
+                                                        customer.parent_customer_id
+                                                    )}
+                                            </Link>
+                                        </Box>
+                                    </>
+                                )}
+                                {Array.isArray(customer?.ChildCustomers) &&
+                                    customer.ChildCustomers.length > 0 && (
+                                    <>
+                                        <Divider
+                                            orientation="vertical"
+                                            flexItem
+                                            sx={{
+                                                alignSelf: "center",
+                                                height: 20,
+                                                mx: 0.25,
+                                            }}
+                                        />
+                                        <Box
+                                            sx={{
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                gap: 0.5,
+                                                minHeight: 24,
+                                            }}
+                                        >
+                                            <Typography
+                                                component="span"
+                                                variant="body2"
+                                                color="text.secondary"
+                                                sx={METADATA_LABEL_SX}
+                                            >
+                                                {t(
+                                                    "fields.child_customers_indication"
+                                                )}
+                                                :
+                                            </Typography>
+                                            <Link
+                                                component="button"
+                                                type="button"
+                                                variant="body2"
+                                                underline="hover"
+                                                onClick={goToCreditPoolMembers}
+                                                sx={{
+                                                    fontWeight: 500,
+                                                    cursor: "pointer",
+                                                }}
+                                            >
+                                                {t(
+                                                    "fields.child_customers_count_value",
+                                                    {
+                                                        count: customer
+                                                            .ChildCustomers
+                                                            .length,
+                                                    }
+                                                )}
+                                            </Link>
+                                        </Box>
+                                    </>
+                                )}
                                 {!hideOpenPortal && isCollectionAccount && (
                                     <>
                                         <Divider
@@ -1566,18 +1785,11 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                     iconAccent="overdue"
                                     label={t("fields.total_outstanding_amount")}
                                     value={formatHeaderAmount(
-                                        Number(
-                                            customer.total_overdue_amount ??
-                                                overdueDisplay.amount ??
-                                                0
-                                        ),
+                                        overduePrimaryAmount,
                                         overdueSecondaryAmount
                                     )}
                                     secondaryLine={formatInvoiceCountSecondary(
-                                        // Prefer live getById count over open-period
-                                        // Math.max — period rollups can lag invoices.
-                                        customer.number_of_overdue_invoices ??
-                                            overdueDisplay.invoiceCount
+                                        headerOverdueInvoiceCount
                                     )}
                                     compactValueFontSize={headerCompactValueFontSize}
                                     forceSecondaryLineBelow
@@ -1593,7 +1805,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                         dueSecondaryAmount
                                     )}
                                     secondaryLine={formatInvoiceCountSecondary(
-                                        customer.no_of_due_invoices ?? 0
+                                        headerDueInvoiceCount
                                     )}
                                     compactValueFontSize={headerCompactValueFontSize}
                                     forceSecondaryLineBelow
@@ -1608,7 +1820,9 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                     })}
                                     value={formatHeaderAmount(
                                         headerArPrimary,
-                                        headerArSecondary
+                                        hasCreditPoolChildren
+                                            ? null
+                                            : headerArSecondary
                                     )}
                                     compactValueFontSize={headerCompactValueFontSize}
                                     forceSecondaryLineBelow
@@ -1636,13 +1850,37 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                         ns: "customers",
                                     })}
                                     value={
-                                        creditKpiQuery.isPending || !creditKpiCards
-                                            ? t("messages.loading", { ns: "common" })
-                                            : formatHeaderAmount(
-                                                  capacityGapDisplay.primary,
-                                                  capacityGapDisplay.secondary
-                                              )
+                                        isLinkedCreditPoolChild
+                                            ? poolDashboardMetricNa
+                                            : hasCreditPoolChildren
+                                              ? creditPoolHeaderQuery.isPending ||
+                                                !creditPoolHeader
+                                                  ? t("messages.loading", {
+                                                        ns: "common",
+                                                    })
+                                                  : formatHeaderAmount(
+                                                        capacityGapDisplay.primary,
+                                                        capacityGapDisplay.secondary
+                                                    )
+                                              : creditKpiQuery.isPending ||
+                                                  !creditKpiCards
+                                                ? t("messages.loading", {
+                                                      ns: "common",
+                                                  })
+                                                : formatHeaderAmount(
+                                                      capacityGapDisplay.primary,
+                                                      capacityGapDisplay.secondary
+                                                  )
                                     }
+                                    secondaryLine={
+                                        isLinkedCreditPoolChild
+                                            ? poolDashboardMetricSharedHint
+                                            : undefined
+                                    }
+                                    forceSecondaryLineBelow={
+                                        isLinkedCreditPoolChild
+                                    }
+                                    hoverable={!isLinkedCreditPoolChild}
                                     tooltip={t(
                                         "tooltips.customer_credit_metric_capacity_gap",
                                         { ns: "dashboard" }
