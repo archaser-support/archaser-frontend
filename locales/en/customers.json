@@ -371,7 +371,10 @@
     },
     "credit_history_refresh": {
         "title": "Refreshing credit history",
+        "title_syncing": "Updating credit pool",
         "body": "Parent link is saved. Customer credit history is updating in the background. Dashboard charts will catch up overnight.",
+        "body_syncing": "Saving the parent link and updating the shared credit pool. Please wait — this can take a minute on large accounts.",
+        "body_starting": "Starting credit pool update…",
         "body_blocked": "A credit history refresh is already running. Parent link changes are blocked until it finishes. Dashboard charts will catch up overnight.",
         "progress": "Updating history: {{done}} of {{total}} days",
         "run_in_background": "Run in background",
@@ -380,6 +383,15 @@
         "eta_seconds": "~{{count}} sec",
         "eta_minutes": "~{{count}} min",
         "eta_hours": "~{{hours}} hr",
-        "eta_hours_minutes": "~{{hours}} hr {{mins}} min"
+        "eta_hours_minutes": "~{{hours}} hr {{mins}} min",
+        "steps": {
+            "remirror": "Applying shared credit settings to the pool",
+            "capacity_gap": "Recalculating capacity gap",
+            "ctp_today": "Updating today’s credit trends",
+            "ctp_overlay": "Applying pool gap and at-risk totals",
+            "cdp_today": "Updating today’s credit dashboard",
+            "breach_and_open_ar": "Rolling up breach and open receivables",
+            "history": "Refreshing credit history"
+        }
     }
 }
