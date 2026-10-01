@@ -614,6 +614,9 @@ export const getCustomerAggregatedData = async (
         total_due_amount: number;
         total_overdue_amount: number;
         total_ar: number;
+        number_of_overdue_invoices: number;
+        no_of_due_invoices: number;
+        oldest_invoice_overdue_date: string | null;
         capacity_gap_amount: number | null;
         at_risk_exposure: number;
         uninsured_amount: number | null;
