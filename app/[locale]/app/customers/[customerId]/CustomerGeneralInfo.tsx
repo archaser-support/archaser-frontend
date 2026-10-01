@@ -12,6 +12,7 @@ import {
     Button,
     Card,
     CardContent,
+    CircularProgress,
     MenuItem,
     TextField,
     Typography,
@@ -337,6 +338,30 @@ const CustomerGeneralInfo: React.FC<CustomerGeneralInfoProps> = ({
                                 onClick={isSaving ? undefined : onSave}
                                 className="save-button"
                                 disabled={isSaving}
+                                endIcon={
+                                    isSaving ? (
+                                        <CircularProgress
+                                            size={16}
+                                            sx={{ color: "inherit" }}
+                                        />
+                                    ) : undefined
+                                }
+                                sx={{
+                                    direction:
+                                        i18n.language === "he"
+                                            ? "rtl"
+                                            : "ltr",
+                                    "& .MuiButton-endIcon": {
+                                        marginLeft:
+                                            i18n.language === "he"
+                                                ? 0
+                                                : theme.spacing(1),
+                                        marginRight:
+                                            i18n.language === "he"
+                                                ? theme.spacing(1)
+                                                : 0,
+                                    },
+                                }}
                             >
                                 {t("actions.save", { ns: "common" })}
                             </Button>
