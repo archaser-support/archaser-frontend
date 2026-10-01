@@ -252,9 +252,9 @@
         "sync_mode_backfill": "Backfill",
         "sync_mode_incremental": "Incremental",
         "sync_mode_label": "Sync mode",
-        "last_sync_at_label": "Last sync (UTC)",
+        "last_sync_at_label": "Last sync",
         "last_sync_at_empty": "—",
-        "next_scheduled_sync_at_label": "Next scheduled sync (UTC)",
+        "next_scheduled_sync_at_label": "Next scheduled sync",
         "extension_matched": "{{label}} ({{key}})"
     },
     "as_of_backfill": {
