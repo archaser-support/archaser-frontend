@@ -3,6 +3,10 @@
  * Used when NEXT_PUBLIC_USE_NEST_AUTH=true or NEXT_PUBLIC_AMPLIFY_UI=true.
  */
 
+import {
+    isLogoutInProgress,
+    markLogoutInProgress,
+} from "@/shared/utils/sessionLanguageKeys";
 import { isNestUiMode } from "@/utils/amplifyMode";
 
 const NEST_TOKEN_KEY = "archaser_nest_access_token";
@@ -60,6 +64,29 @@ function isCustomerPortalPath(pathname: string): boolean {
 }
 
 /**
+ * Leave /app immediately. Do not await signOut — that left pages mounted
+ * long enough to paint 401 load errors (e.g. credit dashboard).
+ */
+export function beginHardLogout(loginPath?: string): void {
+    if (typeof window === "undefined") {
+        return;
+    }
+    markLogoutInProgress();
+    handlingExpiredSession = true;
+    clearNestAccessToken();
+    const target =
+        loginPath || resolveLoginPathname(window.location.pathname || "/");
+    void import("next-auth/react")
+        .then(({ signOut }) => signOut({ redirect: false }))
+        .catch(() => {
+            // NextAuth may be unavailable depending on deploy mode.
+        });
+    if (window.location.pathname !== target) {
+        window.location.assign(target);
+    }
+}
+
+/**
  * Global expired-session handler for Nest bearer auth.
  * Clears local bearer token, signs out NextAuth cookie session, then routes to login.
  */
@@ -85,20 +112,10 @@ export async function handleExpiredNestSession(): Promise<void> {
     } catch {
         // storage may be unavailable
     }
-    handlingExpiredSession = true;
-    clearNestAccessToken();
-    try {
-        const { signOut } = await import("next-auth/react");
-        await signOut({ redirect: false });
-    } catch {
-        // NextAuth may be unavailable depending on deploy mode.
-    } finally {
-        const target = resolveLoginPathname(window.location.pathname || "/");
-        if (window.location.pathname !== target) {
-            window.location.assign(target);
-        }
-        handlingExpiredSession = false;
+    if (isLogoutInProgress()) {
+        return;
     }
+    beginHardLogout();
 }
 
 /** Re-apply token after login clears storage. */
