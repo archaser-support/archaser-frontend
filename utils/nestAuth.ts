@@ -7,6 +7,7 @@ import {
     isLogoutInProgress,
     markLogoutInProgress,
 } from "@/shared/utils/sessionLanguageKeys";
+import { clearLoginShellPrefetch } from "@/shared/services/loginShellPrefetch";
 import { isNestUiMode } from "@/utils/amplifyMode";
 
 const NEST_TOKEN_KEY = "archaser_nest_access_token";
@@ -73,6 +74,7 @@ export function beginHardLogout(loginPath?: string): void {
     }
     markLogoutInProgress();
     handlingExpiredSession = true;
+    clearLoginShellPrefetch();
     clearNestAccessToken();
     const target =
         loginPath || resolveLoginPathname(window.location.pathname || "/");

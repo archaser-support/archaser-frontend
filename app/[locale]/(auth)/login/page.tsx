@@ -46,6 +46,7 @@ import {
 } from "@/shared/utils/navigation";
 import { resolveAppHomePath } from "@/shared/utils/resolveAppHomePath";
 import { prefetchCreditDashboardSummaryForLogin } from "@/shared/credit-insurance/creditDashboardSummaryQuery";
+import { storeLoginShellPrefetch } from "@/shared/services/loginShellPrefetch";
 import {
     LOGIN_HANDOFF_STORAGE_KEY,
     PENDING_LOGIN_REDIRECT_KEY,
@@ -397,6 +398,17 @@ function LoginPageContent() {
                             const permData = permRes.ok
                                 ? await permRes.json()
                                 : null;
+                            if (accountData && permData && claims?.sub) {
+                                storeLoginShellPrefetch({
+                                    userId: String(claims.sub),
+                                    accountId,
+                                    role: claims?.role ?? null,
+                                    permissions: {
+                                        permissions: permData.permissions ?? [],
+                                    },
+                                    sessionAccount: accountData,
+                                });
+                            }
                             return resolveAppHomePath({
                                 accountId,
                                 permissions: permData?.permissions ?? [],
