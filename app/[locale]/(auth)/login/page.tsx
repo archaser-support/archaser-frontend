@@ -28,7 +28,7 @@ import {
 } from "@mui/material";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import React, {
     useCallback,
     useEffect,
@@ -45,11 +45,14 @@ import {
     isArchaserAdminAccount,
 } from "@/shared/utils/navigation";
 import { resolveAppHomePath } from "@/shared/utils/resolveAppHomePath";
+import { prefetchCreditDashboardSummaryForLogin } from "@/shared/credit-insurance/creditDashboardSummaryQuery";
 import {
     LOGIN_HANDOFF_STORAGE_KEY,
     PENDING_LOGIN_REDIRECT_KEY,
+    clearLogoutInProgress,
 } from "@/shared/utils/sessionLanguageKeys";
 import { apiFetch } from "@/utils/apiFetch";
+import AppUrls from "@/utils/appUrls";
 import { getTenantSubdomain } from "@/utils/domainUtils";
 import {
     clearNestAccessToken,
@@ -118,6 +121,7 @@ interface FormState {
 function LoginPageContent() {
     const { t, i18n } = useTranslation(["auth", "common"]);
     const searchParams = useSearchParams();
+    const router = useRouter();
 
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -158,7 +162,16 @@ function LoginPageContent() {
 
     useEffect(() => {
         removeStaleLoginNavLock();
+        clearLogoutInProgress();
     }, []);
+
+    useEffect(() => {
+        const locale =
+            i18n.language === "he" || i18n.language === "en"
+                ? i18n.language
+                : "en";
+        router.prefetch(`/${locale}${AppUrls.CREDIT_DASHBOARD}`);
+    }, [i18n.language, router]);
 
     // Handle SSO Error from URL
     useEffect(() => {
@@ -359,6 +372,10 @@ function LoginPageContent() {
                 : urlLocale;
             const accountId = claims?.account_id ?? null;
             const fallbackRedirect = getDefaultLandingPage(accountId);
+            const summaryPrefetchStartedAt = performance.now();
+            const summaryPrefetch = isArchaserAdminAccount(accountId)
+                ? Promise.resolve(false)
+                : prefetchCreditDashboardSummaryForLogin();
 
             let redirectUrl = fallbackRedirect;
             if (!isArchaserAdminAccount(accountId) && accountId != null) {
@@ -404,6 +421,21 @@ function LoginPageContent() {
                     ]);
                 } catch {
                     redirectUrl = fallbackRedirect;
+                }
+            }
+
+            if (redirectUrl === AppUrls.CREDIT_DASHBOARD) {
+                const remainMs = Math.max(
+                    0,
+                    4000 - (performance.now() - summaryPrefetchStartedAt)
+                );
+                if (remainMs > 0) {
+                    await Promise.race([
+                        summaryPrefetch,
+                        new Promise<boolean>((resolve) => {
+                            window.setTimeout(() => resolve(false), remainMs);
+                        }),
+                    ]);
                 }
             }
 
