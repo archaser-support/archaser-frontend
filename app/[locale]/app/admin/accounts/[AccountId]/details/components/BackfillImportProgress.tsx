@@ -160,7 +160,7 @@ function formatScannedImportedCounts(row: EntityProgressRow): string {
         parts.push(`Skipped ${(row.skipped ?? 0).toLocaleString()}`);
     }
     if ((row.deleted ?? 0) > 0) {
-        parts.push(`Deleted ${row.deleted.toLocaleString()}`);
+        parts.push(`Deleted ${(row.deleted ?? 0).toLocaleString()}`);
     }
     return parts.join(" | ");
 }
@@ -182,7 +182,7 @@ function formatCountExtras(
         );
     }
     if (includeDeleted && (row.deleted ?? 0) > 0) {
-        parts.push(`Deleted ${row.deleted.toLocaleString()}`);
+        parts.push(`Deleted ${(row.deleted ?? 0).toLocaleString()}`);
     }
     return parts;
 }
