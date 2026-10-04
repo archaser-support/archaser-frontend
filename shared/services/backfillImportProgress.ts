@@ -105,15 +105,15 @@ export function progressRowLabelForEntity(
 const BACKFILL_PROGRESS_STEP_TOOLTIPS: Record<BackfillProgressRowKey, string> =
     {
         Customer:
-            "Pulls customer master records from the ERP and creates or updates them in Archaser.",
+            "Pulls customer master records from the ERP and creates or updates them in Archaser. Counter is scanned (ERP rows) vs imported (database writes).",
         "Payment import":
-            "Pulls payment and receipt lines from the ERP. Counter is imported / pulled (DB writes vs ERP rows).",
+            "Pulls payment and receipt lines from the ERP. Counter is scanned (ERP rows) vs imported (database writes).",
         "Invoice import":
-            "Pulls invoice lines from the ERP. Counter is imported / pulled (DB writes vs ERP rows).",
+            "Pulls invoice lines from the ERP. Counter is scanned (ERP rows) vs imported (database writes).",
         Contact:
-            "Pulls customer contact people from the ERP and links them to customers.",
+            "Pulls customer contact people from the ERP and links them to customers. Counter is scanned (ERP rows) vs imported (database writes).",
         Policy:
-            "Imports credit insurance policy records when enabled for this connector.",
+            "Imports credit insurance policy records when enabled for this connector. Counter is scanned (ERP rows) vs imported (database writes).",
         // String keys (not computed consts) so Fast Refresh cannot leave a
         // dangling BACKFILL_* identifier after an export is removed.
         "Record deletion":
@@ -167,7 +167,7 @@ export interface EntityProgressRow {
     skipped?: number;
     /** Rows removed during clear-before-import (entity or Deleting… row). */
     deleted?: number;
-    /** Sub-line for tail steps, e.g. "Applying matured payments · 1,240 / 2,027 payments". */
+    /** Sub-line for tail steps, e.g. "Applying matured payments | Processed: 1,240 | Total 2,027". */
     detail?: string;
 }
 
@@ -1023,10 +1023,10 @@ function formatDeletedCountsDetail(
             continue;
         }
         parts.push(
-            `${progressRowLabelForEntity(entity)} ${deleted.toLocaleString()}`
+            `${progressRowLabelForEntity(entity)}: ${deleted.toLocaleString()}`
         );
     }
-    return parts.length > 0 ? parts.join(" · ") : undefined;
+    return parts.length > 0 ? parts.join(" | ") : undefined;
 }
 
 function shouldShowPurgeProgressRow(
@@ -1143,7 +1143,7 @@ function formatLinkPaymentsDetail(
         return label;
     }
     const processed = detail.processed ?? 0;
-    return `${label} · ${processed.toLocaleString()} / ${detail.total.toLocaleString()} ${known?.unit ?? "items"}`;
+    return `${label} | Processed: ${processed.toLocaleString()} | Total ${detail.total.toLocaleString()}`;
 }
 
 function shouldShowLinkPaymentsRow(enabledEntities: ImportType[]): boolean {
@@ -1427,6 +1427,10 @@ export function formatArReplayProgressSubtitle(
     return "Replaying AR history";
 }
 
+function formatLabeledTotal(label: string, current: number, total: number): string {
+    return `${label}: ${current.toLocaleString()} | Total ${total.toLocaleString()}`;
+}
+
 function formatCustomerScopedTailDetail(
     detail: NonNullable<EntityStatSlice["detail"]>,
     options: {
@@ -1438,11 +1442,15 @@ function formatCustomerScopedTailDetail(
         detail.customer_label?.trim() ||
         (detail.customer_id != null ? `#${detail.customer_id}` : null);
     const who = numberOrId ? `Customer ${numberOrId}` : null;
-    const customerPos =
+    const customerCounts =
         detail.customer_index != null &&
         detail.customer_total != null &&
         detail.customer_total > 0
-            ? `${detail.customer_index.toLocaleString()} / ${detail.customer_total.toLocaleString()}`
+            ? formatLabeledTotal(
+                  "Customers",
+                  detail.customer_index,
+                  detail.customer_total
+              )
             : null;
 
     // Inner work (e.g. events) only when a customer is in flight — otherwise
@@ -1453,29 +1461,23 @@ function formatCustomerScopedTailDetail(
         options.innerUnit != null &&
         detail.total != null &&
         detail.total > 0;
+    const innerLabel =
+        options.innerUnit != null && options.innerUnit.length > 0
+            ? options.innerUnit.charAt(0).toUpperCase() +
+              options.innerUnit.slice(1)
+            : "Processed";
     const innerCounts = hasInner
-        ? `${(detail.processed ?? 0).toLocaleString()} / ${detail.total!.toLocaleString()} ${options.innerUnit}`
+        ? formatLabeledTotal(
+              innerLabel,
+              detail.processed ?? 0,
+              detail.total!
+          )
         : null;
 
-    if (who && customerPos && innerCounts) {
-        return `${who} (${customerPos}) · ${innerCounts}`;
-    }
-    if (who && customerPos) {
-        return `${who} (${customerPos})`;
-    }
-    if (who && innerCounts) {
-        return `${who} · ${innerCounts}`;
-    }
-    if (customerPos && innerCounts) {
-        return `Customer ${customerPos} · ${innerCounts}`;
-    }
-    if (who) {
-        return who;
-    }
-    if (customerPos) {
-        return `Customer ${customerPos}`;
-    }
-    return innerCounts ?? undefined;
+    return (
+        [who, customerCounts, innerCounts].filter(Boolean).join(" | ") ||
+        undefined
+    );
 }
 
 function formatTailStepDetail(
@@ -1506,7 +1508,7 @@ function formatTailStepDetail(
         return label;
     }
     const processed = detail.processed ?? 0;
-    return `${label} · ${processed.toLocaleString()} / ${detail.total.toLocaleString()} ${known.unit}`;
+    return `${label} | Processed: ${processed.toLocaleString()} | Total ${detail.total.toLocaleString()}`;
 }
 
 /**

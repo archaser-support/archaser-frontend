@@ -138,29 +138,66 @@ function PhaseStatusIcon({ phase }: { phase: EntityProgressPhase }) {
     );
 }
 
-function isInvoiceOrPaymentRow(row: EntityProgressRow): boolean {
+function isScannedImportedCountRow(row: EntityProgressRow): boolean {
     return (
+        row.entity_type === "Customer" ||
+        row.entity_type === "Contact" ||
+        row.entity_type === "Policy" ||
         row.entity_type === BACKFILL_INVOICE_IMPORT_LABEL ||
         row.entity_type === BACKFILL_PAYMENT_IMPORT_LABEL
     );
 }
 
-function formatFailedSkippedSuffix(
+function formatScannedImportedCounts(row: EntityProgressRow): string {
+    const parts = [
+        `Scanned: ${row.records_pulled.toLocaleString()}`,
+        `Imported ${(row.success ?? 0).toLocaleString()}`,
+    ];
+    if ((row.failed ?? 0) > 0) {
+        parts.push(`Failed ${(row.failed ?? 0).toLocaleString()}`);
+    }
+    if ((row.skipped ?? 0) > 0) {
+        parts.push(`Skipped ${(row.skipped ?? 0).toLocaleString()}`);
+    }
+    if ((row.deleted ?? 0) > 0) {
+        parts.push(`Deleted ${row.deleted.toLocaleString()}`);
+    }
+    return parts.join(" | ");
+}
+
+function formatCountExtras(
     row: EntityProgressRow,
-    isLinkPayments: boolean
+    isLinkPayments: boolean,
+    includeDeleted: boolean
 ): string[] {
     const parts: string[] = [];
     if ((row.failed ?? 0) > 0) {
-        parts.push(`${(row.failed ?? 0).toLocaleString()} failed`);
+        parts.push(`Failed ${(row.failed ?? 0).toLocaleString()}`);
     }
     if ((row.skipped ?? 0) > 0) {
         parts.push(
             isLinkPayments
-                ? `${(row.skipped ?? 0).toLocaleString()} still deferred`
-                : `${(row.skipped ?? 0).toLocaleString()} skipped`
+                ? `Still deferred ${(row.skipped ?? 0).toLocaleString()}`
+                : `Skipped ${(row.skipped ?? 0).toLocaleString()}`
         );
     }
+    if (includeDeleted && (row.deleted ?? 0) > 0) {
+        parts.push(`Deleted ${row.deleted.toLocaleString()}`);
+    }
     return parts;
+}
+
+function formatUnitTotalCounts(
+    unitLabel: string,
+    current: number,
+    total: number | null,
+    extras: string[]
+): string {
+    const parts = [`${unitLabel}: ${current.toLocaleString()}`];
+    if (total != null) {
+        parts.push(`Total ${total.toLocaleString()}`);
+    }
+    return [...parts, ...extras].join(" | ");
 }
 
 function formatCounts(row: EntityProgressRow, finished: boolean): string {
@@ -170,13 +207,13 @@ function formatCounts(row: EntityProgressRow, finished: boolean): string {
     const isTailStep = BACKFILL_TAIL_STEPS.some(
         (step) => step.label === row.entity_type
     );
-    const unit = isLinkPayments
-        ? "linked"
+    const unitLabel = isLinkPayments
+        ? "Linked"
         : isDeleting
-          ? "deleted"
+          ? "Deleted"
           : isTailStep
-            ? "processed"
-            : "imported";
+            ? "Processed"
+            : "Imported";
 
     if (row.phase === "queued") {
         return row.detail ?? "Queued";
@@ -187,69 +224,45 @@ function formatCounts(row: EntityProgressRow, finished: boolean): string {
     }
 
     if (isDeleting) {
-        if (row.total_records != null) {
-            return `${row.records_pulled.toLocaleString()} / ${row.total_records.toLocaleString()} deleted`;
-        }
         if (row.detail) {
             return row.detail;
         }
-        const deleted = row.deleted ?? row.records_pulled ?? 0;
-        return `${deleted.toLocaleString()} deleted`;
+        return formatUnitTotalCounts(
+            unitLabel,
+            row.deleted ?? row.records_pulled ?? 0,
+            row.total_records,
+            formatCountExtras(row, false, false)
+        );
     }
 
-    // Invoice/Payment: imported (DB writes) / pulled (ERP rows). First number matters.
-    if (isInvoiceOrPaymentRow(row)) {
-        const imported = row.success ?? 0;
-        const pulled = row.records_pulled;
-        const parts = [
-            `${imported.toLocaleString()} / ${pulled.toLocaleString()} imported`,
-        ];
-        if (row.deleted != null && row.deleted > 0) {
-            parts.unshift(`${row.deleted.toLocaleString()} deleted`);
-        }
-        parts.push(...formatFailedSkippedSuffix(row, false));
-        return parts.join(" · ");
+    // Customer/Contact/Invoice/Payment/Policy: scanned (ERP rows) | imported (DB writes).
+    if (isScannedImportedCountRow(row)) {
+        return formatScannedImportedCounts(row);
     }
 
-    // Prefer N/M whenever a total is known (Link payments, purge, AR tail, etc.).
-    if (row.total_records != null) {
-        const countLabel = `${row.records_pulled.toLocaleString()} / ${row.total_records.toLocaleString()} ${unit}`;
-        // Link payments has prepare/link/close/recalc detail — same as AR tail.
-        if (!finished && (isTailStep || isLinkPayments) && row.detail) {
-            const detailHasCounts = /\d/.test(row.detail);
-            return detailHasCounts ? row.detail : `${row.detail} · ${countLabel}`;
-        }
-        if (
-            (finished || row.phase === "done") &&
-            ((row.failed ?? 0) > 0 || (row.skipped ?? 0) > 0)
-        ) {
-            return [countLabel, ...formatFailedSkippedSuffix(row, isLinkPayments)].join(
-                " · "
-            );
-        }
-        return countLabel;
+    const extras = formatCountExtras(row, isLinkPayments, true);
+    const current =
+        finished && row.success != null ? row.success : row.records_pulled;
+    const countLabel = formatUnitTotalCounts(
+        unitLabel,
+        current,
+        row.total_records,
+        extras
+    );
+
+    if (!finished && (isTailStep || isLinkPayments) && row.detail) {
+        const detailHasCounts = /\d/.test(row.detail);
+        return detailHasCounts ? row.detail : `${row.detail} | ${countLabel}`;
     }
 
-    if (finished && (row.success != null || row.failed != null)) {
-        const parts: string[] = [];
-        if (row.deleted != null && row.deleted > 0) {
-            parts.push(`${row.deleted.toLocaleString()} deleted`);
-        }
-        const successCount = row.success ?? row.records_pulled;
-        parts.push(`${successCount.toLocaleString()} ${unit}`);
-        parts.push(...formatFailedSkippedSuffix(row, isLinkPayments));
-        return parts.join(" · ");
-    }
-
-    // Priority entity pulls have no ERP total — show the live pulled count.
-    return `${row.records_pulled.toLocaleString()} ${unit}`;
+    return countLabel;
 }
 
 function formatCountsWithEta(
     counts: string,
     eta: string | null | undefined
 ): string {
-    return eta ? `${counts} · ${eta}` : counts;
+    return eta ? `${counts} | ${eta}` : counts;
 }
 
 interface BackfillImportProgressProps {
@@ -499,23 +512,20 @@ export default function BackfillImportProgress({
                                 }}
                             >
                                 {rows.map((row, index) => {
-                                    const showBar =
-                                        row.progress_percent != null &&
-                                        (row.phase === "running" ||
-                                            row.phase === "done" ||
-                                            (row.phase === "failed" &&
-                                                row.records_pulled > 0 &&
-                                                Boolean(showLiveProgress)));
-                                    // Indeterminate only while a step is active and we
-                                    // still have no total and no pulled count yet
-                                    // (e.g. first ERP page). Once counts exist, show
-                                    // the number — Priority pulls have no ERP total %.
-                                    const showIndeterminateBar =
-                                        (row.phase === "running" ||
-                                            row.phase === "queued") &&
-                                        row.progress_percent == null &&
-                                        row.records_pulled <= 0 &&
+                                    const isRunningStep =
+                                        row.phase === "running" &&
                                         Boolean(showLiveProgress);
+                                    // Entity pulls have no ERP total (and Invoice/Payment
+                                    // % is imported/scanned, not remaining work).
+                                    const hasTrueTotal =
+                                        row.total_records != null &&
+                                        !isScannedImportedCountRow(row);
+                                    const showBar =
+                                        isRunningStep &&
+                                        hasTrueTotal &&
+                                        row.progress_percent != null;
+                                    const showIndeterminateBar =
+                                        isRunningStep && !showBar;
                                     const countsLabel = formatCountsWithEta(
                                         formatCounts(
                                             row,
@@ -604,15 +614,7 @@ export default function BackfillImportProgress({
                                                                     row.progress_percent ??
                                                                     0
                                                                 }
-                                                                color={
-                                                                    row.phase ===
-                                                                    "failed"
-                                                                        ? "error"
-                                                                        : row.phase ===
-                                                                            "done"
-                                                                          ? "success"
-                                                                          : "primary"
-                                                                }
+                                                                color="primary"
                                                                 sx={{
                                                                     width: "100%",
                                                                 }}
