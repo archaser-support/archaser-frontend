@@ -4,6 +4,7 @@ import { i18nRouter } from "next-i18n-router";
 
 import i18nConfig from "./i18nConfig";
 import { getDefaultLandingPage } from "./shared/utils/navigation";
+import { expectedLocaleFromSessionLanguage } from "./shared/utils/sessionLanguageMonitor";
 import {
     authCookiesAreSecure,
     getCookieName,
@@ -150,19 +151,12 @@ export async function proxy(request: NextRequest) {
         // Redirect root path to login or dashboard
         if (pathname === "/") {
             if (token) {
-                // User is logged in, redirect to dashboard
-                // Map language/locale to supported app locale
-                let locale = i18nConfig.defaultLocale;
-
-                // prioritizing explicit language setting
-                if (token.language === 'hebrew') locale = 'he';
-                else if (token.language === 'english') locale = 'en';
-                else if (token.locale) {
-                    // Handle potential region codes (e.g., he-IL -> he, en-US -> en)
-                    const rawLocale = (token.locale as string).toLowerCase();
-                    if (rawLocale.startsWith('he')) locale = 'he';
-                    else if (rawLocale.startsWith('en')) locale = 'en';
-                }
+                // User is logged in, redirect to dashboard.
+                // Route language comes from session language only (case-insensitive).
+                // Do not use date locale (token.locale) for UI route language.
+                let locale = expectedLocaleFromSessionLanguage(
+                    token.language as string | undefined | null
+                );
 
                 // Final validation against config (fallback to default if not supported)
                 if (!i18nConfig.locales.includes(locale)) {

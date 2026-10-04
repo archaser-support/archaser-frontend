@@ -673,30 +673,20 @@ export function getDatePickerFormat(
 
 /**
  * Moment locale id for MUI AdapterMoment (calendar month/weekday language).
- * Uses {@link Session.user.language} first: Hebrew → Hebrew labels; English → English labels with
- * US vs GB calendar from {@link getUserDateLocale}. If language is unset, falls back to locale only.
+ * Uses {@link Session.user.language} for month/weekday names (case-insensitive).
+ * Date locale only picks en vs en-gb layout when language is English (or unset → English).
  * Ensure `moment/locale/he` and `moment/locale/en-gb` are imported where this is used (default `en` is built in).
  */
 export function getMomentAdapterLocale(session: Session | null): string {
-    const language = session?.user?.language;
+    const language = session?.user?.language?.trim().toLowerCase();
 
-    if (language === "Hebrew") {
+    if (language === "hebrew" || language === "he" || language === "iw") {
         return "he";
     }
 
-    if (language === "English") {
-        const userLocale = getUserDateLocale(session, "en-US");
-        return userLocale === "en-US" ? "en" : "en-gb";
-    }
-
+    // English (explicit or unset): date locale may choose US vs GB calendar layout only.
     const userLocale = getUserDateLocale(session, "en-US");
-    if (userLocale === "he-IL") {
-        return "he";
-    }
-    if (userLocale === "en-US") {
-        return "en";
-    }
-    return "en-gb";
+    return userLocale === "en-US" ? "en" : "en-gb";
 }
 
 /**
