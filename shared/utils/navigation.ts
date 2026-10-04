@@ -116,7 +116,7 @@ export const sidebarStructure: NavSection[] = [
                 label: "actions.navigation_control_center",
                 href: AppUrls.CONTROL_CENTER || "/app/control-center",
                 show: (_permissions, _accountId, accountProducts) =>
-                    !isCreditOnlyAccount(accountProducts),
+                    accountProducts?.has_collection !== false,
             },
             {
                 label: "actions.navigation_reports",

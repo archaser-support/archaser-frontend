@@ -26,7 +26,7 @@ import {
     useMediaQuery,
     useTheme,
 } from "@mui/material";
-import { signIn } from "next-auth/react";
+import { getSession, signIn } from "next-auth/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import React, {
@@ -45,15 +45,17 @@ import {
     isArchaserAdminAccount,
 } from "@/shared/utils/navigation";
 import { resolveAppHomePath } from "@/shared/utils/resolveAppHomePath";
-import { prefetchCreditDashboardSummaryForLogin } from "@/shared/credit-insurance/creditDashboardSummaryQuery";
-import { storeLoginShellPrefetch } from "@/shared/services/loginShellPrefetch";
+import {
+    CREDIT_DASHBOARD_SUMMARY_PREFETCH_KEY,
+    LOGIN_SHELL_PREFETCH_KEY,
+    storeLoginShellPrefetch,
+} from "@/shared/services/loginShellPrefetch";
 import {
     LOGIN_HANDOFF_STORAGE_KEY,
     PENDING_LOGIN_REDIRECT_KEY,
     clearLogoutInProgress,
 } from "@/shared/utils/sessionLanguageKeys";
 import { apiFetch } from "@/utils/apiFetch";
-import AppUrls from "@/utils/appUrls";
 import { getTenantSubdomain } from "@/utils/domainUtils";
 import {
     clearNestAccessToken,
@@ -165,14 +167,6 @@ function LoginPageContent() {
         removeStaleLoginNavLock();
         clearLogoutInProgress();
     }, []);
-
-    useEffect(() => {
-        const locale =
-            i18n.language === "he" || i18n.language === "en"
-                ? i18n.language
-                : "en";
-        router.prefetch(`/${locale}${AppUrls.CREDIT_DASHBOARD}`);
-    }, [i18n.language, router]);
 
     // Handle SSO Error from URL
     useEffect(() => {
@@ -318,6 +312,9 @@ function LoginPageContent() {
             const sessionKeep = new Set([
                 LOGIN_HANDOFF_STORAGE_KEY,
                 PENDING_LOGIN_REDIRECT_KEY,
+                LOGIN_SHELL_PREFETCH_KEY,
+                CREDIT_DASHBOARD_SUMMARY_PREFETCH_KEY,
+                "archaser_nest_access_token",
             ]);
             const sessionKeysToRemove: string[] = [];
             for (let i = 0; i < sessionStorage.length; i++) {
@@ -354,9 +351,9 @@ function LoginPageContent() {
     );
 
     /**
-     * Bridge Nest JWT → NextAuth, then leave /login in the same turn.
-     * Must use redirect:true — redirect:false calls _getSession first, which
-     * re-renders the login form (looks like a reload) before we can navigate.
+     * Bridge Nest JWT → NextAuth, then client-navigate to the resolved home
+     * page. Keep the login spinner until replace so redirect:false does not
+     * flash the empty form.
      *
      * Resolve first accessible page with the Nest bearer token *before* signIn
      * so we do not land on a default route the user cannot open.
@@ -373,10 +370,6 @@ function LoginPageContent() {
                 : urlLocale;
             const accountId = claims?.account_id ?? null;
             const fallbackRedirect = getDefaultLandingPage(accountId);
-            const summaryPrefetchStartedAt = performance.now();
-            const summaryPrefetch = isArchaserAdminAccount(accountId)
-                ? Promise.resolve(false)
-                : prefetchCreditDashboardSummaryForLogin();
 
             let redirectUrl = fallbackRedirect;
             if (!isArchaserAdminAccount(accountId) && accountId != null) {
@@ -436,21 +429,6 @@ function LoginPageContent() {
                 }
             }
 
-            if (redirectUrl === AppUrls.CREDIT_DASHBOARD) {
-                const remainMs = Math.max(
-                    0,
-                    4000 - (performance.now() - summaryPrefetchStartedAt)
-                );
-                if (remainMs > 0) {
-                    await Promise.race([
-                        summaryPrefetch,
-                        new Promise<boolean>((resolve) => {
-                            window.setTimeout(() => resolve(false), remainMs);
-                        }),
-                    ]);
-                }
-            }
-
             const path = { language, redirectUrl };
             const target = stampLoginExitStorage(nestAccessToken, path, {
                 id: claims?.sub,
@@ -477,14 +455,38 @@ function LoginPageContent() {
                 ).catch(() => { });
             }
 
-            loginHandoffOwnedByLiveHandler = false;
-            await signIn("credentials", {
+            loginHandoffOwnedByLiveHandler = true;
+            const result = await signIn("credentials", {
                 nestAccessToken,
-                redirect: true,
-                callbackUrl: target,
+                homePath: redirectUrl,
+                redirect: false,
             });
+
+            if (!result?.ok) {
+                loginHandoffOwnedByLiveHandler = false;
+                clearLoginHandoff();
+                updateFormState({
+                    isLoading: false,
+                    loadingType: null,
+                    error: t("messages.invalid_credentials"),
+                });
+                return;
+            }
+
+            const session = await getSession();
+            const homePath = session?.user?.homePath || redirectUrl;
+            sessionStorage.removeItem(PENDING_LOGIN_REDIRECT_KEY);
+            await router.replace(`/${language}${homePath}`);
+            loginHandoffOwnedByLiveHandler = false;
         },
-        [mapLanguageToLocale, stampLoginExitStorage]
+        [
+            clearLoginHandoff,
+            mapLanguageToLocale,
+            router,
+            stampLoginExitStorage,
+            t,
+            updateFormState,
+        ]
     );
 
     // Hard reload mid-login: resume navigation from sessionStorage.
