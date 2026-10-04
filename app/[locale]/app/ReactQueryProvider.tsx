@@ -17,6 +17,10 @@ function shouldPersistQuery(query: Query): boolean {
     if (typeof root !== "string") {
         return false;
     }
+    // Home KPIs are small enough to persist; skip other credit-* payloads.
+    if (root === "credit-insurance" && query.queryKey[1] === "summary") {
+        return true;
+    }
     const skipPrefixes = [
         "globalSearch",
         "customers",

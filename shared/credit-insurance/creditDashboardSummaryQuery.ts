@@ -1,8 +1,6 @@
 import type { CreditDashboardSummary } from "@/types/creditInsurance";
 import { apiFetch } from "@/utils/apiFetch";
-
-export const CREDIT_DASHBOARD_SUMMARY_PREFETCH_KEY =
-    "creditDashboardSummaryPrefetch";
+import { CREDIT_DASHBOARD_SUMMARY_PREFETCH_KEY } from "@/shared/services/loginShellPrefetch";
 
 export const LOGIN_CREDIT_DASHBOARD_SUMMARY_SCOPE = {
     policyId: null as number | null,
