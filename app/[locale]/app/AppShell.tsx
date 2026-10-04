@@ -412,77 +412,6 @@ const AppLayout = ({ children }: any) => {
         }
     }, [pathname, activeMenuItem]);
 
-    // Fetch collection agents for view-as functionality
-    useEffect(() => {
-        const fetchCollectionAgents = async () => {
-            // Fetch collection agents for Collection Managers, System Administrators, and ARchaser Admins (account_id 10013)
-            // Temporary backward compatibility: also check for old "Account_Manager" role during migration
-            if (
-                session?.user?.role !== "Collection_Manager" &&
-                session?.user?.role !== "Collection Manager" &&
-                session?.user?.role !== "System_Administrator" &&
-                session?.user?.role !== "System Administrator" &&
-                session?.user?.role !== "Account_Manager" &&
-                session?.user?.account_id !== 10013
-            )
-                return;
-
-            try {
-                setLoading(true);
-                const response = await apiFetch(
-                    "/api/entities/users/collection-agents"
-                );
-                if (!response.ok) {
-                    // Silently handle 403 (Forbidden) - expected for users without permissions
-                    if (response.status === 403) {
-                        setUsers([]);
-                        return;
-                    }
-                    throw new Error("Failed to fetch collection agents");
-                }
-                const data = await response.json();
-                setUsers(data);
-            } catch (err) {
-                // Only set error for unexpected errors, not permission issues
-                if (err instanceof Error && !err.message.includes("403")) {
-                    setError(err.message);
-                } else {
-                    // Silently handle permission errors
-                    setUsers([]);
-                }
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchCollectionAgents();
-    }, [session?.user?.role, session?.user?.account_id]);
-
-    const { data: controlCenterStats } = useQuery({
-        queryKey: ["controlCenterStats"],
-        queryFn: async () => {
-            const response = await api.get(
-                "/api/system/control-center?operation=stats"
-            );
-            return response.data;
-        },
-        refetchInterval: 1000 * 60 * 5, // Refresh every 5 minutes
-        refetchOnWindowFocus: false,
-        staleTime: 1000 * 60 * 5, // Keep fresh for the poll interval
-        enabled: mounted && status === "authenticated", // Only run query after component is mounted and user is authenticated
-    });
-
-    const controlCenterIssueCount = useMemo(() => {
-        if (!controlCenterStats) return 0;
-        return (
-            (controlCenterStats.noContacts?.active || 0) +
-            (controlCenterStats.invalidContacts?.active || 0) +
-            (controlCenterStats.invoicesWithoutCustomer?.active ||
-                controlCenterStats.invoicesWithoutCustomer?.active ||
-                0) +
-            (controlCenterStats.orphanCreditInvoices?.active || 0)
-        );
-    }, [controlCenterStats]);
-
     // Helper function to get user display name
     const getUserDisplayName = (user: any) => {
         if (!user) {
@@ -640,14 +569,90 @@ const AppLayout = ({ children }: any) => {
     const isLoadingAccountProducts = isLoadingSessionAccount;
 
     const hasCollectionProduct =
-        effectiveAccountProducts?.has_collection !== undefined
-            ? !!effectiveAccountProducts.has_collection
-            : true;
+        sessionAccount != null &&
+        (sessionAccount.has_collection !== undefined
+            ? !!sessionAccount.has_collection
+            : true);
     const hasCreditInsuranceProduct =
         effectiveAccountProducts?.has_credit_insurance === true;
     const hasFileImportProduct = isFileImportVisible(effectiveAccountProducts);
     const isCreditOnlyAccount =
         !hasCollectionProduct && hasCreditInsuranceProduct;
+
+    // Collection-only shell traffic: skip until the account is known to have collection.
+    useEffect(() => {
+        const fetchCollectionAgents = async () => {
+            if (
+                !hasCollectionProduct ||
+                (session?.user?.role !== "Collection_Manager" &&
+                    session?.user?.role !== "Collection Manager" &&
+                    session?.user?.role !== "System_Administrator" &&
+                    session?.user?.role !== "System Administrator" &&
+                    session?.user?.role !== "Account_Manager" &&
+                    session?.user?.account_id !== 10013)
+            ) {
+                return;
+            }
+
+            try {
+                setLoading(true);
+                const response = await apiFetch(
+                    "/api/entities/users/collection-agents"
+                );
+                if (!response.ok) {
+                    if (response.status === 403) {
+                        setUsers([]);
+                        return;
+                    }
+                    throw new Error("Failed to fetch collection agents");
+                }
+                const data = await response.json();
+                setUsers(data);
+            } catch (err) {
+                if (err instanceof Error && !err.message.includes("403")) {
+                    setError(err.message);
+                } else {
+                    setUsers([]);
+                }
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchCollectionAgents();
+    }, [
+        hasCollectionProduct,
+        session?.user?.role,
+        session?.user?.account_id,
+    ]);
+
+    const { data: controlCenterStats } = useQuery({
+        queryKey: ["controlCenterStats"],
+        queryFn: async () => {
+            const response = await api.get(
+                "/api/system/control-center?operation=stats"
+            );
+            return response.data;
+        },
+        refetchInterval: 1000 * 60 * 5,
+        refetchOnWindowFocus: false,
+        staleTime: 1000 * 60 * 5,
+        enabled:
+            mounted &&
+            status === "authenticated" &&
+            hasCollectionProduct,
+    });
+
+    const controlCenterIssueCount = useMemo(() => {
+        if (!controlCenterStats) return 0;
+        return (
+            (controlCenterStats.noContacts?.active || 0) +
+            (controlCenterStats.invalidContacts?.active || 0) +
+            (controlCenterStats.invoicesWithoutCustomer?.active ||
+                controlCenterStats.invoicesWithoutCustomer?.active ||
+                0) +
+            (controlCenterStats.orphanCreditInvoices?.active || 0)
+        );
+    }, [controlCenterStats]);
 
     // Only use permissions if they've been loaded (don't use empty array as fallback)
     const userPermissions = userPermissionsData?.permissions;
@@ -1015,7 +1020,7 @@ const AppLayout = ({ children }: any) => {
                                     },
                                 ]
                                 : []),
-                            ...(!isCreditOnlyAccount
+                            ...(hasCollectionProduct
                                 ? [
                                     {
                                         label: t("actions.navigation_control_center"),
@@ -2253,6 +2258,7 @@ const AppLayout = ({ children }: any) => {
                     )}
                 </Box>
             </Box>
+            {hasCollectionProduct ? <FollowUpReminder /> : null}
         </Box>
     );
 };
@@ -2265,7 +2271,6 @@ export default function AppShell({ children }: any) {
                     <SpinnerProvider>
                         <AppLayout>{children}</AppLayout>
                         <SpinnerOverlay />
-                        <FollowUpReminder />
                     </SpinnerProvider>
                 </ReactQueryProvider>
             </SessionInitializer>
