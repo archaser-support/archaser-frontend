@@ -24,6 +24,8 @@ declare module "next-auth" {
             view_as_user_account_name?: string;
             view_as_user_name?: string;
             sidebar_collapsed?: boolean;
+            /** Locale-neutral first app page, set at login (`/app/credit-dashboard`). */
+            homePath?: string;
         } & DefaultSession["user"];
         view_as_user_id?: string;
         locale?: string;
@@ -46,6 +48,7 @@ declare module "next-auth" {
         timezone?: string;
         currency?: string;
         locale?: string;
+        homePath?: string;
     }
 }
 
@@ -72,5 +75,6 @@ declare module "next-auth/jwt" {
         view_as_user_name?: string;
         session_version?: number;
         sidebar_collapsed?: boolean;
+        homePath?: string;
     }
 }
