@@ -1,4 +1,4 @@
-const LOGIN_SHELL_PREFETCH_KEY = "loginShellPrefetch";
+export const LOGIN_SHELL_PREFETCH_KEY = "loginShellPrefetch";
 export const CREDIT_DASHBOARD_SUMMARY_PREFETCH_KEY =
     "creditDashboardSummaryPrefetch";
 const PREFETCH_TTL_MS = 30_000;

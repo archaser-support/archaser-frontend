@@ -9,8 +9,6 @@ import { parseDashboardBusinessUnitIdFromUrl } from "@/shared/dashboard/dashboar
 import {
     buildCreditDashboardSearchParams,
     fetchCreditDashboardSummary,
-    LOGIN_CREDIT_DASHBOARD_SUMMARY_SCOPE,
-    readCreditDashboardSummaryPrefetch,
 } from "@/shared/credit-insurance/creditDashboardSummaryQuery";
 import type { CreditDashboardSummaryHistory } from "@/types/creditInsurance";
 import type { CustomerPolicyUsageTrendResponse } from "@/types/creditInsurance";
@@ -59,23 +57,6 @@ export default function CreditDashboardPage() {
             return !(value === "0" || value === "false" || value === "no");
         }
     );
-
-    const loginSummaryPrefetch = useState(() =>
-        readCreditDashboardSummaryPrefetch({
-            policyId: initialPolicyId,
-            businessUnitId: parseDashboardBusinessUnitIdFromUrl(
-                searchParams?.get("businessUnitId")
-            ),
-            includeNoPolicyExposure: (() => {
-                const raw = searchParams?.get("includeNoPolicyExposure");
-                if (!raw) {
-                    return LOGIN_CREDIT_DASHBOARD_SUMMARY_SCOPE.includeNoPolicyExposure;
-                }
-                const value = raw.trim().toLowerCase();
-                return !(value === "0" || value === "false" || value === "no");
-            })(),
-        })
-    )[0];
 
     const policiesQuery = useCreditDashboardPoliciesQuery();
     const policies = useMemo(() => policiesQuery.data ?? [], [policiesQuery.data]);
@@ -197,9 +178,8 @@ export default function CreditDashboardPage() {
             });
         },
         retry: false,
-        staleTime: loginSummaryPrefetch ? 15_000 : 0,
-        initialData: loginSummaryPrefetch,
-        refetchOnMount: loginSummaryPrefetch ? false : "always",
+        staleTime: 0,
+        refetchOnMount: "always",
         refetchOnWindowFocus: false,
         // Do not keep a previous incomplete/error payload as placeholder.
         placeholderData: (previousData) => {
