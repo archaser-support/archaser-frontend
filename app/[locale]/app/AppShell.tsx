@@ -37,7 +37,6 @@ import {
 } from "@mui/material";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api, { apiFetch } from "@/app/api";
-import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -67,6 +66,7 @@ import {
 } from "@/shared/utils/navigation";
 import { resolveAppHomePath } from "@/shared/utils/resolveAppHomePath";
 import { LOGIN_HANDOFF_STORAGE_KEY } from "@/shared/utils/sessionLanguageKeys";
+import { beginHardLogout } from "@/utils/nestAuth";
 import { getLocalizedPath } from "@/utils/navigationUtils";
 import AppUrls from "@/utils/appUrls";
 
@@ -884,18 +884,8 @@ const AppLayout = ({ children }: any) => {
         setForceUpdate((prev) => prev + 1);
     };
 
-    const handleLogout = async () => {
-        const { clearNestAccessToken } = await import("@/utils/nestAuth");
-        clearNestAccessToken();
-        const loginPath = `/${currentLocale}/login`;
-        try {
-            await signOut({ redirect: false });
-        } catch {
-            // NextAuth may be unavailable depending on deploy mode
-        }
-        // Hard navigate so /app does not re-render unauthenticated (soft
-        // router.push left the shell mounted and flashed error.tsx).
-        window.location.assign(loginPath);
+    const handleLogout = () => {
+        beginHardLogout(`/${currentLocale}/login`);
     };
 
     const sidebarSections = useMemo(() => {
