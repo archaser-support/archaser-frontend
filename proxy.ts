@@ -154,14 +154,9 @@ export async function proxy(request: NextRequest) {
                 // User is logged in, redirect to dashboard.
                 // Route language comes from session language only (case-insensitive).
                 // Do not use date locale (token.locale) for UI route language.
-                let locale = expectedLocaleFromSessionLanguage(
+                const locale = expectedLocaleFromSessionLanguage(
                     token.language as string | undefined | null
                 );
-
-                // Final validation against config (fallback to default if not supported)
-                if (!i18nConfig.locales.includes(locale)) {
-                    locale = i18nConfig.defaultLocale;
-                }
 
                 const landingPath = getDefaultLandingPage(token.account_id);
                 const landingUrl = new URL(`/${locale}${landingPath}`, request.url);
