@@ -28,6 +28,7 @@ import type { CreditDashboardHistoryDelta, CreditDashboardHistoryPoint, CreditDa
 import type { CustomerPolicyUsageTrendResponse } from "@/types/creditInsurance";
 import type { CreditDashboardSummary } from "@/types/creditInsurance";
 import Seo from "@/shared/layout-components/seo/seo";
+import { isLogoutInProgress } from "@/shared/utils/sessionLanguageKeys";
 import {
     formatDateForDisplay,
     getUserDateLocale,
@@ -188,7 +189,7 @@ export function CreditDashboardScreen({
 
     const isRtl = i18n.language === "he";
 
-    if (isSummaryLoading) {
+    if (isSummaryLoading || (isSummaryError && isLogoutInProgress())) {
         return (
             <>
                 <Seo title={pageTitle} />

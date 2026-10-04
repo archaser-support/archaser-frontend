@@ -1,8 +1,9 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
 import { useEffect, useRef, useCallback } from "react";
+
+import { beginHardLogout } from "@/utils/nestAuth";
 
 interface UseIdleTimeoutOptions {
     timeoutMinutes?: number;
@@ -62,18 +63,8 @@ export function useIdleTimeout({
             onIdle();
         }
 
-        // Logout user — hard navigate so /app does not re-render
-        // unauthenticated (soft router.push flashed error.tsx).
-        try {
-            await signOut({ redirect: false });
-
-            const locale = pathname?.split("/")[1] || "en";
-            window.location.assign(`/${locale}/login`);
-        } catch (error) {
-            console.error("Error during automatic logout:", error);
-            const locale = pathname?.split("/")[1] || "en";
-            window.location.assign(`/${locale}/login`);
-        }
+        const locale = pathname?.split("/")[1] || "en";
+        beginHardLogout(`/${locale}/login`);
     }, [pathname, onIdle]);
 
     // Function to reset the idle timer

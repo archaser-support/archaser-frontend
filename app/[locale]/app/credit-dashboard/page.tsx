@@ -6,7 +6,12 @@ import { useParams, usePathname, useRouter, useSearchParams } from "next/navigat
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { parseDashboardBusinessUnitIdFromUrl } from "@/shared/dashboard/dashboardBusinessUnitParams";
-import type { CreditDashboardSummary } from "@/types/creditInsurance";
+import {
+    buildCreditDashboardSearchParams,
+    fetchCreditDashboardSummary,
+    LOGIN_CREDIT_DASHBOARD_SUMMARY_SCOPE,
+    readCreditDashboardSummaryPrefetch,
+} from "@/shared/credit-insurance/creditDashboardSummaryQuery";
 import type { CreditDashboardSummaryHistory } from "@/types/creditInsurance";
 import type { CustomerPolicyUsageTrendResponse } from "@/types/creditInsurance";
 
@@ -22,24 +27,6 @@ const EMPTY_HISTORY_DELTA: CreditDashboardSummaryHistory["delta"] = {
     atRiskExposure: null,
     healthIndex: null,
 };
-
-function buildCreditDashboardSearchParams(options: {
-    policyId: number | null;
-    businessUnitId: number | null;
-    includeNoPolicyExposure: boolean;
-}): URLSearchParams {
-    const params = new URLSearchParams();
-    if (options.policyId != null) {
-        params.set("policyId", String(options.policyId));
-    }
-    if (options.businessUnitId != null) {
-        params.set("businessUnitId", String(options.businessUnitId));
-    }
-    if (!options.includeNoPolicyExposure) {
-        params.set("includeNoPolicyExposure", "0");
-    }
-    return params;
-}
 
 export default function CreditDashboardPage() {
     const router = useRouter();
@@ -72,6 +59,23 @@ export default function CreditDashboardPage() {
             return !(value === "0" || value === "false" || value === "no");
         }
     );
+
+    const loginSummaryPrefetch = useState(() =>
+        readCreditDashboardSummaryPrefetch({
+            policyId: initialPolicyId,
+            businessUnitId: parseDashboardBusinessUnitIdFromUrl(
+                searchParams?.get("businessUnitId")
+            ),
+            includeNoPolicyExposure: (() => {
+                const raw = searchParams?.get("includeNoPolicyExposure");
+                if (!raw) {
+                    return LOGIN_CREDIT_DASHBOARD_SUMMARY_SCOPE.includeNoPolicyExposure;
+                }
+                const value = raw.trim().toLowerCase();
+                return !(value === "0" || value === "false" || value === "no");
+            })(),
+        })
+    )[0];
 
     const policiesQuery = useCreditDashboardPoliciesQuery();
     const policies = useMemo(() => policiesQuery.data ?? [], [policiesQuery.data]);
@@ -186,38 +190,16 @@ export default function CreditDashboardPage() {
             includeNoPolicyExposure,
         ],
         queryFn: async () => {
-            const params = buildCreditDashboardSearchParams({
+            return fetchCreditDashboardSummary({
                 policyId: policyIdForSummary,
                 businessUnitId: selectedBusinessUnitId,
                 includeNoPolicyExposure,
             });
-            const q = params.toString() ? `?${params.toString()}` : "";
-            const res = await apiFetch(`/api/credit-insurance/summary${q}`);
-            if (res.status === 403) {
-                throw new Error("forbidden");
-            }
-            if (!res.ok) {
-                throw new Error("load_failed");
-            }
-            const body = (await res.json()) as CreditDashboardSummary;
-            // Incomplete Nest stubs (missing reportingCountdown) must not reach
-            // CreditDashboardScreen â€” that path throws on invoiceCount.
-            if (
-                body == null ||
-                typeof body !== "object" ||
-                body.reportingCountdown == null ||
-                typeof body.reportingCountdown.invoiceCount !== "number" ||
-                body.termsBreach == null ||
-                body.withoutPolicy == null ||
-                body.capacityGap == null
-            ) {
-                throw new Error("load_failed");
-            }
-            return body;
         },
         retry: false,
-        staleTime: 0,
-        refetchOnMount: "always",
+        staleTime: loginSummaryPrefetch ? 15_000 : 0,
+        initialData: loginSummaryPrefetch,
+        refetchOnMount: loginSummaryPrefetch ? false : "always",
         refetchOnWindowFocus: false,
         // Do not keep a previous incomplete/error payload as placeholder.
         placeholderData: (previousData) => {
