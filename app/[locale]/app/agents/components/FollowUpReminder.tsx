@@ -21,6 +21,10 @@ import { useTranslation } from "react-i18next";
 import api from "@/app/api";
 
 import ModalScrollBox from "@/shared/layout-components/modal/ModalScrollBox";
+import {
+    fetchSessionAccountById,
+    sessionAccountQueryKey,
+} from "@/shared/services/sessionAccountQuery";
 import { resolveI18nPlaceholders } from "@/shared/utils/resolveI18nPlaceholders";
 
 import type { FollowUpReminderItem } from "../hooks/useFollowUpReminders";
@@ -484,6 +488,22 @@ export default function FollowUpReminder() {
             effectiveAccountId != null,
         staleTime: 0,
     });
+    const { data: sessionAccount } = useQuery({
+        queryKey: sessionAccountQueryKey(effectiveAccountId),
+        queryFn: async () => {
+            if (!effectiveAccountId) {
+                return null;
+            }
+            return fetchSessionAccountById(effectiveAccountId);
+        },
+        enabled: !!effectiveAccountId && status === "authenticated",
+        staleTime: 60 * 1000,
+    });
+    const hasCollectionProduct =
+        sessionAccount != null &&
+        (sessionAccount.has_collection !== undefined
+            ? !!sessionAccount.has_collection
+            : true);
     const hasViewFollowUpRemindersPermission =
         userPermissionsData?.permissions?.includes(
             "view_follow_up_reminders"
@@ -495,7 +515,9 @@ export default function FollowUpReminder() {
         snooze,
         markComplete,
         goToCustomer,
-    } = useFollowUpReminders({ enabled: hasViewFollowUpRemindersPermission });
+    } = useFollowUpReminders({
+        enabled: hasViewFollowUpRemindersPermission && hasCollectionProduct,
+    });
     const queryClient = useQueryClient();
     const pathname = usePathname();
     const [closingReminder, setClosingReminder] =
