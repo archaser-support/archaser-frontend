@@ -58,6 +58,7 @@ import {
     fetchSessionAccountById,
     sessionAccountQueryKey,
 } from "@/shared/services/sessionAccountQuery";
+import { readLoginShellPrefetch } from "@/shared/services/loginShellPrefetch";
 import {
     getDefaultLandingPage,
     getFirstAccessiblePage,
@@ -587,6 +588,12 @@ const AppLayout = ({ children }: any) => {
     };
 
     const effectiveUser = getEffectiveUser();
+    const loginShellPrefetch = useState(() =>
+        readLoginShellPrefetch({
+            userId: session?.user?.id,
+            accountId: effectiveUser.account_id,
+        })
+    )[0];
 
     // Fetch user permissions
     const { data: userPermissionsData, isLoading: isLoadingPermissions } =
@@ -605,6 +612,8 @@ const AppLayout = ({ children }: any) => {
             staleTime: 2 * 60 * 1000,
             refetchOnWindowFocus: false,
             refetchOnMount: false,
+            initialData: loginShellPrefetch?.permissions,
+            initialDataUpdatedAt: loginShellPrefetch?.fetchedAt,
         });
 
     const {
@@ -620,6 +629,8 @@ const AppLayout = ({ children }: any) => {
         },
         enabled: !!effectiveUser.account_id && status === "authenticated",
         staleTime: 60 * 1000,
+        initialData: loginShellPrefetch?.sessionAccount,
+        initialDataUpdatedAt: loginShellPrefetch?.fetchedAt,
     });
 
     const effectiveAccountProducts = useMemo(
