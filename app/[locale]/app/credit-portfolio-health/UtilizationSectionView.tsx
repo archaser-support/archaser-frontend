@@ -372,22 +372,40 @@ export function UtilizationSectionView({
 
     const topCustomersChartData = useMemo(
         () =>
-            section.topCustomers.map((item) => ({
-                name: item.customerName,
-                utilization:
-                    item.utilizationPct != null ? item.utilizationPct : 0,
-            })),
+            section.topCustomers.map((item) => {
+                const utilization =
+                    item.utilizationPct != null ? item.utilizationPct : 0;
+                const barPolicyPct = item.barPolicyPct ?? utilization;
+                const barTopUpPct = item.barTopUpPct ?? 0;
+                const barOverPct = item.barOverPct ?? 0;
+                return {
+                    name: item.customerName,
+                    utilization,
+                    barPolicyPct,
+                    barTopUpPct,
+                    barOverPct,
+                    totalPct: barPolicyPct + barTopUpPct + barOverPct,
+                };
+            }),
         [section.topCustomers]
+    );
+
+    const showTopUpCoverageStack = topCustomersChartData.some(
+        (row) => row.barTopUpPct > 0
     );
 
     const topCustomersChartDomainMax = useMemo(() => {
         const peak = topCustomersChartData.reduce(
-            (max, row) => Math.max(max, row.utilization),
+            (max, row) =>
+                Math.max(
+                    max,
+                    showTopUpCoverageStack ? row.totalPct : row.utilization
+                ),
             0
         );
         // Allow over-limit bars to extend past 100% (old domain [0, 100] clipped them).
         return Math.max(100, Math.ceil(peak / 10) * 10);
-    }, [topCustomersChartData]);
+    }, [topCustomersChartData, showTopUpCoverageStack]);
 
     const distributionChartData = useMemo(
         () =>
@@ -474,7 +492,10 @@ export function UtilizationSectionView({
         section.approvedAverageAr,
     ]);
 
-    const topChartHeight = Math.max(220, topCustomersChartData.length * 28);
+    const topChartHeight = Math.max(
+        showTopUpCoverageStack ? 248 : 220,
+        topCustomersChartData.length * 28
+    );
     const distChartHeight = 280;
 
     return (
@@ -1210,7 +1231,7 @@ export function UtilizationSectionView({
                         help={t("credit_portfolio_health.top_customers_help", {
                             ...ns,
                             defaultValue:
-                                "Top 10 by mean daily open AR in the range. Bars show mean daily effective utilization %.",
+                                "Top 10 by mean daily open AR in the range. Bars split policy-limit usage, top-up usage, and any amount over the effective limit (same split as Policy Usage — Top 10 Customers).",
                         })}
                     >
                         {t("credit_portfolio_health.top_customers_title", {
@@ -1230,7 +1251,12 @@ export function UtilizationSectionView({
                             <BarChart
                                 layout="vertical"
                                 data={topCustomersChartData}
-                                margin={{ left: 8, right: 48, top: 4, bottom: 4 }}
+                                margin={{
+                                    left: 8,
+                                    right: 48,
+                                    top: showTopUpCoverageStack ? 8 : 4,
+                                    bottom: showTopUpCoverageStack ? 24 : 4,
+                                }}
                             >
                                 <CartesianGrid
                                     strokeDasharray="3 6"
@@ -1275,48 +1301,136 @@ export function UtilizationSectionView({
                                         />
                                     }
                                 />
-                                <Bar
-                                    dataKey="utilization"
-                                    name={t(
-                                        "credit_portfolio_health.chart_utilization_pct",
-                                        {
-                                            ...ns,
-                                            defaultValue: "Avg. utilization",
-                                        }
-                                    )}
-                                    fill={CPH.teal}
-                                    radius={[0, 6, 6, 0]}
-                                    animationDuration={animDuration}
-                                >
-                                    {topCustomersChartData.map((row, i) => (
-                                        <Cell
-                                            key={`top-${i}-${row.name}`}
-                                            fill={
-                                                row.utilization >= 100
-                                                    ? CPH.critical
-                                                    : CPH.teal
-                                            }
-                                        />
-                                    ))}
-                                    <LabelList
-                                        dataKey="utilization"
-                                        position="right"
-                                        formatter={(label) => {
-                                            const value =
-                                                typeof label === "number"
-                                                    ? label
-                                                    : Number(label);
-                                            return Number.isFinite(value)
-                                                ? formatPct(value, language, 0)
-                                                : "";
-                                        }}
-                                        style={{
-                                            fill: CPH.slate,
-                                            fontSize: 11,
-                                            fontVariantNumeric: "tabular-nums",
+                                {showTopUpCoverageStack ? (
+                                    <Legend
+                                        wrapperStyle={{
+                                            fontSize: 12,
+                                            color: CPH.slate,
                                         }}
                                     />
-                                </Bar>
+                                ) : null}
+                                {showTopUpCoverageStack ? (
+                                    <Bar
+                                        dataKey="barPolicyPct"
+                                        stackId="coverage"
+                                        name={t(
+                                            "credit_portfolio_health.chart_bar_policy_limit",
+                                            {
+                                                ...ns,
+                                                defaultValue: "Policy limit",
+                                            }
+                                        )}
+                                        fill={CPH.teal}
+                                        animationDuration={animDuration}
+                                    />
+                                ) : null}
+                                {showTopUpCoverageStack ? (
+                                    <Bar
+                                        dataKey="barTopUpPct"
+                                        stackId="coverage"
+                                        name={t(
+                                            "credit_portfolio_health.chart_bar_top_up",
+                                            {
+                                                ...ns,
+                                                defaultValue: "Top-up",
+                                            }
+                                        )}
+                                        fill={CPH.violet}
+                                        animationDuration={animDuration}
+                                    />
+                                ) : null}
+                                {showTopUpCoverageStack ? (
+                                    <Bar
+                                        dataKey="barOverPct"
+                                        stackId="coverage"
+                                        name={t(
+                                            "credit_portfolio_health.chart_bar_over_effective",
+                                            {
+                                                ...ns,
+                                                defaultValue:
+                                                    "Over effective limit",
+                                            }
+                                        )}
+                                        fill={CPH.critical}
+                                        radius={[0, 6, 6, 0]}
+                                        animationDuration={animDuration}
+                                    >
+                                        <LabelList
+                                            dataKey="totalPct"
+                                            position="right"
+                                            formatter={(label) => {
+                                                const value =
+                                                    typeof label === "number"
+                                                        ? label
+                                                        : Number(label);
+                                                return Number.isFinite(value)
+                                                    ? formatPct(
+                                                          value,
+                                                          language,
+                                                          0
+                                                      )
+                                                    : "";
+                                            }}
+                                            style={{
+                                                fill: CPH.slate,
+                                                fontSize: 11,
+                                                fontVariantNumeric:
+                                                    "tabular-nums",
+                                            }}
+                                        />
+                                    </Bar>
+                                ) : (
+                                    <Bar
+                                        dataKey="utilization"
+                                        name={t(
+                                            "credit_portfolio_health.chart_utilization_pct",
+                                            {
+                                                ...ns,
+                                                defaultValue:
+                                                    "Avg. utilization",
+                                            }
+                                        )}
+                                        fill={CPH.teal}
+                                        radius={[0, 6, 6, 0]}
+                                        animationDuration={animDuration}
+                                    >
+                                        {topCustomersChartData.map(
+                                            (row, i) => (
+                                                <Cell
+                                                    key={`top-${i}-${row.name}`}
+                                                    fill={
+                                                        row.utilization >= 100
+                                                            ? CPH.critical
+                                                            : CPH.teal
+                                                    }
+                                                />
+                                            )
+                                        )}
+                                        <LabelList
+                                            dataKey="utilization"
+                                            position="right"
+                                            formatter={(label) => {
+                                                const value =
+                                                    typeof label === "number"
+                                                        ? label
+                                                        : Number(label);
+                                                return Number.isFinite(value)
+                                                    ? formatPct(
+                                                          value,
+                                                          language,
+                                                          0
+                                                      )
+                                                    : "";
+                                            }}
+                                            style={{
+                                                fill: CPH.slate,
+                                                fontSize: 11,
+                                                fontVariantNumeric:
+                                                    "tabular-nums",
+                                            }}
+                                        />
+                                    </Bar>
+                                )}
                             </BarChart>
                         </ResponsiveContainer>
                     </div>

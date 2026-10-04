@@ -421,6 +421,16 @@ export type PortfolioUtilizationTopCustomer = {
      * limit; null when no such day exists.
      */
     utilizationPct: number | null;
+    /** Mean daily approved limit in the range. */
+    approvedLimit?: number | null;
+    /** Mean daily top-up cover in the range; null when none. */
+    topUpTotal?: number | null;
+    policyUsagePct?: number | null;
+    topUpUsagePct?: number | null;
+    effectiveUsagePct?: number | null;
+    barPolicyPct?: number;
+    barTopUpPct?: number;
+    barOverPct?: number;
 };
 
 /** Per-customer utilization overshoot ranking (Bucket 1 KPI #2). */

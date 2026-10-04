@@ -73,13 +73,17 @@ export function UtilizationDailyChart({
                 portfolio: point?.utilizationPct ?? null,
                 dcl: point?.dclUtilizationPct ?? null,
                 named: point?.namedUtilizationPct ?? null,
+                topUp: point?.topUpUtilizationPct ?? null,
             })),
         [daily, fromYmd, toYmd, language]
     );
 
     const hasSignal = data.some(
         (row) =>
-            row.portfolio != null || row.dcl != null || row.named != null
+            row.portfolio != null ||
+            row.dcl != null ||
+            row.named != null ||
+            row.topUp != null
     );
 
     return (
@@ -89,7 +93,7 @@ export function UtilizationDailyChart({
                 help={t("credit_portfolio_health.daily_util_chart_help", {
                     ...ns,
                     defaultValue:
-                        "Daily effective utilization (usage ÷ effective approved limit × 100) for the portfolio, Named, and DCL cohorts among approved customers.",
+                        "Daily effective utilization (usage ÷ effective approved limit × 100) for the portfolio, Named, and DCL cohorts among approved customers, plus size-weighted top-up usage among customers with top-up cover.",
                 })}
             >
                 {t("credit_portfolio_health.daily_util_chart_title", {
@@ -197,6 +201,23 @@ export function UtilizationDailyChart({
                                 connectNulls={false}
                                 animationDuration={animDuration}
                                 animationBegin={prefersReducedMotion ? 0 : 200}
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="topUp"
+                                name={t(
+                                    "credit_portfolio_health.chart_util_top_up",
+                                    {
+                                        ...ns,
+                                        defaultValue: "Avg. top-up usage",
+                                    }
+                                )}
+                                stroke={CPH.violet}
+                                strokeWidth={2}
+                                dot={false}
+                                connectNulls={false}
+                                animationDuration={animDuration}
+                                animationBegin={prefersReducedMotion ? 0 : 300}
                             />
                         </LineChart>
                     </ResponsiveContainer>
