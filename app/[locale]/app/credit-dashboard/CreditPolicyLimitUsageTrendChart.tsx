@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { ShowChart as ShowChartIcon } from "@mui/icons-material";
 import { Box, Card, CardContent, Typography, useTheme } from "@mui/material";
@@ -137,26 +137,30 @@ export function CreditPolicyLimitUsageTrendChart({
                     status = "ok";
                 }
                 const palette = usageStatusColors[status];
-                const rawPolicyPct = showTopUpStack
+                let rawPolicyPct = showTopUpStack
                     ? Math.max(0, row.barPolicyPct)
                     : Math.max(0, row.policyUsagePct ?? row.usagePct ?? 0);
                 const rawTopUpPct = showTopUpStack
                     ? Math.max(0, row.barTopUpPct)
                     : 0;
-                const rawOverPct = showTopUpStack
+                let rawOverPct = showTopUpStack
                     ? Math.max(0, row.barOverPct)
                     : 0;
+                // No-top-up over-100% used to live entirely in the policy segment.
+                if (
+                    showTopUpStack &&
+                    rawOverPct === 0 &&
+                    rawTopUpPct === 0 &&
+                    rawPolicyPct > 100
+                ) {
+                    rawOverPct = rawPolicyPct - 100;
+                    rawPolicyPct = 100;
+                }
                 const rawTotalPct = rawPolicyPct + rawTopUpPct + rawOverPct;
-                // Fixed 100-wide track: scale/capped fill so every row shares the same bar width.
-                const scale =
-                    rawTotalPct > 100 && rawTotalPct > 0
-                        ? 100 / rawTotalPct
-                        : 1;
-                const barPolicyPct = rawPolicyPct * scale;
-                const barTopUpPct = rawTopUpPct * scale;
-                const barOverPct = rawOverPct * scale;
+                const barPolicyPct = rawPolicyPct;
+                const barTopUpPct = rawTopUpPct;
+                const barOverPct = rawOverPct;
                 const barFillPct = Math.min(100, rawTotalPct);
-                const barTrackPct = Math.max(0, 100 - barFillPct);
 
                 return {
                     customer: row.customerName,
@@ -172,19 +176,29 @@ export function CreditPolicyLimitUsageTrendChart({
                     barTopUpPct,
                     barOverPct,
                     barFillPct,
-                    barTrackPct,
                     barTotalPct: rawTotalPct,
                     policyNumber: row.policyNumber,
                     status,
                     color: palette.fill,
-                    trackColor: alpha(palette.fill, isLight ? 0.22 : 0.28),
                     borderColor: palette.border,
                 };
             }),
-        [topCustomers, showTopUpStack, usageStatusColors, isLight]
+        [topCustomers, showTopUpStack, usageStatusColors]
     );
 
-    const xAxisMax = 100;
+    const hasTopUpInChart = chartData.some((row) => row.barTopUpPct > 0);
+
+    const xAxisMax = useMemo(() => {
+        if (!showTopUpStack) {
+            return 100;
+        }
+        const peak = chartData.reduce(
+            (max, row) => Math.max(max, row.barTotalPct, row.usagePct),
+            0
+        );
+        // Multiples of 20 keep 100% on a tick when the axis extends past 100.
+        return Math.max(100, Math.ceil(peak / 20) * 20);
+    }, [chartData, showTopUpStack]);
     const xAxisTickStep = 20;
 
     const currentArLabel = t(
@@ -249,7 +263,6 @@ export function CreditPolicyLimitUsageTrendChart({
             defaultValue: "Over effective limit",
         }
     );
-    const trackSeriesLabel = "__track__";
 
     const barChartOptions = useMemo(
         () => ({
@@ -338,6 +351,8 @@ export function CreditPolicyLimitUsageTrendChart({
                 max: xAxisMax,
                 min: 0,
                 tickAmount: Math.round(xAxisMax / xAxisTickStep),
+                stepSize: xAxisTickStep,
+                decimalsInFloat: 0,
                 labels: {
                     formatter: function (val: string) {
                         const n = Number(val);
@@ -380,16 +395,19 @@ export function CreditPolicyLimitUsageTrendChart({
                 position: "bottom" as const,
                 horizontalAlign: "center" as const,
                 customLegendItems: showTopUpStack
-                    ? [policySeriesLabel, topUpSeriesLabel, overSeriesLabel]
+                    ? hasTopUpInChart
+                        ? [
+                              policySeriesLabel,
+                              topUpSeriesLabel,
+                              overSeriesLabel,
+                          ]
+                        : [policySeriesLabel, overSeriesLabel]
                     : undefined,
             },
             colors: showTopUpStack
-                ? [
-                      policyBarColor,
-                      topUpBarColor,
-                      overBarColor,
-                      alpha(policyBarColor, isLight ? 0.18 : 0.24),
-                  ]
+                ? hasTopUpInChart
+                    ? [policyBarColor, topUpBarColor, overBarColor]
+                    : [policyBarColor, overBarColor]
                 : chartData.map((item) => item.color),
             tooltip: {
                 custom: function ({
@@ -518,32 +536,33 @@ export function CreditPolicyLimitUsageTrendChart({
             overBarColor,
             xAxisMax,
             xAxisTickStep,
-            isLight,
             policySeriesLabel,
             topUpSeriesLabel,
             overSeriesLabel,
+            hasTopUpInChart,
         ]
     );
 
     const barChartSeries = useMemo(() => {
         if (showTopUpStack) {
+            const policySeries = {
+                name: policySeriesLabel,
+                data: chartData.map((item) => item.barPolicyPct),
+            };
+            const overSeries = {
+                name: overSeriesLabel,
+                data: chartData.map((item) => item.barOverPct),
+            };
+            if (!hasTopUpInChart) {
+                return [policySeries, overSeries];
+            }
             return [
-                {
-                    name: policySeriesLabel,
-                    data: chartData.map((item) => item.barPolicyPct),
-                },
+                policySeries,
                 {
                     name: topUpSeriesLabel,
                     data: chartData.map((item) => item.barTopUpPct),
                 },
-                {
-                    name: overSeriesLabel,
-                    data: chartData.map((item) => item.barOverPct),
-                },
-                {
-                    name: trackSeriesLabel,
-                    data: chartData.map((item) => item.barTrackPct),
-                },
+                overSeries,
             ];
         }
         return [
@@ -555,14 +574,6 @@ export function CreditPolicyLimitUsageTrendChart({
                     fillColor: item.color,
                 })),
             },
-            {
-                name: trackSeriesLabel,
-                data: chartData.map((item) => ({
-                    x: item.customer,
-                    y: item.barTrackPct,
-                    fillColor: item.trackColor,
-                })),
-            },
         ];
     }, [
         chartData,
@@ -570,8 +581,8 @@ export function CreditPolicyLimitUsageTrendChart({
         policySeriesLabel,
         topUpSeriesLabel,
         overSeriesLabel,
-        trackSeriesLabel,
         usagePctLabel,
+        hasTopUpInChart,
     ]);
 
     const chartKey = useMemo(() => {
@@ -582,8 +593,8 @@ export function CreditPolicyLimitUsageTrendChart({
                     `${item.customer}-${item.amount}-${item.barTotalPct}-${item.barTopUpPct}`
             )
             .join("|");
-        return `${showTopUpStack}-${chartData.length}-${hash.substring(0, 50)}`;
-    }, [chartData, showTopUpStack]);
+        return `${showTopUpStack}-${hasTopUpInChart}-${chartData.length}-${hash.substring(0, 50)}`;
+    }, [chartData, showTopUpStack, hasTopUpInChart]);
 
     useEffect(() => {
         const addTooltipsToLabels = () => {
