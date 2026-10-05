@@ -44,6 +44,11 @@ import {
 import { POLICY_EXCLUSION_REASONS } from "@/shared/creditInsurance/policyExclusion";
 
 import CustomerFormField from "./CustomerFormField";
+import {
+    customerSectionCardContentSx,
+    customerSectionHeaderSx,
+    customerSubsectionHeaderSx,
+} from "./customerCardStyles";
 
 /** Matches `CustomerFormField` view mode (same label/value typography as Collection configuration). */
 export function CreditInsuranceReadonlyField({
@@ -168,15 +173,12 @@ const CustomerGeneralInfo: React.FC<CustomerGeneralInfoProps> = ({
         const isHebrew = i18n.language === "he";
         const base = {
             gridColumn: "1 / -1" as const,
-            mb: 0.5,
-            mt: 1.5,
-            py: 0.5,
-            px: 0,
+            ...customerSubsectionHeaderSx,
             direction: isHebrew ? "rtl" : "ltr",
             textAlign: isHebrew ? "right" : "left",
         };
         return {
-            first: { ...base, mt: 0.5 },
+            first: base,
             standard: base,
             title: {
                 color: "#000",
@@ -280,15 +282,7 @@ const CustomerGeneralInfo: React.FC<CustomerGeneralInfoProps> = ({
                 boxShadow: "none",
             }}
         >
-            <Box
-                sx={{
-                    p: { xs: 1, sm: 1.25 },
-                    mb: theme.spacing(1),
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                }}
-            >
+            <Box sx={customerSectionHeaderSx}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     <InfoIcon
                         sx={{
@@ -369,7 +363,7 @@ const CustomerGeneralInfo: React.FC<CustomerGeneralInfoProps> = ({
                     )
                 )}
             </Box>
-            <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
+            <CardContent sx={customerSectionCardContentSx}>
                 <Box
                     sx={{
                         display: "grid",

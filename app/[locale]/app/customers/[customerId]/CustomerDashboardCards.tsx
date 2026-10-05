@@ -19,7 +19,6 @@ import {
     TextField,
     Tooltip,
     Typography,
-    useTheme,
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
@@ -55,6 +54,7 @@ import {
     type TermsBreachReasonSlice,
 } from "./customerDashboardCardViewModel";
 import { CustomerDashboardCreditCharts } from "./CustomerDashboardCreditCharts";
+import { customerSectionHeaderSx } from "./customerCardStyles";
 
 interface CustomerDashboardCardsProps {
     customerId: string;
@@ -131,16 +131,10 @@ function DashboardSectionHeader({
     title: string;
     endAdornment?: React.ReactNode;
 }) {
-    const theme = useTheme();
-
     return (
         <Box
             sx={{
-                p: { xs: 1, sm: 1.25 },
-                mb: theme.spacing(1),
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
+                ...customerSectionHeaderSx,
                 gap: 1,
                 flexWrap: "wrap",
             }}

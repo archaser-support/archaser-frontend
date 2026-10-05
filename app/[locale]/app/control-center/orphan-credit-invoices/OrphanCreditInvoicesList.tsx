@@ -275,7 +275,7 @@ const OrphanCreditInvoicesList: React.FC = () => {
             // Mark control center stats for invalidation since orphan credit invoice was assigned
             batchInvalidator.markControlCenterForInvalidation();
 
-            // Invalidate UnpaidInvoiceList queries for affected customers
+            // Invalidate CustomerInvoiceGrid queries for affected customers
             if (
                 result?.affectedCustomerIds &&
                 result.affectedCustomerIds.length > 0

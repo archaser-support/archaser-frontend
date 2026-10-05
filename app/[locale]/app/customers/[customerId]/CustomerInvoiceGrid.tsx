@@ -2,6 +2,8 @@
 import {
     EditNote as EditNoteIcon,
     Gavel as GavelIcon,
+    NotificationsNone as NotificationsNoneIcon,
+    NotificationsOff as NotificationsOffIcon,
     Payments as PaymentsIcon,
     Receipt as ReceiptIcon,
 } from "@mui/icons-material";
@@ -16,6 +18,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import api from "@/app/api";
 import ClaimFormDialog from "@/app/[locale]/app/claims/ClaimFormDialog";
 import { ViewBasedDataGrid } from "@/shared/components/ViewBasedDataGrid/ViewBasedDataGrid";
 import {
@@ -37,10 +40,12 @@ import {
     formatCurrencyWithRTLSupport,
     resolveCustomerFirstCurrency,
 } from "@/utils/stringFormatters";
+import { getInvoiceFieldFromGridRow } from "@/shared/utils/invoiceGridRowFields";
 
 import { CreditInsuranceViolationsCell } from "./CreditInsuranceViolationsCell";
 import InvoiceCreditInsuranceReportingModal from "./InvoiceCreditInsuranceReportingModal";
 import LastPaymentDateDialog from "./LastPaymentDateDialog";
+import { customerSectionHeaderSx } from "./customerCardStyles";
 
 interface CustomerProp {
     customer?: Customer | null;
@@ -50,9 +55,23 @@ interface CustomerProp {
     isCollectionAccount?: boolean;
 }
 
+const INVOICE_STATUS_ID_TO_NAME: Record<number, string> = {
+    1: "Draft",
+    2: "Open",
+    3: "Overdue",
+    4: "Paid",
+    5: "Cancelled",
+    6: "Partially_Paid",
+    7: "Under_Dispute",
+    9: "Sent",
+    10: "Viewed",
+    11: "Void",
+    13: "Due",
+};
+
 function getInvoiceStatusName(row: Record<string, unknown>): string {
-    const status = row.status ?? row["Invoice.status"];
-    if (typeof status === "string") {
+    const status = getInvoiceFieldFromGridRow(row, "status");
+    if (typeof status === "string" && status.length > 0) {
         return status;
     }
     if (
@@ -61,12 +80,48 @@ function getInvoiceStatusName(row: Record<string, unknown>): string {
         "name" in (status as object)
     ) {
         const name = (status as { name?: unknown }).name;
-        return typeof name === "string" ? name : "";
+        if (typeof name === "string") {
+            return name;
+        }
+    }
+    const statusId = Number(getInvoiceFieldFromGridRow(row, "status_id"));
+    if (Number.isFinite(statusId) && INVOICE_STATUS_ID_TO_NAME[statusId]) {
+        return INVOICE_STATUS_ID_TO_NAME[statusId];
     }
     return "";
 }
 
-const UnpaidInvoiceList: React.FC<CustomerProp> = ({
+function isDueOrOverdueInvoiceStatus(
+    row: Record<string, unknown>,
+    dueLabel: string,
+    overdueLabel: string
+): boolean {
+    const statusId = Number(getInvoiceFieldFromGridRow(row, "status_id"));
+    if (statusId === 3 || statusId === 13) {
+        return true;
+    }
+    const statusName = getInvoiceStatusName(row).trim().toLowerCase();
+    if (!statusName) {
+        return false;
+    }
+    const allowed = new Set(
+        ["due", "overdue", dueLabel, overdueLabel]
+            .map((s) => s.trim().toLowerCase())
+            .filter(Boolean)
+    );
+    return allowed.has(statusName);
+}
+
+function getInvoiceAmountFromRow(row: Record<string, unknown>): number | null {
+    const raw = getInvoiceFieldFromGridRow(row, "amount");
+    if (raw == null || raw === "") {
+        return null;
+    }
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+}
+
+const CustomerInvoiceGrid: React.FC<CustomerProp> = ({
     customer: propCustomer,
     isCreditInsuranceAccount = false,
     isCollectionAccount = false,
@@ -105,6 +160,8 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
     const [issuingClaimInvoiceId, setIssuingClaimInvoiceId] = useState<
         number | null
     >(null);
+    const [togglingMepIgnoreInvoiceId, setTogglingMepIgnoreInvoiceId] =
+        useState<number | null>(null);
     const [claimDialogOpen, setClaimDialogOpen] = useState(false);
     const [editingClaim, setEditingClaim] = useState<ClaimRecord | null>(null);
     const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -116,6 +173,8 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
     });
 
     const customer = propCustomer || fetchedCustomer;
+
+    const hasCreditProduct = isCreditInsuranceAccount;
 
     const hasCustomerPolicy = Boolean(
         (customer as Customer & { InsurancePolicy?: { id?: number } | null })
@@ -152,6 +211,28 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
         }
         return ids;
     }, [customerClaimsData?.claims]);
+
+    const { data: mepIgnoredData } = useQuery({
+        queryKey: ["invoices", "mep-ignored", parsedCustomerId],
+        queryFn: async () => {
+            const res = await api.get("/invoices/mep-ignored", {
+                params: { customerId: parsedCustomerId },
+            });
+            return res.data as { invoiceIds?: number[] };
+        },
+        enabled: hasCreditProduct && parsedCustomerId != null,
+        staleTime: 30 * 1000,
+    });
+
+    const mepIgnoredInvoiceIds = useMemo(() => {
+        const ids = new Set<number>();
+        for (const id of mepIgnoredData?.invoiceIds ?? []) {
+            if (Number.isFinite(id)) {
+                ids.add(id);
+            }
+        }
+        return ids;
+    }, [mepIgnoredData?.invoiceIds]);
 
     // Helper function to translate invoice status names
     const translateStatusName = useCallback(
@@ -299,6 +380,74 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
             queryClient,
             showToast,
             t,
+        ]
+    );
+
+    const handleToggleMepIgnore = useCallback(
+        async (invoiceId: number, nextIgnored: boolean) => {
+            if (!Number.isFinite(invoiceId) || invoiceId <= 0) {
+                showToast(
+                    t("mep_ignore.invalid_invoice", { ns: "customers" }),
+                    "error"
+                );
+                return;
+            }
+            if (togglingMepIgnoreInvoiceId != null) {
+                return;
+            }
+            setTogglingMepIgnoreInvoiceId(invoiceId);
+            try {
+                await api.post("/invoices/mep-ignored", {
+                    invoiceId,
+                    mepIgnored: nextIgnored,
+                });
+                showToast(
+                    t(
+                        nextIgnored
+                            ? "mep_ignore.save_success_ignored"
+                            : "mep_ignore.save_success_unignored",
+                        { ns: "customers" }
+                    ),
+                    "success"
+                );
+                void queryClient.invalidateQueries({
+                    queryKey: ["invoices", "mep-ignored", parsedCustomerId],
+                });
+                void queryClient.invalidateQueries({
+                    queryKey: ["customer"],
+                });
+            } catch (e: unknown) {
+                if (axios.isAxiosError(e)) {
+                    const data = e.response?.data as
+                        | { error?: string; message?: string }
+                        | undefined;
+                    showToast(
+                        String(
+                            data?.error ??
+                                data?.message ??
+                                e.message ??
+                                t("mep_ignore.save_error", { ns: "customers" })
+                        ),
+                        "error"
+                    );
+                    return;
+                }
+                showToast(
+                    e instanceof Error
+                        ? e.message
+                        : t("mep_ignore.save_error", { ns: "customers" }),
+                    "error"
+                );
+            } finally {
+                setTogglingMepIgnoreInvoiceId(null);
+            }
+        },
+        [
+            parsedCustomerId,
+            queryClient,
+            showToast,
+            t,
+            togglingMepIgnoreInvoiceId,
         ]
     );
 
@@ -611,14 +760,30 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
 
     const actionsColumnRenderer = useCallback(
         (params: GridRenderCellParams) => {
-            const rawId = params?.row?.id;
+            const row = params.row as Record<string, unknown>;
+            const rawId =
+                getInvoiceFieldFromGridRow(row, "id") ?? params?.row?.id;
             const invoiceId =
                 typeof rawId === "number" ? rawId : Number(rawId);
-            const row = params.row as Record<string, unknown>;
             const isIssuingThis =
                 issuingClaimInvoiceId != null &&
                 issuingClaimInvoiceId === invoiceId;
             const invoiceStatusName = getInvoiceStatusName(row);
+            const invoiceAmount = getInvoiceAmountFromRow(row);
+            const isCreditNote =
+                invoiceAmount != null && invoiceAmount < 0;
+            const showMepIgnore =
+                hasCreditProduct &&
+                !isCreditNote &&
+                isDueOrOverdueInvoiceStatus(
+                    row,
+                    t("values.invoice_status_due", { ns: "invoices" }),
+                    t("values.invoice_status_overdue", { ns: "invoices" })
+                );
+            const isMepIgnored = mepIgnoredInvoiceIds.has(invoiceId);
+            const isTogglingMepIgnore =
+                togglingMepIgnoreInvoiceId != null &&
+                togglingMepIgnoreInvoiceId === invoiceId;
             const showOpenClaim =
                 invoiceStatusName === "Overdue" ||
                 (Number.isFinite(invoiceId) &&
@@ -631,7 +796,7 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
                         gap: 0.25,
                     }}
                 >
-                    {isCreditInsuranceAccount && hasCustomerPolicy && (
+                    {hasCreditProduct && (
                         <Tooltip
                             title={t("credit_insurance_reporting.edit_title", {
                                 ns: "customers",
@@ -661,6 +826,63 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
                             >
                                 <EditNoteIcon fontSize="small" />
                             </IconButton>
+                        </Tooltip>
+                    )}
+                    {showMepIgnore && (
+                        <Tooltip
+                            title={t(
+                                isMepIgnored
+                                    ? "mep_ignore.unignore_action"
+                                    : "mep_ignore.ignore_action",
+                                { ns: "customers" }
+                            )}
+                            {...getRTLTooltipProps(i18n)}
+                        >
+                            <span>
+                                <IconButton
+                                    size="small"
+                                    disabled={
+                                        togglingMepIgnoreInvoiceId != null ||
+                                        !Number.isFinite(invoiceId) ||
+                                        invoiceId <= 0
+                                    }
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        if (
+                                            Number.isFinite(invoiceId) &&
+                                            invoiceId > 0
+                                        ) {
+                                            void handleToggleMepIgnore(
+                                                invoiceId,
+                                                !isMepIgnored
+                                            );
+                                        }
+                                    }}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    sx={{
+                                        color: "primary.main",
+                                        "&:hover": {
+                                            backgroundColor:
+                                                "rgba(var(--primary-rgb), 0.08)",
+                                        },
+                                    }}
+                                    aria-label={t(
+                                        isMepIgnored
+                                            ? "mep_ignore.unignore_action"
+                                            : "mep_ignore.ignore_action",
+                                        { ns: "customers" }
+                                    )}
+                                >
+                                    {isTogglingMepIgnore ? (
+                                        <CircularProgress size={16} />
+                                    ) : isMepIgnored ? (
+                                        <NotificationsOffIcon fontSize="small" />
+                                    ) : (
+                                        <NotificationsNoneIcon fontSize="small" />
+                                    )}
+                                </IconButton>
+                            </span>
                         </Tooltip>
                     )}
                     {isCreditInsuranceAccount &&
@@ -750,18 +972,22 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
         [
             t,
             i18n,
-            isCreditInsuranceAccount,
+            hasCreditProduct,
             isCollectionAccount,
             hasCustomerPolicy,
             openCreditInsuranceReportingModal,
             handleOpenClaim,
             issuingClaimInvoiceId,
             claimedInvoiceIds,
+            mepIgnoredInvoiceIds,
+            togglingMepIgnoreInvoiceId,
+            handleToggleMepIgnore,
         ]
     );
 
     const showActionsColumn =
-        hasCustomerPolicy && (isCreditInsuranceAccount || isCollectionAccount);
+        hasCreditProduct ||
+        (hasCustomerPolicy && isCollectionAccount);
 
     const additionalDataColumns = useMemo(
         () =>
@@ -781,9 +1007,9 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
                 ? {
                     minWidth:
                         isCreditInsuranceAccount && isCollectionAccount
-                            ? 120
+                            ? 148
                             : isCreditInsuranceAccount
-                              ? 88
+                              ? 120
                               : 52,
                     flex: 0.55,
                 }
@@ -870,15 +1096,7 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
             }}
         >
             {/* Header Section */}
-            <Box
-                sx={{
-                    p: { xs: 1, sm: 1.25 },
-                    mb: theme.spacing(1),
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                }}
-            >
+            <Box sx={customerSectionHeaderSx}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     <ReceiptIcon
                         sx={{
@@ -1001,4 +1219,4 @@ const UnpaidInvoiceList: React.FC<CustomerProp> = ({
     );
 };
 
-export default UnpaidInvoiceList;
+export default CustomerInvoiceGrid;
