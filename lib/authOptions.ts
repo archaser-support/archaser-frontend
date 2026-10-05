@@ -269,6 +269,38 @@ export const authOptions: NextAuthOptions = {
                 if ("timezone" in source) {
                     token.timezone = claimString(source.timezone);
                 }
+                if ("view_as_user_id" in source) {
+                    const viewAsId = claimString(source.view_as_user_id);
+                    token.view_as_user_id = viewAsId || undefined;
+                    if (!viewAsId) {
+                        token.view_as_user_account_id = undefined;
+                        token.view_as_user_role = undefined;
+                        token.view_as_user_account_name = undefined;
+                        token.view_as_user_name = undefined;
+                    }
+                }
+                if ("view_as_user_account_id" in source) {
+                    const raw = source.view_as_user_account_id;
+                    token.view_as_user_account_id =
+                        typeof raw === "number"
+                            ? raw
+                            : raw == null
+                              ? undefined
+                              : Number(raw) || undefined;
+                }
+                if ("view_as_user_role" in source) {
+                    token.view_as_user_role =
+                        claimString(source.view_as_user_role) || undefined;
+                }
+                if ("view_as_user_account_name" in source) {
+                    token.view_as_user_account_name =
+                        claimString(source.view_as_user_account_name) ||
+                        undefined;
+                }
+                if ("view_as_user_name" in source) {
+                    token.view_as_user_name =
+                        claimString(source.view_as_user_name) || undefined;
+                }
             }
             return token;
         },
@@ -314,6 +346,13 @@ export const authOptions: NextAuthOptions = {
                 if (homePath) {
                     session.user.homePath = homePath;
                 }
+                session.user.view_as_user_id = token.view_as_user_id;
+                session.user.view_as_user_account_id =
+                    token.view_as_user_account_id;
+                session.user.view_as_user_role = token.view_as_user_role;
+                session.user.view_as_user_account_name =
+                    token.view_as_user_account_name;
+                session.user.view_as_user_name = token.view_as_user_name;
             }
             return session;
         },

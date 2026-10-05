@@ -5,8 +5,6 @@ import { ThemeProvider } from "@mui/material/styles";
 import { useSession } from "next-auth/react";
 import React, { useEffect, useMemo, useState } from "react";
 
-import { apiFetch } from "@/utils/apiFetch";
-import { getNestApiBaseUrl } from "@/utils/nestAuth";
 import { fetchSessionAccountById } from "@/shared/services/sessionAccountQuery";
 
 import {
@@ -65,38 +63,6 @@ function readAccountThemeColors(payload: unknown): AccountThemeColors | null {
     return colors;
 }
 
-async function fetchJsonWithNestBearer(path: string): Promise<unknown | null> {
-    const response = await apiFetch(path, { credentials: "omit" });
-    if (!response.ok) {
-        return null;
-    }
-    return response.json();
-}
-
-function mergeThemeColors(
-    ...sources: Array<AccountThemeColors | null | undefined>
-): AccountThemeColors | null {
-    const merged: AccountThemeColors = {};
-    for (const source of sources) {
-        if (!source) {
-            continue;
-        }
-        merged.primary_color = merged.primary_color ?? source.primary_color;
-        merged.secondary_color =
-            merged.secondary_color ?? source.secondary_color;
-        merged.chart_palette_color =
-            merged.chart_palette_color ?? source.chart_palette_color;
-    }
-    if (
-        !merged.primary_color &&
-        !merged.secondary_color &&
-        !merged.chart_palette_color
-    ) {
-        return null;
-    }
-    return merged;
-}
-
 export default function AccountThemeProvider({
     children,
 }: {
@@ -106,7 +72,8 @@ export default function AccountThemeProvider({
     const [liveColors, setLiveColors] = useState<AccountThemeColors | null>(
         null
     );
-    const accountId = session?.user?.account_id;
+    const accountId =
+        session?.user?.view_as_user_account_id ?? session?.user?.account_id;
 
     useEffect(() => {
         if (!accountId || status !== "authenticated") {
@@ -116,28 +83,20 @@ export default function AccountThemeProvider({
         let cancelled = false;
         (async () => {
             try {
-                const accountColors = readAccountThemeColors(
+                const colors = readAccountThemeColors(
                     await fetchSessionAccountById(accountId)
                 );
-                const profileColors = accountColors?.chart_palette_color
-                    ? null
-                    : readAccountThemeColors(
-                          await fetchJsonWithNestBearer(
-                              `${getNestApiBaseUrl()}/auth/me`
-                          )
-                      );
-                const colors = mergeThemeColors(accountColors, profileColors);
                 if (!cancelled && colors) {
                     setLiveColors(colors);
                 }
             } catch {
-                // Keep session colors when the account payload is unavailable.
+                // Keep session colors when the me payload is unavailable.
             }
         })();
         return () => {
             cancelled = true;
         };
-    }, [accountId, status]);
+    }, [accountId, status, session?.user?.view_as_user_id]);
 
     const primaryColor =
         liveColors?.primary_color ?? session?.user?.primary_color ?? null;
@@ -153,7 +112,6 @@ export default function AccountThemeProvider({
     );
 
     // Sync CSS variables for components using rgb(var(--primary)), rgba(var(--primary), a), and --secondary
-    // Use default colors when session has no custom primary/secondary
     useEffect(() => {
         if (typeof document === "undefined") return;
         const root = document.documentElement;

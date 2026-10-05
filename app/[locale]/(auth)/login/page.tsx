@@ -65,6 +65,7 @@ import {
     isNestAuthEnabled,
     nestAccountBySubdomain,
     nestCredentialsLogin,
+    nestFetch,
     nestJwtClaimsFromToken,
     restoreNestAccessToken,
     setNestAccessToken,
@@ -376,20 +377,45 @@ function LoginPageContent() {
                 try {
                     redirectUrl = await Promise.race([
                         (async () => {
-                            const [accountRes, permRes] = await Promise.all([
-                                apiFetch(
-                                    `/api/entities/accounts/${accountId}`,
-                                    { credentials: "include" }
-                                ),
-                                apiFetch("/api/permissions/me", {
+                            const [meRes, permRes] = await Promise.all([
+                                nestFetch("/auth/me", {
+                                    headers: {
+                                        Authorization: `Bearer ${nestAccessToken}`,
+                                    },
                                     credentials: "include",
                                 }),
+                                apiFetch("/api/permissions/me", {
+                                    credentials: "include",
+                                    headers: {
+                                        Authorization: `Bearer ${nestAccessToken}`,
+                                    },
+                                }),
                             ]);
-                            const accountData = accountRes.ok
-                                ? await accountRes.json()
+                            const meData = meRes.ok
+                                ? await meRes.json()
                                 : null;
                             const permData = permRes.ok
                                 ? await permRes.json()
+                                : null;
+                            const accountData = meData
+                                ? {
+                                      id: meData.account_id,
+                                      name: meData.account_name,
+                                      has_collection:
+                                          meData.has_collection !== undefined
+                                              ? meData.has_collection
+                                              : true,
+                                      has_credit_insurance:
+                                          meData.has_credit_insurance === true,
+                                      is_demo: meData.is_demo === true,
+                                      last_sync_date:
+                                          meData.last_sync_date ?? null,
+                                      primary_color: meData.primary_color,
+                                      secondary_color: meData.secondary_color,
+                                      chart_palette_color:
+                                          meData.chart_palette_color,
+                                      currency: meData.currency,
+                                  }
                                 : null;
                             if (accountData && permData && claims?.sub) {
                                 storeLoginShellPrefetch({

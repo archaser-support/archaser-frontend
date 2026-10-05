@@ -1,4 +1,4 @@
-import api from "@/app/api";
+import { nestFetch } from "@/utils/nestAuth";
 
 /** Shared React Query key for the signed-in (effective) account shell payload. */
 export function sessionAccountQueryKey(
@@ -10,8 +10,32 @@ export function sessionAccountQueryKey(
 const inflightByAccountId = new Map<string, Promise<any>>();
 
 /**
- * Single-flight GET for session account so AppShell / header / theme
- * providers that race on mount share one network request.
+ * Map Nest GET /auth/me into the account-shaped object AppShell / header expect.
+ * Top-level product + sync fields are already effective-account (view-as aware).
+ */
+function sessionAccountFromMe(me: Record<string, unknown>) {
+    return {
+        id: me.effective_account_id ?? me.account_id,
+        name: me.account_name ?? null,
+        has_collection:
+            me.has_collection !== undefined ? me.has_collection : true,
+        has_credit_insurance: me.has_credit_insurance === true,
+        is_demo: me.is_demo === true,
+        last_sync_date: me.last_sync_date ?? null,
+        primary_color: me.primary_color ?? null,
+        secondary_color: me.secondary_color ?? null,
+        chart_palette_color: me.chart_palette_color ?? null,
+        currency: me.currency ?? null,
+        effective_user_id: me.effective_user_id ?? null,
+        effective_account_id: me.effective_account_id ?? null,
+        effective_role: me.effective_role ?? null,
+    };
+}
+
+/**
+ * Single-flight GET for session shell via Nest GET /auth/me so AppShell /
+ * header / theme providers that race on mount share one network request.
+ * `accountId` remains the React Query cache key (effective account).
  */
 export async function fetchSessionAccountById(
     accountId: number | string
@@ -22,11 +46,16 @@ export async function fetchSessionAccountById(
         return existing;
     }
 
-    const request = api
-        .get(`/entities/accounts/${accountId}`)
-        .then((response) => response.data)
+    const request = nestFetch("/auth/me", { credentials: "include" })
+        .then(async (response) => {
+            if (!response.ok) {
+                throw new Error("Failed to load Nest profile");
+            }
+            return sessionAccountFromMe(
+                (await response.json()) as Record<string, unknown>
+            );
+        })
         .finally(() => {
-            // Clear on next tick so same-tick callers still join this promise.
             setTimeout(() => {
                 if (inflightByAccountId.get(key) === request) {
                     inflightByAccountId.delete(key);
