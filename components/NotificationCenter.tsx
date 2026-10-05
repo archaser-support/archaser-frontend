@@ -88,10 +88,13 @@ interface NotificationStats {
 
 interface NotificationCenterProps {
     anchorElOverride?: HTMLElement | null;
+    /** When false, hide the Control Center type filter (no collection product). */
+    showControlCenterFilter?: boolean;
 }
 
 const NotificationCenter: React.FC<NotificationCenterProps> = ({
     anchorElOverride = null,
+    showControlCenterFilter = true,
 }) => {
     // Component initialization
     const { data: session, status: sessionStatus } = useSession();
@@ -117,6 +120,12 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
         return () =>
             window.removeEventListener("closeAllHeaderOverlays", handler);
     }, []);
+
+    useEffect(() => {
+        if (!showControlCenterFilter && filter === "control-center") {
+            setFilter("all");
+        }
+    }, [showControlCenterFilter, filter]);
 
     const TransitionDown = React.useMemo(
         () =>
@@ -909,13 +918,17 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
                                                 "All types"
                                             ),
                                         },
-                                        {
-                                            value: "control-center",
-                                            label: t(
-                                                "fields.filters_control_center",
-                                                "Control Center"
-                                            ),
-                                        },
+                                        ...(showControlCenterFilter
+                                            ? [
+                                                  {
+                                                      value: "control-center" as const,
+                                                      label: t(
+                                                          "fields.filters_control_center",
+                                                          "Control Center"
+                                                      ),
+                                                  },
+                                              ]
+                                            : []),
                                         {
                                             value: "dispute",
                                             label: t(

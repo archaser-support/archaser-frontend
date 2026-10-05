@@ -29,6 +29,9 @@ import {
 } from "@/utils/avatarUtils";
 import { formatDateForDisplay, getUserDateLocale, getUserTimezone } from "@/utils/datetimeOperations";
 
+import { accountProductsFromSessionAccount } from "@/shared/services/sessionAccountQuery";
+import { hasCollectionProduct } from "@/shared/utils/accountProducts";
+
 import GlobalSearch from "./GlobalSearch";
 import NotificationCenter from "./NotificationCenter";
 import ProfileMenu from "./ProfileMenu";
@@ -64,6 +67,9 @@ interface AppHeaderProps {
     sessionAccount?: {
         name?: string | null;
         last_sync_date?: string | Date | null;
+        has_collection?: boolean;
+        has_credit_insurance?: boolean;
+        is_demo?: boolean;
     } | null;
     lastSyncLoading?: boolean;
     onRefreshLastSync?: () => void;
@@ -88,6 +94,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 }) => {
     const theme = useTheme();
     const { t: tCommon } = useTranslation(["common"]);
+    const showControlCenterNotificationFilter = hasCollectionProduct(
+        accountProductsFromSessionAccount(sessionAccount)
+    );
 
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [viewAsAnchorEl, setViewAsAnchorEl] = useState<null | HTMLElement>(
@@ -728,6 +737,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                     >
                         <NotificationCenter
                             anchorElOverride={toolbarRef.current}
+                            showControlCenterFilter={
+                                showControlCenterNotificationFilter
+                            }
                         />
                     </Box>
 

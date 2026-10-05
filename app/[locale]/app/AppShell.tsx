@@ -457,32 +457,6 @@ const AppLayout = ({ children }: any) => {
         fetchCollectionAgents();
     }, [session?.user?.role, session?.user?.account_id]);
 
-    const { data: controlCenterStats } = useQuery({
-        queryKey: ["controlCenterStats"],
-        queryFn: async () => {
-            const response = await api.get(
-                "/api/system/control-center?operation=stats"
-            );
-            return response.data;
-        },
-        refetchInterval: 1000 * 60 * 5, // Refresh every 5 minutes
-        refetchOnWindowFocus: false,
-        staleTime: 1000 * 60 * 5, // Keep fresh for the poll interval
-        enabled: mounted && status === "authenticated", // Only run query after component is mounted and user is authenticated
-    });
-
-    const controlCenterIssueCount = useMemo(() => {
-        if (!controlCenterStats) return 0;
-        return (
-            (controlCenterStats.noContacts?.active || 0) +
-            (controlCenterStats.invalidContacts?.active || 0) +
-            (controlCenterStats.invoicesWithoutCustomer?.active ||
-                controlCenterStats.invoicesWithoutCustomer?.active ||
-                0) +
-            (controlCenterStats.orphanCreditInvoices?.active || 0)
-        );
-    }, [controlCenterStats]);
-
     // Helper function to get user display name
     const getUserDisplayName = (user: any) => {
         if (!user) {
@@ -648,6 +622,36 @@ const AppLayout = ({ children }: any) => {
     const hasFileImportProduct = isFileImportVisible(effectiveAccountProducts);
     const isCreditOnlyAccount =
         !hasCollectionProduct && hasCreditInsuranceProduct;
+
+    const { data: controlCenterStats } = useQuery({
+        queryKey: ["controlCenterStats"],
+        queryFn: async () => {
+            const response = await api.get(
+                "/api/system/control-center?operation=stats"
+            );
+            return response.data;
+        },
+        refetchInterval: 1000 * 60 * 5,
+        refetchOnWindowFocus: false,
+        staleTime: 1000 * 60 * 5,
+        enabled:
+            mounted &&
+            status === "authenticated" &&
+            !isLoadingAccountProducts &&
+            hasCollectionProduct,
+    });
+
+    const controlCenterIssueCount = useMemo(() => {
+        if (!controlCenterStats) return 0;
+        return (
+            (controlCenterStats.noContacts?.active || 0) +
+            (controlCenterStats.invalidContacts?.active || 0) +
+            (controlCenterStats.invoicesWithoutCustomer?.active ||
+                controlCenterStats.invoicesWithoutCustomer?.active ||
+                0) +
+            (controlCenterStats.orphanCreditInvoices?.active || 0)
+        );
+    }, [controlCenterStats]);
 
     // Only use permissions if they've been loaded (don't use empty array as fallback)
     const userPermissions = userPermissionsData?.permissions;
@@ -1015,7 +1019,7 @@ const AppLayout = ({ children }: any) => {
                                     },
                                 ]
                                 : []),
-                            ...(!isCreditOnlyAccount
+                            ...(hasCollectionProduct
                                 ? [
                                     {
                                         label: t("actions.navigation_control_center"),
