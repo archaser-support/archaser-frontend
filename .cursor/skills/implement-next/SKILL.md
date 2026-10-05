@@ -78,6 +78,7 @@ Give the implementer:
 - Parent PRD/plan path from `## Parent` (read it if present)
 - Instruction to satisfy **Acceptance criteria** and automated parts of **How to test**
 - Permission to edit backend **and** portal when the slice needs both
+- If the slice changes the database: add a SQL file under `prisma/migrations/` on the branch (CI). Do **not** wrap it in top-level `BEGIN;` / `COMMIT;`. Do not treat `db push` or an ad-hoc `ALTER` as the deliverable. Follow `archaser-backend/.cursor/rules/database.mdc`
 - **Do not commit, push, or open a PR**
 - Prefer TDD when adding behavior (`.cursor/skills/tdd/SKILL.md` if useful)
 - Return a short result: what changed, suggested automated test commands, any blockers, leftover manual checks
@@ -89,13 +90,14 @@ Completion criterion: implementer returned; working tree may be dirty.
 ### 5. Done gate (orchestrator verifies)
 
 1. Derive automated test commands from the issue’s How to test / PRD seams (unit/integration only).
-2. **Run them yourself** in the shell — do not trust the implementer’s word alone.
-3. If **red**:
+2. If the slice changes the database: confirm a new/updated file exists under `prisma/migrations/` and it has **no** top-level `BEGIN;` / `COMMIT;`. If missing or wrapped, treat the gate as **red**.
+3. **Run them yourself** in the shell — do not trust the implementer’s word alone.
+4. If **red**:
    - Leave `Status: in-progress`
    - **Stop the chain**
    - Report: issue path, failing commands/output summary, that the user can re-run `/implement-next <slug>` to resume
    - End turn
-4. If **green**:
+5. If **green**:
    - Set `Status: done`
    - Optionally check off completed Acceptance criteria boxes in the issue file
    - Loop to **step 2** (next slice)
