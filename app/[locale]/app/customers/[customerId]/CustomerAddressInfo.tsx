@@ -2,10 +2,13 @@
 
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import { Box, Typography, Card, CardContent } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
 import React from "react";
 
 import CustomerFormField from "./CustomerFormField";
+import {
+    customerSectionCardContentSx,
+    customerSectionHeaderSx,
+} from "./customerCardStyles";
 
 interface CustomerAddressInfoProps {
     customer: any;
@@ -30,7 +33,6 @@ const CustomerAddressInfo: React.FC<CustomerAddressInfoProps> = ({
     t,
     i18n,
 }) => {
-    const theme = useTheme();
     const isRTL = i18n.language === "he";
     const direction = isRTL ? "rtl" : "ltr";
     const textAlign = isRTL ? "right" : "left";
@@ -91,36 +93,30 @@ const CustomerAddressInfo: React.FC<CustomerAddressInfoProps> = ({
             sx={{
                 border: "none",
                 borderRadius: { xs: 1, sm: 2 },
-                mb: { xs: 2, sm: 4 },
+                mb: 0,
                 boxShadow: "none",
             }}
         >
-            <Box
-                sx={{
-                    p: { xs: 1, sm: 1.25 },
-                    mb: theme.spacing(1),
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                }}
-            >
-                <LocationOnIcon
-                    sx={{
-                        color: "primary.main",
-                        fontSize: { xs: 18, sm: 20 },
-                    }}
-                />
-                <Typography
-                    variant="h6"
-                    sx={{
-                        fontWeight: 500,
-                        fontSize: { xs: "1rem", sm: "1.25rem" },
-                    }}
-                >
-                    {t("sections.address_information")}
-                </Typography>
+            <Box sx={customerSectionHeaderSx}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <LocationOnIcon
+                        sx={{
+                            color: "primary.main",
+                            fontSize: { xs: 18, sm: 20 },
+                        }}
+                    />
+                    <Typography
+                        variant="h6"
+                        sx={{
+                            fontWeight: 500,
+                            fontSize: { xs: "1rem", sm: "1.25rem" },
+                        }}
+                    >
+                        {t("sections.address_information")}
+                    </Typography>
+                </Box>
             </Box>
-            <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+            <CardContent sx={customerSectionCardContentSx}>
                 <Box
                     sx={{
                         display: "grid",
