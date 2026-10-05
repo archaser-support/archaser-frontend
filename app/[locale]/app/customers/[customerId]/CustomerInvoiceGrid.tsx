@@ -18,7 +18,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import api from "@/app/api";
+import api, { apiFetch } from "@/app/api";
 import ClaimFormDialog from "@/app/[locale]/app/claims/ClaimFormDialog";
 import { ViewBasedDataGrid } from "@/shared/components/ViewBasedDataGrid/ViewBasedDataGrid";
 import {
@@ -94,10 +94,11 @@ function getInvoiceStatusName(row: Record<string, unknown>): string {
 function isDueOrOverdueInvoiceStatus(
     row: Record<string, unknown>,
     dueLabel: string,
-    overdueLabel: string
+    overdueLabel: string,
+    /** System Due/Overdue reports omit status in fields; treat every row as matching. */
+    reportImpliesDueOrOverdue = false
 ): boolean {
-    const statusId = Number(getInvoiceFieldFromGridRow(row, "status_id"));
-    if (statusId === 3 || statusId === 13) {
+    if (reportImpliesDueOrOverdue) {
         return true;
     }
     const statusName = getInvoiceStatusName(row).trim().toLowerCase();
@@ -223,6 +224,23 @@ const CustomerInvoiceGrid: React.FC<CustomerProp> = ({
         enabled: hasCreditProduct && parsedCustomerId != null,
         staleTime: 30 * 1000,
     });
+
+    const { data: selectedReportMeta } = useQuery({
+        queryKey: ["report", "meta", selectedViewId],
+        queryFn: async () => {
+            const res = await apiFetch(`/api/reports/${selectedViewId}`);
+            if (!res.ok) {
+                return null;
+            }
+            return (await res.json()) as { unique_name?: string };
+        },
+        enabled: selectedViewId != null,
+        staleTime: 60 * 1000,
+    });
+
+    const reportImpliesDueOrOverdue =
+        selectedReportMeta?.unique_name === "due_invoices" ||
+        selectedReportMeta?.unique_name === "overdue_invoices";
 
     const mepIgnoredInvoiceIds = useMemo(() => {
         const ids = new Set<number>();
@@ -778,7 +796,8 @@ const CustomerInvoiceGrid: React.FC<CustomerProp> = ({
                 isDueOrOverdueInvoiceStatus(
                     row,
                     t("values.invoice_status_due", { ns: "invoices" }),
-                    t("values.invoice_status_overdue", { ns: "invoices" })
+                    t("values.invoice_status_overdue", { ns: "invoices" }),
+                    reportImpliesDueOrOverdue
                 );
             const isMepIgnored = mepIgnoredInvoiceIds.has(invoiceId);
             const isTogglingMepIgnore =
@@ -786,6 +805,7 @@ const CustomerInvoiceGrid: React.FC<CustomerProp> = ({
                 togglingMepIgnoreInvoiceId === invoiceId;
             const showOpenClaim =
                 invoiceStatusName === "Overdue" ||
+                selectedReportMeta?.unique_name === "overdue_invoices" ||
                 (Number.isFinite(invoiceId) &&
                     claimedInvoiceIds.has(invoiceId));
             return (
@@ -982,6 +1002,8 @@ const CustomerInvoiceGrid: React.FC<CustomerProp> = ({
             mepIgnoredInvoiceIds,
             togglingMepIgnoreInvoiceId,
             handleToggleMepIgnore,
+            reportImpliesDueOrOverdue,
+            selectedReportMeta?.unique_name,
         ]
     );
 
