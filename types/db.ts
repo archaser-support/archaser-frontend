@@ -1847,6 +1847,7 @@ export type Invoice = {
     ctv_outdated_dcl: boolean;
     ctv_invoice_after_policy_end: boolean;
     in_capacity_gap: boolean;
+    mep_ignored: boolean;
     limit_assessed_amount: Decimal | null;
     limit_assessed_at: Date | null;
     limit_assessed_currency: string | null;
