@@ -155,11 +155,13 @@ function TopUpBarWithPeak(props: {
                             dy="0.35em"
                             fill={CPH.ink}
                             fontSize={11}
-                            fontVariantNumeric="tabular-nums"
                             stroke={CPH.card}
                             strokeWidth={3}
                             paintOrder="stroke"
-                            style={{ paintOrder: "stroke fill" }}
+                            style={{
+                                paintOrder: "stroke fill",
+                                fontVariantNumeric: "tabular-nums",
+                            }}
                         >
                             {duration}
                         </text>
@@ -339,14 +341,14 @@ function DrawTooltip({
 }
 
 function CustomerNameTick(props: {
-    x?: number;
-    y?: number;
+    x?: number | string;
+    y?: number | string;
     payload?: { value?: string };
     names: Map<string, string>;
     isRtl: boolean;
 }) {
-    const x = props.x ?? 0;
-    const y = props.y ?? 0;
+    const x = Number(props.x ?? 0);
+    const y = Number(props.y ?? 0);
     const raw = props.payload as { value?: string; rowKey?: string } | undefined;
     const key = String(raw?.value ?? raw?.rowKey ?? "");
     const name = props.names.get(key) ?? key;
