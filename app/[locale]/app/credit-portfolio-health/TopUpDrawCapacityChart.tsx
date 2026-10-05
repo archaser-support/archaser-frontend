@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef } from "react";
-import { createPortal } from "react-dom";
+import { CustomerNameYTick, CUSTOMER_NAME_Y_AXIS_WIDTH } from "./CustomerNameYTick";
 import { useTranslation } from "react-i18next";
 import { RefreshCw } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
@@ -31,7 +31,6 @@ import {
 import layout from "./islandLayout.module.css";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
-const Y_AXIS_WIDTH = 180;
 const ROW_HEIGHT = 36;
 const VISIBLE_ROWS = 10;
 const AXIS_HEIGHT = 32;
@@ -249,27 +248,17 @@ function DrawTooltip({
     ];
 
     const isRtl = language === "he" || language.startsWith("he-");
-    const chartRect = chartEl?.getBoundingClientRect();
-    const tooltipWidth = 280;
-    const tooltipHeight = 220;
-    const rawLeft = (chartRect?.left ?? 0) + (coordinate?.x ?? 0) + 12;
-    const rawTop = (chartRect?.top ?? 0) + (coordinate?.y ?? 0) + 12;
-    const viewW =
-        typeof window === "undefined" ? rawLeft + tooltipWidth : window.innerWidth;
-    const viewH =
-        typeof window === "undefined" ? rawTop + tooltipHeight : window.innerHeight;
-    const left = Math.min(Math.max(8, rawLeft), viewW - tooltipWidth - 8);
-    const top = Math.min(Math.max(8, rawTop), viewH - tooltipHeight - 8);
 
-    const node = (
+    return (
+        <PortaledHoverTooltip
+            active={active}
+            coordinate={coordinate}
+            chartEl={chartEl}
+            estimatedHeight={220}
+        >
         <div
             dir={isRtl ? "rtl" : "ltr"}
             style={{
-                position: "fixed",
-                left,
-                top,
-                zIndex: 1300,
-                pointerEvents: "none",
                 maxWidth: 280,
                 borderRadius: 8,
                 border: `1px solid ${CPH.border}`,
@@ -332,49 +321,7 @@ function DrawTooltip({
                 ))}
             </ul>
         </div>
-    );
-
-    if (typeof document === "undefined") {
-        return node;
-    }
-    return createPortal(node, document.body);
-}
-
-function CustomerNameTick(props: {
-    x?: number | string;
-    y?: number | string;
-    payload?: { value?: string };
-    names: Map<string, string>;
-    isRtl: boolean;
-}) {
-    const x = Number(props.x ?? 0);
-    const y = Number(props.y ?? 0);
-    const raw = props.payload as { value?: string; rowKey?: string } | undefined;
-    const key = String(raw?.value ?? raw?.rowKey ?? "");
-    const name = props.names.get(key) ?? key;
-    const width = Y_AXIS_WIDTH - 8;
-    return (
-        <foreignObject
-            x={x - width}
-            y={y - 10}
-            width={width}
-            height={20}
-        >
-            <div
-                style={{
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    direction: props.isRtl ? "rtl" : "ltr",
-                    textAlign: "right",
-                    fontSize: 11.5,
-                    lineHeight: "20px",
-                    color: CPH.slate,
-                }}
-            >
-                {name}
-            </div>
-        </foreignObject>
+        </PortaledHoverTooltip>
     );
 }
 
@@ -637,7 +584,7 @@ export function TopUpDrawCapacityChart({
                                 <YAxis
                                     type="category"
                                     dataKey="rowKey"
-                                    width={Y_AXIS_WIDTH}
+                                    width={CUSTOMER_NAME_Y_AXIS_WIDTH}
                                     hide
                                 />
                             </ComposedChart>
@@ -674,11 +621,11 @@ export function TopUpDrawCapacityChart({
                                     <YAxis
                                         type="category"
                                         dataKey="rowKey"
-                                        width={Y_AXIS_WIDTH}
+                                        width={CUSTOMER_NAME_Y_AXIS_WIDTH}
                                         interval={0}
                                         tickMargin={6}
                                         tick={(tickProps) => (
-                                            <CustomerNameTick
+                                            <CustomerNameYTick
                                                 x={tickProps.x}
                                                 y={tickProps.y}
                                                 payload={tickProps.payload}
