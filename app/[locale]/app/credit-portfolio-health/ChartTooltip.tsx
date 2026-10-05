@@ -1,6 +1,7 @@
 "use client";
 
 import { CPH } from "./designTokens";
+import { PortaledHoverTooltip } from "./PortaledHoverTooltip";
 
 type TooltipPayloadItem = {
     name?: string;
@@ -40,6 +41,9 @@ export type ChartTooltipProps = {
     formatValue?: (value: number, name?: string) => string;
     /** When Hebrew, flip tooltip layout (RTL) like ApexCharts credit-dashboard tooltips. */
     language?: string;
+    coordinate?: { x: number; y: number };
+    /** When set, portal like Top-up draw so the box is not clipped by the card. */
+    chartEl?: HTMLElement | null;
 };
 
 export function ChartTooltip({
@@ -49,6 +53,8 @@ export function ChartTooltip({
     items: explicitItems,
     formatValue,
     language,
+    coordinate,
+    chartEl,
 }: ChartTooltipProps) {
     const items = uniqueTooltipItems(explicitItems ?? payload ?? []);
     if (!active || items.length === 0) {
@@ -59,7 +65,7 @@ export function ChartTooltip({
         language != null &&
         (language === "he" || language.startsWith("he-"));
 
-    return (
+    const body = (
         <div
             dir={isRtl ? "rtl" : "ltr"}
             style={{
@@ -160,5 +166,19 @@ export function ChartTooltip({
                 })}
             </ul>
         </div>
+    );
+
+    if (chartEl == null) {
+        return body;
+    }
+
+    return (
+        <PortaledHoverTooltip
+            active={active}
+            coordinate={coordinate}
+            chartEl={chartEl}
+        >
+            {body}
+        </PortaledHoverTooltip>
     );
 }

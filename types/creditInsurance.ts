@@ -511,7 +511,7 @@ export type PortfolioUtilizationSection = {
     averageTopUpUtilizationPct: number | null;
     /** Unique top-ups active on at least one day in the range. */
     periodActiveTopUpCount: number;
-    /** Unique customers with an active top-up on at least one day in the range. */
+    /** Unique roots with top-up cover on at least one day (shells include child cover). */
     periodCustomersWithTopUp: number;
     /**
      * Customers with active top-up cover in the range (peak usage may
