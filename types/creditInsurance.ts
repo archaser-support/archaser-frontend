@@ -409,6 +409,24 @@ export type PortfolioUtilizationDailyPoint = {
     customersWithActiveTopUp: number;
 };
 
+export type PortfolioTopUpDrawCustomer = {
+    customerId: number;
+    customerName: string;
+    policyLimit: number;
+    topUpTotal: number;
+    peakUsageAmount: number;
+    peakTopUpUsagePct: number | null;
+    peakDate: string;
+    durationDays: number;
+    daysUsed: number;
+};
+
+export type PortfolioTopUpDrawSection = {
+    customerCount: number;
+    averageDurationDays: number | null;
+    customers: PortfolioTopUpDrawCustomer[];
+};
+
 export type PortfolioUtilizationTopCustomer = {
     customerId: number;
     customerName: string;
@@ -495,6 +513,11 @@ export type PortfolioUtilizationSection = {
     periodActiveTopUpCount: number;
     /** Unique customers with an active top-up on at least one day in the range. */
     periodCustomersWithTopUp: number;
+    /**
+     * Customers with active top-up cover in the range (peak usage may
+     * stay inside the policy limit).
+     */
+    topUpDraw?: PortfolioTopUpDrawSection;
     topCustomers: PortfolioUtilizationTopCustomer[];
     efficiencyA: number | null;
     /** @deprecated Health B removed from UI; kept null for API compatibility. */

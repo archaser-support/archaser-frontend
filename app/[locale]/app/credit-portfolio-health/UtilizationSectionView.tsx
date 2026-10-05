@@ -35,6 +35,7 @@ import { ChartTooltip } from "./ChartTooltip";
 import { Eyebrow } from "./Eyebrow";
 import { IslandCard } from "./IslandCard";
 import { UtilizationDailyChart } from "./UtilizationDailyChart";
+import { TopUpDrawCapacityChart } from "./TopUpDrawCapacityChart";
 import { StatNumber } from "./StatNumber";
 import { CPH } from "./designTokens";
 import { SPACE_GROTESK_FONT_FAMILY } from "./fontTokens";
@@ -375,9 +376,17 @@ export function UtilizationSectionView({
             section.topCustomers.map((item) => {
                 const utilization =
                     item.utilizationPct != null ? item.utilizationPct : 0;
-                const barPolicyPct = item.barPolicyPct ?? utilization;
+                let barPolicyPct = item.barPolicyPct ?? utilization;
                 const barTopUpPct = item.barTopUpPct ?? 0;
-                const barOverPct = item.barOverPct ?? 0;
+                let barOverPct = item.barOverPct ?? 0;
+                if (
+                    barOverPct === 0 &&
+                    barTopUpPct === 0 &&
+                    barPolicyPct > 100
+                ) {
+                    barOverPct = barPolicyPct - 100;
+                    barPolicyPct = 100;
+                }
                 return {
                     name: item.customerName,
                     utilization,
@@ -1220,6 +1229,16 @@ export function UtilizationSectionView({
                     </div>
                 </IslandCard>
             ) : null}
+
+            <TopUpDrawCapacityChart
+                customers={section.topUpDraw?.customers ?? []}
+                customerCount={section.topUpDraw?.customerCount ?? 0}
+                averageDurationDays={
+                    section.topUpDraw?.averageDurationDays ?? null
+                }
+                daily={section.daily}
+                accountCurrency={section.accountCurrency}
+            />
 
             {topCustomersChartData.length > 0 ? (
                 <IslandCard
