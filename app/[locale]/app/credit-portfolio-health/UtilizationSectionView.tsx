@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
     Activity,
@@ -32,6 +32,7 @@ import { applyCreditReportDocumentTitle } from "../credit-dashboard/report/credi
 import { formatPortfolioMoney } from "./formatPortfolioMoney";
 import { BigNumber } from "./BigNumber";
 import { ChartTooltip } from "./ChartTooltip";
+import { CustomerNameYTick, CUSTOMER_NAME_Y_AXIS_WIDTH } from "./CustomerNameYTick";
 import { Eyebrow } from "./Eyebrow";
 import { IslandCard } from "./IslandCard";
 import { UtilizationDailyChart } from "./UtilizationDailyChart";
@@ -166,23 +167,6 @@ function formatPct(value: number, language: string, decimals = 1): string {
         minimumFractionDigits: decimals,
         maximumFractionDigits: decimals,
     })}%`;
-}
-
-/** Leave room for long legal names; ellipsis via tick keeps bars clear. */
-const TOP_CUSTOMERS_Y_AXIS_WIDTH = 180;
-const TOP_CUSTOMERS_Y_LABEL_MAX_CHARS = 22;
-
-function truncateChartLabel(
-    value: string,
-    maxChars: number,
-    rtl: boolean
-): string {
-    if (value.length <= maxChars) {
-        return value;
-    }
-    const truncated = value.slice(0, Math.max(0, maxChars - 1));
-    // Chart SVG is LTR; prefix … in RTL so it sits on the visual left.
-    return rtl ? `…${truncated}` : `${truncated}…`;
 }
 
 type DistributionChartRow = {
@@ -348,6 +332,8 @@ export function UtilizationSectionView({
     const language = i18n.language;
     const isRtl = language === "he" || language.startsWith("he-");
     const ns = { ns: "dashboard" as const };
+    const [topCustomersChartEl, setTopCustomersChartEl] =
+        useState<HTMLDivElement | null>(null);
     const prefersReducedMotion = usePrefersReducedMotion();
     const animDuration = prefersReducedMotion ? 0 : 1100;
     const router = useRouter();
@@ -796,7 +782,7 @@ export function UtilizationSectionView({
                     help={t("credit_portfolio_health.kpi_top_ups_help", {
                         ...ns,
                         defaultValue:
-                            "Top-up count: policies active any time in the period. Customers with top-up: average daily count with at least one active top-up.",
+                            "Top-up count: policies active any time in the period. Customers with top-up: unique roots (including credit-pool shells) with top-up cover on at least one day — same set as Top-up draw.",
                     })}
                 >
                     {t("credit_portfolio_health.kpi_top_ups_title", {
@@ -1259,6 +1245,7 @@ export function UtilizationSectionView({
                         })}
                     </Eyebrow>
                     <div
+                        ref={setTopCustomersChartEl}
                         style={{
                             width: "100%",
                             height: topChartHeight,
@@ -1295,25 +1282,34 @@ export function UtilizationSectionView({
                                 <YAxis
                                     type="category"
                                     dataKey="name"
-                                    width={TOP_CUSTOMERS_Y_AXIS_WIDTH}
+                                    width={CUSTOMER_NAME_Y_AXIS_WIDTH}
+                                    interval={0}
                                     tickMargin={6}
-                                    tick={{ fill: CPH.slate, fontSize: 11.5 }}
-                                    tickFormatter={(value: string) =>
-                                        truncateChartLabel(
-                                            value,
-                                            TOP_CUSTOMERS_Y_LABEL_MAX_CHARS,
-                                            isRtl
-                                        )
-                                    }
+                                    tick={(tickProps) => (
+                                        <CustomerNameYTick
+                                            x={tickProps.x}
+                                            y={tickProps.y}
+                                            payload={tickProps.payload}
+                                            isRtl={isRtl}
+                                        />
+                                    )}
                                     axisLine={false}
                                     tickLine={false}
                                     reversed={isRtl}
                                 />
                                 <Tooltip
                                     cursor={{ fill: CPH.surfaceMuted }}
+                                    allowEscapeViewBox={{
+                                        x: true,
+                                        y: true,
+                                    }}
+                                    wrapperStyle={{
+                                        pointerEvents: "none",
+                                    }}
                                     content={
                                         <ChartTooltip
                                             language={language}
+                                            chartEl={topCustomersChartEl}
                                             formatValue={(v) =>
                                                 formatPct(v, language)
                                             }
