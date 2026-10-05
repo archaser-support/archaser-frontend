@@ -91,6 +91,27 @@ function getInvoiceStatusName(row: Record<string, unknown>): string {
     return "";
 }
 
+function isDueOrOverdueInvoiceStatus(
+    row: Record<string, unknown>,
+    dueLabel: string,
+    overdueLabel: string
+): boolean {
+    const statusId = Number(getInvoiceFieldFromGridRow(row, "status_id"));
+    if (statusId === 3 || statusId === 13) {
+        return true;
+    }
+    const statusName = getInvoiceStatusName(row).trim().toLowerCase();
+    if (!statusName) {
+        return false;
+    }
+    const allowed = new Set(
+        ["due", "overdue", dueLabel, overdueLabel]
+            .map((s) => s.trim().toLowerCase())
+            .filter(Boolean)
+    );
+    return allowed.has(statusName);
+}
+
 function getInvoiceAmountFromRow(row: Record<string, unknown>): number | null {
     const raw = getInvoiceFieldFromGridRow(row, "amount");
     if (raw == null || raw === "") {
@@ -153,6 +174,8 @@ const CustomerInvoiceGrid: React.FC<CustomerProp> = ({
 
     const customer = propCustomer || fetchedCustomer;
 
+    const hasCreditProduct = isCreditInsuranceAccount;
+
     const hasCustomerPolicy = Boolean(
         (customer as Customer & { InsurancePolicy?: { id?: number } | null })
             ?.InsurancePolicy?.id ??
@@ -197,10 +220,7 @@ const CustomerInvoiceGrid: React.FC<CustomerProp> = ({
             });
             return res.data as { invoiceIds?: number[] };
         },
-        enabled:
-            isCreditInsuranceAccount &&
-            hasCustomerPolicy &&
-            parsedCustomerId != null,
+        enabled: hasCreditProduct && parsedCustomerId != null,
         staleTime: 30 * 1000,
     });
 
@@ -740,10 +760,11 @@ const CustomerInvoiceGrid: React.FC<CustomerProp> = ({
 
     const actionsColumnRenderer = useCallback(
         (params: GridRenderCellParams) => {
-            const rawId = params?.row?.id;
+            const row = params.row as Record<string, unknown>;
+            const rawId =
+                getInvoiceFieldFromGridRow(row, "id") ?? params?.row?.id;
             const invoiceId =
                 typeof rawId === "number" ? rawId : Number(rawId);
-            const row = params.row as Record<string, unknown>;
             const isIssuingThis =
                 issuingClaimInvoiceId != null &&
                 issuingClaimInvoiceId === invoiceId;
@@ -752,12 +773,13 @@ const CustomerInvoiceGrid: React.FC<CustomerProp> = ({
             const isCreditNote =
                 invoiceAmount != null && invoiceAmount < 0;
             const showMepIgnore =
-                isCreditInsuranceAccount &&
-                hasCustomerPolicy &&
+                hasCreditProduct &&
                 !isCreditNote &&
-                (invoiceStatusName === "Due" ||
-                    invoiceStatusName === "Overdue" ||
-                    invoiceStatusName === "");
+                isDueOrOverdueInvoiceStatus(
+                    row,
+                    t("values.invoice_status_due", { ns: "invoices" }),
+                    t("values.invoice_status_overdue", { ns: "invoices" })
+                );
             const isMepIgnored = mepIgnoredInvoiceIds.has(invoiceId);
             const isTogglingMepIgnore =
                 togglingMepIgnoreInvoiceId != null &&
@@ -774,7 +796,7 @@ const CustomerInvoiceGrid: React.FC<CustomerProp> = ({
                         gap: 0.25,
                     }}
                 >
-                    {isCreditInsuranceAccount && hasCustomerPolicy && (
+                    {hasCreditProduct && (
                         <Tooltip
                             title={t("credit_insurance_reporting.edit_title", {
                                 ns: "customers",
@@ -950,7 +972,7 @@ const CustomerInvoiceGrid: React.FC<CustomerProp> = ({
         [
             t,
             i18n,
-            isCreditInsuranceAccount,
+            hasCreditProduct,
             isCollectionAccount,
             hasCustomerPolicy,
             openCreditInsuranceReportingModal,
@@ -964,7 +986,8 @@ const CustomerInvoiceGrid: React.FC<CustomerProp> = ({
     );
 
     const showActionsColumn =
-        hasCustomerPolicy && (isCreditInsuranceAccount || isCollectionAccount);
+        hasCreditProduct ||
+        (hasCustomerPolicy && isCollectionAccount);
 
     const additionalDataColumns = useMemo(
         () =>
