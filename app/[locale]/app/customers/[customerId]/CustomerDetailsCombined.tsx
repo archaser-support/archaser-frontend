@@ -183,7 +183,7 @@ function muiTabsValueToActiveTab(
 const ActivityTimeline = dynamic(() => import("./ActivityTimeline"), {
     ssr: false,
 });
-const UnpaidInvoiceList = dynamic(() => import("./UnpaidInvoiceList"), {
+const CustomerInvoiceGrid = dynamic(() => import("./CustomerInvoiceGrid"), {
     ssr: false,
 });
 const LogActivity = dynamic(() => import("./LogActivity"), {
@@ -460,7 +460,7 @@ const InvoicesTab = React.memo(
                     flexDirection: "column",
                 }}
             >
-                <UnpaidInvoiceList
+                <CustomerInvoiceGrid
                     customer={customer}
                     isCreditInsuranceAccount={isCreditInsuranceAccount}
                     isCollectionAccount={isCollectionAccount}

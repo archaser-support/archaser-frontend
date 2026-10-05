@@ -79,7 +79,16 @@ export function useAppHomePath(): UseAppHomePathResult {
             staleTime: 60 * 1000,
         });
 
+    const sessionHomePath =
+        !session?.user?.view_as_user_id && session?.user?.homePath
+            ? session.user.homePath
+            : undefined;
+
     const homePath = useMemo(() => {
+        if (sessionHomePath) {
+            return sessionHomePath;
+        }
+
         if (!isAuthenticated) {
             return appHomePathFallback;
         }
@@ -101,6 +110,7 @@ export function useAppHomePath(): UseAppHomePathResult {
             accountProducts,
         });
     }, [
+        sessionHomePath,
         isAuthenticated,
         isAdminAccount,
         effectiveAccountId,
@@ -113,6 +123,7 @@ export function useAppHomePath(): UseAppHomePathResult {
     const isLoading =
         isAuthenticated &&
         !isAdminAccount &&
+        !sessionHomePath &&
         (isLoadingPermissions || isLoadingAccountProducts);
 
     return { homePath, isLoading };

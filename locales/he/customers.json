@@ -194,7 +194,7 @@
         "invoices": "חשבוניות",
         "policies": "פוליסות",
         "settings": "הגדרות",
-        "outstanding_invoices": "חשבוניות בפיגור ובתוקף",
+        "outstanding_invoices": "חשבוניות",
         "relevant_bank_accounts": "חשבונות בנק רלוונטיים",
         "address_information": "מידע על כתובת",
         "general_information": "מידע כללי",
@@ -347,6 +347,14 @@
         "save_success": "תאריך התשלום האחרון ותאריכי היעד עודכנו",
         "invalid_invoice": "חשבונית לא תקינה",
         "date_required": "נא לבחור תאריך תשלום אחרון"
+    },
+    "mep_ignore": {
+        "ignore_action": "התעלם בחישוב MEP",
+        "unignore_action": "כלול בחישוב MEP",
+        "save_success_ignored": "החשבונית לא תיכלל בחישוב MEP",
+        "save_success_unignored": "החשבונית תיכלל שוב בחישוב MEP",
+        "save_error": "לא ניתן לעדכן התעלמות MEP",
+        "invalid_invoice": "חשבונית לא תקינה"
     },
     "credit_insurance_violations": {
         "column_title": "מכיל חריגות / הפרות",
