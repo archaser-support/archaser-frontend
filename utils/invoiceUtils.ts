@@ -1,10 +1,6 @@
 import { updateInvoice } from "@/shared/services/InvoiceStatusService";
 
-import {
-    invalidateUnpaidInvoiceListQueries,
-    invalidateControlCenterStats,
-    BatchCacheInvalidator,
-} from "./cacheUtils";
+import { BatchCacheInvalidator } from "./cacheUtils";
 
 /**
  * Update an invoice with automatic cache invalidation
@@ -26,7 +22,7 @@ export const updateInvoiceWithCacheInvalidation = async (
         // Mark control center stats for invalidation since invoice changes affect the stats
         batchInvalidator.markControlCenterForInvalidation();
 
-        // Invalidate UnpaidInvoiceList queries for affected customers
+        // Invalidate CustomerInvoiceGrid queries for affected customers
         if (result?.affectedCustomerIds && result.affectedCustomerIds.length > 0) {
             batchInvalidator.addAffectedCustomers(result.affectedCustomerIds);
         }

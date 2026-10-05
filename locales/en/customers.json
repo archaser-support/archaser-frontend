@@ -204,7 +204,7 @@
         "invoices": "Invoices",
         "policies": "Policies",
         "settings": "Settings",
-        "outstanding_invoices": "Due and Overdue Invoices",
+        "outstanding_invoices": "Invoices",
         "relevant_bank_accounts": "Relevant Bank Accounts",
         "address_information": "Address Information",
         "general_information": "General Information",
@@ -357,6 +357,14 @@
         "save_success": "Last payment date and target dates updated",
         "invalid_invoice": "Invalid invoice",
         "date_required": "Please select a last payment date"
+    },
+    "mep_ignore": {
+        "ignore_action": "Ignore for MEP",
+        "unignore_action": "Include in MEP",
+        "save_success_ignored": "Invoice ignored for MEP",
+        "save_success_unignored": "Invoice included in MEP again",
+        "save_error": "Could not update MEP ignore",
+        "invalid_invoice": "Invalid invoice"
     },
     "credit_insurance_violations": {
         "column_title": "Contains breaches / violations",
