@@ -200,6 +200,9 @@ export function CreditPolicyUsageChart(props: {
                 : baseUsedWithin,
         [baseUsedWithin, showTopUpBar, topUpUsedWithin]
     );
+    const hasTopUpCoveredInChart =
+        showTopUpBar ||
+        baseTopUpCovered.some((value) => value > 0);
 
     const options = useMemo<ApexOptions>(
         () => ({
@@ -265,12 +268,14 @@ export function CreditPolicyUsageChart(props: {
                     },
                 },
             },
-            colors: [
-                chartMain,
-                remainingFill,
-                topUpCoveredFill,
-                theme.palette.error.main,
-            ],
+            colors: hasTopUpCoveredInChart
+                ? [
+                      chartMain,
+                      remainingFill,
+                      topUpCoveredFill,
+                      theme.palette.error.main,
+                  ]
+                : [chartMain, remainingFill, theme.palette.error.main],
             legend: { position: "bottom", horizontalAlign: "center" },
             grid: {
                 borderColor: gridLineColor,
@@ -396,6 +401,7 @@ export function CreditPolicyUsageChart(props: {
             language,
             remainingFill,
             showTopUpBar,
+            hasTopUpCoveredInChart,
             t,
             topUpCapacity,
             topUpCoveredFill,
@@ -410,27 +416,42 @@ export function CreditPolicyUsageChart(props: {
         ]
     );
 
-    /** Stacked bottomâ†’top: used, remaining, top-up covered excess, uncovered. */
-    const series = useMemo(
-        () => [
-            {
-                name: t(
-                    "credit_insurance_dashboard.policy_usage_legend_used",
-                    nsDashboard
-                ),
-                type: "column",
-                data: usedSeriesValues,
-            },
-            {
-                name: t(
-                    "credit_insurance_dashboard.policy_usage_legend_remaining",
-                    nsDashboard
-                ),
-                type: "column",
-                data: showTopUpBar
-                    ? [...baseRemaining, topUpRemaining]
-                    : baseRemaining,
-            },
+    /** Stacked bottom→top: used, remaining, top-up covered excess, uncovered. */
+    const series = useMemo(() => {
+        const used = {
+            name: t(
+                "credit_insurance_dashboard.policy_usage_legend_used",
+                nsDashboard
+            ),
+            type: "column",
+            data: usedSeriesValues,
+        };
+        const remaining = {
+            name: t(
+                "credit_insurance_dashboard.policy_usage_legend_remaining",
+                nsDashboard
+            ),
+            type: "column",
+            data: showTopUpBar
+                ? [...baseRemaining, topUpRemaining]
+                : baseRemaining,
+        };
+        const overLimit = {
+            name: t(
+                "credit_insurance_dashboard.policy_usage_legend_over_limit",
+                nsDashboard
+            ),
+            type: "column",
+            data: showTopUpBar
+                ? [...baseUncovered, topUpOver]
+                : baseUncovered,
+        };
+        if (!hasTopUpCoveredInChart) {
+            return [used, remaining, overLimit];
+        }
+        return [
+            used,
+            remaining,
             {
                 name: t(
                     "credit_insurance_dashboard.policy_usage_legend_top_up_covered",
@@ -444,28 +465,19 @@ export function CreditPolicyUsageChart(props: {
                     ? [...baseTopUpCovered, 0]
                     : baseTopUpCovered,
             },
-            {
-                name: t(
-                    "credit_insurance_dashboard.policy_usage_legend_over_limit",
-                    nsDashboard
-                ),
-                type: "column",
-                data: showTopUpBar
-                    ? [...baseUncovered, topUpOver]
-                    : baseUncovered,
-            },
-        ],
-        [
-            baseRemaining,
-            baseTopUpCovered,
-            baseUncovered,
-            showTopUpBar,
-            t,
-            topUpOver,
-            topUpRemaining,
-            usedSeriesValues,
-        ]
-    );
+            overLimit,
+        ];
+    }, [
+        baseRemaining,
+        baseTopUpCovered,
+        baseUncovered,
+        hasTopUpCoveredInChart,
+        showTopUpBar,
+        t,
+        topUpOver,
+        topUpRemaining,
+        usedSeriesValues,
+    ]);
 
     const policyUsageCaption = useMemo(
         () => categoryFullLabels.join(" · "),
