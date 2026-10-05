@@ -9,6 +9,7 @@ import {
 } from "@/shared/utils/sessionLanguageKeys";
 import { clearLoginShellPrefetch } from "@/shared/services/loginShellPrefetch";
 import { isNestUiMode } from "@/utils/amplifyMode";
+import { applyViewAsHeaders } from "@/utils/viewAsTransport";
 
 const NEST_TOKEN_KEY = "archaser_nest_access_token";
 const LOGIN_HANDOFF_STORAGE_KEY = "loginHandoffInProgress";
@@ -234,10 +235,15 @@ export async function nestFetch(
     if (!headers.has("Content-Type") && init.body) {
         headers.set("Content-Type", "application/json");
     }
+    applyViewAsHeaders(headers);
     const url = path.startsWith("http")
         ? path
         : `${getNestApiBaseUrl()}${path.startsWith("/") ? path : `/${path}`}`;
-    const response = await fetch(url, { ...init, headers });
+    const response = await fetch(url, {
+        ...init,
+        headers,
+        credentials: init.credentials ?? "include",
+    });
     if (response.status === 401) {
         await handleExpiredNestSession();
     }
@@ -259,6 +265,13 @@ export type NestMeProfile = {
     secondary_color?: string | null;
     chart_palette_color?: string | null;
     sidebar_collapsed?: boolean | null;
+    has_collection?: boolean;
+    has_credit_insurance?: boolean;
+    is_demo?: boolean;
+    last_sync_date?: string | null;
+    effective_user_id?: string | null;
+    effective_account_id?: number | null;
+    effective_role?: string | null;
 };
 
 export async function nestFetchMe(): Promise<NestMeProfile> {

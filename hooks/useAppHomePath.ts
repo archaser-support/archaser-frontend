@@ -6,6 +6,11 @@ import { useSession } from "next-auth/react";
 import { useMemo } from "react";
 
 import {
+    accountProductsFromSessionAccount,
+    fetchSessionAccountById,
+    sessionAccountQueryKey,
+} from "@/shared/services/sessionAccountQuery";
+import {
     appHomePathFallback,
     resolveAppHomePath,
 } from "@/shared/utils/resolveAppHomePath";
@@ -53,7 +58,7 @@ export function useAppHomePath(): UseAppHomePathResult {
             has_credit_insurance?: boolean;
             is_demo?: boolean;
         }>({
-            queryKey: ["account-products", effectiveAccountId],
+            queryKey: sessionAccountQueryKey(effectiveAccountId),
             queryFn: async () => {
                 if (!effectiveAccountId) {
                     return {
@@ -62,18 +67,8 @@ export function useAppHomePath(): UseAppHomePathResult {
                         is_demo: false,
                     };
                 }
-                const response = await api.get(
-                    `/api/entities/accounts/${effectiveAccountId}`
-                );
-                return {
-                    has_collection:
-                        response.data?.has_collection !== undefined
-                            ? response.data.has_collection
-                            : true,
-                    has_credit_insurance:
-                        response.data?.has_credit_insurance === true,
-                    is_demo: response.data?.is_demo === true,
-                };
+                const account = await fetchSessionAccountById(effectiveAccountId);
+                return accountProductsFromSessionAccount(account);
             },
             enabled: isAuthenticated && !isAdminAccount && !!effectiveAccountId,
             staleTime: 60 * 1000,

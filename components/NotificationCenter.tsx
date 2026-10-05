@@ -42,6 +42,7 @@ import { markNotificationRead } from "@/shared/services/notificationService";
 import { isWebSocketEnabled, resolveNotificationsSseUrl } from "@/utils/amplifyMode";
 import { getNestAccessToken } from "@/utils/nestAuth";
 import { getLocalizedNotificationText } from "@/utils/notificationDisplayText";
+import { appendViewAsQueryParams } from "@/utils/viewAsTransport";
 
 interface Notification {
     id: string;
@@ -230,7 +231,9 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
             }
 
             try {
-                const sseUrl = resolveNotificationsSseUrl(getNestAccessToken());
+                const sseUrl = appendViewAsQueryParams(
+                    resolveNotificationsSseUrl(getNestAccessToken())
+                );
                 eventSource = new EventSource(sseUrl, {
                     withCredentials: true,
                 });
@@ -250,10 +253,12 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
                         const message = JSON.parse(event.data);
 
                         if (message.type === "notification-update") {
-                            // Check if this update is relevant for the current user
+                            const effectiveUserId =
+                                session.user.view_as_user_id || session.user.id;
+                            // Check if this update is relevant for the current (effective) user
                             const isRelevantUpdate =
                                 !message.userId ||
-                                message.userId === session.user.id ||
+                                message.userId === effectiveUserId ||
                                 message.userId === "";
 
                             if (isRelevantUpdate) {
@@ -357,7 +362,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
                 clearTimeout(reconnectTimeout);
             }
         };
-    }, [session?.user?.id, sessionStatus]);
+    }, [session?.user?.id, session?.user?.view_as_user_id, sessionStatus]);
 
     // Fetch initial stats when component mounts
     useEffect(() => {

@@ -4,6 +4,7 @@ import {
 } from "@/utils/apiClientConfig";
 import { shouldAttachNestBearer } from "@/utils/amplifyMode";
 import { getNestAccessToken, handleExpiredNestSession } from "@/utils/nestAuth";
+import { applyViewAsHeaders } from "@/utils/viewAsTransport";
 
 /**
  * Join Nest product API base (`…/api`) with a path that may be `/api/foo` or `/foo`.
@@ -88,6 +89,10 @@ export async function apiFetch(
           });
     if (authorization) {
         headers.set("Authorization", authorization);
+    }
+
+    if (!publicPortal) {
+        applyViewAsHeaders(headers);
     }
 
     if (

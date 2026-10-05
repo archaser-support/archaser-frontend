@@ -70,6 +70,7 @@ import { LOGIN_HANDOFF_STORAGE_KEY } from "@/shared/utils/sessionLanguageKeys";
 import { beginHardLogout } from "@/utils/nestAuth";
 import { getLocalizedPath } from "@/utils/navigationUtils";
 import AppUrls from "@/utils/appUrls";
+import { persistViewAsSnapshot } from "@/utils/viewAsTransport";
 
 import ReactQueryProvider from "./ReactQueryProvider";
 
@@ -400,6 +401,30 @@ const AppLayout = ({ children }: any) => {
             }
         }
     }, []);
+
+    // Keep view-as transport headers in sync with NextAuth session (Amplify Bearer).
+    useEffect(() => {
+        if (session?.user?.view_as_user_id) {
+            persistViewAsSnapshot({
+                view_as_user_id: session.user.view_as_user_id,
+                view_as_user_account_id:
+                    session.user.view_as_user_account_id ?? null,
+                view_as_user_role: session.user.view_as_user_role ?? null,
+                view_as_user_name: session.user.view_as_user_name ?? null,
+                view_as_user_account_name:
+                    session.user.view_as_user_account_name ?? null,
+            });
+        } else if (status === "authenticated") {
+            persistViewAsSnapshot(null);
+        }
+    }, [
+        session?.user?.view_as_user_id,
+        session?.user?.view_as_user_account_id,
+        session?.user?.view_as_user_role,
+        session?.user?.view_as_user_name,
+        session?.user?.view_as_user_account_name,
+        status,
+    ]);
 
     // React Query's broadcastQueryClient already handles syncing queries across tabs
     // No need for a custom broadcast listener since React Query broadcasts automatically
@@ -735,7 +760,10 @@ const AppLayout = ({ children }: any) => {
                 body: JSON.stringify({ userId }),
             });
             const successData = await response.json();
-            const { permissions, viewAsUserAccountId } = successData;
+            const viewAsUser = successData.viewAsUser;
+            const viewAsUserAccountId =
+                successData.viewAsUserAccountId ?? viewAsUser?.account_id;
+            const permissions = successData.permissions;
 
             let accountProducts: {
                 has_collection?: boolean;
@@ -744,25 +772,45 @@ const AppLayout = ({ children }: any) => {
             } | undefined;
             if (viewAsUserAccountId) {
                 try {
-                    const accountResponse = await api.get(
-                        `/api/entities/accounts/${viewAsUserAccountId}`
+                    // Persist view-as first so /auth/me returns the target account shell.
+                    persistViewAsSnapshot({
+                        view_as_user_id: userId,
+                        view_as_user_account_id: viewAsUserAccountId,
+                        view_as_user_role: viewAsUser?.role ?? null,
+                        view_as_user_name: viewAsUser?.name ?? null,
+                        view_as_user_account_name: null,
+                    });
+                    await update({
+                        view_as_user_id: userId,
+                        view_as_user_account_id: viewAsUserAccountId,
+                        view_as_user_role: viewAsUser?.role ?? null,
+                        view_as_user_name: viewAsUser?.name ?? null,
+                        view_as_user_account_name: null,
+                    });
+                    const meAccount = await fetchSessionAccountById(
+                        viewAsUserAccountId
                     );
-                    accountProducts = {
-                        has_collection:
-                            accountResponse.data?.has_collection !== undefined
-                                ? accountResponse.data.has_collection
-                                : true,
-                        has_credit_insurance:
-                            accountResponse.data?.has_credit_insurance === true,
-                        is_demo: accountResponse.data?.is_demo === true,
-                    };
+                    accountProducts =
+                        accountProductsFromSessionAccount(meAccount);
                 } catch {
                     accountProducts = undefined;
                 }
+            } else {
+                await update({
+                    view_as_user_id: userId,
+                    view_as_user_account_id: null,
+                    view_as_user_role: viewAsUser?.role ?? null,
+                    view_as_user_name: viewAsUser?.name ?? null,
+                    view_as_user_account_name: null,
+                });
+                persistViewAsSnapshot({
+                    view_as_user_id: userId,
+                    view_as_user_account_id: null,
+                    view_as_user_role: viewAsUser?.role ?? null,
+                    view_as_user_name: viewAsUser?.name ?? null,
+                    view_as_user_account_name: null,
+                });
             }
-
-            // Update the session
-            const updatedSession = await update({ view_as_user_id: userId });
 
             // Determine the first accessible page based on the target user's permissions
             const redirectPath = getFirstAccessiblePage(
@@ -817,13 +865,14 @@ const AppLayout = ({ children }: any) => {
 
             // Update the session to remove all view-as user information
             try {
-                await update({
+            await update({
                     view_as_user_id: null,
                     view_as_user_account_id: null,
                     view_as_user_role: null,
                     view_as_user_account_name: null,
                     view_as_user_name: null,
                 });
+                persistViewAsSnapshot(null);
             } catch {
                 // Even if session update fails, proceed with redirect
             }
