@@ -49,6 +49,11 @@ import { MonthEndFieldLabelWithTooltip } from "@/shared/creditInsurance/MonthEnd
 import { POLICY_EXCLUSION_REASONS } from "@/shared/creditInsurance/policyExclusion";
 
 import CustomerFormField from "./CustomerFormField";
+import {
+    customerSectionCardContentSx,
+    customerSectionHeaderSx,
+    customerSubsectionHeaderSx,
+} from "./customerCardStyles";
 import { CustomerTopUpList } from "./CustomerTopUpList";
 import {
     CreditInsuranceReadonlyField,
@@ -167,9 +172,7 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
     const sectionHeaders = useMemo(() => {
         const isHebrew = i18n.language === "he";
         const base = {
-            mb: 0.5,
-            px: 0,
-            py: 0.5,
+            ...customerSubsectionHeaderSx,
             direction: isHebrew ? "rtl" : "ltr",
             textAlign: isHebrew ? "right" : "left",
         };
@@ -187,13 +190,11 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
             creditInsuranceSubsection: {
                 ...base,
                 gridColumn: "1 / -1" as const,
-                mt: 0.5,
             },
             /** Same bar styling outside the grid (e.g. policy history block). */
             fullWidthSubsection: {
                 ...base,
                 width: "100%",
-                mt: 0.5,
             },
         };
     }, [i18n.language]);
@@ -1870,15 +1871,7 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
             elevation={0}
             sx={{ border: "none", borderRadius: { xs: 1, sm: 2 }, boxShadow: "none" }}
         >
-            <Box
-                sx={{
-                    p: { xs: 1, sm: 1.25 },
-                    mb: theme.spacing(1),
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                }}
-            >
+            <Box sx={customerSectionHeaderSx}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     <ShieldOutlinedIcon
                         sx={{
@@ -1956,7 +1949,7 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                     ))}
             </Box>
 
-            <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
+            <CardContent sx={customerSectionCardContentSx}>
                 {customer?.parent_customer_id != null ? (
                     <Alert severity="info" sx={{ mb: 2 }}>
                         {t("fields.parent_customer_inherited_policy", {

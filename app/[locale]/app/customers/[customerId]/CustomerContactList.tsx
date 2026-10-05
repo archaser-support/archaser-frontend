@@ -27,6 +27,7 @@ import { Contact } from "@/types/contact";
 import { Customer } from "@/types/Customer";
 
 import UpsertContactModal from "./UpsertContactModal";
+import { customerSectionHeaderSx } from "./customerCardStyles";
 
 interface CustomerProp {
     customer: Customer;
@@ -901,15 +902,7 @@ const CustomerContactList: React.FC<CustomerProp> = ({ customer }) => {
             }}
         >
             {/* Header Section */}
-            <Box
-                sx={{
-                    p: { xs: 1, sm: 1.25 },
-                    mb: theme.spacing(1),
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                }}
-            >
+            <Box sx={customerSectionHeaderSx}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     <ContactsIcon
                         sx={{

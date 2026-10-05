@@ -23,10 +23,26 @@ type NestBridgeUser = User & {
     chart_palette_color?: string | null;
     currency?: string | null;
     sidebar_collapsed?: boolean | null;
+    homePath?: string | null;
 };
 
 function claimString(value: unknown): string | undefined {
     return typeof value === "string" ? value : undefined;
+}
+
+/** Locale-neutral in-app home (`/app/credit-dashboard`). Rejects absolute URLs. */
+export function safeAppHomePath(value: unknown): string | undefined {
+    if (typeof value !== "string") {
+        return undefined;
+    }
+    const path = value.trim();
+    if (!path.startsWith("/app")) {
+        return undefined;
+    }
+    if (path.startsWith("//") || path.includes("://")) {
+        return undefined;
+    }
+    return path;
 }
 
 function claimBool(value: unknown): boolean | null {
@@ -126,6 +142,7 @@ export const authOptions: NextAuthOptions = {
             name: "Credentials",
             credentials: {
                 nestAccessToken: { label: "Nest token", type: "text" },
+                homePath: { label: "Home path", type: "text" },
             },
             async authorize(credentials) {
                 const nestAccessToken = nestAccessTokenFromCredentials(
@@ -134,7 +151,18 @@ export const authOptions: NextAuthOptions = {
                 if (!nestAccessToken) {
                     return null;
                 }
-                return authorizeFromNestAccessToken(nestAccessToken);
+                const user = await authorizeFromNestAccessToken(nestAccessToken);
+                if (!user) {
+                    return null;
+                }
+                const homePath = safeAppHomePath(
+                    (credentials as Record<string, unknown> | undefined)
+                        ?.homePath
+                );
+                if (homePath) {
+                    user.homePath = homePath;
+                }
+                return user;
             },
         }),
     ],
@@ -201,6 +229,7 @@ export const authOptions: NextAuthOptions = {
                 token.chart_palette_color = u.chart_palette_color;
                 token.currency = u.currency ?? undefined;
                 token.sidebar_collapsed = u.sidebar_collapsed ?? undefined;
+                token.homePath = u.homePath ?? undefined;
             }
             if (trigger === "update" && session) {
                 const source =
@@ -281,6 +310,10 @@ export const authOptions: NextAuthOptions = {
                     (token.chart_palette_color as string) || null;
                 session.user.currency =
                     (token.currency as string) || undefined;
+                const homePath = safeAppHomePath(token.homePath);
+                if (homePath) {
+                    session.user.homePath = homePath;
+                }
             }
             return session;
         },
