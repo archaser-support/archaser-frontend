@@ -1,6 +1,9 @@
 import type { CustomerDashboardKpisResponse } from "@/types/creditInsurance";
 import { apiFetch } from "@/utils/apiFetch";
 
+/** Open AR & risk drivers chart lookback (backend caps at 365). */
+export const CUSTOMER_DASHBOARD_RISK_TREND_DAYS = 365;
+
 export function customerDashboardKpisQueryKey(
     customerId: number,
     accountId: number,
@@ -12,13 +15,14 @@ export function customerDashboardKpisQueryKey(
         customerId,
         accountId,
         policyId ?? "all",
+        CUSTOMER_DASHBOARD_RISK_TREND_DAYS,
     ] as const;
 }
 
 export async function fetchCustomerDashboardKpis(
     customerId: number,
     policyId: number | null | undefined,
-    days = 90
+    days = CUSTOMER_DASHBOARD_RISK_TREND_DAYS
 ): Promise<CustomerDashboardKpisResponse> {
     const params = new URLSearchParams({
         customerId: String(customerId),
