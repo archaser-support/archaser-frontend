@@ -35,8 +35,11 @@ import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 const ROW_HEIGHT = 36;
 const VISIBLE_ROWS = 10;
 const AXIS_HEIGHT = 32;
-const CHART_RIGHT = 56;
+const CHART_RIGHT = 72;
 const CHART_LEFT = 8;
+const POLICY_FILL = CPH.seriesSky;
+const TOP_UP_FILL = CPH.seriesOrange;
+const PEAK_FILL = CPH.ink;
 
 export type TopUpDrawCapacityChartProps = {
     customers: PortfolioTopUpDrawCustomer[];
@@ -53,11 +56,12 @@ type ChartRow = {
     policyLimit: number;
     topUpTotal: number;
     peakUsage: number;
+    peakUsagePct: number | null;
     peakTopUpUsagePct: number | null;
     peakDate: string;
     durationDays: number;
     daysUsed: number;
-    durationLabel: string;
+    peakPctLabel: string;
 };
 
 function formatPct(value: number, language: string, decimals = 1): string {
@@ -66,6 +70,18 @@ function formatPct(value: number, language: string, decimals = 1): string {
         minimumFractionDigits: decimals,
         maximumFractionDigits: decimals,
     })}%`;
+}
+
+function peakCoverUsagePct(
+    policyLimit: number,
+    topUpTotal: number,
+    peakUsage: number
+): number | null {
+    const cover = Math.max(0, policyLimit) + Math.max(0, topUpTotal);
+    if (!(cover > 0)) {
+        return null;
+    }
+    return (Math.max(0, peakUsage) / cover) * 100;
 }
 
 function formatDay(ymd: string, language: string): string {
@@ -125,7 +141,7 @@ function TopUpBarWithPeak(props: {
     const stackStart = topUp > 0 ? x - policy * pxPerUnit : x;
     const peakX = stackStart + peak * pxPerUnit;
     const cy = y + height / 2;
-    const duration = payload?.durationLabel ?? "";
+    const peakPctLabel = payload?.peakPctLabel ?? "";
     const barEnd = x + width;
     const labelX = Math.max(peakX + 10, barEnd + 8);
 
@@ -136,7 +152,7 @@ function TopUpBarWithPeak(props: {
                 y={y}
                 width={width}
                 height={height}
-                fill={props.fill ?? CPH.violet}
+                fill={props.fill ?? TOP_UP_FILL}
             />
             {payload != null && pxPerUnit > 0 ? (
                 <>
@@ -144,11 +160,11 @@ function TopUpBarWithPeak(props: {
                         cx={peakX}
                         cy={cy}
                         r={5}
-                        fill={CPH.ink}
+                        fill={PEAK_FILL}
                         stroke={CPH.card}
                         strokeWidth={2}
                     />
-                    {duration ? (
+                    {peakPctLabel ? (
                         <text
                             x={labelX}
                             y={cy}
@@ -163,7 +179,7 @@ function TopUpBarWithPeak(props: {
                                 fontVariantNumeric: "tabular-nums",
                             }}
                         >
-                            {duration}
+                            {peakPctLabel}
                         </text>
                     ) : null}
                 </>
@@ -182,6 +198,7 @@ type DrawTooltipProps = {
     policyName: string;
     topUpName: string;
     peakName: string;
+    peakUsagePctName: string;
     durationName: string;
     daysUsedName: string;
     peakDateName: string;
@@ -198,6 +215,7 @@ function DrawTooltip({
     policyName,
     topUpName,
     peakName,
+    peakUsagePctName,
     durationName,
     daysUsedName,
     peakDateName,
@@ -211,17 +229,25 @@ function DrawTooltip({
         {
             name: policyName,
             display: formatPortfolioMoney(row.policyLimit, currency, language),
-            color: CPH.teal,
+            color: POLICY_FILL,
         },
         {
             name: topUpName,
             display: formatPortfolioMoney(row.topUpTotal, currency, language),
-            color: CPH.violet,
+            color: TOP_UP_FILL,
         },
         {
             name: peakName,
             display: formatPortfolioMoney(row.peakUsage, currency, language),
-            color: CPH.ink,
+            color: PEAK_FILL,
+        },
+        {
+            name: peakUsagePctName,
+            display:
+                row.peakUsagePct == null
+                    ? "—"
+                    : formatPct(row.peakUsagePct, language),
+            color: PEAK_FILL,
         },
         {
             name: peakPctName,
@@ -353,20 +379,25 @@ export function TopUpDrawCapacityChart({
                 policyLimit: row.policyLimit,
                 topUpTotal: row.topUpTotal,
                 peakUsage: row.peakUsageAmount,
+                peakUsagePct: peakCoverUsagePct(
+                    row.policyLimit,
+                    row.topUpTotal,
+                    row.peakUsageAmount
+                ),
                 peakTopUpUsagePct: row.peakTopUpUsagePct,
                 peakDate: row.peakDate,
                 durationDays: row.durationDays,
                 daysUsed: row.daysUsed,
-                durationLabel: t(
-                    "credit_portfolio_health.top_up_draw_duration_short",
-                    {
-                        ...ns,
-                        defaultValue: "{{days}}d",
-                        days: row.durationDays,
-                    }
-                ),
+                peakPctLabel: (() => {
+                    const pct = peakCoverUsagePct(
+                        row.policyLimit,
+                        row.topUpTotal,
+                        row.peakUsageAmount
+                    );
+                    return pct == null ? "" : formatPct(pct, language);
+                })(),
             })),
-        [customers, t]
+        [customers, language, t]
     );
 
     const customerNames = useMemo(() => {
@@ -431,7 +462,7 @@ export function TopUpDrawCapacityChart({
                 help={t("credit_portfolio_health.top_up_draw_help", {
                     ...ns,
                     defaultValue:
-                        "Customers with active top-up cover in the range. Each bar is policy limit plus top-up on the peak-usage day; the dot is peak usage (it stays inside the policy bar when they did not draw on top-up). Duration is the longest consecutive streak of days usage exceeded the policy limit.",
+                        "Customers with active top-up cover in the range. Each bar is policy limit plus top-up on the peak-usage day; the dot is peak usage as a % of that cover (it stays inside the policy bar when they did not draw on top-up). The % on the right is that peak usage. Hover for longest streak of days usage exceeded the policy limit.",
                 })}
             >
                 {t("credit_portfolio_health.top_up_draw_title", {
@@ -492,7 +523,7 @@ export function TopUpDrawCapacityChart({
                                   }
                               )
                     }
-                    color={CPH.violet}
+                    color={TOP_UP_FILL}
                     locale={language}
                 />
             </div>
@@ -522,7 +553,7 @@ export function TopUpDrawCapacityChart({
                                     width: 10,
                                     height: 10,
                                     borderRadius: 2,
-                                    backgroundColor: CPH.teal,
+                                    backgroundColor: POLICY_FILL,
                                 }}
                             />
                             {policyName}
@@ -533,7 +564,7 @@ export function TopUpDrawCapacityChart({
                                     width: 10,
                                     height: 10,
                                     borderRadius: 2,
-                                    backgroundColor: CPH.violet,
+                                    backgroundColor: TOP_UP_FILL,
                                 }}
                             />
                             {topUpName}
@@ -544,7 +575,7 @@ export function TopUpDrawCapacityChart({
                                     width: 8,
                                     height: 8,
                                     borderRadius: "50%",
-                                    backgroundColor: CPH.ink,
+                                    backgroundColor: PEAK_FILL,
                                 }}
                             />
                             {peakName}
@@ -655,6 +686,14 @@ export function TopUpDrawCapacityChart({
                                                 policyName={policyName}
                                                 topUpName={topUpName}
                                                 peakName={peakName}
+                                                peakUsagePctName={t(
+                                                    "credit_portfolio_health.chart_peak_usage_pct",
+                                                    {
+                                                        ...ns,
+                                                        defaultValue:
+                                                            "Peak usage %",
+                                                    }
+                                                )}
                                                 durationName={t(
                                                     "credit_portfolio_health.top_up_draw_duration",
                                                     {
@@ -694,7 +733,7 @@ export function TopUpDrawCapacityChart({
                                         dataKey="policyLimit"
                                         stackId="cover"
                                         name={policyName}
-                                        fill={CPH.teal}
+                                        fill={POLICY_FILL}
                                         cursor="pointer"
                                         animationDuration={animDuration}
                                         onClick={(entry) => {
@@ -712,7 +751,7 @@ export function TopUpDrawCapacityChart({
                                         dataKey="topUpTotal"
                                         stackId="cover"
                                         name={topUpName}
-                                        fill={CPH.violet}
+                                        fill={TOP_UP_FILL}
                                         shape={TopUpBarWithPeak}
                                         cursor="pointer"
                                         animationDuration={animDuration}

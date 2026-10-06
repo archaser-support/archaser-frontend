@@ -60,12 +60,12 @@ export type PolicyLimitUsageCategoryTotals = {
     /** Sum of per-customer remaining: Σ max(0, approved limit − AR). */
     remaining: number;
     /**
-     * Sum of per-customer AR above base covered by that customer's top-up
+     * Sum of per-customer AR above base made compliant by that customer's top-up
      * (not min(portfolio excess, Σ top-up)).
      */
-    topUpCoveredExcess: number;
+    topUpCompliantExcess: number;
     /** Sum of per-customer AR beyond base approved limit plus that customer's top-up. */
-    uncoveredExposure: number;
+    atRiskExposure: number;
     /**
      * Portfolio usage percentage: usedWithinLimit / approved capacity × 100.
      * Combined uses base + top-up; Named and DCL use base approved only.
@@ -106,7 +106,7 @@ export type CreditDashboardSummary = {
      */
     compliantExposure: number;
     /**
-     * Sum of per-customer at-risk under the shared formula: uncovered → full AR;
+     * Sum of per-customer at-risk under the shared formula: at-risk cohort → full AR;
      * insured → Σ max(capacity_gap_i, terms_breach_i) per open invoice.
      * Live portfolio has no policy max-cover residual on top of customer sums.
      */
@@ -357,8 +357,8 @@ export type PortfolioBreachDilutionStreakSection = {
 export type PortfolioNoCoverageDailyPoint = {
     snapshotDate: string;
     totalCustomerCount: number;
-    uncoveredCustomerCount: number;
-    uncoveredAmount: number;
+    atRiskCustomerCount: number;
+    atRiskAmount: number;
     approvedTotalReceivables: number;
     approvedTermsBreachAmount: number;
     amountByReason: Partial<Record<string, number>>;
@@ -375,9 +375,9 @@ export type PortfolioNoCoverageReasonItem = {
 };
 
 export type PortfolioNoCoverageSection = {
-    averageUncoveredCustomerPct: number;
-    averageUncoveredAmount: number;
-    averageUncoveredCustomerCount: number;
+    averageAtRiskCustomerPct: number;
+    averageAtRiskAmount: number;
+    averageAtRiskCustomerCount: number;
     reasons: PortfolioNoCoverageReasonItem[];
     averageViolationPct: number;
     mainViolationReason: string | null;
@@ -496,14 +496,14 @@ export type PortfolioUtilizationSection = {
     peakUtilizationStreakStart: string | null;
     peakUtilizationStreakEnd: string | null;
     /**
-     * DCL (self-underwriting) share of covered customers (DCL + Named).
-     * Uncovered customers are excluded from the denominator.
+     * DCL (self-underwriting) share of compliant customers (DCL + Named).
+     * At-risk customers are excluded from the denominator.
      */
     selfUnderwrittenCustomerPct: number;
     selfUnderwrittenArSharePct: number;
     selfUnderwrittenAverageAr: number;
     selfUnderwrittenAverageUtilizationPct: number | null;
-    /** Named (insurer-approved) share of covered customers (DCL + Named). */
+    /** Named (insurer-approved) share of compliant customers (DCL + Named). */
     approvedCustomerPct: number;
     approvedArSharePct: number;
     approvedAverageAr: number;

@@ -53,20 +53,20 @@ export function PortfolioHealthMonthlyChart({
             ).map(({ month, point }) => ({
                 label: formatMonthLabel(month, language),
                 total: point?.totalReceivables ?? null,
-                covered: point?.compliantExposure ?? null,
-                uncovered: point?.atRiskExposure ?? null,
+                compliant: point?.compliantExposure ?? null,
+                atRisk: point?.atRiskExposure ?? null,
             })),
         [monthly, fromYmd, toYmd, language]
     );
 
     const seriesLabels = {
-        covered: t("credit_portfolio_health.chart_series_covered", {
+        compliant: t("credit_portfolio_health.chart_series_compliant", {
             ...ns,
-            defaultValue: "Covered",
+            defaultValue: "Compliant",
         }),
-        uncovered: t("credit_portfolio_health.chart_series_uncovered", {
+        atRisk: t("credit_portfolio_health.chart_series_at_risk", {
             ...ns,
-            defaultValue: "Uncovered",
+            defaultValue: "At-risk",
         }),
         total: t("credit_portfolio_health.chart_series_total_ar", {
             ...ns,
@@ -81,13 +81,13 @@ export function PortfolioHealthMonthlyChart({
                 help={t("credit_portfolio_health.monthly_chart_help", {
                     ...ns,
                     defaultValue:
-                        "Average daily open AR, compliant (covered), and at-risk (uncovered) amounts per calendar month in the selected range. Light red fill between the covered and total lines.",
+                        "Average daily open AR, compliant, and at-risk amounts per calendar month in the selected range. Light red fill between the compliant and total lines.",
                 })}
             >
                 {t("credit_portfolio_health.monthly_chart_title", {
                     ...ns,
                     defaultValue:
-                        "Monthly trend — total exposure, covered vs. uncovered",
+                        "Monthly trend — total exposure, compliant vs. at-risk",
                 })}
             </Eyebrow>
 
