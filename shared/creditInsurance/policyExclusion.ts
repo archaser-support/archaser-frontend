@@ -52,18 +52,18 @@ export function hasActiveLinkedPolicy(
     return insurancePolicyId != null;
 }
 
-export type UncoveredExposureFields = {
+export type AtRiskExposureFields = {
     hasLinkedPolicy: boolean;
     exclusionReason: unknown;
 };
 
-export type NoPolicyExposureCardFields = UncoveredExposureFields & {
+export type NoPolicyExposureCardFields = AtRiskExposureFields & {
     openAr: number;
 };
 
 /** No linked policy or any non-empty exclusion reason. */
-export function isUncoveredExposureCustomer(
-    fields: UncoveredExposureFields
+export function isAtRiskExposureCustomer(
+    fields: AtRiskExposureFields
 ): boolean {
     return (
         !fields.hasLinkedPolicy ||

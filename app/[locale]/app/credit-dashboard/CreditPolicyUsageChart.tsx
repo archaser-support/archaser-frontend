@@ -85,7 +85,7 @@ export function CreditPolicyUsageChart(props: {
                     nsDashboard
                 ),
                 totals: props.combined,
-                showTopUpCovered: true,
+                showTopUpCompliant: true,
             },
             {
                 fullLabel: t(
@@ -97,7 +97,7 @@ export function CreditPolicyUsageChart(props: {
                     nsDashboard
                 ),
                 totals: props.named,
-                showTopUpCovered: false,
+                showTopUpCompliant: false,
             },
             {
                 fullLabel: t(
@@ -109,7 +109,7 @@ export function CreditPolicyUsageChart(props: {
                     nsDashboard
                 ),
                 totals: props.dclSdl,
-                showTopUpCovered: false,
+                showTopUpCompliant: false,
             },
         ],
         [props.combined, props.dclSdl, props.named, t]
@@ -117,8 +117,8 @@ export function CreditPolicyUsageChart(props: {
     const {
         usedWithin: baseUsedWithin,
         remaining: baseRemaining,
-        topUpCovered: baseTopUpCovered,
-        uncovered: baseUncovered,
+        topUpCompliant: baseTopUpCompliant,
+        atRisk: baseAtRisk,
         stackHeights: baseStackHeights,
         usagePct: usagePctBase,
         approvedLimits: baseApprovedLimits,
@@ -126,7 +126,7 @@ export function CreditPolicyUsageChart(props: {
         () => buildPolicyUsageBaseStackedSeries(baseCategories),
         [baseCategories]
     );
-    const topUpCoveredFill = isLight
+    const topUpCompliantFill = isLight
         ? lighten(theme.palette.warning.main, 0.25)
         : alpha(theme.palette.warning.main, 0.75);
     const usagePctFormatter = new Intl.NumberFormat(
@@ -198,9 +198,9 @@ export function CreditPolicyUsageChart(props: {
                 : baseUsedWithin,
         [baseUsedWithin, showTopUpBar, topUpUsedWithin]
     );
-    const hasTopUpCoveredInChart =
+    const hasTopUpCompliantInChart =
         showTopUpBar ||
-        baseTopUpCovered.some((value) => value > 0);
+        baseTopUpCompliant.some((value) => value > 0);
 
     const options = useMemo<ApexOptions>(
         () => ({
@@ -266,11 +266,11 @@ export function CreditPolicyUsageChart(props: {
                     },
                 },
             },
-            colors: hasTopUpCoveredInChart
+            colors: hasTopUpCompliantInChart
                 ? [
                       chartMain,
                       remainingFill,
-                      topUpCoveredFill,
+                      topUpCompliantFill,
                       theme.palette.error.main,
                   ]
                 : [chartMain, remainingFill, theme.palette.error.main],
@@ -399,10 +399,10 @@ export function CreditPolicyUsageChart(props: {
             language,
             remainingFill,
             showTopUpBar,
-            hasTopUpCoveredInChart,
+            hasTopUpCompliantInChart,
             t,
             topUpCapacity,
-            topUpCoveredFill,
+            topUpCompliantFill,
             topUpMax,
             topUpOver,
             topUpRemaining,
@@ -414,7 +414,7 @@ export function CreditPolicyUsageChart(props: {
         ]
     );
 
-    /** Stacked bottom→top: used, remaining, top-up covered excess, uncovered. */
+    /** Stacked bottom→top: used, remaining, top-up compliant excess, at-risk. */
     const series = useMemo(() => {
         const used = {
             name: t(
@@ -441,10 +441,10 @@ export function CreditPolicyUsageChart(props: {
             ),
             type: "column",
             data: showTopUpBar
-                ? [...baseUncovered, topUpOver]
-                : baseUncovered,
+                ? [...baseAtRisk, topUpOver]
+                : baseAtRisk,
         };
-        if (!hasTopUpCoveredInChart) {
+        if (!hasTopUpCompliantInChart) {
             return [used, remaining, overLimit];
         }
         return [
@@ -452,24 +452,24 @@ export function CreditPolicyUsageChart(props: {
             remaining,
             {
                 name: t(
-                    "credit_insurance_dashboard.policy_usage_legend_top_up_covered",
+                    "credit_insurance_dashboard.policy_usage_legend_top_up_compliant",
                     {
                         ...nsDashboard,
-                        defaultValue: "Top-Up Covered",
+                        defaultValue: "Top-Up Compliant",
                     }
                 ),
                 type: "column",
                 data: showTopUpBar
-                    ? [...baseTopUpCovered, 0]
-                    : baseTopUpCovered,
+                    ? [...baseTopUpCompliant, 0]
+                    : baseTopUpCompliant,
             },
             overLimit,
         ];
     }, [
         baseRemaining,
-        baseTopUpCovered,
-        baseUncovered,
-        hasTopUpCoveredInChart,
+        baseTopUpCompliant,
+        baseAtRisk,
+        hasTopUpCompliantInChart,
         showTopUpBar,
         t,
         topUpOver,
