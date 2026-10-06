@@ -154,22 +154,6 @@ export function UtilizationDailyChart({
                             />
                             <Line
                                 type="monotone"
-                                dataKey="portfolio"
-                                name={t(
-                                    "credit_portfolio_health.chart_util_portfolio",
-                                    {
-                                        ...ns,
-                                        defaultValue: "Avg. utilization",
-                                    }
-                                )}
-                                stroke={CPH.teal}
-                                strokeWidth={2.5}
-                                dot={false}
-                                connectNulls={false}
-                                animationDuration={animDuration}
-                            />
-                            <Line
-                                type="monotone"
                                 dataKey="dcl"
                                 name={t(
                                     "credit_portfolio_health.chart_util_sdl",
@@ -178,7 +162,7 @@ export function UtilizationDailyChart({
                                         defaultValue: "SDL avg. utilization",
                                     }
                                 )}
-                                stroke={CPH.seriesBlue}
+                                stroke={CPH.seriesOrange}
                                 strokeWidth={2}
                                 dot={false}
                                 connectNulls={false}
@@ -192,10 +176,10 @@ export function UtilizationDailyChart({
                                     "credit_portfolio_health.chart_util_issuer",
                                     {
                                         ...ns,
-                                        defaultValue: "Issuer avg. utilization",
+                                        defaultValue: "Named customers",
                                     }
                                 )}
-                                stroke={CPH.seriesSlate}
+                                stroke={CPH.seriesSky}
                                 strokeWidth={2}
                                 dot={false}
                                 connectNulls={false}
@@ -212,12 +196,29 @@ export function UtilizationDailyChart({
                                         defaultValue: "Avg. top-up usage",
                                     }
                                 )}
-                                stroke={CPH.violet}
+                                stroke={CPH.seriesRose}
                                 strokeWidth={2}
                                 dot={false}
                                 connectNulls={false}
                                 animationDuration={animDuration}
                                 animationBegin={prefersReducedMotion ? 0 : 300}
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="portfolio"
+                                name={t(
+                                    "credit_portfolio_health.chart_util_portfolio",
+                                    {
+                                        ...ns,
+                                        defaultValue: "Avg. utilization",
+                                    }
+                                )}
+                                stroke={CPH.ink}
+                                strokeWidth={2.5}
+                                strokeDasharray="6 4"
+                                dot={false}
+                                connectNulls={false}
+                                animationDuration={animDuration}
                             />
                         </LineChart>
                     </ResponsiveContainer>

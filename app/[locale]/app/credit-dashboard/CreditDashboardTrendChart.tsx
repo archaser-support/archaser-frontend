@@ -116,8 +116,8 @@ function CreditDashboardTrendChartInner({
                     userTimezone
                 ),
                 total: point.totalReceivables,
-                covered: point.compliantExposure,
-                uncovered: point.atRiskExposure,
+                compliant: point.compliantExposure,
+                atRisk: point.atRiskExposure,
             })),
         [series, dateLocale, userTimezone]
     );
@@ -128,11 +128,11 @@ function CreditDashboardTrendChartInner({
                 "credit_insurance_dashboard.trend_series_total_receivables",
                 nsDashboard
             ),
-            covered: t(
+            compliant: t(
                 "credit_insurance_dashboard.trend_series_compliant_exposure",
                 nsDashboard
             ),
-            uncovered: t(
+            atRisk: t(
                 "credit_insurance_dashboard.trend_series_at_risk_exposure",
                 nsDashboard
             ),

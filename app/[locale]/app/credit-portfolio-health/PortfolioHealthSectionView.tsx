@@ -176,30 +176,19 @@ export function PortfolioHealthSectionView({
 
     const overLimitStreakLabel =
         overLimitGap.longestStreakDays > 0 &&
-        overLimitGap.longestStreakCustomerName &&
         overLimitStreakStart &&
         overLimitStreakEnd
             ? t(
                   "credit_portfolio_health.kpi_longest_over_limit_streak_label",
                   {
                       ...ns,
-                      defaultValue:
-                          "{{name}} · {{days}} days ({{start}} – {{end}})",
-                      name: overLimitGap.longestStreakCustomerName,
-                      days: overLimitGap.longestStreakDays,
+                      defaultValue: "{{start}} – {{end}}",
                       start: overLimitStreakStart,
                       end: overLimitStreakEnd,
                   }
               )
             : overLimitGap.longestStreakDays > 0
-              ? t(
-                    "credit_portfolio_health.kpi_longest_over_limit_streak_label_days",
-                    {
-                        ...ns,
-                        defaultValue: "{{days}} days",
-                        days: overLimitGap.longestStreakDays,
-                    }
-                )
+              ? undefined
               : t("credit_portfolio_health.kpi_longest_over_limit_streak_none", {
                     ...ns,
                     defaultValue: "No over-limit streak in range",

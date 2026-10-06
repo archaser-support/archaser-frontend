@@ -917,10 +917,10 @@ export function UtilizationSectionView({
                     )}
                 </div>
                 <p className="m-0 mt-3 text-xs" style={{ color: CPH.slate }}>
-                    {t("credit_portfolio_health.footprint_covered_only_remark", {
+                    {t("credit_portfolio_health.footprint_compliant_only_remark", {
                         ...ns,
                         defaultValue:
-                            "Calculation includes only covered customers (Named + DCL).",
+                            "Calculation includes only compliant customers (Named + DCL).",
                     })}
                 </p>
             </IslandCard>
@@ -1019,10 +1019,10 @@ export function UtilizationSectionView({
                     )}
                 </div>
                 <p className="m-0 mt-3 text-xs" style={{ color: CPH.slate }}>
-                    {t("credit_portfolio_health.footprint_covered_only_remark", {
+                    {t("credit_portfolio_health.footprint_compliant_only_remark", {
                         ...ns,
                         defaultValue:
-                            "Calculation includes only covered customers (Named + DCL).",
+                            "Calculation includes only compliant customers (Named + DCL).",
                     })}
                 </p>
             </IslandCard>
