@@ -1,15 +1,11 @@
 import { AccountBalance as AccountBalanceIcon } from "@mui/icons-material";
 import { Box, useTheme } from "@mui/material";
-import dynamic from "next/dynamic";
 import { useTranslation } from "react-i18next";
 
 import { formatMoney } from "@/utils/stringFormatters";
 
 import { FinancialDashboardChartCard } from "./FinancialDashboardChartCard";
-
-const ReactApexChart = dynamic(() => import("react-apexcharts"), {
-    ssr: false,
-});
+import ReactApexChart from "@/shared/components/ApexChart";
 
 type CollectedVsPromiseChartProps = {
     options: any;
