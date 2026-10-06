@@ -3,15 +3,13 @@
 import { Gavel as GavelIcon } from "@mui/icons-material";
 import { alpha, Box, Card, CardContent, Typography, useTheme } from "@mui/material";
 import type { ApexOptions } from "apexcharts";
-import dynamic from "next/dynamic";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { TermsBreachCountByReason } from "@/types/creditInsurance";
 
+import ReactApexChart from "@/shared/components/ApexChart";
 import { CreditDashboardTitleInfoIcon } from "./creditDashboardTitleTooltip";
-
-const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 const BREACH_ORDER: {
     key: keyof TermsBreachCountByReason;

@@ -21,7 +21,6 @@ import {
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import type { ApexOptions } from "apexcharts";
-import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import React, { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -32,10 +31,7 @@ import {
     formatCurrencyWithRTLSupport,
     resolveCustomerFirstCurrency,
 } from "@/utils/stringFormatters";
-
-const ReactApexChart = dynamic(() => import("react-apexcharts"), {
-    ssr: false,
-});
+import ReactApexChart from "@/shared/components/ApexChart";
 
 interface CustomerAggregatedDataTabProps {
     customerId: number;

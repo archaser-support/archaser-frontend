@@ -3,7 +3,6 @@
 import { ShowChart as ShowChartIcon } from "@mui/icons-material";
 import { Box, Card, CardContent, Typography, useTheme } from "@mui/material";
 import { alpha, lighten } from "@mui/material/styles";
-import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,11 +17,9 @@ import {
     formatPortfolioMoney,
 } from "@/app/[locale]/app/credit-portfolio-health/formatPortfolioMoney";
 
+import ReactApexChart from "@/shared/components/ApexChart";
+import { truncateWithEllipsis } from "@/utils/textDirection";
 import { CreditDashboardTitleInfoIcon } from "./creditDashboardTitleTooltip";
-
-const ReactApexChart = dynamic(() => import("react-apexcharts"), {
-    ssr: false,
-});
 
 function parseSnapshotDate(snapshotDate: string): Date {
     return new Date(`${snapshotDate}T12:00:00.000Z`);
@@ -369,11 +366,7 @@ export function CreditPolicyLimitUsageTrendChart({
                 labels: {
                     align: "left" as const,
                     formatter: function (val: number | string) {
-                        const strVal = String(val ?? "");
-                        if (strVal && strVal.length > 20) {
-                            return strVal.substring(0, 20) + "...";
-                        }
-                        return strVal || "";
+                        return truncateWithEllipsis(String(val ?? ""), 20);
                     },
                     style: {
                         colors: theme.palette.text.secondary,

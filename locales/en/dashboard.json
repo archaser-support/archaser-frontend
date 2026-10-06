@@ -807,7 +807,7 @@
         "kpi_top_up_count": "Top-up count",
         "kpi_top_up_count_help": "Counts top-up policies active in the period so you know how widespread temporary cover is.\n\nPolicies active at any point in the selected range.",
         "kpi_top_up_customers": "Customers with top-up",
-        "kpi_top_up_customers_help": "Counts customers with top-up cover so you can prioritize renewals where temporary cover props up limits.\n\nUnique roots in the range with at least one day of top-up cover, including credit-pool shells (child cover rolled up). Same set as Top-up draw.",
+        "kpi_top_up_customers_help": "Counts customers with top-up cover so you can prioritize renewals where temporary cover props up limits.\n\nUnique roots in the range with at least one day of top-up cover, including credit-pool shells (the shell’s own top-up rows). Same set as Top-up draw.",
         "top_up_draw_title": "Top-up draw",
         "top_up_draw_help": "Customers with active top-up cover in the range. Each bar is policy limit plus top-up on the peak-usage day; the dot is peak usage (it stays inside the policy bar when they did not draw on top-up). Scroll to see every customer. Duration on the right is the longest consecutive streak of days usage exceeded the policy limit.",
         "top_up_draw_customers_used": "Customers with top-up",

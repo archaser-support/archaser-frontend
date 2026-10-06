@@ -23,6 +23,7 @@ import type {
 import { BigNumber } from "./BigNumber";
 import { Eyebrow } from "./Eyebrow";
 import { IslandCard } from "./IslandCard";
+import { PortaledHoverTooltip } from "./PortaledHoverTooltip";
 import { CPH } from "./designTokens";
 import {
     formatPortfolioAxisMoney,

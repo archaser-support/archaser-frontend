@@ -1,15 +1,11 @@
 import { AttachMoney as MoneyIcon } from "@mui/icons-material";
 import { Box, Typography, useTheme } from "@mui/material";
 import { alpha } from "@mui/material/styles";
-import dynamic from "next/dynamic";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import ReactApexChart from "@/shared/components/ApexChart";
 import { formatMoney } from "@/utils/stringFormatters";
 import { FinancialDashboardChartCard } from "./FinancialDashboardChartCard";
-
-const ReactApexChart = dynamic(() => import("react-apexcharts"), {
-    ssr: false,
-});
 
 type AccountData = {
     customer: string;
