@@ -1,15 +1,12 @@
 import { AttachMoney as MoneyIcon } from "@mui/icons-material";
 import { Box, Typography, useTheme } from "@mui/material";
 import { alpha } from "@mui/material/styles";
+import ReactApexChart from "@/shared/components/ApexChart";
 import { formatMoney } from "@/utils/stringFormatters";
-import dynamic from "next/dynamic";
+import { truncateWithEllipsis } from "@/utils/textDirection";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FinancialDashboardChartCard } from "./FinancialDashboardChartCard";
-
-const ReactApexChart = dynamic(() => import("react-apexcharts"), {
-    ssr: false,
-});
 
 type EntityData = {
     customer: string; // Can represent customer, business unit, or any entity name
@@ -204,12 +201,7 @@ const AmountByEntityChart = ({
                     opposite: i18n.language === "he",
                     labels: {
                         formatter: function (val: number | string) {
-                            const strVal = String(val);
-                            // Truncate if longer than 20 characters
-                            if (strVal && strVal.length > 20) {
-                                return strVal.substring(0, 20) + "...";
-                            }
-                            return strVal || "";
+                            return truncateWithEllipsis(String(val ?? ""), 20);
                         },
                         style: {
                             colors: theme.palette.text.secondary,

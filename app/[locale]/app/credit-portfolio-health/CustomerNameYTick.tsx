@@ -1,5 +1,6 @@
 "use client";
 
+import { TruncatedChartLabel } from "@/shared/components/TruncatedChartLabel";
 import { CPH } from "./designTokens";
 
 export const CUSTOMER_NAME_Y_AXIS_WIDTH = 180;
@@ -25,20 +26,16 @@ export function CustomerNameYTick(props: CustomerNameYTickProps) {
     const width = axisWidth - 8;
     return (
         <foreignObject x={x - width} y={y - 10} width={width} height={20}>
-            <div
+            <TruncatedChartLabel
+                text={name}
+                fallbackDir={props.isRtl ? "rtl" : "ltr"}
+                textAlign="right"
                 style={{
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    direction: props.isRtl ? "rtl" : "ltr",
-                    textAlign: "right",
                     fontSize: 11.5,
                     lineHeight: "20px",
                     color: CPH.slate,
                 }}
-            >
-                {name}
-            </div>
+            />
         </foreignObject>
     );
 }

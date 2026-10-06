@@ -3,7 +3,6 @@
 import { Gavel as GavelIcon, ShowChart as ShowChartIcon } from "@mui/icons-material";
 import { alpha, Box, Card, CardContent, Stack, Typography, useTheme } from "@mui/material";
 import type { ApexOptions } from "apexcharts";
-import dynamic from "next/dynamic";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -13,8 +12,7 @@ import type {
     RiskExposureTrendSeries,
     TermsBreachReasonSlice,
 } from "./customerDashboardCardViewModel";
-
-const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
+import ReactApexChart from "@/shared/components/ApexChart";
 
 const CHART_GRID_SX = {
     display: "grid",
