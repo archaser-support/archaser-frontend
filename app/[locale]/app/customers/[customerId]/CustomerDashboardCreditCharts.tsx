@@ -3,10 +3,12 @@
 import { Gavel as GavelIcon, ShowChart as ShowChartIcon } from "@mui/icons-material";
 import { alpha, Box, Card, CardContent, Stack, Typography, useTheme } from "@mui/material";
 import type { ApexOptions } from "apexcharts";
+import { useSession } from "next-auth/react";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { CreditDashboardTitleInfoIcon } from "@/app/[locale]/app/credit-dashboard/creditDashboardTitleTooltip";
+import { formatDateOnlyYmdForSession } from "@/utils/datetimeOperations";
 
 import type {
     RiskExposureTrendSeries,
@@ -63,8 +65,34 @@ export function CustomerDashboardCreditCharts({
     isRtl,
 }: CustomerDashboardCreditChartsProps) {
     const theme = useTheme();
+    const { data: session } = useSession();
     const chartCard = theme.creditDashboardChartCard;
     const { t } = useTranslation(["dashboard", "common"]);
+
+    const formatSnapshotAxisDate = (ymd: string) =>
+        formatDateOnlyYmdForSession(ymd, session ?? null) || ymd;
+
+    const formatApexTooltipDate = (
+        val: string | number,
+        opts?: {
+            dataPointIndex?: number;
+            w?: { globals?: { categoryLabels?: string[]; labels?: string[] } };
+        }
+    ) => {
+        const idx = opts?.dataPointIndex;
+        const fromGlobals =
+            idx != null
+                ? (opts?.w?.globals?.categoryLabels?.[idx] ??
+                  opts?.w?.globals?.labels?.[idx])
+                : undefined;
+        const candidate = String(val ?? "");
+        const raw = /^\d{4}-\d{2}-\d{2}/.test(candidate)
+            ? candidate.slice(0, 10)
+            : typeof fromGlobals === "string"
+              ? fromGlobals
+              : candidate;
+        return formatSnapshotAxisDate(raw);
+    };
     const cp = theme.palette.chartPalette;
     const chartTitleHelpAria = t(
         "credit_insurance_dashboard.chart_title_help_aria",
@@ -219,6 +247,7 @@ export function CustomerDashboardCreditCharts({
                 labels: {
                     rotate: -45,
                     style: { fontSize: "10px" },
+                    formatter: (val: string) => formatSnapshotAxisDate(val),
                 },
             },
             yaxis: {
@@ -231,6 +260,9 @@ export function CustomerDashboardCreditCharts({
                 position: "top",
             },
             tooltip: {
+                x: {
+                    formatter: formatApexTooltipDate,
+                },
                 y: {
                     formatter: (val: number) => formatAmount(val),
                 },
@@ -248,6 +280,7 @@ export function CustomerDashboardCreditCharts({
         capacityGapSeriesLabel,
         termsBreachSeriesLabel,
         formatAmount,
+        session,
         cp.dark,
         cp.main,
         cp.light,
@@ -402,6 +435,7 @@ export function CustomerDashboardCreditCharts({
                 labels: {
                     rotate: -45,
                     style: { fontSize: "10px" },
+                    formatter: (val: string) => formatSnapshotAxisDate(val),
                 },
             },
             yaxis: {
@@ -413,6 +447,9 @@ export function CustomerDashboardCreditCharts({
             },
             legend: { show: true, position: "top" },
             tooltip: {
+                x: {
+                    formatter: formatApexTooltipDate,
+                },
                 y: {
                     formatter: (val: number) => `${val.toFixed(1)}%`,
                 },
@@ -426,6 +463,7 @@ export function CustomerDashboardCreditCharts({
         cp.dark,
         cp.main,
         theme.palette.divider,
+        session,
     ]);
 
     return (

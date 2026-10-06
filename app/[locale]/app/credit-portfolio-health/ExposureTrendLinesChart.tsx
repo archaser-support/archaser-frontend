@@ -24,8 +24,8 @@ import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 export type ExposureTrendLinesPoint = {
     label: string;
     total: number | null;
-    covered: number | null;
-    uncovered: number | null;
+    compliant: number | null;
+    atRisk: number | null;
 };
 
 export type ExposureTrendLinesChartProps = {
@@ -34,8 +34,8 @@ export type ExposureTrendLinesChartProps = {
     currency: string;
     language: string;
     seriesLabels: {
-        covered: string;
-        uncovered: string;
+        compliant: string;
+        atRisk: string;
         total: string;
     };
     /** When false, omit the bottom legend (e.g. compact credit-dashboard card). */
@@ -45,9 +45,9 @@ export type ExposureTrendLinesChartProps = {
 };
 
 /**
- * Shared three-line exposure chart (covered / uncovered / total AR)
+ * Shared three-line exposure chart (compliant / at-risk / total AR)
  * used by portfolio-health monthly trend and credit-dashboard history trend.
- * Uncovered is shown as a tinted band between the covered and total lines.
+ * At-risk is shown as a tinted band between the compliant and total lines.
  */
 export function ExposureTrendLinesChart({
     data,
@@ -66,20 +66,20 @@ export function ExposureTrendLinesChart({
         () =>
             data.map((point) => {
                 const canBand =
-                    point.covered != null &&
+                    point.compliant != null &&
                     point.total != null &&
-                    Number.isFinite(point.covered) &&
+                    Number.isFinite(point.compliant) &&
                     Number.isFinite(point.total);
                 return {
                     ...point,
-                    /** Light-green fill under covered; stack base for the uncovered tint. */
-                    bandBase: canBand ? (point.covered as number) : null,
-                    /** Gap to total — fills between covered and total lines. */
+                    /** Light-green fill under compliant; stack base for the at-risk tint. */
+                    bandBase: canBand ? (point.compliant as number) : null,
+                    /** Gap to total — fills between compliant and total lines. */
                     bandGap: canBand
                         ? Math.max(
                               0,
                               (point.total as number) -
-                                  (point.covered as number)
+                                  (point.compliant as number)
                           )
                         : null,
                 };
@@ -127,29 +127,29 @@ export function ExposureTrendLinesChart({
                         content={(props) => {
                             const raw = props.payload?.[0]?.payload as
                                 | {
-                                      covered?: number | null;
-                                      uncovered?: number | null;
+                                      compliant?: number | null;
+                                      atRisk?: number | null;
                                       total?: number | null;
                                   }
                                 | undefined;
                             const items = [
                                 {
-                                    name: seriesLabels.covered,
+                                    name: seriesLabels.compliant,
                                     value:
-                                        raw?.covered != null
-                                            ? raw.covered
+                                        raw?.compliant != null
+                                            ? raw.compliant
                                             : undefined,
                                     color: CPH.good,
-                                    dataKey: "covered",
+                                    dataKey: "compliant",
                                 },
                                 {
-                                    name: seriesLabels.uncovered,
+                                    name: seriesLabels.atRisk,
                                     value:
-                                        raw?.uncovered != null
-                                            ? raw.uncovered
+                                        raw?.atRisk != null
+                                            ? raw.atRisk
                                             : undefined,
                                     color: CPH.criticalArea,
-                                    dataKey: "uncovered",
+                                    dataKey: "atRisk",
                                 },
                                 {
                                     name: seriesLabels.total,
@@ -195,7 +195,7 @@ export function ExposureTrendLinesChart({
                         />
                     ) : null}
                     <Area
-                        stackId="uncoveredBand"
+                        stackId="atRiskBand"
                         type="monotone"
                         dataKey="bandBase"
                         fill={CPH.goodTint}
@@ -206,10 +206,10 @@ export function ExposureTrendLinesChart({
                         tooltipType="none"
                     />
                     <Area
-                        stackId="uncoveredBand"
+                        stackId="atRiskBand"
                         type="monotone"
                         dataKey="bandGap"
-                        name={seriesLabels.uncovered}
+                        name={seriesLabels.atRisk}
                         fill={CPH.criticalArea}
                         fillOpacity={0.55}
                         stroke="none"
@@ -220,8 +220,8 @@ export function ExposureTrendLinesChart({
                     />
                     <Line
                         type="monotone"
-                        dataKey="covered"
-                        name={seriesLabels.covered}
+                        dataKey="compliant"
+                        name={seriesLabels.compliant}
                         stroke={CPH.good}
                         strokeWidth={2}
                         dot={false}
