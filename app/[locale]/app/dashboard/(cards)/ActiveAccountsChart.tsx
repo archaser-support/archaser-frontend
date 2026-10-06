@@ -1,6 +1,5 @@
 import { People as PeopleIcon } from "@mui/icons-material";
 import { Box, useTheme } from "@mui/material";
-import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -10,10 +9,7 @@ import { useDashboardBusinessUnitId } from "@/shared/dashboard/DashboardBusiness
 import { appendDashboardBusinessUnitId } from "@/shared/dashboard/dashboardBusinessUnitParams";
 
 import { FinancialDashboardChartCard } from "./FinancialDashboardChartCard";
-
-const ReactApexChart = dynamic(() => import("react-apexcharts"), {
-    ssr: false,
-});
+import ReactApexChart from "@/shared/components/ApexChart";
 
 type ActiveAccountsChartProps = {
     options: any;

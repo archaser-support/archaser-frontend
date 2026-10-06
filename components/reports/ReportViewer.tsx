@@ -14,7 +14,6 @@ import { alpha } from "@mui/material/styles";
 import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApexOptions } from "apexcharts";
-import dynamic from "next/dynamic";
 import { useRouter, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import React, {
@@ -55,10 +54,7 @@ import {
     resolveLegacyFieldOutputKey,
     resolveReportPrimaryTable,
 } from "@/utils/reportTableUtils";
-
-const ReactApexChart = dynamic(() => import("react-apexcharts"), {
-    ssr: false,
-});
+import ReactApexChart from "@/shared/components/ApexChart";
 
 // Constants
 const PAGE_LIMIT = 20;

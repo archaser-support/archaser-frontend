@@ -4,7 +4,6 @@ import { BarChart as BarChartIcon } from "@mui/icons-material";
 import { alpha, Box, Card, CardContent, Typography, useTheme } from "@mui/material";
 import { lighten } from "@mui/material/styles";
 import type { ApexOptions } from "apexcharts";
-import dynamic from "next/dynamic";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -20,8 +19,7 @@ import {
     formatPortfolioAxisMoney,
     formatPortfolioMoney,
 } from "@/app/[locale]/app/credit-portfolio-health/formatPortfolioMoney";
-
-const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
+import ReactApexChart from "@/shared/components/ApexChart";
 
 /** Split long x-axis labels across two lines (balanced on word boundaries). */
 function wrapLabelTwoLines(label: string): [string, string] | string {
