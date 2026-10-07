@@ -17,7 +17,7 @@ import {
     TextField,
     Typography,
 } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
+import { useTheme, type SxProps, type Theme } from "@mui/material/styles";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import moment from "moment";
 import { useSession } from "next-auth/react";
@@ -55,10 +55,12 @@ export function CreditInsuranceReadonlyField({
     label,
     value,
     multiline,
+    sx,
 }: {
     label: React.ReactNode;
     value: React.ReactNode;
     multiline?: boolean;
+    sx?: SxProps<Theme>;
 }) {
     const theme = useTheme();
     const { i18n } = useTranslation();
@@ -69,7 +71,7 @@ export function CreditInsuranceReadonlyField({
         value === null || value === undefined || value === "" ? empty : value;
 
     return (
-        <Box>
+        <Box sx={sx}>
             <Box
                 sx={{
                     mb: 0.5,

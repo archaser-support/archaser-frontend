@@ -74,6 +74,10 @@ import {
     getUserTimezone,
 } from "@/utils/datetimeOperations";
 
+import InsurancePolicySaveConfirmDialog, {
+    type InsurancePolicySavePreview,
+} from "./InsurancePolicySaveConfirmDialog";
+
 type PolicyCountryRow = {
     id: string;
     country_id: number;
@@ -190,6 +194,10 @@ type PolicyDetail = {
     } | null;
     allow_concurrent_top_ups?: boolean;
     auto_activate_on_term_start?: boolean;
+    /** Scheduled revision day (UTC). Set ⇒ policy form is locked until cancel/activation. */
+    pending_effective_date?: string | null;
+    /** Customer-push fields the scheduled revision changes (banner summary). */
+    pending_changed_fields?: string[];
 };
 
 function displayMaybe(value: unknown): string {
@@ -283,10 +291,18 @@ export default function CreditInsurancePolicyDetailPage() {
     const params = useParams();
     const searchParams = useSearchParams();
     const queryClient = useQueryClient();
-    const { error: toastError, info: toastInfo } = useToast();
+    const {
+        error: toastError,
+        info: toastInfo,
+        success: toastSuccess,
+    } = useToast();
     const policyId = Number(params?.policyId);
     const locale = (params?.locale as string) || "en";
     const accountId = session?.user?.account_id;
+    const [saveConfirm, setSaveConfirm] = useState<{
+        payload: Record<string, unknown>;
+        preview: InsurancePolicySavePreview;
+    } | null>(null);
 
     const { data: userPermissionsData } = useQuery<{ permissions: string[] }>({
         queryKey: [
@@ -940,7 +956,7 @@ export default function CreditInsurancePolicyDetailPage() {
                           paymentTermSubstituteRaw:
                               paymentTermSubstituteDayInput,
                       }).fields;
-            await api.put(`/api/entities/insurance-policies/${policyId}`, {
+            const payload: Record<string, unknown> = {
                 account_id: accountId,
                 policy_number: pn,
                 start_date: policyKindInput === "TopUp" ? null : startDateInput || null,
@@ -992,9 +1008,28 @@ export default function CreditInsurancePolicyDetailPage() {
                     policyKindInput === "Primary"
                         ? autoActivateOnTermStart
                         : false,
-            });
+            };
+            const { data: preview } = await api
+                .post<InsurancePolicySavePreview>(
+                    `/api/entities/insurance-policies/${policyId}/save-preview`,
+                    payload
+                )
+                .catch((err: unknown) => {
+                    throw isAxiosError(err) && err.response?.data?.error
+                        ? err
+                        : new Error("preview_failed");
+                });
+            if (preview.requires_confirmation) {
+                return { payload, preview };
+            }
+            await api.put(`/api/entities/insurance-policies/${policyId}`, payload);
+            return null;
         },
-        onSuccess: async () => {
+        onSuccess: async (pendingConfirm) => {
+            if (pendingConfirm) {
+                setSaveConfirm(pendingConfirm);
+                return;
+            }
             await invalidatePolicyQueries();
             setIsEditing(false);
         },
@@ -1003,12 +1038,79 @@ export default function CreditInsurancePolicyDetailPage() {
                 return;
             }
             const msg =
-                isAxiosError(err) && err.response?.data?.error
+                isAxiosError(err) &&
+                err.response?.data?.code ===
+                    "INSURANCE_POLICY_PENDING_REVISION_EXISTS"
+                    ? tCi("credit_insurance.pending_revision.already_exists")
+                    : isAxiosError(err) && err.response?.data?.error
                     ? String(err.response.data.error)
-                    : tCi("credit_insurance.save_failed");
+                    : err instanceof Error && err.message === "preview_failed"
+                      ? tCi("credit_insurance.save_confirm.preview_failed")
+                      : tCi("credit_insurance.save_failed");
             toastError(msg);
         },
     });
+
+    const confirmPolicySaveMutation = useMutation({
+        mutationFn: async (args: {
+            payload: Record<string, unknown>;
+            effectiveDate: string;
+        }) => {
+            const { data: saved } = await api.put<PolicyDetail>(
+                `/api/entities/insurance-policies/${policyId}`,
+                { ...args.payload, effective_date: args.effectiveDate }
+            );
+            return saved;
+        },
+        onSuccess: async (saved) => {
+            setSaveConfirm(null);
+            await invalidatePolicyQueries();
+            setIsEditing(false);
+            if (saved?.pending_effective_date) {
+                toastSuccess(
+                    tCi("credit_insurance.pending_revision.scheduled_success", {
+                        date: formatDateOnlyYmdForSession(
+                            dateToDateInputValue(saved.pending_effective_date),
+                            session ?? null
+                        ),
+                    })
+                );
+            }
+        },
+    });
+
+    const confirmPolicySaveErrorMessage = useMemo(() => {
+        const err = confirmPolicySaveMutation.error;
+        if (!err) return undefined;
+        const code = isAxiosError(err) ? err.response?.data?.code : undefined;
+        if (code === "EFFECTIVE_DATE_IN_PAST") {
+            return tCi("credit_insurance.validation.effective_date_in_past");
+        }
+        if (code === "INSURANCE_POLICY_PENDING_REVISION_EXISTS") {
+            return tCi("credit_insurance.pending_revision.already_exists");
+        }
+        return tCi("credit_insurance.save_confirm.confirm_failed");
+    }, [confirmPolicySaveMutation.error, tCi]);
+
+    const cancelPendingRevisionMutation = useMutation({
+        mutationFn: async () => {
+            await api.post(
+                `/api/entities/insurance-policies/${policyId}/cancel-pending`
+            );
+        },
+        onSuccess: async () => {
+            await invalidatePolicyQueries();
+            toastSuccess(tCi("credit_insurance.pending_revision.cancel_success"));
+        },
+        onError: () => {
+            toastError(tCi("credit_insurance.pending_revision.cancel_failed"));
+        },
+    });
+
+    const handleCloseSaveConfirm = () => {
+        setSaveConfirm(null);
+        confirmPolicySaveMutation.reset();
+    };
 
     const saveCountryMutation = useMutation({
         mutationFn: async () => {
@@ -1362,7 +1464,14 @@ export default function CreditInsurancePolicyDetailPage() {
             initialCommercialTerms.ncb_up_to_threshold_bonus_percent ||
         commercialTermsInput.product_type !==
             initialCommercialTerms.product_type;
-    const policyFormDisabled = savePolicyMutation.isPending || !isEditing;
+    const isSavingPolicy =
+        savePolicyMutation.isPending || confirmPolicySaveMutation.isPending;
+    const pendingEffectiveDateYmd = dateToDateInputValue(
+        data?.pending_effective_date
+    );
+    const hasPendingRevision = pendingEffectiveDateYmd !== "";
+    const policyFormDisabled =
+        isSavingPolicy || !isEditing || hasPendingRevision;
     const countryFormDisabled = saveCountryMutation.isPending;
     const namedFormDisabled = saveNamedMutation.isPending;
 
@@ -1384,12 +1493,15 @@ export default function CreditInsurancePolicyDetailPage() {
     };
 
     const handleStartEdit = () => {
+        if (hasPendingRevision) return;
         setPolicyFormErrors({});
         setIsEditing(true);
     };
 
     const handleSaveChanges = () => {
-        if (!isEditing || !accountId || savePolicyMutation.isPending) return;
+        if (!isEditing || !accountId || isSavingPolicy || hasPendingRevision) {
+            return;
+        }
         if (!isPolicyDirty) {
             setPolicyFormErrors({});
             setIsEditing(false);
@@ -2340,12 +2452,54 @@ export default function CreditInsurancePolicyDetailPage() {
                 </Box>
             ) : null}
 
+            {hasPendingRevision ? (
+                <Box sx={{ px: { xs: 1, sm: 1.5 }, mb: 1 }}>
+                    <CustomerHeaderNotificationBanner
+                        variant="warning"
+                        borderRadius={notificationBannerBorderRadius}
+                        icon={
+                            <InfoOutlinedIcon
+                                sx={{ fontSize: 18, color: "warning.main" }}
+                            />
+                        }
+                        message={tCi("credit_insurance.pending_revision.banner", {
+                            date: formatDateOnlyYmdForSession(
+                                pendingEffectiveDateYmd,
+                                session ?? null
+                            ),
+                            fields: (data?.pending_changed_fields ?? [])
+                                .map((field) =>
+                                    tCi(`credit_insurance.fields.${field}`)
+                                )
+                                .join(", "),
+                            interpolation: { escapeValue: false },
+                        })}
+                        action={
+                            canEditPolicy ? (
+                                <Button
+                                    color="inherit"
+                                    size="small"
+                                    onClick={() =>
+                                        cancelPendingRevisionMutation.mutate()
+                                    }
+                                    disabled={
+                                        cancelPendingRevisionMutation.isPending
+                                    }
+                                >
+                                    {tCi("credit_insurance.pending_revision.cancel")}
+                                </Button>
+                            ) : undefined
+                        }
+                    />
+                </Box>
+            ) : null}
+
             <Box sx={{ px: { xs: 1, sm: 1.5 }, py: 0 }}>
                 <PolicyGeneralInfo
                     data={data}
                     isEditing={isEditing}
-                    canEdit={canEditPolicy}
-                    isSaving={savePolicyMutation.isPending}
+                    canEdit={canEditPolicy && !hasPendingRevision}
+                    isSaving={isSavingPolicy}
                     policyFormDisabled={policyFormDisabled}
                     policyFormErrors={policyFormErrors}
                     session={session ?? null}
@@ -3185,6 +3339,22 @@ export default function CreditInsurancePolicyDetailPage() {
                     type="delete"
                     maxWidth="sm"
                     locale={i18n.language}
+                />
+
+                <InsurancePolicySaveConfirmDialog
+                    key={saveConfirm ? "open" : "closed"}
+                    preview={saveConfirm?.preview ?? null}
+                    onClose={handleCloseSaveConfirm}
+                    onConfirm={(effectiveDate) => {
+                        if (saveConfirm) {
+                            confirmPolicySaveMutation.mutate({
+                                payload: saveConfirm.payload,
+                                effectiveDate,
+                            });
+                        }
+                    }}
+                    isSaving={confirmPolicySaveMutation.isPending}
+                    errorMessage={confirmPolicySaveErrorMessage}
                 />
             </Box>
         </Box>
