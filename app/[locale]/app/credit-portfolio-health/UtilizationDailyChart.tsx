@@ -21,6 +21,7 @@ import { ChartTooltip } from "./ChartTooltip";
 import { Eyebrow } from "./Eyebrow";
 import { IslandCard } from "./IslandCard";
 import { CPH } from "./designTokens";
+import { chartColors } from "./chartColors";
 import layout from "./islandLayout.module.css";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
@@ -87,7 +88,7 @@ export function UtilizationDailyChart({
     );
 
     return (
-        <IslandCard accent="teal" className={`${layout.span12} ${layout.cardPad}`}>
+        <IslandCard accent="primary" className={`${layout.span12} ${layout.cardPad}`}>
             <Eyebrow
                 icon={Activity}
                 help={t("credit_portfolio_health.daily_util_chart_help", {
@@ -117,20 +118,20 @@ export function UtilizationDailyChart({
                             margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
                         >
                             <CartesianGrid
-                                strokeDasharray="3 6"
-                                stroke={CPH.border}
+                                strokeDasharray="3 3"
+                                stroke={chartColors.grid}
                                 vertical={false}
                             />
                             <XAxis
                                 dataKey="label"
-                                tick={{ fill: CPH.slate, fontSize: 12 }}
+                                tick={{ fill: chartColors.axisText, fontSize: 12 }}
                                 axisLine={{ stroke: CPH.border }}
                                 tickLine={false}
                                 interval="preserveStartEnd"
                                 minTickGap={28}
                             />
                             <YAxis
-                                tick={{ fill: CPH.slate, fontSize: 12 }}
+                                tick={{ fill: chartColors.axisText, fontSize: 12 }}
                                 axisLine={false}
                                 tickLine={false}
                                 width={48}
@@ -150,7 +151,7 @@ export function UtilizationDailyChart({
                                 }
                             />
                             <Legend
-                                wrapperStyle={{ fontSize: 12, color: CPH.slate }}
+                                wrapperStyle={{ fontSize: 12, color: chartColors.axisText }}
                             />
                             <Line
                                 type="monotone"
