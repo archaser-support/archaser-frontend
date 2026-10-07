@@ -16,6 +16,13 @@ export function isCreditOnlyAccount(
     );
 }
 
+/** Collection product on (default true when unset — matches Prisma / shell defaults). */
+export function hasCollectionProduct(
+    accountProducts?: AccountProducts | null
+): boolean {
+    return accountProducts?.has_collection !== false;
+}
+
 /**
  * File Import nav/page surfaces: staging deploy and account Demo ON only.
  * Roles catalog filtering is enforced on the API; this gates client nav/UI.

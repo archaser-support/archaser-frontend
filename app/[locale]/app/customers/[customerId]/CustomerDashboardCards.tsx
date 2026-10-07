@@ -19,7 +19,6 @@ import {
     TextField,
     Tooltip,
     Typography,
-    useTheme,
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
@@ -28,13 +27,19 @@ import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { CreditMetricCard } from "@/app/[locale]/app/credit-dashboard/CreditMetricCard";
+import CustomerCreditPoolMembersCard from "@/app/[locale]/app/customers/[customerId]/CustomerCreditPoolMembersCard";
 import {
     customerDashboardKpisQueryKey,
     fetchCustomerDashboardKpis,
 } from "@/app/[locale]/app/customers/[customerId]/customerDashboardKpisQuery";
 import type { TermsBreachCountByReason } from "@/types/creditInsurance";
 import { resolveCapacityGapDisplayAmounts } from "@/shared/creditInsurance/invoiceBucketAmounts";
+import {
+    customerHasCreditPoolChildren,
+    isLinkedCreditPoolChildCustomer,
+} from "@/shared/customerCreditPool";
 import { resolveCustomerDetailDashboardUx } from "@/shared/customerDetailDashboardUx";
+import { useCustomerCreditPool } from "@/shared/hooks/useCustomerCreditPool";
 import { Customer } from "@/types/Customer";
 import {
     formatDateForDisplay,
@@ -49,6 +54,7 @@ import {
     type TermsBreachReasonSlice,
 } from "./customerDashboardCardViewModel";
 import { CustomerDashboardCreditCharts } from "./CustomerDashboardCreditCharts";
+import { customerSectionHeaderSx } from "./customerCardStyles";
 
 interface CustomerDashboardCardsProps {
     customerId: string;
@@ -125,16 +131,10 @@ function DashboardSectionHeader({
     title: string;
     endAdornment?: React.ReactNode;
 }) {
-    const theme = useTheme();
-
     return (
         <Box
             sx={{
-                p: { xs: 1, sm: 1.25 },
-                mb: theme.spacing(1),
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
+                ...customerSectionHeaderSx,
                 gap: 1,
                 flexWrap: "wrap",
             }}
@@ -212,10 +212,6 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
             capacityGap: t("credit_insurance.capacity_gap", { ns: "customers" }),
             topUpValue: t("credit_insurance.top_up_value", { ns: "customers" }),
             topUpUsage: t("credit_insurance.top_up_usage", { ns: "customers" }),
-            effectiveLimit: t("credit_insurance.effective_limit", {
-                ns: "customers",
-                defaultValue: "Effective Limit",
-            }),
             effectiveUsage: t("credit_insurance.effective_usage", {
                 ns: "customers",
                 defaultValue: "Effective Usage",
@@ -238,6 +234,29 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
         }),
         [t]
     );
+
+    // Linked leaf children keep N/A on pool cards. Shell parents show local∩BU
+    // rollups on Dashboard (member table + capacity/at-risk overlay).
+    const hasCreditPoolChildren = customerHasCreditPoolChildren(customer);
+    const isLinkedCreditPoolChild = isLinkedCreditPoolChildCustomer(customer);
+
+    const poolDashboardMetricNa = t("credit_insurance.pool_dashboard_metric_na", {
+        ns: "customers",
+        defaultValue: "N/A",
+    });
+    const poolDashboardMetricSharedHint = t(
+        "credit_insurance.pool_dashboard_metric_shared_pool",
+        {
+            ns: "customers",
+            defaultValue: "Shared across the credit pool",
+        }
+    );
+
+    const creditPoolQuery = useCustomerCreditPool(
+        customer.id,
+        hasCreditProduct && hasCreditPoolChildren
+    );
+    const creditPool = creditPoolQuery.data?.credit ?? null;
 
     const showNoPolicyEmptyState = useMemo(
         () =>
@@ -315,7 +334,6 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                           kpiQuery.data.cards.isExcludedFromPolicy,
                       topUpTotal: kpiQuery.data.cards.topUpTotal,
                       topUpUsagePct: kpiQuery.data.cards.topUpUsagePct,
-                      effectiveLimit: kpiQuery.data.cards.effectiveLimit,
                       effectiveUsagePct: kpiQuery.data.cards.effectiveUsagePct,
                   }
                 : null,
@@ -395,25 +413,35 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
 
     const secondaryCurrency = creditKpis?.creditInsuranceSecondaryCurrency ?? null;
 
-    const capacityGapDisplay = useMemo(
-        () =>
-            resolveCapacityGapDisplayAmounts(
-                customer as Parameters<typeof resolveCapacityGapDisplayAmounts>[0],
-                overallCapacityGapCards?.capacityGapAmount,
-                {
-                    kpiGapSecondary:
-                        overallCapacityGapCards?.capacityGapAmountSecondary,
-                    kpiSecondaryCurrency:
-                        overallCapacityGapCards?.capacityGapLimitCurrency,
-                }
-            ),
-        [
-            customer,
+    const capacityGapDisplay = useMemo(() => {
+        if (hasCreditPoolChildren && creditPool) {
+            return {
+                primary: Number(creditPool.capacity_gap_amount ?? 0) || 0,
+                secondary:
+                    creditPool.capacity_gap_amount2 != null
+                        ? Number(creditPool.capacity_gap_amount2)
+                        : null,
+                secondaryCurrency: creditPool.capacity_gap_currency2 ?? null,
+            };
+        }
+        return resolveCapacityGapDisplayAmounts(
+            customer as Parameters<typeof resolveCapacityGapDisplayAmounts>[0],
             overallCapacityGapCards?.capacityGapAmount,
-            overallCapacityGapCards?.capacityGapAmountSecondary,
-            overallCapacityGapCards?.capacityGapLimitCurrency,
-        ]
-    );
+            {
+                kpiGapSecondary:
+                    overallCapacityGapCards?.capacityGapAmountSecondary,
+                kpiSecondaryCurrency:
+                    overallCapacityGapCards?.capacityGapLimitCurrency,
+            }
+        );
+    }, [
+        hasCreditPoolChildren,
+        creditPool,
+        customer,
+        overallCapacityGapCards?.capacityGapAmount,
+        overallCapacityGapCards?.capacityGapAmountSecondary,
+        overallCapacityGapCards?.capacityGapLimitCurrency,
+    ]);
 
     const periodKpiCards = kpiQuery.data?.cards ?? null;
 
@@ -661,10 +689,11 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
         });
     }, [periodKpiCards, t]);
 
-    const capacityGapCardLoading =
-        selectedPolicyIdFromUrl != null
-            ? overallKpiQuery.isLoading || overallCapacityGapCards == null
-            : kpiQuery.isLoading || !creditKpis;
+    const capacityGapCardLoading = hasCreditPoolChildren
+        ? creditPoolQuery.isLoading || creditPool == null
+        : selectedPolicyIdFromUrl != null
+          ? overallKpiQuery.isLoading || overallCapacityGapCards == null
+          : kpiQuery.isLoading || !creditKpis;
 
     const formatAmount = useMemo(
         () => (amount: number | null | undefined) => {
@@ -885,6 +914,7 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                     <Box sx={METRIC_GRID_SX}>
                         <CreditMetricCard
                             icon={
+                                !isLinkedCreditPoolChild &&
                                 periodKpiCards?.healthMomentumClassification !=
                                     null &&
                                 periodKpiCards.healthMomentumSuppressed ===
@@ -897,15 +927,22 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                             iconAccent="healthIndex"
                             label={creditInsuranceLabels.healthIndex}
                             value={
-                                kpiCardsLoading || !creditKpis
-                                    ? t("messages.loading", { ns: "common" })
-                                    : formatHealthIndexPercent(
-                                          creditKpis.healthIndex,
-                                          locale
-                                      )
+                                isLinkedCreditPoolChild
+                                    ? poolDashboardMetricNa
+                                    : kpiCardsLoading || !creditKpis
+                                      ? t("messages.loading", { ns: "common" })
+                                      : formatHealthIndexPercent(
+                                            creditKpis.healthIndex,
+                                            locale
+                                        )
                             }
-                            secondaryLine={healthMomentumLine}
+                            secondaryLine={
+                                isLinkedCreditPoolChild
+                                    ? poolDashboardMetricSharedHint
+                                    : healthMomentumLine
+                            }
                             forceSecondaryLineBelow
+                            hoverable={!isLinkedCreditPoolChild}
                             tooltip={healthMomentumTooltip}
                         />
                         {breachDilutionBanner ? (
@@ -930,13 +967,33 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                             iconAccent="atRisk"
                             label={creditInsuranceLabels.atRiskExposure}
                             value={
-                                kpiCardsLoading || !creditKpis
-                                    ? t("messages.loading", { ns: "common" })
-                                    : formatCreditInsuranceAmount(
-                                        creditKpis.atRiskExposure,
-                                        creditKpis.atRiskExposureSecondary
-                                    )
+                                isLinkedCreditPoolChild
+                                    ? poolDashboardMetricNa
+                                    : hasCreditPoolChildren
+                                      ? creditPoolQuery.isLoading ||
+                                        creditPool == null
+                                          ? t("messages.loading", {
+                                                ns: "common",
+                                            })
+                                          : formatCreditInsuranceAmount(
+                                                creditPool.at_risk_exposure
+                                            )
+                                      : kpiCardsLoading || !creditKpis
+                                        ? t("messages.loading", {
+                                              ns: "common",
+                                          })
+                                        : formatCreditInsuranceAmount(
+                                              creditKpis.atRiskExposure,
+                                              creditKpis.atRiskExposureSecondary
+                                          )
                             }
+                            secondaryLine={
+                                isLinkedCreditPoolChild
+                                    ? poolDashboardMetricSharedHint
+                                    : undefined
+                            }
+                            forceSecondaryLineBelow={isLinkedCreditPoolChild}
+                            hoverable={!isLinkedCreditPoolChild}
                             tooltip={t(
                                 "tooltips.customer_credit_metric_at_risk_exposure",
                                 { ns: "dashboard" }
@@ -947,51 +1004,56 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                             iconAccent="capacity"
                             label={creditInsuranceLabels.policyUsage}
                             value={
-                                kpiCardsLoading || !creditKpis
-                                    ? t("messages.loading", { ns: "common" })
-                                    : formatUsagePct(creditKpis.policyUsagePct)
+                                isLinkedCreditPoolChild
+                                    ? poolDashboardMetricNa
+                                    : kpiCardsLoading || !creditKpis
+                                      ? t("messages.loading", { ns: "common" })
+                                      : formatUsagePct(creditKpis.policyUsagePct)
                             }
                             secondaryLine={
-                                kpiQuery.data?.cards?.policyOpenArSharePct !=
-                                    null &&
-                                kpiQuery.data.cards.policyOpenArSharePolicyNumber
-                                    ? t(
-                                          "tooltips.customer_credit_policy_ar_share",
-                                          {
-                                              ns: "dashboard",
-                                              pct: kpiQuery.data.cards.policyOpenArSharePct.toLocaleString(
-                                                  locale,
-                                                  { maximumFractionDigits: 1 }
-                                              ),
-                                              policy:
-                                                  kpiQuery.data.cards
-                                                      .policyOpenArSharePolicyNumber,
-                                              defaultValue:
-                                                  "{{pct}}% of policy {{policy}} open AR",
-                                          }
-                                      )
-                                    : kpiQuery.data?.cards
-                                            ?.limitBreachForecastStatus ===
-                                          "projected" &&
-                                      kpiQuery.data.cards
-                                          .limitBreachForecastProjectedDate !=
-                                          null
-                                    ? t(
-                                          "tooltips.customer_credit_forecast_projected",
-                                          {
-                                              ns: "dashboard",
-                                              threshold:
-                                                  kpiQuery.data.cards
-                                                      .limitBreachForecastThresholdPct,
-                                              date: kpiQuery.data.cards
-                                                  .limitBreachForecastProjectedDate,
-                                              defaultValue:
-                                                  "Projected to reach {{threshold}}% by {{date}}",
-                                          }
-                                      )
-                                    : undefined
+                                isLinkedCreditPoolChild
+                                    ? poolDashboardMetricSharedHint
+                                    : kpiQuery.data?.cards?.policyOpenArSharePct !=
+                                            null &&
+                                        kpiQuery.data.cards.policyOpenArSharePolicyNumber
+                                      ? t(
+                                            "tooltips.customer_credit_policy_ar_share",
+                                            {
+                                                ns: "dashboard",
+                                                pct: kpiQuery.data.cards.policyOpenArSharePct.toLocaleString(
+                                                    locale,
+                                                    { maximumFractionDigits: 1 }
+                                                ),
+                                                policy:
+                                                    kpiQuery.data.cards
+                                                        .policyOpenArSharePolicyNumber,
+                                                defaultValue:
+                                                    "{{pct}}% of policy {{policy}} open AR",
+                                            }
+                                        )
+                                      : kpiQuery.data?.cards
+                                              ?.limitBreachForecastStatus ===
+                                            "projected" &&
+                                        kpiQuery.data.cards
+                                            .limitBreachForecastProjectedDate !=
+                                            null
+                                        ? t(
+                                              "tooltips.customer_credit_forecast_projected",
+                                              {
+                                                  ns: "dashboard",
+                                                  threshold:
+                                                      kpiQuery.data.cards
+                                                          .limitBreachForecastThresholdPct,
+                                                  date: kpiQuery.data.cards
+                                                      .limitBreachForecastProjectedDate,
+                                                  defaultValue:
+                                                      "Projected to reach {{threshold}}% by {{date}}",
+                                              }
+                                          )
+                                        : undefined
                             }
                             forceSecondaryLineBelow
+                            hoverable={!isLinkedCreditPoolChild}
                             tooltip={t(
                                 "tooltips.customer_credit_metric_policy_usage",
                                 { ns: "dashboard" }
@@ -1035,15 +1097,24 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                             iconAccent="capacity"
                             label={creditInsuranceLabels.capacityGap}
                             value={
-                                capacityGapCardLoading
-                                    ? t("messages.loading", { ns: "common" })
-                                    : formatCreditInsuranceAmount(
-                                        capacityGapDisplay.primary,
-                                        capacityGapDisplay.secondary,
-                                        capacityGapDisplay.secondaryCurrency ??
-                                        secondaryCurrency
-                                    )
+                                isLinkedCreditPoolChild
+                                    ? poolDashboardMetricNa
+                                    : capacityGapCardLoading
+                                      ? t("messages.loading", { ns: "common" })
+                                      : formatCreditInsuranceAmount(
+                                            capacityGapDisplay.primary,
+                                            capacityGapDisplay.secondary,
+                                            capacityGapDisplay.secondaryCurrency ??
+                                                secondaryCurrency
+                                        )
                             }
+                            secondaryLine={
+                                isLinkedCreditPoolChild
+                                    ? poolDashboardMetricSharedHint
+                                    : undefined
+                            }
+                            forceSecondaryLineBelow={isLinkedCreditPoolChild}
+                            hoverable={!isLinkedCreditPoolChild}
                             tooltip={t(
                                 "tooltips.customer_credit_metric_capacity_gap",
                                 { ns: "dashboard" }
@@ -1060,47 +1131,52 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                 }
                             )}
                             value={
-                                kpiCardsLoading || periodKpiCards == null
-                                    ? t("messages.loading", { ns: "common" })
-                                    : periodKpiCards.arVolatilitySigmaPct ==
-                                        null
+                                isLinkedCreditPoolChild
+                                    ? poolDashboardMetricNa
+                                    : kpiCardsLoading || periodKpiCards == null
+                                      ? t("messages.loading", { ns: "common" })
+                                      : periodKpiCards.arVolatilitySigmaPct ==
+                                          null
+                                        ? t(
+                                              "tooltips.customer_credit_ar_volatility_no_data",
+                                              {
+                                                  ns: "dashboard",
+                                                  defaultValue: "No data",
+                                              }
+                                          )
+                                        : t(
+                                              "tooltips.customer_credit_ar_volatility_sigma",
+                                              {
+                                                  ns: "dashboard",
+                                                  defaultValue: "σ {{sigma}}%",
+                                                  sigma: (
+                                                      periodKpiCards.arVolatilitySigmaPct *
+                                                      100
+                                                  ).toFixed(1),
+                                              }
+                                          )
+                            }
+                            secondaryLine={
+                                isLinkedCreditPoolChild
+                                    ? poolDashboardMetricSharedHint
+                                    : periodKpiCards != null &&
+                                        (periodKpiCards.arVolatilityExtremeMoveCount ??
+                                            0) > 0
                                       ? t(
-                                            "tooltips.customer_credit_ar_volatility_no_data",
-                                            {
-                                                ns: "dashboard",
-                                                defaultValue: "No data",
-                                            }
-                                        )
-                                      : t(
-                                            "tooltips.customer_credit_ar_volatility_sigma",
+                                            "tooltips.customer_credit_ar_volatility_extreme",
                                             {
                                                 ns: "dashboard",
                                                 defaultValue:
-                                                    "σ {{sigma}}%",
-                                                sigma: (
-                                                    periodKpiCards.arVolatilitySigmaPct *
-                                                    100
-                                                ).toFixed(1),
+                                                    "{{count}} extreme single-day moves (±10%+)",
+                                                count: periodKpiCards.arVolatilityExtremeMoveCount,
                                             }
                                         )
-                            }
-                            secondaryLine={
-                                periodKpiCards != null &&
-                                (periodKpiCards.arVolatilityExtremeMoveCount ??
-                                    0) > 0
-                                    ? t(
-                                          "tooltips.customer_credit_ar_volatility_extreme",
-                                          {
-                                              ns: "dashboard",
-                                              defaultValue:
-                                                  "{{count}} extreme single-day moves (±10%+)",
-                                              count: periodKpiCards.arVolatilityExtremeMoveCount,
-                                          }
-                                      )
-                                    : undefined
+                                      : undefined
                             }
                             forceSecondaryLineBelow
+                            hoverable={!isLinkedCreditPoolChild}
                             footnote={
+                                !isLinkedCreditPoolChild &&
                                 arVolatilitySparkline ? (
                                     <Tooltip
                                         title={t(
@@ -1143,34 +1219,42 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                 }
                             )}
                             value={
-                                kpiCardsLoading || periodKpiCards == null
-                                    ? t("messages.loading", { ns: "common" })
-                                    : (periodKpiCards.overshootDaysWithLimit ??
-                                            0) <= 0 ||
-                                        periodKpiCards.avgOvershootPts == null
-                                      ? t(
-                                            "tooltips.customer_credit_overshoot_no_data",
-                                            {
-                                                ns: "dashboard",
-                                                defaultValue:
-                                                    "No effective-limit days in range",
-                                            }
-                                        )
-                                      : t(
-                                            "tooltips.customer_credit_overshoot_avg",
-                                            {
-                                                ns: "dashboard",
-                                                defaultValue:
-                                                    "+{{pts}} pts avg",
-                                                pts: periodKpiCards.avgOvershootPts.toFixed(
-                                                    1
-                                                ),
-                                            }
-                                        )
+                                isLinkedCreditPoolChild
+                                    ? poolDashboardMetricNa
+                                    : kpiCardsLoading || periodKpiCards == null
+                                      ? t("messages.loading", { ns: "common" })
+                                      : (periodKpiCards.overshootDaysWithLimit ??
+                                              0) <= 0 ||
+                                          periodKpiCards.avgOvershootPts == null
+                                        ? t(
+                                              "tooltips.customer_credit_overshoot_no_data",
+                                              {
+                                                  ns: "dashboard",
+                                                  defaultValue:
+                                                      "No effective-limit days in range",
+                                              }
+                                          )
+                                        : t(
+                                              "tooltips.customer_credit_overshoot_avg",
+                                              {
+                                                  ns: "dashboard",
+                                                  defaultValue:
+                                                      "+{{pts}} pts avg",
+                                                  pts: periodKpiCards.avgOvershootPts.toFixed(
+                                                      1
+                                                  ),
+                                              }
+                                          )
                             }
-                            secondaryLine={overshootSecondaryLine}
+                            secondaryLine={
+                                isLinkedCreditPoolChild
+                                    ? poolDashboardMetricSharedHint
+                                    : overshootSecondaryLine
+                            }
                             forceSecondaryLineBelow
+                            hoverable={!isLinkedCreditPoolChild}
                             footnote={
+                                !isLinkedCreditPoolChild &&
                                 overshootSparkline ? (
                                     <Tooltip
                                         title={t(
@@ -1293,10 +1377,24 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                                         ? periodKpiCards.limitCappedNormalizedSeries
                                         : undefined
                                 }
+                                hideAtRiskAndCapacityGapSeries={
+                                    isLinkedCreditPoolChild
+                                }
                                 isRtl={isRtl}
                             />
                         </>
                     )}
+                    {hasCreditPoolChildren && creditPool ? (
+                        <CustomerCreditPoolMembersCard
+                            credit={creditPool}
+                            excludeCustomerId={customer.id}
+                            accountCurrency={
+                                creditPoolQuery.data?.accountCurrency?.trim() ||
+                                accountCurrency ||
+                                "USD"
+                            }
+                        />
+                    ) : null}
                 </Stack>
             )}
         </Stack>

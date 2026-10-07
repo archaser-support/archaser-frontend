@@ -80,10 +80,10 @@ export const invalidateInvoiceQueries = async (invoiceId?: number) => {
 };
 
 /**
- * Invalidate UnpaidInvoiceList queries for specific customer IDs
- * This is used after invoice imports to refresh the unpaid invoice lists
+ * Invalidate CustomerInvoiceGrid queries for specific customer IDs
+ * This is used after invoice imports to refresh the customer invoice lists
  */
-export const invalidateUnpaidInvoiceListQueries = async (
+export const invalidateCustomerInvoiceGridQueries = async (
     customerIds: number[]
 ) => {
     if (!globalQueryClient || !customerIds.length) {
@@ -93,7 +93,7 @@ export const invalidateUnpaidInvoiceListQueries = async (
     try {
         // Debug logging removed for production
 
-        // Invalidate all invoices queries to refresh UnpaidInvoiceList
+        // Invalidate all invoices queries to refresh CustomerInvoiceGrid
         await globalQueryClient.invalidateQueries({ queryKey: ["invoices"] });
 
         // Invalidate specific customer queries for each affected customer
@@ -107,7 +107,7 @@ export const invalidateUnpaidInvoiceListQueries = async (
 
         // Debug logging removed for production
     } catch (error) {
-        console.error("Error invalidating UnpaidInvoiceList queries:", error);
+        console.error("Error invalidating CustomerInvoiceGrid queries:", error);
     }
 };
 
@@ -145,11 +145,11 @@ export class BatchCacheInvalidator {
                 promises.push(invalidateControlCenterStats());
             }
 
-            // Invalidate UnpaidInvoiceList queries for all affected customers
+            // Invalidate CustomerInvoiceGrid queries for all affected customers
             if (this.affectedCustomerIds.size > 0) {
                 const uniqueCustomerIds = Array.from(this.affectedCustomerIds);
                 promises.push(
-                    invalidateUnpaidInvoiceListQueries(uniqueCustomerIds)
+                    invalidateCustomerInvoiceGridQueries(uniqueCustomerIds)
                 );
             }
 

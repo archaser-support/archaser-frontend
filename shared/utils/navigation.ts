@@ -2,12 +2,13 @@ import AppUrls from "../../utils/appUrls";
 
 import {
     type AccountProducts,
+    hasCollectionProduct,
     isCreditOnlyAccount,
     isFileImportVisible,
 } from "./accountProducts";
 
 export type { AccountProducts };
-export { isFileImportVisible };
+export { hasCollectionProduct, isFileImportVisible };
 
 export const ARCHASER_ADMIN_ACCOUNT_ID = 10013;
 
@@ -116,7 +117,7 @@ export const sidebarStructure: NavSection[] = [
                 label: "actions.navigation_control_center",
                 href: AppUrls.CONTROL_CENTER || "/app/control-center",
                 show: (_permissions, _accountId, accountProducts) =>
-                    !isCreditOnlyAccount(accountProducts),
+                    hasCollectionProduct(accountProducts),
             },
             {
                 label: "actions.navigation_reports",

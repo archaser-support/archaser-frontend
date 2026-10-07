@@ -1,13 +1,11 @@
 "use client";
 import { DonutLarge as DonutLargeIcon } from "@mui/icons-material";
 import { Box, Card, CardContent, Typography, useTheme } from "@mui/material";
-import dynamic from "next/dynamic";
 import React from "react";
 import { useTranslation } from "react-i18next";
 
 import { OperationDashboardResponse } from "@/types/OperationDashboard";
-
-const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
+import Chart from "@/shared/components/ApexChart";
 
 interface ActivityTypeChartProps {
     data: OperationDashboardResponse;

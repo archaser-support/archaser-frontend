@@ -28,13 +28,14 @@ export function resolveCustomerDetailDashboardUx(
     const showDashboardNoPolicyEmptyState =
         input.hasCreditInsurance && !hasLinkedPolicy;
 
+    // Shell parents land on Dashboard (credit rollups live there). Aggregated
+    // Data remains available for collection content only — not the default.
     let defaultTabWithoutUrlParam: CustomerDetailDefaultTab = "dashboard";
-    if (input.hasChildren) {
-        defaultTabWithoutUrlParam = "aggregated_data";
-    } else if (
+    if (
         input.hasCreditInsurance &&
         input.hasCollection &&
-        !hasLinkedPolicy
+        !hasLinkedPolicy &&
+        !input.hasChildren
     ) {
         defaultTabWithoutUrlParam = "activities";
     }

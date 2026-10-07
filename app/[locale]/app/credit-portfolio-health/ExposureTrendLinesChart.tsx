@@ -3,8 +3,11 @@
 import { useMemo } from "react";
 import {
     Area,
+    Bar,
+    BarChart,
     CartesianGrid,
     ComposedChart,
+    LabelList,
     Legend,
     Line,
     ResponsiveContainer,
@@ -13,19 +16,22 @@ import {
     YAxis,
 } from "recharts";
 
-import { ChartTooltip } from "./ChartTooltip";
-import {
-    formatPortfolioAxisMoney,
-    formatPortfolioMoney,
-} from "./formatPortfolioMoney";
 import { CPH } from "./designTokens";
+import { chartColors } from "./chartColors";
+import {
+    formatCurrencyCompact,
+    formatCurrencyFull,
+    formatMonthYear,
+} from "./chartFormat";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
 export type ExposureTrendLinesPoint = {
     label: string;
+    /** Optional raw month key (`YYYY-MM`) for axis formatting. */
+    month?: string;
     total: number | null;
-    covered: number | null;
-    uncovered: number | null;
+    compliant: number | null;
+    atRisk: number | null;
 };
 
 export type ExposureTrendLinesChartProps = {
@@ -34,20 +40,253 @@ export type ExposureTrendLinesChartProps = {
     currency: string;
     language: string;
     seriesLabels: {
-        covered: string;
-        uncovered: string;
+        compliant: string;
+        atRisk: string;
         total: string;
     };
-    /** When false, omit the bottom legend (e.g. compact credit-dashboard card). */
+    /** When false, omit the top legend (e.g. compact credit-dashboard card). */
     showLegend?: boolean;
     /** Extra gap between x ticks for dense daily series. */
     minTickGap?: number;
+    /**
+     * Compact companion bar chart of at-risk share % per period.
+     * Default false so the credit-dashboard caller stays unchanged.
+     */
+    showAtRiskShare?: boolean;
+    /** i18n label for the at-risk share tooltip / companion chart. */
+    atRiskShareLabel?: string;
 };
 
+type ChartRow = ExposureTrendLinesPoint & {
+    atRiskSharePct: number | null;
+};
+
+function ExposureLegend({
+    seriesLabels,
+}: {
+    seriesLabels: ExposureTrendLinesChartProps["seriesLabels"];
+}) {
+    const items: Array<{
+        label: string;
+        color: string;
+        kind: "square" | "line";
+    }> = [
+        {
+            label: seriesLabels.compliant,
+            color: chartColors.primary,
+            kind: "square",
+        },
+        {
+            label: seriesLabels.atRisk,
+            color: chartColors.secondary,
+            kind: "square",
+        },
+        {
+            label: seriesLabels.total,
+            color: chartColors.marker,
+            kind: "line",
+        },
+    ];
+    return (
+        <ul
+            style={{
+                listStyle: "none",
+                margin: 0,
+                padding: 0,
+                display: "flex",
+                flexWrap: "wrap",
+                justifyContent: "flex-end",
+                gap: 14,
+                fontSize: 12,
+                color: chartColors.axisText,
+                opacity: 1,
+            }}
+        >
+            {items.map((item) => (
+                <li
+                    key={item.label}
+                    style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        opacity: 1,
+                    }}
+                >
+                    {item.kind === "square" ? (
+                        <span
+                            style={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: 2,
+                                backgroundColor: item.color,
+                                flexShrink: 0,
+                            }}
+                        />
+                    ) : (
+                        <span
+                            style={{
+                                width: 14,
+                                height: 0,
+                                borderTop: `2px solid ${item.color}`,
+                                flexShrink: 0,
+                            }}
+                        />
+                    )}
+                    {item.label}
+                </li>
+            ))}
+        </ul>
+    );
+}
+
+type ExposureTooltipProps = {
+    active?: boolean;
+    label?: string | number;
+    payload?: ReadonlyArray<{
+        payload?: ChartRow;
+    }>;
+    currency: string;
+    language: string;
+    seriesLabels: ExposureTrendLinesChartProps["seriesLabels"];
+    atRiskShareLabel: string;
+};
+
+function ExposureTooltip({
+    active,
+    label,
+    payload,
+    currency,
+    language,
+    seriesLabels,
+    atRiskShareLabel,
+}: ExposureTooltipProps) {
+    const row = payload?.[0]?.payload;
+    if (!active || row == null) {
+        return null;
+    }
+    const isRtl = language === "he" || language.startsWith("he-");
+    const header =
+        row.month != null
+            ? formatMonthYear(row.month)
+            : label != null
+              ? String(label)
+              : "";
+
+    const items: Array<{
+        name: string;
+        value: string;
+        color: string;
+        valueColor?: string;
+    }> = [
+        {
+            name: seriesLabels.total,
+            value:
+                row.total != null
+                    ? formatCurrencyFull(row.total, currency)
+                    : "—",
+            color: chartColors.marker,
+        },
+        {
+            name: seriesLabels.atRisk,
+            value:
+                row.atRisk != null
+                    ? formatCurrencyFull(row.atRisk, currency)
+                    : "—",
+            color: chartColors.secondary,
+        },
+        {
+            name: seriesLabels.compliant,
+            value:
+                row.compliant != null
+                    ? formatCurrencyFull(row.compliant, currency)
+                    : "—",
+            color: chartColors.primary,
+        },
+        {
+            name: atRiskShareLabel,
+            value:
+                row.atRiskSharePct != null
+                    ? `${row.atRiskSharePct.toFixed(1)}%`
+                    : "—",
+            color: chartColors.secondary,
+            valueColor: chartColors.secondaryText,
+        },
+    ];
+
+    return (
+        <div
+            dir={isRtl ? "rtl" : "ltr"}
+            style={{
+                borderRadius: 8,
+                border: `1px solid ${CPH.border}`,
+                padding: "8px 12px",
+                fontSize: 12,
+                backgroundColor: CPH.card,
+                color: CPH.ink,
+                boxShadow: CPH.shadow,
+            }}
+        >
+            {header ? (
+                <div
+                    style={{
+                        marginBottom: 4,
+                        fontWeight: 500,
+                        color: CPH.slate,
+                    }}
+                >
+                    {header}
+                </div>
+            ) : null}
+            <ul
+                style={{
+                    margin: 0,
+                    padding: 0,
+                    listStyle: "none",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 4,
+                }}
+            >
+                {items.map((item) => (
+                    <li
+                        key={item.name}
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                        }}
+                    >
+                        <span
+                            style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: "50%",
+                                flexShrink: 0,
+                                backgroundColor: item.color,
+                            }}
+                        />
+                        <span style={{ color: CPH.slate, flex: 1 }}>
+                            {item.name}
+                        </span>
+                        <span
+                            style={{
+                                fontWeight: 500,
+                                fontVariantNumeric: "tabular-nums",
+                                color: item.valueColor ?? CPH.ink,
+                            }}
+                        >
+                            {item.value}
+                        </span>
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+}
+
 /**
- * Shared three-line exposure chart (covered / uncovered / total AR)
+ * Shared exposure trend chart (compliant / at-risk stacked areas + Total AR line)
  * used by portfolio-health monthly trend and credit-dashboard history trend.
- * Uncovered is shown as a tinted band between the covered and total lines.
  */
 export function ExposureTrendLinesChart({
     data,
@@ -57,190 +296,258 @@ export function ExposureTrendLinesChart({
     seriesLabels,
     showLegend = true,
     minTickGap = 16,
+    showAtRiskShare = false,
+    atRiskShareLabel = "At-risk share",
 }: ExposureTrendLinesChartProps) {
     const prefersReducedMotion = usePrefersReducedMotion();
     const animDuration = prefersReducedMotion ? 0 : 1200;
     const currencyCode = currency || "USD";
+    const isRtl = language === "he" || language.startsWith("he-");
 
-    const chartData = useMemo(
+    const chartData = useMemo<ChartRow[]>(
         () =>
             data.map((point) => {
-                const canBand =
-                    point.covered != null &&
-                    point.total != null &&
-                    Number.isFinite(point.covered) &&
-                    Number.isFinite(point.total);
+                const total = point.total;
+                const atRisk = point.atRisk;
+                const atRiskSharePct =
+                    total != null &&
+                    total > 0 &&
+                    atRisk != null &&
+                    Number.isFinite(atRisk)
+                        ? (atRisk / total) * 100
+                        : null;
                 return {
                     ...point,
-                    /** Light-green fill under covered; stack base for the uncovered tint. */
-                    bandBase: canBand ? (point.covered as number) : null,
-                    /** Gap to total — fills between covered and total lines. */
-                    bandGap: canBand
-                        ? Math.max(
-                              0,
-                              (point.total as number) -
-                                  (point.covered as number)
-                          )
-                        : null,
+                    atRiskSharePct,
                 };
             }),
         [data]
     );
 
+    const xTickFormatter = (value: string) => {
+        const row = chartData.find(
+            (p) => p.label === value || p.month === value
+        );
+        if (row?.month != null) {
+            return formatMonthYear(row.month);
+        }
+        // Already-formatted labels (e.g. credit-dashboard daily) pass through.
+        return value;
+    };
+
+    const companionHeight = 120;
+    const mainHeight = showAtRiskShare
+        ? Math.max(160, height - companionHeight - 12)
+        : height;
+    /** Month-grain series get a dot per point; dense daily series stay line-only. */
+    const showTotalDots = chartData.some((row) => row.month != null);
+
     return (
-        <div style={{ width: "100%", height }}>
-            <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart
-                    data={chartData}
-                    margin={{
-                        top: 10,
-                        right: 12,
-                        left: 8,
-                        bottom: showLegend ? 8 : 0,
+        <div style={{ width: "100%" }}>
+            <div style={{ width: "100%", height: mainHeight }}>
+                <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart
+                        data={chartData}
+                        margin={{
+                            top: showLegend ? 28 : 10,
+                            right: 12,
+                            left: 8,
+                            bottom: 0,
+                        }}
+                    >
+                        <CartesianGrid
+                            strokeDasharray="3 3"
+                            stroke={chartColors.grid}
+                            vertical={false}
+                        />
+                        <XAxis
+                            dataKey="label"
+                            tick={{
+                                fill: chartColors.axisText,
+                                fontSize: 12,
+                            }}
+                            axisLine={{ stroke: CPH.border }}
+                            tickLine={false}
+                            minTickGap={minTickGap}
+                            tickFormatter={xTickFormatter}
+                        />
+                        <YAxis
+                            tick={{
+                                fill: chartColors.axisText,
+                                fontSize: 11,
+                            }}
+                            axisLine={false}
+                            tickLine={false}
+                            width={84}
+                            tickFormatter={(v: number) =>
+                                formatCurrencyCompact(v, currencyCode)
+                            }
+                        />
+                        <Tooltip
+                            wrapperStyle={{
+                                direction: isRtl ? "rtl" : "ltr",
+                            }}
+                            content={
+                                <ExposureTooltip
+                                    currency={currencyCode}
+                                    language={language}
+                                    seriesLabels={seriesLabels}
+                                    atRiskShareLabel={atRiskShareLabel}
+                                />
+                            }
+                        />
+                        {showLegend ? (
+                            <Legend
+                                verticalAlign="top"
+                                align="right"
+                                content={() => (
+                                    <ExposureLegend
+                                        seriesLabels={seriesLabels}
+                                    />
+                                )}
+                            />
+                        ) : null}
+                        <Area
+                            stackId="exposure"
+                            type="linear"
+                            dataKey="compliant"
+                            name={seriesLabels.compliant}
+                            stroke={chartColors.primary}
+                            fill={chartColors.primary}
+                            fillOpacity={0.15}
+                            connectNulls={false}
+                            isAnimationActive={!prefersReducedMotion}
+                            animationDuration={animDuration}
+                            legendType="square"
+                        />
+                        <Area
+                            stackId="exposure"
+                            type="linear"
+                            dataKey="atRisk"
+                            name={seriesLabels.atRisk}
+                            stroke={chartColors.secondary}
+                            fill={chartColors.secondary}
+                            fillOpacity={0.35}
+                            connectNulls={false}
+                            isAnimationActive={!prefersReducedMotion}
+                            animationDuration={animDuration}
+                            animationBegin={prefersReducedMotion ? 0 : 150}
+                            legendType="square"
+                        />
+                        <Line
+                            type="linear"
+                            dataKey="total"
+                            name={seriesLabels.total}
+                            stroke={chartColors.marker}
+                            strokeWidth={2}
+                            dot={
+                                showTotalDots
+                                    ? {
+                                          r: 3,
+                                          fill: chartColors.marker,
+                                          stroke: chartColors.markerRing,
+                                          strokeWidth: 1.5,
+                                      }
+                                    : false
+                            }
+                            activeDot={{
+                                r: 5,
+                                fill: chartColors.marker,
+                                stroke: chartColors.markerRing,
+                                strokeWidth: 2,
+                            }}
+                            connectNulls={false}
+                            animationDuration={animDuration}
+                            animationBegin={prefersReducedMotion ? 0 : 250}
+                            legendType="plainline"
+                        />
+                    </ComposedChart>
+                </ResponsiveContainer>
+            </div>
+            {showAtRiskShare ? (
+                <div
+                    style={{
+                        width: "100%",
+                        height: companionHeight,
+                        marginTop: 12,
                     }}
                 >
-                    <CartesianGrid
-                        strokeDasharray="3 6"
-                        stroke={CPH.border}
-                        vertical={false}
-                    />
-                    <XAxis
-                        dataKey="label"
-                        tick={{ fill: CPH.slate, fontSize: 12 }}
-                        axisLine={{ stroke: CPH.border }}
-                        tickLine={false}
-                        minTickGap={minTickGap}
-                    />
-                    <YAxis
-                        tick={{ fill: CPH.slate, fontSize: 11 }}
-                        axisLine={false}
-                        tickLine={false}
-                        width={84}
-                        tickFormatter={(v: number) =>
-                            formatPortfolioAxisMoney(v, currencyCode, language)
-                        }
-                    />
-                    <Tooltip
-                        wrapperStyle={{
-                            direction: language.startsWith("he") ? "rtl" : "ltr",
-                        }}
-                        content={(props) => {
-                            const raw = props.payload?.[0]?.payload as
-                                | {
-                                      covered?: number | null;
-                                      uncovered?: number | null;
-                                      total?: number | null;
-                                  }
-                                | undefined;
-                            const items = [
-                                {
-                                    name: seriesLabels.covered,
-                                    value:
-                                        raw?.covered != null
-                                            ? raw.covered
-                                            : undefined,
-                                    color: CPH.good,
-                                    dataKey: "covered",
-                                },
-                                {
-                                    name: seriesLabels.uncovered,
-                                    value:
-                                        raw?.uncovered != null
-                                            ? raw.uncovered
-                                            : undefined,
-                                    color: CPH.criticalArea,
-                                    dataKey: "uncovered",
-                                },
-                                {
-                                    name: seriesLabels.total,
-                                    value:
-                                        raw?.total != null
-                                            ? raw.total
-                                            : undefined,
-                                    color: CPH.seriesSlate,
-                                    dataKey: "total",
-                                },
-                            ];
-                            return (
-                                <ChartTooltip
-                                    active={props.active}
-                                    label={
-                                        typeof props.label === "string" ||
-                                        typeof props.label === "number"
-                                            ? String(props.label)
-                                            : undefined
-                                    }
-                                    items={items}
-                                    language={language}
-                                    formatValue={(v) =>
-                                        formatPortfolioMoney(
-                                            v,
-                                            currencyCode,
-                                            language
-                                        )
-                                    }
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                            data={chartData}
+                            margin={{ top: 18, right: 12, left: 8, bottom: 0 }}
+                        >
+                            <CartesianGrid
+                                strokeDasharray="3 3"
+                                stroke={chartColors.grid}
+                                vertical={false}
+                            />
+                            <XAxis
+                                dataKey="label"
+                                tick={{
+                                    fill: chartColors.axisText,
+                                    fontSize: 11,
+                                }}
+                                axisLine={{ stroke: CPH.border }}
+                                tickLine={false}
+                                minTickGap={minTickGap}
+                                tickFormatter={xTickFormatter}
+                            />
+                            <YAxis
+                                domain={[0, "auto"]}
+                                tick={{
+                                    fill: chartColors.axisText,
+                                    fontSize: 11,
+                                }}
+                                axisLine={false}
+                                tickLine={false}
+                                width={48}
+                                tickFormatter={(v: number) =>
+                                    `${Number(v).toFixed(0)}%`
+                                }
+                            />
+                            <Tooltip
+                                formatter={(value) => {
+                                    const n =
+                                        typeof value === "number"
+                                            ? value
+                                            : Number(value);
+                                    return Number.isFinite(n)
+                                        ? `${n.toFixed(1)}%`
+                                        : "—";
+                                }}
+                                labelFormatter={(label) =>
+                                    xTickFormatter(String(label))
+                                }
+                            />
+                            <Bar
+                                dataKey="atRiskSharePct"
+                                name={atRiskShareLabel}
+                                fill={chartColors.secondary}
+                                radius={[3, 3, 0, 0]}
+                                isAnimationActive={!prefersReducedMotion}
+                                animationDuration={animDuration}
+                            >
+                                <LabelList
+                                    dataKey="atRiskSharePct"
+                                    position="top"
+                                    fill={chartColors.valueLabel}
+                                    fontSize={10}
+                                    formatter={(label) => {
+                                        const v =
+                                            typeof label === "number"
+                                                ? label
+                                                : Number(label);
+                                        return Number.isFinite(v)
+                                            ? `${v.toFixed(1)}%`
+                                            : "";
+                                    }}
                                 />
-                            );
-                        }}
-                    />
-                    {showLegend ? (
-                        <Legend
-                            verticalAlign="bottom"
-                            height={32}
-                            wrapperStyle={{
-                                fontSize: 12,
-                                color: CPH.slate,
-                                paddingTop: 8,
-                            }}
-                        />
-                    ) : null}
-                    <Area
-                        stackId="uncoveredBand"
-                        type="monotone"
-                        dataKey="bandBase"
-                        fill={CPH.goodTint}
-                        stroke="none"
-                        connectNulls={false}
-                        isAnimationActive={false}
-                        legendType="none"
-                        tooltipType="none"
-                    />
-                    <Area
-                        stackId="uncoveredBand"
-                        type="monotone"
-                        dataKey="bandGap"
-                        name={seriesLabels.uncovered}
-                        fill={CPH.criticalArea}
-                        fillOpacity={0.55}
-                        stroke="none"
-                        connectNulls={false}
-                        isAnimationActive={!prefersReducedMotion}
-                        animationDuration={animDuration}
-                        animationBegin={prefersReducedMotion ? 0 : 150}
-                    />
-                    <Line
-                        type="monotone"
-                        dataKey="covered"
-                        name={seriesLabels.covered}
-                        stroke={CPH.good}
-                        strokeWidth={2}
-                        dot={false}
-                        connectNulls={false}
-                        animationDuration={animDuration}
-                    />
-                    <Line
-                        type="monotone"
-                        dataKey="total"
-                        name={seriesLabels.total}
-                        stroke={CPH.seriesSlate}
-                        strokeWidth={2}
-                        dot={false}
-                        connectNulls={false}
-                        animationDuration={animDuration}
-                        animationBegin={prefersReducedMotion ? 0 : 250}
-                    />
-                </ComposedChart>
-            </ResponsiveContainer>
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+            ) : null}
         </div>
     );
 }

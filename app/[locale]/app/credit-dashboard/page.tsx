@@ -6,7 +6,10 @@ import { useParams, usePathname, useRouter, useSearchParams } from "next/navigat
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { parseDashboardBusinessUnitIdFromUrl } from "@/shared/dashboard/dashboardBusinessUnitParams";
-import type { CreditDashboardSummary } from "@/types/creditInsurance";
+import {
+    buildCreditDashboardSearchParams,
+    fetchCreditDashboardSummary,
+} from "@/shared/credit-insurance/creditDashboardSummaryQuery";
 import type { CreditDashboardSummaryHistory } from "@/types/creditInsurance";
 import type { CustomerPolicyUsageTrendResponse } from "@/types/creditInsurance";
 
@@ -22,24 +25,6 @@ const EMPTY_HISTORY_DELTA: CreditDashboardSummaryHistory["delta"] = {
     atRiskExposure: null,
     healthIndex: null,
 };
-
-function buildCreditDashboardSearchParams(options: {
-    policyId: number | null;
-    businessUnitId: number | null;
-    includeNoPolicyExposure: boolean;
-}): URLSearchParams {
-    const params = new URLSearchParams();
-    if (options.policyId != null) {
-        params.set("policyId", String(options.policyId));
-    }
-    if (options.businessUnitId != null) {
-        params.set("businessUnitId", String(options.businessUnitId));
-    }
-    if (!options.includeNoPolicyExposure) {
-        params.set("includeNoPolicyExposure", "0");
-    }
-    return params;
-}
 
 export default function CreditDashboardPage() {
     const router = useRouter();
@@ -186,34 +171,11 @@ export default function CreditDashboardPage() {
             includeNoPolicyExposure,
         ],
         queryFn: async () => {
-            const params = buildCreditDashboardSearchParams({
+            return fetchCreditDashboardSummary({
                 policyId: policyIdForSummary,
                 businessUnitId: selectedBusinessUnitId,
                 includeNoPolicyExposure,
             });
-            const q = params.toString() ? `?${params.toString()}` : "";
-            const res = await apiFetch(`/api/credit-insurance/summary${q}`);
-            if (res.status === 403) {
-                throw new Error("forbidden");
-            }
-            if (!res.ok) {
-                throw new Error("load_failed");
-            }
-            const body = (await res.json()) as CreditDashboardSummary;
-            // Incomplete Nest stubs (missing reportingCountdown) must not reach
-            // CreditDashboardScreen â€” that path throws on invoiceCount.
-            if (
-                body == null ||
-                typeof body !== "object" ||
-                body.reportingCountdown == null ||
-                typeof body.reportingCountdown.invoiceCount !== "number" ||
-                body.termsBreach == null ||
-                body.withoutPolicy == null ||
-                body.capacityGap == null
-            ) {
-                throw new Error("load_failed");
-            }
-            return body;
         },
         retry: false,
         staleTime: 0,

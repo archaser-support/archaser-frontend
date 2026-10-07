@@ -43,6 +43,13 @@ export type Customer = CustomerRow & {
     Person: Person | null;
     Company: Company | null;
     Account: Account;
+    ParentCustomer?: (Pick<
+        CustomerRow,
+        "id" | "customer_number" | "type"
+    > & {
+        Person?: Pick<Person, "first_name" | "last_name" | "full_name"> | null;
+        Company?: Pick<Company, "name"> | null;
+    }) | null;
     ChildCustomers: Pick<CustomerRow, "id">[];
     SequenceContainer: Pick<
         SequenceContainer,
@@ -140,6 +147,7 @@ export type CustomerPolicyHistoryItem = {
     approved_limit_expiration_date?: Date | string | null;
     zero_limit_date?: Date | string | null;
     policy_change_start_date?: Date | string | null;
+    policy_change_end_date?: Date | string | null;
     status?: string | null;
     limit_type?: string | null;
     max_payment_term?: number | null;

@@ -3,16 +3,11 @@
 import { Group as GroupIcon } from "@mui/icons-material";
 import { Box, CircularProgress, Typography, useTheme } from "@mui/material";
 import { alpha } from "@mui/material/styles";
-import dynamic from "next/dynamic";
 import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { FinancialDashboardChartCard } from "@/app/[locale]/app/dashboard/(cards)/FinancialDashboardChartCard";
-
-const Chart = dynamic(() => import("react-apexcharts"), {
-    ssr: false,
-    loading: () => <CircularProgress color="primary" size={40} />,
-});
+import Chart from "@/shared/components/ApexChart";
 
 interface DisputeAgentChartProps {
     disputeAssignFrequencyList?: Array<{

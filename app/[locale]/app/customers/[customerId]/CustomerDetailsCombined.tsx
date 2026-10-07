@@ -36,7 +36,9 @@ import React, {
 import { useTranslation } from "react-i18next";
 
 import AccessDenied from "@/components/AccessDenied";
+import { CreditHistoryRefreshProgressDialog } from "@/shared/components/CreditHistoryRefreshProgressDialog";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
+import type { CreditAsOfBackfillJobView } from "@/types/creditInsurance";
 import {
     fetchCountriesFromApi,
     fetchStatesFromApi,
@@ -46,6 +48,8 @@ import {
     applyEffectivePolicyFieldsToCustomer,
     buildCustomerPutPayload,
     getEffectivePolicyId,
+    getPendingCustomerPolicyFromCustomer,
+    stripLegacyPolicyFieldsFromPayload,
 } from "@/shared/customerPolicyAdapter";
 import {
     isAllowedPolicyExclusionReason,
@@ -56,6 +60,10 @@ import {
     type MonthEndCutoffValidationErrorCode,
 } from "@/shared/creditInsurance/monthEndCutoffFields";
 import { resolveCustomerDetailDashboardUx } from "@/shared/customerDetailDashboardUx";
+import {
+    customerCreditPoolQueryKey,
+    customerHasCreditPoolChildren,
+} from "@/shared/customerCreditPool";
 import { fetchCustomerById } from "@/shared/services/customerService";
 import { Customer } from "@/types/Customer";
 import AppDialog from "@/shared/layout-components/modal/AppDialog";
@@ -92,21 +100,48 @@ const TAB_AGGREGATED_DATA = 5;
 function activeTabToMuiTabsValue(
     activeTab: number,
     isCreditInsuranceAccount: boolean,
-    hasChildren: boolean
+    hasChildren: boolean,
+    showAggregatedDataTab: boolean
 ): number {
+    // Shell parents hide Invoices. Aggregated Data only when collection content exists.
+    const hideInvoices = hasChildren;
+
     if (isCreditInsuranceAccount) {
-        return hasChildren ? activeTab : Math.min(activeTab, TAB_POLICIES);
+        // Rendered without children: Dash, Act, Gen, Inv, Policies
+        // With children + collection: Dash, Act, Gen, Policies, Aggregated
+        // With children, credit-only: Dash, Act, Gen, Policies
+        if (!hideInvoices) {
+            if (activeTab === TAB_AGGREGATED_DATA) {
+                return TAB_DASHBOARD;
+            }
+            return Math.min(activeTab, TAB_POLICIES);
+        }
+        if (activeTab <= TAB_GENERAL) {
+            return activeTab;
+        }
+        if (activeTab === TAB_INVOICES) {
+            return TAB_DASHBOARD;
+        }
+        if (activeTab === TAB_POLICIES) {
+            return TAB_GENERAL + 1; // index 3
+        }
+        if (activeTab === TAB_AGGREGATED_DATA) {
+            return showAggregatedDataTab ? TAB_GENERAL + 2 : TAB_DASHBOARD; // 4 or fallback
+        }
+        return TAB_DASHBOARD;
     }
-    if (!hasChildren) {
+
+    if (!hideInvoices) {
         if (activeTab >= TAB_POLICIES) {
             return TAB_DASHBOARD;
         }
         return activeTab;
     }
+    // Collection + children, no policies: Dash, Act, Gen, Aggregated (if shown)
     if (activeTab === TAB_AGGREGATED_DATA) {
-        return TAB_POLICIES;
+        return showAggregatedDataTab ? TAB_GENERAL + 1 : TAB_DASHBOARD;
     }
-    if (activeTab === TAB_POLICIES) {
+    if (activeTab === TAB_POLICIES || activeTab === TAB_INVOICES) {
         return TAB_DASHBOARD;
     }
     return activeTab;
@@ -115,15 +150,31 @@ function activeTabToMuiTabsValue(
 function muiTabsValueToActiveTab(
     muiValue: number,
     isCreditInsuranceAccount: boolean,
-    hasChildren: boolean
+    hasChildren: boolean,
+    showAggregatedDataTab: boolean
 ): number {
+    const hideInvoices = hasChildren;
     if (isCreditInsuranceAccount) {
+        if (!hideInvoices) {
+            return muiValue;
+        }
+        // Rendered: 0 Dash, 1 Act, 2 Gen, 3 Policies, [4 Aggregated?]
+        if (muiValue <= TAB_GENERAL) {
+            return muiValue;
+        }
+        if (muiValue === TAB_GENERAL + 1) {
+            return TAB_POLICIES;
+        }
+        if (muiValue === TAB_GENERAL + 2 && showAggregatedDataTab) {
+            return TAB_AGGREGATED_DATA;
+        }
+        return TAB_DASHBOARD;
+    }
+    if (!hideInvoices) {
         return muiValue;
     }
-    if (!hasChildren) {
-        return muiValue;
-    }
-    if (muiValue === TAB_POLICIES) {
+    // Rendered: 0 Dash, 1 Act, 2 Gen, [3 Aggregated?]
+    if (muiValue === TAB_GENERAL + 1 && showAggregatedDataTab) {
         return TAB_AGGREGATED_DATA;
     }
     return muiValue;
@@ -133,7 +184,7 @@ function muiTabsValueToActiveTab(
 const ActivityTimeline = dynamic(() => import("./ActivityTimeline"), {
     ssr: false,
 });
-const UnpaidInvoiceList = dynamic(() => import("./UnpaidInvoiceList"), {
+const CustomerInvoiceGrid = dynamic(() => import("./CustomerInvoiceGrid"), {
     ssr: false,
 });
 const LogActivity = dynamic(() => import("./LogActivity"), {
@@ -194,7 +245,6 @@ const ActivitiesTab = React.memo(
         customer,
         showLogActivity,
         setShowLogActivity,
-        showSendEmail,
         setShowSendEmail,
         refreshTrigger,
         refreshTimeline,
@@ -204,7 +254,6 @@ const ActivitiesTab = React.memo(
         customer: Customer;
         showLogActivity: boolean;
         setShowLogActivity: React.Dispatch<React.SetStateAction<boolean>>;
-        showSendEmail: boolean;
         setShowSendEmail: React.Dispatch<React.SetStateAction<boolean>>;
         refreshTrigger: number;
         refreshTimeline: () => void;
@@ -410,7 +459,7 @@ const InvoicesTab = React.memo(
                     flexDirection: "column",
                 }}
             >
-                <UnpaidInvoiceList
+                <CustomerInvoiceGrid
                     customer={customer}
                     isCreditInsuranceAccount={isCreditInsuranceAccount}
                     isCollectionAccount={isCollectionAccount}
@@ -428,7 +477,6 @@ const TabContent = React.memo(
         customer,
         showLogActivity,
         setShowLogActivity,
-        showSendEmail,
         setShowSendEmail,
         loadedTabs,
         refreshTrigger,
@@ -447,10 +495,13 @@ const TabContent = React.memo(
         isSaving,
         onCancelPendingPolicyChange,
         isCancellingPending,
+        onRemovePolicy,
+        isRemovingPolicy,
         validationErrors,
         sequenceContainers,
         businessUnits,
         hasChildren,
+        showAggregatedDataTab = false,
         customerIdNumber,
         hasCreateLogActivityPermission,
         hasEditCustomerPermission,
@@ -466,7 +517,6 @@ const TabContent = React.memo(
         customer: Customer;
         showLogActivity: boolean;
         setShowLogActivity: React.Dispatch<React.SetStateAction<boolean>>;
-        showSendEmail: boolean;
         setShowSendEmail: React.Dispatch<React.SetStateAction<boolean>>;
         loadedTabs: Set<number>;
         refreshTrigger: number;
@@ -485,10 +535,13 @@ const TabContent = React.memo(
         isSaving: boolean;
         onCancelPendingPolicyChange?: () => void;
         isCancellingPending?: boolean;
+        onRemovePolicy?: (unassignDate: string) => Promise<void>;
+        isRemovingPolicy?: boolean;
         validationErrors: { [key: string]: string };
         sequenceContainers: any[];
         businessUnits: any[];
         hasChildren: boolean;
+        showAggregatedDataTab?: boolean;
         customerIdNumber: number;
         hasCreateLogActivityPermission: boolean;
         hasEditCustomerPermission: boolean;
@@ -551,7 +604,6 @@ const TabContent = React.memo(
                             customer={customer}
                             showLogActivity={showLogActivity}
                             setShowLogActivity={setShowLogActivity}
-                            showSendEmail={showSendEmail}
                             setShowSendEmail={setShowSendEmail}
                             refreshTrigger={refreshTrigger}
                             refreshTimeline={refreshTimeline}
@@ -641,7 +693,8 @@ const TabContent = React.memo(
                     )}
                 </Box>
 
-                {/* Invoices Tab */}
+                {/* Invoices Tab — hidden for shell parents (customers with children) */}
+                {!hasChildren && (
                 <Box
                     sx={{
                         display: activeTab === TAB_INVOICES ? "flex" : "none",
@@ -659,6 +712,7 @@ const TabContent = React.memo(
                         />
                     )}
                 </Box>
+                )}
 
                 {/* Settings (credit insurance) tab */}
                 <Box
@@ -685,34 +739,45 @@ const TabContent = React.memo(
                             activeUsers={activeUsers}
                             activePolicies={activePolicies}
                             onEditClick={
-                                hasEditCustomerPermission
+                                hasEditCustomerPermission &&
+                                customer?.parent_customer_id == null
                                     ? onEditClick
                                     : undefined
                             }
                             onCancelEdit={
-                                hasEditCustomerPermission
+                                hasEditCustomerPermission &&
+                                customer?.parent_customer_id == null
                                     ? onCancelEdit
                                     : undefined
                             }
                             onSave={
-                                hasEditCustomerPermission
+                                hasEditCustomerPermission &&
+                                customer?.parent_customer_id == null
                                     ? onSave
                                     : undefined
                             }
                             isSaving={isSaving}
                             onCancelPendingPolicyChange={
-                                hasEditCustomerPermission
+                                hasEditCustomerPermission &&
+                                customer?.parent_customer_id == null
                                     ? onCancelPendingPolicyChange
                                     : undefined
                             }
                             isCancellingPending={isCancellingPending}
+                            onRemovePolicy={
+                                hasEditCustomerPermission &&
+                                customer?.parent_customer_id == null
+                                    ? onRemovePolicy
+                                    : undefined
+                            }
+                            isRemovingPolicy={isRemovingPolicy}
                             customerId={customerIdNumber}
                         />
                     )}
                 </Box>
 
-                {/* Aggregated Data Tab */}
-                {hasChildren && (
+                {/* Aggregated Data Tab — collection rollups only */}
+                {showAggregatedDataTab && (
                     <Box
                         sx={{
                             display: activeTab === TAB_AGGREGATED_DATA ? "block" : "none",
@@ -814,6 +879,23 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
     const [editedCustomer, setEditedCustomer] = useState<any>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isCancellingPending, setIsCancellingPending] = useState(false);
+    const [isRemovingPolicy, setIsRemovingPolicy] = useState(false);
+    const [creditHistoryRefreshOpen, setCreditHistoryRefreshOpen] =
+        useState(false);
+    const [creditHistoryRefreshJob, setCreditHistoryRefreshJob] =
+        useState<CreditAsOfBackfillJobView | null>(null);
+    const [creditHistoryRefreshReason, setCreditHistoryRefreshReason] =
+        useState<"started" | "blocked">("started");
+    const [
+        creditHistoryRefreshStatusKind,
+        setCreditHistoryRefreshStatusKind,
+    ] = useState<"parent_pool_history" | "asof_backfill">(
+        "parent_pool_history"
+    );
+    const [
+        creditHistoryRefreshLockDismiss,
+        setCreditHistoryRefreshLockDismiss,
+    ] = useState(false);
     const [validationErrors, setValidationErrors] = useState<{
         [key: string]: string;
     }>({});
@@ -891,12 +973,7 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
     }, [customer, t]);
 
     // Check if customer has children from the customer data
-    const hasChildren = Boolean(
-        customer &&
-        "ChildCustomers" in customer &&
-        Array.isArray((customer as any).ChildCustomers) &&
-        (customer as any).ChildCustomers.length > 0
-    );
+    const hasChildren = customerHasCreditPoolChildren(customer);
 
     // Fetch active users for owner field
     const { data: activeUsersData } = useQuery({
@@ -983,6 +1060,7 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
         accountProducts?.has_credit_insurance === true;
     const isCollectionAccount: boolean =
         accountProducts?.has_collection !== false;
+    const showAggregatedDataTab = hasChildren && isCollectionAccount;
 
     // MUI Tabs value = index among rendered <Tab /> children (differs when Settings tab is omitted)
     const muiTabsValue = useMemo(
@@ -990,9 +1068,10 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
             activeTabToMuiTabsValue(
                 activeTab,
                 isCreditInsuranceAccount,
-                hasChildren
+                hasChildren,
+                showAggregatedDataTab
             ),
-        [activeTab, isCreditInsuranceAccount, hasChildren]
+        [activeTab, isCreditInsuranceAccount, hasChildren, showAggregatedDataTab]
     );
 
     const { data: activePoliciesData } = useQuery({
@@ -1026,7 +1105,17 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                 newSet.add(TAB_DASHBOARD);
                 return newSet;
             });
-        } else if (!hasChildren && activeTab === TAB_AGGREGATED_DATA) {
+        } else if (
+            (!hasChildren || !showAggregatedDataTab) &&
+            activeTab === TAB_AGGREGATED_DATA
+        ) {
+            setActiveTab(TAB_DASHBOARD);
+            setLoadedTabs((prev) => {
+                const newSet = new Set(prev);
+                newSet.add(TAB_DASHBOARD);
+                return newSet;
+            });
+        } else if (hasChildren && activeTab === TAB_INVOICES) {
             setActiveTab(TAB_DASHBOARD);
             setLoadedTabs((prev) => {
                 const newSet = new Set(prev);
@@ -1062,6 +1151,7 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
     }, [
         customer,
         hasChildren,
+        showAggregatedDataTab,
         tabParam,
         activeTab,
         isCreditInsuranceAccount,
@@ -1143,7 +1233,8 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
             const semanticTab = muiTabsValueToActiveTab(
                 newValue,
                 isCreditInsuranceAccount,
-                hasChildren
+                hasChildren,
+                showAggregatedDataTab
             );
 
             startTransition(() => {
@@ -1178,7 +1269,7 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                 }, 0);
             }
         },
-        [params, router, isCreditInsuranceAccount, hasChildren]
+        [params, router, isCreditInsuranceAccount, hasChildren, showAggregatedDataTab]
     );
 
     const handleEditClick = useCallback(() => {
@@ -1500,6 +1591,7 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
         },
         [
             applyCreditInsurancePolicyPrefill,
+            customerIdNumber,
             isCreditInsuranceAccount,
             isEditing,
         ]
@@ -1729,24 +1821,117 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
 
             setIsSaving(true);
             try {
-                const response = await apiFetch(`/api/entities/customers/${customerIdNumber}`,
-                    {
-                        method: "PUT",
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify(
-                            buildCustomerPutPayload(editedCustomer, {
-                                confirmPolicySwitch,
-                            })
-                        ),
-                    }
-                );
+                const putPayload = buildCustomerPutPayload(editedCustomer, {
+                    confirmPolicySwitch,
+                });
+                // Linked children inherit policy from the pool root — never send
+                // policy fields on the same PUT that sets/keeps parent_customer_id.
+                const parentCustomerId =
+                    putPayload.parent_customer_id != null &&
+                    putPayload.parent_customer_id !== ""
+                        ? Number(putPayload.parent_customer_id)
+                        : null;
+                const requestPayload =
+                    parentCustomerId != null && Number.isFinite(parentCustomerId)
+                        ? stripLegacyPolicyFieldsFromPayload(putPayload)
+                        : putPayload;
+                const previousParentIdBeforeSave =
+                    customer?.parent_customer_id != null
+                        ? Number(customer.parent_customer_id)
+                        : null;
+                const parentLinkWillChange =
+                    previousParentIdBeforeSave !==
+                    (parentCustomerId != null && Number.isFinite(parentCustomerId)
+                        ? parentCustomerId
+                        : null);
+                console.warn("[ParentCustomerLink] PUT start", {
+                    customerId: customerIdNumber,
+                    previousParentId: previousParentIdBeforeSave,
+                    nextParentId: parentCustomerId,
+                    parentLinkWillChange,
+                    strippedPolicyFields: requestPayload !== putPayload,
+                    startedAt: new Date().toISOString(),
+                });
+                // Open progress modal before the long fail-closed sync so the UI
+                // can poll syncing steps while Save is still in flight.
+                if (parentLinkWillChange && isCreditInsuranceAccount) {
+                    setCreditHistoryRefreshReason("started");
+                    setCreditHistoryRefreshStatusKind("parent_pool_history");
+                    setCreditHistoryRefreshJob(null);
+                    setCreditHistoryRefreshLockDismiss(true);
+                    setCreditHistoryRefreshOpen(true);
+                    void queryClient.invalidateQueries({
+                        queryKey: [
+                            "credit-insurance",
+                            "credit-history-refresh-status",
+                        ],
+                    });
+                }
+                const putStartedMs = Date.now();
+                let response: Response;
+                try {
+                    response = await apiFetch(
+                        `/api/entities/customers/${customerIdNumber}`,
+                        {
+                            method: "PUT",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify(requestPayload),
+                        }
+                    );
+                } finally {
+                    setCreditHistoryRefreshLockDismiss(false);
+                }
+                console.warn("[ParentCustomerLink] PUT response", {
+                    customerId: customerIdNumber,
+                    responseOk: response.ok,
+                    responseStatus: response.status,
+                    elapsedMs: Date.now() - putStartedMs,
+                });
 
                 if (response.ok) {
+                    const saveBody = (await response.json().catch(() => null)) as
+                        | (Customer & {
+                              creditHistoryRefresh?: CreditAsOfBackfillJobView | null;
+                              creditHistoryRefreshKind?:
+                                  | "parent_pool_history"
+                                  | "asof_backfill"
+                                  | null;
+                          })
+                        | null;
+                    const previousParentId = previousParentIdBeforeSave;
                     await queryClient.invalidateQueries({
                         queryKey: ["customer", customerIdNumber],
                     });
+                    const parentIdsToRefresh = new Set<number>();
+                    if (
+                        parentCustomerId != null &&
+                        Number.isFinite(parentCustomerId)
+                    ) {
+                        parentIdsToRefresh.add(parentCustomerId);
+                    }
+                    if (
+                        previousParentId != null &&
+                        Number.isFinite(previousParentId) &&
+                        previousParentId !== parentCustomerId
+                    ) {
+                        parentIdsToRefresh.add(previousParentId);
+                    }
+                    for (const parentId of parentIdsToRefresh) {
+                        await queryClient.invalidateQueries({
+                            queryKey: ["customer", parentId],
+                        });
+                        await queryClient.invalidateQueries({
+                            queryKey: customerCreditPoolQueryKey(parentId),
+                        });
+                        await queryClient.invalidateQueries({
+                            queryKey: ["customer-dashboard-kpis"],
+                            predicate: (q) =>
+                                Array.isArray(q.queryKey) &&
+                                q.queryKey.includes(parentId),
+                        });
+                    }
                     const { data: freshCustomer } = await refetch();
                     if (freshCustomer) {
                         setEditedCustomer(
@@ -1770,10 +1955,92 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                         }),
                         "success"
                     );
+                    if (parentLinkWillChange && isCreditInsuranceAccount) {
+                        if (saveBody?.creditHistoryRefresh) {
+                            setCreditHistoryRefreshJob(
+                                saveBody.creditHistoryRefresh
+                            );
+                            setCreditHistoryRefreshStatusKind(
+                                saveBody.creditHistoryRefreshKind ===
+                                    "asof_backfill"
+                                    ? "asof_backfill"
+                                    : "parent_pool_history"
+                            );
+                        }
+                        await queryClient.invalidateQueries({
+                            queryKey: [
+                                "credit-insurance",
+                                "credit-history-refresh-status",
+                            ],
+                        });
+                    }
                 } else {
-                    const errBody = await response.json().catch(() => ({}));
+                    const errBody = await response.json().catch(() => ({})) as {
+                        code?: string;
+                        error?: string;
+                        creditHistoryRefresh?: CreditAsOfBackfillJobView | null;
+                        creditHistoryRefreshKind?:
+                            | "parent_pool_history"
+                            | "asof_backfill"
+                            | null;
+                    };
+                    console.warn("[ParentCustomerLink] PUT not ok", {
+                        customerId: customerIdNumber,
+                        responseStatus: response.status,
+                        errorCode:
+                            typeof errBody?.code === "string"
+                                ? errBody.code
+                                : null,
+                        errorMessage:
+                            typeof errBody?.error === "string"
+                                ? errBody.error
+                                : null,
+                        elapsedMs: Date.now() - putStartedMs,
+                    });
                     if (errBody?.code === "CONFIRM_POLICY_SWITCH_REQUIRED") {
                         setPolicySwitchConfirmOpen(true);
+                    } else if (
+                        errBody?.code === "CREDIT_ASOF_BACKFILL_IN_PROGRESS"
+                    ) {
+                        // Dialog explains the block — skip the duplicate error toast.
+                        setCreditHistoryRefreshReason("blocked");
+                        setCreditHistoryRefreshStatusKind(
+                            errBody.creditHistoryRefreshKind ===
+                                "asof_backfill"
+                                ? "asof_backfill"
+                                : "parent_pool_history"
+                        );
+                        setCreditHistoryRefreshJob(
+                            errBody.creditHistoryRefresh ?? null
+                        );
+                        setCreditHistoryRefreshLockDismiss(false);
+                        setCreditHistoryRefreshOpen(true);
+                        await queryClient.invalidateQueries({
+                            queryKey: [
+                                "credit-insurance",
+                                "credit-history-refresh-status",
+                            ],
+                        });
+                    } else if (
+                        parentLinkWillChange &&
+                        isCreditInsuranceAccount
+                    ) {
+                        // Sync failed — keep modal open; poll shows failed step.
+                        setCreditHistoryRefreshLockDismiss(false);
+                        await queryClient.invalidateQueries({
+                            queryKey: [
+                                "credit-insurance",
+                                "credit-history-refresh-status",
+                            ],
+                        });
+                        showToast(
+                            typeof errBody?.error === "string"
+                                ? errBody.error
+                                : t("messages.save_error", {
+                                      ns: "customers",
+                                  }),
+                            "error"
+                        );
                     } else {
                         const apiError =
                             errBody?.code === "PENDING_POLICY_CHANGE_EXISTS"
@@ -1781,28 +2048,52 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                                       "credit_insurance.validation.pending_policy_change_exists",
                                       { ns: "customers" }
                                   )
-                                : typeof errBody?.error === "string"
-                                  ? errBody.error
-                                  : null;
+                                : errBody?.code ===
+                                    "SHELL_PARENT_HAS_INVOICES_OR_PAYMENTS"
+                                  ? t(
+                                        "validation.parent_has_invoices_or_payments",
+                                        { ns: "customers" }
+                                    )
+                                  : errBody?.code ===
+                                        "PARENT_CREDIT_POOL_SYNC_FAILED"
+                                      ? t(
+                                            "messages.parent_credit_pool_sync_failed",
+                                            { ns: "customers" }
+                                        )
+                                      : typeof errBody?.error === "string"
+                                        ? errBody.error
+                                        : null;
                         showToast(
                             apiError ?? t("messages.save_error"),
                             "error"
                         );
                     }
                 }
-            } catch {
-                showToast(t("messages.save_error"), "error");
+            } catch (error) {
+                console.warn("[ParentCustomerLink] PUT exception", {
+                    customerId: customerIdNumber,
+                    errorName: error instanceof Error ? error.name : null,
+                    errorMessage:
+                        error instanceof Error ? error.message : String(error),
+                });
+                setCreditHistoryRefreshLockDismiss(false);
+                showToast(
+                    t("messages.save_error_network", { ns: "customers" }),
+                    "error"
+                );
             } finally {
                 setIsSaving(false);
             }
         },
         [
             editedCustomer,
+            customer,
             customerIdNumber,
             refetch,
             showToast,
             t,
             queryClient,
+            isCreditInsuranceAccount,
         ]
     );
 
@@ -1861,6 +2152,91 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
         }
     }, [customerIdNumber, queryClient, refetch, showToast, t]);
 
+    const handleRemovePolicy = useCallback(
+        async (unassignDate: string) => {
+            setIsRemovingPolicy(true);
+            try {
+                const response = await apiFetch(
+                    `/api/entities/customers/${customerIdNumber}/policies/unassign`,
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ unassign_date: unassignDate }),
+                    }
+                );
+                if (response.ok) {
+                    await queryClient.invalidateQueries({
+                        queryKey: ["customer", customerIdNumber],
+                    });
+                    const { data: freshCustomer } = await refetch();
+                    if (freshCustomer) {
+                        setEditedCustomer(
+                            applyEffectivePolicyFieldsToCustomer({
+                                ...freshCustomer,
+                                customer_name: freshCustomer?.Person
+                                    ? `${freshCustomer.Person.first_name || ""} ${freshCustomer.Person.last_name || ""}`.trim()
+                                    : freshCustomer?.Company?.name || "",
+                                category_for_new_collection:
+                                    freshCustomer?.category_for_new_collection ||
+                                    "Automated",
+                            })
+                        );
+                    }
+                    const todayUtcYmd = new Date().toISOString().slice(0, 10);
+                    const scheduledUnassign =
+                        unassignDate > todayUtcYmd ||
+                        Boolean(
+                            getPendingCustomerPolicyFromCustomer(freshCustomer)
+                        );
+                    showToast(
+                        t(
+                            scheduledUnassign
+                                ? "credit_insurance.remove_policy_pending_success"
+                                : "credit_insurance.remove_policy_success",
+                            { ns: "customers" }
+                        ),
+                        "success"
+                    );
+                    return;
+                }
+                const errBody = await response.json().catch(() => ({}));
+                const code =
+                    typeof errBody?.code === "string" ? errBody.code : null;
+                const codeKey =
+                    code === "UNASSIGN_DATE_BEFORE_POLICY_START" ||
+                    code === "UNASSIGN_DATE_BEFORE_VERSION_START"
+                        ? "credit_insurance.validation.unassign_date_before_version_start"
+                        : code === "UNASSIGN_DATE_REQUIRED"
+                            ? "credit_insurance.validation.unassign_date_required"
+                            : code === "PENDING_POLICY_CHANGE_EXISTS"
+                              ? "credit_insurance.validation.pending_policy_change_exists"
+                              : null;
+                const apiError =
+                    typeof errBody?.error === "string" ? errBody.error : null;
+                showToast(
+                    codeKey
+                        ? t(codeKey, { ns: "customers" })
+                        : (apiError ??
+                              t("credit_insurance.remove_policy_error", {
+                                  ns: "customers",
+                              })),
+                    "error"
+                );
+                return;
+            } catch {
+                showToast(
+                    t("credit_insurance.remove_policy_error", {
+                        ns: "customers",
+                    }),
+                    "error"
+                );
+            } finally {
+                setIsRemovingPolicy(false);
+            }
+        },
+        [customerIdNumber, queryClient, refetch, showToast, t]
+    );
+
     const handleSave = useCallback(async () => {
         if (!editedCustomer) return;
 
@@ -1905,7 +2281,6 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
 
         // Determine error type
         const is403 = statusCode === 403;
-        const is404 = statusCode === 404;
 
         let errorTitle = t("messages.customer_not_found");
         let errorDescription = t("messages.customer_not_found_description");
@@ -2096,11 +2471,13 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                         icon={<InfoOutlinedIcon sx={{ mb: 0.5 }} />}
                         iconPosition={tabIconPosition}
                     />
-                    <Tab
-                        label={t("sections.invoices").toUpperCase()}
-                        icon={<ReceiptIcon sx={{ mb: 0.5 }} />}
-                        iconPosition={tabIconPosition}
-                    />
+                    {!hasChildren && (
+                        <Tab
+                            label={t("sections.invoices").toUpperCase()}
+                            icon={<ReceiptIcon sx={{ mb: 0.5 }} />}
+                            iconPosition={tabIconPosition}
+                        />
+                    )}
                     {isCreditInsuranceAccount && (
                         <Tab
                             label={t("sections.policies").toUpperCase()}
@@ -2122,7 +2499,7 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                             iconPosition={tabIconPosition}
                         />
                     )}
-                    {hasChildren && (
+                    {showAggregatedDataTab && (
                         <Tab
                             label={t("sections.aggregated_data", {
                                 ns: "customers",
@@ -2162,7 +2539,6 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                         }
                         showLogActivity={showLogActivity}
                         setShowLogActivity={setShowLogActivity}
-                        showSendEmail={showSendEmail}
                         setShowSendEmail={setShowSendEmail}
                         loadedTabs={loadedTabs}
                         refreshTrigger={refreshTrigger}
@@ -2183,10 +2559,13 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                             handleCancelPendingPolicyChange
                         }
                         isCancellingPending={isCancellingPending}
+                        onRemovePolicy={handleRemovePolicy}
+                        isRemovingPolicy={isRemovingPolicy}
                         validationErrors={validationErrors}
                         sequenceContainers={sequenceContainers}
                         businessUnits={businessUnits}
                         hasChildren={hasChildren || false}
+                        showAggregatedDataTab={showAggregatedDataTab}
                         customerIdNumber={customerIdNumber}
                         hasCreateLogActivityPermission={
                             hasCreateLogActivityPermission
@@ -2245,6 +2624,19 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                     })}
                 </Typography>
             </AppDialog>
+
+            <CreditHistoryRefreshProgressDialog
+                open={creditHistoryRefreshOpen}
+                initialJob={creditHistoryRefreshJob}
+                reason={creditHistoryRefreshReason}
+                statusKind={creditHistoryRefreshStatusKind}
+                lockDismiss={creditHistoryRefreshLockDismiss}
+                onClose={() => {
+                    setCreditHistoryRefreshOpen(false);
+                    setCreditHistoryRefreshJob(null);
+                    setCreditHistoryRefreshLockDismiss(false);
+                }}
+            />
 
             {/* SendEmail Modal */}
             <MassSendEmailModal

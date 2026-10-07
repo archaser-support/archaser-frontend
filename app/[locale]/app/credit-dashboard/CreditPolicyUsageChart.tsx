@@ -4,7 +4,6 @@ import { BarChart as BarChartIcon } from "@mui/icons-material";
 import { alpha, Box, Card, CardContent, Typography, useTheme } from "@mui/material";
 import { lighten } from "@mui/material/styles";
 import type { ApexOptions } from "apexcharts";
-import dynamic from "next/dynamic";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -20,8 +19,7 @@ import {
     formatPortfolioAxisMoney,
     formatPortfolioMoney,
 } from "@/app/[locale]/app/credit-portfolio-health/formatPortfolioMoney";
-
-const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
+import ReactApexChart from "@/shared/components/ApexChart";
 
 /** Split long x-axis labels across two lines (balanced on word boundaries). */
 function wrapLabelTwoLines(label: string): [string, string] | string {
@@ -87,7 +85,7 @@ export function CreditPolicyUsageChart(props: {
                     nsDashboard
                 ),
                 totals: props.combined,
-                showTopUpCovered: true,
+                showTopUpCompliant: true,
             },
             {
                 fullLabel: t(
@@ -99,7 +97,7 @@ export function CreditPolicyUsageChart(props: {
                     nsDashboard
                 ),
                 totals: props.named,
-                showTopUpCovered: false,
+                showTopUpCompliant: false,
             },
             {
                 fullLabel: t(
@@ -111,7 +109,7 @@ export function CreditPolicyUsageChart(props: {
                     nsDashboard
                 ),
                 totals: props.dclSdl,
-                showTopUpCovered: false,
+                showTopUpCompliant: false,
             },
         ],
         [props.combined, props.dclSdl, props.named, t]
@@ -119,8 +117,8 @@ export function CreditPolicyUsageChart(props: {
     const {
         usedWithin: baseUsedWithin,
         remaining: baseRemaining,
-        topUpCovered: baseTopUpCovered,
-        uncovered: baseUncovered,
+        topUpCompliant: baseTopUpCompliant,
+        atRisk: baseAtRisk,
         stackHeights: baseStackHeights,
         usagePct: usagePctBase,
         approvedLimits: baseApprovedLimits,
@@ -128,7 +126,7 @@ export function CreditPolicyUsageChart(props: {
         () => buildPolicyUsageBaseStackedSeries(baseCategories),
         [baseCategories]
     );
-    const topUpCoveredFill = isLight
+    const topUpCompliantFill = isLight
         ? lighten(theme.palette.warning.main, 0.25)
         : alpha(theme.palette.warning.main, 0.75);
     const usagePctFormatter = new Intl.NumberFormat(
@@ -200,6 +198,9 @@ export function CreditPolicyUsageChart(props: {
                 : baseUsedWithin,
         [baseUsedWithin, showTopUpBar, topUpUsedWithin]
     );
+    const hasTopUpCompliantInChart =
+        showTopUpBar ||
+        baseTopUpCompliant.some((value) => value > 0);
 
     const options = useMemo<ApexOptions>(
         () => ({
@@ -265,12 +266,14 @@ export function CreditPolicyUsageChart(props: {
                     },
                 },
             },
-            colors: [
-                chartMain,
-                remainingFill,
-                topUpCoveredFill,
-                theme.palette.error.main,
-            ],
+            colors: hasTopUpCompliantInChart
+                ? [
+                      chartMain,
+                      remainingFill,
+                      topUpCompliantFill,
+                      theme.palette.error.main,
+                  ]
+                : [chartMain, remainingFill, theme.palette.error.main],
             legend: { position: "bottom", horizontalAlign: "center" },
             grid: {
                 borderColor: gridLineColor,
@@ -396,9 +399,10 @@ export function CreditPolicyUsageChart(props: {
             language,
             remainingFill,
             showTopUpBar,
+            hasTopUpCompliantInChart,
             t,
             topUpCapacity,
-            topUpCoveredFill,
+            topUpCompliantFill,
             topUpMax,
             topUpOver,
             topUpRemaining,
@@ -410,62 +414,68 @@ export function CreditPolicyUsageChart(props: {
         ]
     );
 
-    /** Stacked bottomâ†’top: used, remaining, top-up covered excess, uncovered. */
-    const series = useMemo(
-        () => [
+    /** Stacked bottom→top: used, remaining, top-up compliant excess, at-risk. */
+    const series = useMemo(() => {
+        const used = {
+            name: t(
+                "credit_insurance_dashboard.policy_usage_legend_used",
+                nsDashboard
+            ),
+            type: "column",
+            data: usedSeriesValues,
+        };
+        const remaining = {
+            name: t(
+                "credit_insurance_dashboard.policy_usage_legend_remaining",
+                nsDashboard
+            ),
+            type: "column",
+            data: showTopUpBar
+                ? [...baseRemaining, topUpRemaining]
+                : baseRemaining,
+        };
+        const overLimit = {
+            name: t(
+                "credit_insurance_dashboard.policy_usage_legend_over_limit",
+                nsDashboard
+            ),
+            type: "column",
+            data: showTopUpBar
+                ? [...baseAtRisk, topUpOver]
+                : baseAtRisk,
+        };
+        if (!hasTopUpCompliantInChart) {
+            return [used, remaining, overLimit];
+        }
+        return [
+            used,
+            remaining,
             {
                 name: t(
-                    "credit_insurance_dashboard.policy_usage_legend_used",
-                    nsDashboard
-                ),
-                type: "column",
-                data: usedSeriesValues,
-            },
-            {
-                name: t(
-                    "credit_insurance_dashboard.policy_usage_legend_remaining",
-                    nsDashboard
-                ),
-                type: "column",
-                data: showTopUpBar
-                    ? [...baseRemaining, topUpRemaining]
-                    : baseRemaining,
-            },
-            {
-                name: t(
-                    "credit_insurance_dashboard.policy_usage_legend_top_up_covered",
+                    "credit_insurance_dashboard.policy_usage_legend_top_up_compliant",
                     {
                         ...nsDashboard,
-                        defaultValue: "Top-Up Covered",
+                        defaultValue: "Top-Up Compliant",
                     }
                 ),
                 type: "column",
                 data: showTopUpBar
-                    ? [...baseTopUpCovered, 0]
-                    : baseTopUpCovered,
+                    ? [...baseTopUpCompliant, 0]
+                    : baseTopUpCompliant,
             },
-            {
-                name: t(
-                    "credit_insurance_dashboard.policy_usage_legend_over_limit",
-                    nsDashboard
-                ),
-                type: "column",
-                data: showTopUpBar
-                    ? [...baseUncovered, topUpOver]
-                    : baseUncovered,
-            },
-        ],
-        [
-            baseRemaining,
-            baseTopUpCovered,
-            baseUncovered,
-            showTopUpBar,
-            t,
-            topUpOver,
-            topUpRemaining,
-            usedSeriesValues,
-        ]
-    );
+            overLimit,
+        ];
+    }, [
+        baseRemaining,
+        baseTopUpCompliant,
+        baseAtRisk,
+        hasTopUpCompliantInChart,
+        showTopUpBar,
+        t,
+        topUpOver,
+        topUpRemaining,
+        usedSeriesValues,
+    ]);
 
     const policyUsageCaption = useMemo(
         () => categoryFullLabels.join(" · "),

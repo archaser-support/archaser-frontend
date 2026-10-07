@@ -3,18 +3,18 @@
 import { Gavel as GavelIcon, ShowChart as ShowChartIcon } from "@mui/icons-material";
 import { alpha, Box, Card, CardContent, Stack, Typography, useTheme } from "@mui/material";
 import type { ApexOptions } from "apexcharts";
-import dynamic from "next/dynamic";
+import { useSession } from "next-auth/react";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { CreditDashboardTitleInfoIcon } from "@/app/[locale]/app/credit-dashboard/creditDashboardTitleTooltip";
+import { formatDateOnlyYmdForSession } from "@/utils/datetimeOperations";
 
 import type {
     RiskExposureTrendSeries,
     TermsBreachReasonSlice,
 } from "./customerDashboardCardViewModel";
-
-const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
+import ReactApexChart from "@/shared/components/ApexChart";
 
 const CHART_GRID_SX = {
     display: "grid",
@@ -41,6 +41,11 @@ export type CustomerDashboardCreditChartsProps = {
         totalArNormalized: number;
         compliantNormalized: number;
     }>;
+    /**
+     * Linked credit-pool children: hide At Risk Exposure and Capacity Gap
+     * lines (pool KPIs live on the shell parent Dashboard).
+     */
+    hideAtRiskAndCapacityGapSeries?: boolean;
     isRtl: boolean;
 };
 
@@ -56,11 +61,38 @@ export function CustomerDashboardCreditCharts({
     termsBreachReasonTooltip,
     termsBreachSupplementaryLine,
     limitCappedNormalizedSeries,
+    hideAtRiskAndCapacityGapSeries = false,
     isRtl,
 }: CustomerDashboardCreditChartsProps) {
     const theme = useTheme();
+    const { data: session } = useSession();
     const chartCard = theme.creditDashboardChartCard;
     const { t } = useTranslation(["dashboard", "common"]);
+
+    const formatSnapshotAxisDate = (ymd: string) =>
+        formatDateOnlyYmdForSession(ymd, session ?? null) || ymd;
+
+    const formatApexTooltipDate = (
+        val: string | number,
+        opts?: {
+            dataPointIndex?: number;
+            w?: { globals?: { categoryLabels?: string[]; labels?: string[] } };
+        }
+    ) => {
+        const idx = opts?.dataPointIndex;
+        const fromGlobals =
+            idx != null
+                ? (opts?.w?.globals?.categoryLabels?.[idx] ??
+                  opts?.w?.globals?.labels?.[idx])
+                : undefined;
+        const candidate = String(val ?? "");
+        const raw = /^\d{4}-\d{2}-\d{2}/.test(candidate)
+            ? candidate.slice(0, 10)
+            : typeof fromGlobals === "string"
+              ? fromGlobals
+              : candidate;
+        return formatSnapshotAxisDate(raw);
+    };
     const cp = theme.palette.chartPalette;
     const chartTitleHelpAria = t(
         "credit_insurance_dashboard.chart_title_help_aria",
@@ -107,22 +139,26 @@ export function CustomerDashboardCreditCharts({
                 Math.max(0, Number(p.openArAmount ?? 0))
             ),
         }));
-        const atRiskSeries = effectivePolicies.map((policy) => ({
-            name: seriesName(
-                atRiskSeriesLabel,
-                policy.policyLabel || riskExposureTitle
-            ),
-            data: policy.series.map((p) => p.amount),
-        }));
-        const capacityGapSeries = effectivePolicies.map((policy) => ({
-            name: seriesName(
-                capacityGapSeriesLabel,
-                policy.policyLabel || riskExposureTitle
-            ),
-            data: policy.series.map((p) =>
-                Math.max(0, Number(p.capacityGapAmount ?? 0))
-            ),
-        }));
+        const atRiskSeries = hideAtRiskAndCapacityGapSeries
+            ? []
+            : effectivePolicies.map((policy) => ({
+                  name: seriesName(
+                      atRiskSeriesLabel,
+                      policy.policyLabel || riskExposureTitle
+                  ),
+                  data: policy.series.map((p) => p.amount),
+              }));
+        const capacityGapSeries = hideAtRiskAndCapacityGapSeries
+            ? []
+            : effectivePolicies.map((policy) => ({
+                  name: seriesName(
+                      capacityGapSeriesLabel,
+                      policy.policyLabel || riskExposureTitle
+                  ),
+                  data: policy.series.map((p) =>
+                      Math.max(0, Number(p.capacityGapAmount ?? 0))
+                  ),
+              }));
         const termsBreachSeries = effectivePolicies.map((policy) => ({
             name: seriesName(
                 termsBreachSeriesLabel,
@@ -211,6 +247,7 @@ export function CustomerDashboardCreditCharts({
                 labels: {
                     rotate: -45,
                     style: { fontSize: "10px" },
+                    formatter: (val: string) => formatSnapshotAxisDate(val),
                 },
             },
             yaxis: {
@@ -223,6 +260,9 @@ export function CustomerDashboardCreditCharts({
                 position: "top",
             },
             tooltip: {
+                x: {
+                    formatter: formatApexTooltipDate,
+                },
                 y: {
                     formatter: (val: number) => formatAmount(val),
                 },
@@ -234,11 +274,13 @@ export function CustomerDashboardCreditCharts({
     }, [
         riskExposureByPolicy,
         riskExposureTitle,
+        hideAtRiskAndCapacityGapSeries,
         openArSeriesLabel,
         atRiskSeriesLabel,
         capacityGapSeriesLabel,
         termsBreachSeriesLabel,
         formatAmount,
+        session,
         cp.dark,
         cp.main,
         cp.light,
@@ -393,6 +435,7 @@ export function CustomerDashboardCreditCharts({
                 labels: {
                     rotate: -45,
                     style: { fontSize: "10px" },
+                    formatter: (val: string) => formatSnapshotAxisDate(val),
                 },
             },
             yaxis: {
@@ -404,6 +447,9 @@ export function CustomerDashboardCreditCharts({
             },
             legend: { show: true, position: "top" },
             tooltip: {
+                x: {
+                    formatter: formatApexTooltipDate,
+                },
                 y: {
                     formatter: (val: number) => `${val.toFixed(1)}%`,
                 },
@@ -417,6 +463,7 @@ export function CustomerDashboardCreditCharts({
         cp.dark,
         cp.main,
         theme.palette.divider,
+        session,
     ]);
 
     return (

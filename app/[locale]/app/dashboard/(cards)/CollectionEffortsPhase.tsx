@@ -16,7 +16,6 @@ import {
     useTheme,
 } from "@mui/material";
 import type { ApexOptions } from "apexcharts";
-import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -26,11 +25,8 @@ import { pushFinancialChartDetails } from "@/shared/dashboard/financialChartDeta
 import { useDashboardBusinessUnitId } from "@/shared/dashboard/DashboardBusinessUnitContext";
 import { appendDashboardBusinessUnitId } from "@/shared/dashboard/dashboardBusinessUnitParams";
 import { lighten } from "@mui/system/colorManipulator";
+import ReactApexChart from "@/shared/components/ApexChart";
 import { FinancialDashboardChartCard } from "./FinancialDashboardChartCard";
-
-const ReactApexChart = dynamic(() => import("react-apexcharts"), {
-    ssr: false,
-});
 
 type PhaseStat = {
     label: string;

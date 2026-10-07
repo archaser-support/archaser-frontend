@@ -26,9 +26,9 @@ import {
     useMediaQuery,
     useTheme,
 } from "@mui/material";
-import { signIn } from "next-auth/react";
+import { getSession, signIn } from "next-auth/react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import React, {
     useCallback,
     useEffect,
@@ -46,8 +46,14 @@ import {
 } from "@/shared/utils/navigation";
 import { resolveAppHomePath } from "@/shared/utils/resolveAppHomePath";
 import {
+    CREDIT_DASHBOARD_SUMMARY_PREFETCH_KEY,
+    LOGIN_SHELL_PREFETCH_KEY,
+    storeLoginShellPrefetch,
+} from "@/shared/services/loginShellPrefetch";
+import {
     LOGIN_HANDOFF_STORAGE_KEY,
     PENDING_LOGIN_REDIRECT_KEY,
+    clearLogoutInProgress,
 } from "@/shared/utils/sessionLanguageKeys";
 import { apiFetch } from "@/utils/apiFetch";
 import { getTenantSubdomain } from "@/utils/domainUtils";
@@ -59,6 +65,7 @@ import {
     isNestAuthEnabled,
     nestAccountBySubdomain,
     nestCredentialsLogin,
+    nestFetch,
     nestJwtClaimsFromToken,
     restoreNestAccessToken,
     setNestAccessToken,
@@ -118,6 +125,7 @@ interface FormState {
 function LoginPageContent() {
     const { t, i18n } = useTranslation(["auth", "common"]);
     const searchParams = useSearchParams();
+    const router = useRouter();
 
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -158,6 +166,7 @@ function LoginPageContent() {
 
     useEffect(() => {
         removeStaleLoginNavLock();
+        clearLogoutInProgress();
     }, []);
 
     // Handle SSO Error from URL
@@ -304,6 +313,9 @@ function LoginPageContent() {
             const sessionKeep = new Set([
                 LOGIN_HANDOFF_STORAGE_KEY,
                 PENDING_LOGIN_REDIRECT_KEY,
+                LOGIN_SHELL_PREFETCH_KEY,
+                CREDIT_DASHBOARD_SUMMARY_PREFETCH_KEY,
+                "archaser_nest_access_token",
             ]);
             const sessionKeysToRemove: string[] = [];
             for (let i = 0; i < sessionStorage.length; i++) {
@@ -340,9 +352,9 @@ function LoginPageContent() {
     );
 
     /**
-     * Bridge Nest JWT → NextAuth, then leave /login in the same turn.
-     * Must use redirect:true — redirect:false calls _getSession first, which
-     * re-renders the login form (looks like a reload) before we can navigate.
+     * Bridge Nest JWT → NextAuth, then client-navigate to the resolved home
+     * page. Keep the login spinner until replace so redirect:false does not
+     * flash the empty form.
      *
      * Resolve first accessible page with the Nest bearer token *before* signIn
      * so we do not land on a default route the user cannot open.
@@ -365,21 +377,57 @@ function LoginPageContent() {
                 try {
                     redirectUrl = await Promise.race([
                         (async () => {
-                            const [accountRes, permRes] = await Promise.all([
-                                apiFetch(
-                                    `/api/entities/accounts/${accountId}`,
-                                    { credentials: "include" }
-                                ),
-                                apiFetch("/api/permissions/me", {
+                            const [meRes, permRes] = await Promise.all([
+                                nestFetch("/auth/me", {
+                                    headers: {
+                                        Authorization: `Bearer ${nestAccessToken}`,
+                                    },
                                     credentials: "include",
                                 }),
+                                apiFetch("/api/permissions/me", {
+                                    credentials: "include",
+                                    headers: {
+                                        Authorization: `Bearer ${nestAccessToken}`,
+                                    },
+                                }),
                             ]);
-                            const accountData = accountRes.ok
-                                ? await accountRes.json()
+                            const meData = meRes.ok
+                                ? await meRes.json()
                                 : null;
                             const permData = permRes.ok
                                 ? await permRes.json()
                                 : null;
+                            const accountData = meData
+                                ? {
+                                      id: meData.account_id,
+                                      name: meData.account_name,
+                                      has_collection:
+                                          meData.has_collection !== undefined
+                                              ? meData.has_collection
+                                              : true,
+                                      has_credit_insurance:
+                                          meData.has_credit_insurance === true,
+                                      is_demo: meData.is_demo === true,
+                                      last_sync_date:
+                                          meData.last_sync_date ?? null,
+                                      primary_color: meData.primary_color,
+                                      secondary_color: meData.secondary_color,
+                                      chart_palette_color:
+                                          meData.chart_palette_color,
+                                      currency: meData.currency,
+                                  }
+                                : null;
+                            if (accountData && permData && claims?.sub) {
+                                storeLoginShellPrefetch({
+                                    userId: String(claims.sub),
+                                    accountId,
+                                    role: claims?.role ?? null,
+                                    permissions: {
+                                        permissions: permData.permissions ?? [],
+                                    },
+                                    sessionAccount: accountData,
+                                });
+                            }
                             return resolveAppHomePath({
                                 accountId,
                                 permissions: permData?.permissions ?? [],
@@ -433,14 +481,38 @@ function LoginPageContent() {
                 ).catch(() => { });
             }
 
-            loginHandoffOwnedByLiveHandler = false;
-            await signIn("credentials", {
+            loginHandoffOwnedByLiveHandler = true;
+            const result = await signIn("credentials", {
                 nestAccessToken,
-                redirect: true,
-                callbackUrl: target,
+                homePath: redirectUrl,
+                redirect: false,
             });
+
+            if (!result?.ok) {
+                loginHandoffOwnedByLiveHandler = false;
+                clearLoginHandoff();
+                updateFormState({
+                    isLoading: false,
+                    loadingType: null,
+                    error: t("messages.invalid_credentials"),
+                });
+                return;
+            }
+
+            const session = await getSession();
+            const homePath = session?.user?.homePath || redirectUrl;
+            sessionStorage.removeItem(PENDING_LOGIN_REDIRECT_KEY);
+            await router.replace(`/${language}${homePath}`);
+            loginHandoffOwnedByLiveHandler = false;
         },
-        [mapLanguageToLocale, stampLoginExitStorage]
+        [
+            clearLoginHandoff,
+            mapLanguageToLocale,
+            router,
+            stampLoginExitStorage,
+            t,
+            updateFormState,
+        ]
     );
 
     // Hard reload mid-login: resume navigation from sessionStorage.

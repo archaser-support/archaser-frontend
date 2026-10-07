@@ -21,6 +21,7 @@ import { ChartTooltip } from "./ChartTooltip";
 import { Eyebrow } from "./Eyebrow";
 import { IslandCard } from "./IslandCard";
 import { CPH } from "./designTokens";
+import { chartColors } from "./chartColors";
 import layout from "./islandLayout.module.css";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
@@ -73,23 +74,27 @@ export function UtilizationDailyChart({
                 portfolio: point?.utilizationPct ?? null,
                 dcl: point?.dclUtilizationPct ?? null,
                 named: point?.namedUtilizationPct ?? null,
+                topUp: point?.topUpUtilizationPct ?? null,
             })),
         [daily, fromYmd, toYmd, language]
     );
 
     const hasSignal = data.some(
         (row) =>
-            row.portfolio != null || row.dcl != null || row.named != null
+            row.portfolio != null ||
+            row.dcl != null ||
+            row.named != null ||
+            row.topUp != null
     );
 
     return (
-        <IslandCard accent="teal" className={`${layout.span12} ${layout.cardPad}`}>
+        <IslandCard accent="primary" className={`${layout.span12} ${layout.cardPad}`}>
             <Eyebrow
                 icon={Activity}
                 help={t("credit_portfolio_health.daily_util_chart_help", {
                     ...ns,
                     defaultValue:
-                        "Daily effective utilization (usage ÷ effective approved limit × 100) for the portfolio, Named, and DCL cohorts among approved customers.",
+                        "Daily effective utilization (usage ÷ effective approved limit × 100) for the portfolio, Named, and DCL cohorts among approved customers, plus size-weighted top-up usage among customers with top-up cover.",
                 })}
             >
                 {t("credit_portfolio_health.daily_util_chart_title", {
@@ -113,20 +118,20 @@ export function UtilizationDailyChart({
                             margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
                         >
                             <CartesianGrid
-                                strokeDasharray="3 6"
-                                stroke={CPH.border}
+                                strokeDasharray="3 3"
+                                stroke={chartColors.grid}
                                 vertical={false}
                             />
                             <XAxis
                                 dataKey="label"
-                                tick={{ fill: CPH.slate, fontSize: 12 }}
+                                tick={{ fill: chartColors.axisText, fontSize: 12 }}
                                 axisLine={{ stroke: CPH.border }}
                                 tickLine={false}
                                 interval="preserveStartEnd"
                                 minTickGap={28}
                             />
                             <YAxis
-                                tick={{ fill: CPH.slate, fontSize: 12 }}
+                                tick={{ fill: chartColors.axisText, fontSize: 12 }}
                                 axisLine={false}
                                 tickLine={false}
                                 width={48}
@@ -146,23 +151,7 @@ export function UtilizationDailyChart({
                                 }
                             />
                             <Legend
-                                wrapperStyle={{ fontSize: 12, color: CPH.slate }}
-                            />
-                            <Line
-                                type="monotone"
-                                dataKey="portfolio"
-                                name={t(
-                                    "credit_portfolio_health.chart_util_portfolio",
-                                    {
-                                        ...ns,
-                                        defaultValue: "Avg. utilization",
-                                    }
-                                )}
-                                stroke={CPH.teal}
-                                strokeWidth={2.5}
-                                dot={false}
-                                connectNulls={false}
-                                animationDuration={animDuration}
+                                wrapperStyle={{ fontSize: 12, color: chartColors.axisText }}
                             />
                             <Line
                                 type="monotone"
@@ -174,7 +163,7 @@ export function UtilizationDailyChart({
                                         defaultValue: "SDL avg. utilization",
                                     }
                                 )}
-                                stroke={CPH.seriesBlue}
+                                stroke={CPH.seriesOrange}
                                 strokeWidth={2}
                                 dot={false}
                                 connectNulls={false}
@@ -188,15 +177,49 @@ export function UtilizationDailyChart({
                                     "credit_portfolio_health.chart_util_issuer",
                                     {
                                         ...ns,
-                                        defaultValue: "Issuer avg. utilization",
+                                        defaultValue: "Named customers",
                                     }
                                 )}
-                                stroke={CPH.seriesSlate}
+                                stroke={CPH.seriesSky}
                                 strokeWidth={2}
                                 dot={false}
                                 connectNulls={false}
                                 animationDuration={animDuration}
                                 animationBegin={prefersReducedMotion ? 0 : 200}
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="topUp"
+                                name={t(
+                                    "credit_portfolio_health.chart_util_top_up",
+                                    {
+                                        ...ns,
+                                        defaultValue: "Avg. top-up usage",
+                                    }
+                                )}
+                                stroke={CPH.seriesRose}
+                                strokeWidth={2}
+                                dot={false}
+                                connectNulls={false}
+                                animationDuration={animDuration}
+                                animationBegin={prefersReducedMotion ? 0 : 300}
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="portfolio"
+                                name={t(
+                                    "credit_portfolio_health.chart_util_portfolio",
+                                    {
+                                        ...ns,
+                                        defaultValue: "Avg. utilization",
+                                    }
+                                )}
+                                stroke={CPH.ink}
+                                strokeWidth={2.5}
+                                strokeDasharray="6 4"
+                                dot={false}
+                                connectNulls={false}
+                                animationDuration={animDuration}
                             />
                         </LineChart>
                     </ResponsiveContainer>

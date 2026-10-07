@@ -1,4 +1,9 @@
-/** Light-theme design tokens for the portfolio-health Tailwind island. */
+import { chartCssVars } from "./chartColors";
+
+/**
+ * Light-theme design tokens for the portfolio-health Tailwind island.
+ * Primary / secondary chart colors live in `chartColors.ts`.
+ */
 export const CPH = {
     bg: "#F7F8FA",
     card: "#FFFFFF",
@@ -10,46 +15,44 @@ export const CPH = {
     slate: "#64748B",
     muted: "#94A3B8",
 
-    /** Primary / neutral metric — health rings, main chart lines, "of customers" bars. */
-    teal: "#0F766E",
-    tealDim: "#0D5F59",
-    tealTint: "#CCFBF1",
-    tealText: "#134E4A",
-
-    /** Caution / warning — threshold lines, mid-range / "of usage" bars. */
-    violet: "#7C3AED",
-    violetDim: "#6D28D9",
-    violetTint: "#EDE9FE",
-    violetText: "#5B21B6",
-
-    /** Critical / negative — violations, uncovered exposure, over-100% bars. */
+    /** Critical / negative — violations, at-risk exposure, over-100% bars. */
     critical: "#DC2626",
     criticalTint: "#FDECEC",
     /** Chart area fill under critical series (darker than criticalTint). */
     criticalArea: "#FCA5A5",
     criticalText: "#991B1B",
 
-    /** Positive / good status — fully covered, approved footprint. */
+    /** Positive / good status — fully compliant, approved footprint. */
     good: "#16A34A",
     goodDim: "#15803D",
     goodTint: "#DCFCE7",
     goodText: "#14532D",
 
-    /** Neutral secondary chart line — Total AR, Issuer avg. */
+    /** Neutral secondary chart line — Total AR, Named customers. */
     seriesSlate: "#475569",
 
     /** Alternate comparison series — e.g. SDL avg utilization. */
     seriesBlue: "#2563EB",
+
+    /** Okabe–Ito chart series — color-blind-safe (orange, sky, reddish purple). */
+    seriesOrange: "#E69F00",
+    seriesSky: "#56B4E9",
+    seriesRose: "#CC79A7",
 } as const;
 
-export type IslandAccent = "teal" | "violet" | "critical" | "good" | "slate";
+export type IslandAccent =
+    | "primary"
+    | "secondary"
+    | "critical"
+    | "good"
+    | "slate";
 
 export function accentColor(accent: IslandAccent): string {
     switch (accent) {
-        case "teal":
-            return CPH.teal;
-        case "violet":
-            return CPH.violet;
+        case "primary":
+            return chartCssVars.primary;
+        case "secondary":
+            return chartCssVars.secondary;
         case "critical":
             return CPH.critical;
         case "good":

@@ -22,6 +22,7 @@ import {
 import { apiFetch } from "@/utils/apiFetch";
 
 import { CPH } from "./designTokens";
+import { chartCssVars } from "./chartColors";
 import { Eyebrow } from "./Eyebrow";
 import { SPACE_GROTESK_FONT_FAMILY } from "./fontTokens";
 import { formatPortfolioMoney } from "./formatPortfolioMoney";
@@ -312,7 +313,7 @@ export function PolicySummarySectionView({
                             }}
                         >
                             <IslandCard
-                                accent="teal"
+                                accent="primary"
                                 className={layout.cardPad}
                             >
                                 <Eyebrow icon={FileText}>
@@ -575,7 +576,7 @@ export function PolicySummarySectionView({
         <div className={layout.stack}>
             <div className={layout.grid12}>
                 <IslandCard
-                    accent="teal"
+                    accent="primary"
                     className={`${layout.span6} ${layout.mdSpan4} ${layout.cardPad}`}
                 >
                     <Eyebrow
@@ -607,7 +608,7 @@ export function PolicySummarySectionView({
                     </div>
                 </IslandCard>
                 <IslandCard
-                    accent="teal"
+                    accent="primary"
                     className={`${layout.span6} ${layout.mdSpan4} ${layout.cardPad}`}
                 >
                     <Eyebrow
@@ -639,7 +640,7 @@ export function PolicySummarySectionView({
                     </div>
                 </IslandCard>
                 <IslandCard
-                    accent="teal"
+                    accent="primary"
                     className={`${layout.span6} ${layout.mdSpan4} ${layout.cardPad}`}
                 >
                     <Eyebrow
@@ -661,7 +662,7 @@ export function PolicySummarySectionView({
                     <div
                         className="text-3xl font-semibold tracking-tight"
                         style={{
-                            color: CPH.teal,
+                            color: chartCssVars.primaryText,
                             fontFamily: SPACE_GROTESK_FONT_FAMILY,
                         }}
                     >

@@ -49,11 +49,17 @@ import { MonthEndFieldLabelWithTooltip } from "@/shared/creditInsurance/MonthEnd
 import { POLICY_EXCLUSION_REASONS } from "@/shared/creditInsurance/policyExclusion";
 
 import CustomerFormField from "./CustomerFormField";
+import {
+    customerSectionCardContentSx,
+    customerSectionHeaderSx,
+    customerSubsectionHeaderSx,
+} from "./customerCardStyles";
 import { CustomerTopUpList } from "./CustomerTopUpList";
 import {
     CreditInsuranceReadonlyField,
     toTitleCaseLabel,
 } from "./CustomerGeneralInfo";
+import AppDialog from "@/shared/layout-components/modal/AppDialog";
 
 type PolicyOption = { id: number; policy_number: string };
 
@@ -73,6 +79,8 @@ interface CustomerCreditInsuranceInfoProps {
     customerId?: number;
     onCancelPendingPolicyChange?: () => void;
     isCancellingPending?: boolean;
+    onRemovePolicy?: (unassignDate: string) => Promise<void>;
+    isRemovingPolicy?: boolean;
 }
 
 const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = ({
@@ -91,6 +99,8 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
     customerId,
     onCancelPendingPolicyChange,
     isCancellingPending = false,
+    onRemovePolicy,
+    isRemovingPolicy = false,
 }) => {
     const { t, i18n } = useTranslation(["customers", "common", "settings"]);
     const { data: session } = useSession();
@@ -167,9 +177,7 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
     const sectionHeaders = useMemo(() => {
         const isHebrew = i18n.language === "he";
         const base = {
-            mb: 0.5,
-            px: 0,
-            py: 0.5,
+            ...customerSubsectionHeaderSx,
             direction: isHebrew ? "rtl" : "ltr",
             textAlign: isHebrew ? "right" : "left",
         };
@@ -187,13 +195,11 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
             creditInsuranceSubsection: {
                 ...base,
                 gridColumn: "1 / -1" as const,
-                mt: 0.5,
             },
             /** Same bar styling outside the grid (e.g. policy history block). */
             fullWidthSubsection: {
                 ...base,
                 width: "100%",
-                mt: 0.5,
             },
         };
     }, [i18n.language]);
@@ -580,6 +586,31 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
     const activeCustomerPolicyRow = useMemo(
         () => getActiveCustomerPolicyFromCustomer(customer),
         [customer]
+    );
+
+    const [removePolicyOpen, setRemovePolicyOpen] = useState(false);
+    const [unassignDate, setUnassignDate] = useState(() =>
+        new Date().toISOString().slice(0, 10)
+    );
+    const [unassignDateError, setUnassignDateError] = useState<string | null>(
+        null
+    );
+
+    const canRemovePolicy =
+        Boolean(onRemovePolicy) &&
+        Boolean(onEditClick) &&
+        activeCustomerPolicyRow?.insurance_policy_id != null &&
+        !pendingCustomerPolicy;
+
+    const unassignDateDisplay = useMemo(
+        () =>
+            formatDateForDisplay(
+                unassignDate,
+                "date",
+                userLocale,
+                userTimezone
+            ),
+        [unassignDate, userLocale, userTimezone]
     );
 
     const policyLabelFromRow = useCallback(
@@ -1866,19 +1897,12 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
     );
 
     return (
+        <>
         <Card
             elevation={0}
             sx={{ border: "none", borderRadius: { xs: 1, sm: 2 }, boxShadow: "none" }}
         >
-            <Box
-                sx={{
-                    p: { xs: 1, sm: 1.25 },
-                    mb: theme.spacing(1),
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                }}
-            >
+            <Box sx={customerSectionHeaderSx}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     <ShieldOutlinedIcon
                         sx={{
@@ -1899,9 +1923,45 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                 {onEditClick && onCancelEdit && onSave &&
                     (!isEditing ? (
                         pendingCustomerPolicy ? null : (
-                            <Button variant="contained" size="small" onClick={onEditClick}>
-                                {t("actions.edit", { ns: "common" })}
-                            </Button>
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    direction: isRTL ? "rtl" : "ltr",
+                                    flexShrink: 0,
+                                    alignItems: "center",
+                                }}
+                            >
+                                {canRemovePolicy ? (
+                                    <Button
+                                        variant="outlined"
+                                        size="small"
+                                        onClick={() => {
+                                            setUnassignDate(
+                                                new Date()
+                                                    .toISOString()
+                                                    .slice(0, 10)
+                                            );
+                                            setUnassignDateError(null);
+                                            setRemovePolicyOpen(true);
+                                        }}
+                                        sx={{
+                                            mr: isRTL ? 0 : theme.spacing(1),
+                                            ml: isRTL ? theme.spacing(1) : 0,
+                                        }}
+                                    >
+                                        {t("credit_insurance.remove_policy", {
+                                            ns: "customers",
+                                        })}
+                                    </Button>
+                                ) : null}
+                                <Button
+                                    variant="contained"
+                                    size="small"
+                                    onClick={onEditClick}
+                                >
+                                    {t("actions.edit", { ns: "common" })}
+                                </Button>
+                            </Box>
                         )
                     ) : (
                         <Box
@@ -1956,7 +2016,14 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                     ))}
             </Box>
 
-            <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
+            <CardContent sx={customerSectionCardContentSx}>
+                {customer?.parent_customer_id != null ? (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                        {t("fields.parent_customer_inherited_policy", {
+                            ns: "customers",
+                        })}
+                    </Alert>
+                ) : null}
                 {pendingCustomerPolicy && pendingChangeDateLabel ? (
                     <Alert
                         severity="warning"
@@ -1987,6 +2054,7 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                 {activePolicyGrid}
 
                 {customerId &&
+                    customer?.parent_customer_id == null &&
                     (customer as { has_top_up_policies?: boolean })
                         ?.has_top_up_policies === true && (
                         <CustomerTopUpList
@@ -2170,6 +2238,88 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                 ) : null}
             </CardContent>
         </Card>
+        <AppDialog
+            open={removePolicyOpen}
+            onClose={() => {
+                if (!isRemovingPolicy) {
+                    setRemovePolicyOpen(false);
+                }
+            }}
+            title={t("credit_insurance.remove_policy_title", {
+                ns: "customers",
+            })}
+            isRTL={isRTL}
+            paperWidth="360px"
+            actions={
+                <>
+                    <Button
+                        onClick={() => setRemovePolicyOpen(false)}
+                        disabled={isRemovingPolicy}
+                    >
+                        {t("actions.cancel", { ns: "common" })}
+                    </Button>
+                    <Button
+                        variant="contained"
+                        disabled={isRemovingPolicy}
+                        onClick={() => {
+                            if (!unassignDate) {
+                                setUnassignDateError(
+                                    t(
+                                        "credit_insurance.validation.unassign_date_required",
+                                        { ns: "customers" }
+                                    )
+                                );
+                                return;
+                            }
+                            void onRemovePolicy?.(unassignDate).then(() => {
+                                setRemovePolicyOpen(false);
+                            });
+                        }}
+                        endIcon={
+                            isRemovingPolicy ? (
+                                <CircularProgress
+                                    size={16}
+                                    sx={{ color: "inherit" }}
+                                />
+                            ) : undefined
+                        }
+                    >
+                        {t("credit_insurance.remove_policy_confirm_action", {
+                            ns: "customers",
+                        })}
+                    </Button>
+                </>
+            }
+        >
+            <DatePicker
+                label={t("credit_insurance.unassign_date", {
+                    ns: "customers",
+                })}
+                value={unassignDate ? moment(unassignDate) : null}
+                onChange={(newVal) => {
+                    setUnassignDate(newVal ? newVal.format("YYYY-MM-DD") : "");
+                    setUnassignDateError(null);
+                }}
+                format={getDatePickerFormat(session ?? null, "DD/MM/YYYY")}
+                slotProps={{
+                    textField: {
+                        fullWidth: true,
+                        size: "small",
+                        required: true,
+                        error: !!unassignDateError,
+                        helperText: unassignDateError,
+                        InputLabelProps: { shrink: true },
+                    },
+                }}
+            />
+            <Typography variant="body2" sx={{ mt: 2 }}>
+                {t("credit_insurance.remove_policy_confirm", {
+                    ns: "customers",
+                    date: unassignDateDisplay,
+                })}
+            </Typography>
+        </AppDialog>
+        </>
     );
 };
 

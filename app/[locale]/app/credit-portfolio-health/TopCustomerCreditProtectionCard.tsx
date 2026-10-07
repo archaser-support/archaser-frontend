@@ -18,6 +18,7 @@ import { CoverageHalo } from "./CoverageHalo";
 import { Eyebrow } from "./Eyebrow";
 import { IslandCard } from "./IslandCard";
 import { CPH } from "./designTokens";
+import { chartCssVars } from "./chartColors";
 import { portfolioMoneyAffixes } from "./formatPortfolioMoney";
 import layout from "./islandLayout.module.css";
 
@@ -126,12 +127,12 @@ export function TopCustomerCreditProtectionCard({
 
     return (
         <IslandCard
-            accent="teal"
+            accent="primary"
             className={`${layout.span12} ${layout.smSpan6} ${layout.mdSpan8} ${layout.cardPad}`}
         >
             <Eyebrow
                 icon={Users}
-                tone={CPH.teal}
+                tone={chartCssVars.primary}
                 help={t(
                     "credit_portfolio_health.kpi_top_n_credit_protection_help",
                     {
@@ -180,7 +181,7 @@ export function TopCustomerCreditProtectionCard({
                                 }
                             }}
                             style={{
-                                background: CPH.tealTint,
+                                background: chartCssVars.primaryTint,
                             }}
                         />
                     </div>
@@ -250,7 +251,7 @@ export function TopCustomerCreditProtectionCard({
                             }
                         )}
                         sub={shareLabel(cohort.compliantExposureSharePct)}
-                        color={CPH.teal}
+                        color={chartCssVars.primaryText}
                         locale={language}
                     />
                     <BigNumber

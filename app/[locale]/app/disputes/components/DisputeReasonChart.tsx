@@ -3,13 +3,11 @@
 import { Gavel as GavelIcon } from "@mui/icons-material";
 import { Box, CircularProgress, Typography, useTheme } from "@mui/material";
 import { alpha } from "@mui/material/styles";
-import dynamic from "next/dynamic";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { FinancialDashboardChartCard } from "@/app/[locale]/app/dashboard/(cards)/FinancialDashboardChartCard";
-
-const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
+import Chart from "@/shared/components/ApexChart";
 
 interface DisputeReasonChartProps {
     pieChartData?: {
