@@ -274,6 +274,50 @@ function CoverageTooltip({
     );
 }
 
+function CoverageStackLegend({
+    items,
+}: {
+    items: Array<{ label: string; color: string }>;
+}) {
+    return (
+        <ul
+            style={{
+                listStyle: "none",
+                margin: 0,
+                padding: 0,
+                display: "flex",
+                flexWrap: "wrap",
+                justifyContent: "center",
+                gap: 14,
+                fontSize: 12,
+                color: chartColors.axisText,
+            }}
+        >
+            {items.map((item) => (
+                <li
+                    key={item.label}
+                    style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                    }}
+                >
+                    <span
+                        style={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: 2,
+                            backgroundColor: item.color,
+                            flexShrink: 0,
+                        }}
+                    />
+                    {item.label}
+                </li>
+            ))}
+        </ul>
+    );
+}
+
 export function CoverageTopCustomersChart({
     rows,
     hasTopUpPolicies,
@@ -500,31 +544,32 @@ export function CoverageTopCustomersChart({
                                 fontSize: 12,
                                 color: chartColors.axisText,
                             }}
-                            payload={[
-                                {
-                                    value: labels.policySeries,
-                                    type: "square",
-                                    color: policyBarColor,
-                                },
-                                ...(hasTopUpInChart
-                                    ? [
-                                          {
-                                              value: labels.topUpSeries,
-                                              type: "square" as const,
-                                              color: topUpBarColor,
-                                          },
-                                      ]
-                                    : []),
-                                ...(hasOverInChart
-                                    ? [
-                                          {
-                                              value: labels.overSeries,
-                                              type: "square" as const,
-                                              color: overBarColor,
-                                          },
-                                      ]
-                                    : []),
-                            ]}
+                            content={() => (
+                                <CoverageStackLegend
+                                    items={[
+                                        {
+                                            label: labels.policySeries,
+                                            color: policyBarColor,
+                                        },
+                                        ...(hasTopUpInChart
+                                            ? [
+                                                  {
+                                                      label: labels.topUpSeries,
+                                                      color: topUpBarColor,
+                                                  },
+                                              ]
+                                            : []),
+                                        ...(hasOverInChart
+                                            ? [
+                                                  {
+                                                      label: labels.overSeries,
+                                                      color: overBarColor,
+                                                  },
+                                              ]
+                                            : []),
+                                    ]}
+                                />
+                            )}
                         />
                     ) : null}
                     {showTopUpStack ? (
