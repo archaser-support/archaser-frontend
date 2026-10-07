@@ -30,6 +30,7 @@ import { PortfolioHealthDailyChart } from "./PortfolioHealthDailyChart";
 import { PortfolioHealthMonthlyChart } from "./PortfolioHealthMonthlyChart";
 import { TopCustomerCreditProtectionCard } from "./TopCustomerCreditProtectionCard";
 import { CPH } from "./designTokens";
+import { chartCssVars } from "./chartColors";
 import layout from "./islandLayout.module.css";
 import {
     PORTFOLIO_HEALTH_BELOW_THRESHOLD_MAX,
@@ -238,7 +239,7 @@ export function PortfolioHealthSectionView({
     const momentumColor = momentumInsufficient
         ? CPH.slate
         : slopeVol.portfolioHealthClassification === "improving"
-          ? CPH.teal
+          ? chartCssVars.primaryText
           : slopeVol.portfolioHealthClassification === "deteriorating"
             ? CPH.critical
             : CPH.slate;
@@ -279,7 +280,7 @@ export function PortfolioHealthSectionView({
     return (
         <div className={layout.grid12}>
             <IslandCard
-                accent="teal"
+                accent="primary"
                 className={`${layout.span12} ${layout.lgSpan4} ${layout.haloCard}`}
             >
                 <Eyebrow centered help={averageHealthHelp}>
@@ -302,12 +303,12 @@ export function PortfolioHealthSectionView({
             </IslandCard>
 
             <IslandCard
-                accent="violet"
+                accent="secondary"
                 className={`${layout.span12} ${layout.smSpan6} ${layout.lgSpan4} ${layout.cardPad}`}
             >
                 <Eyebrow
                     icon={TrendingDown}
-                    tone={CPH.violet}
+                    tone={chartCssVars.secondary}
                     help={t("credit_portfolio_health.kpi_lowest_health_help", {
                         ...ns,
                         defaultValue:
@@ -323,7 +324,7 @@ export function PortfolioHealthSectionView({
                     value={section.seriesA.lowestHealthPct}
                     suffix="%"
                     label={troughSub}
-                    color={CPH.violet}
+                    color={chartCssVars.secondaryText}
                     locale={language}
                 />
             </IslandCard>

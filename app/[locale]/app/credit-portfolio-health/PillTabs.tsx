@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { CPH } from "./designTokens";
+import { chartCssVars } from "./chartColors";
 import layout from "./islandLayout.module.css";
 
 export const PORTFOLIO_HEALTH_TAB_IDS = [
@@ -121,7 +122,7 @@ export function PillTabs({
                         onKeyDown={(e) => onKeyDown(e, tab)}
                         className={layout.tabBtn}
                         style={{
-                            backgroundColor: selected ? CPH.teal : "transparent",
+                            backgroundColor: selected ? chartCssVars.primary : "transparent",
                             color: selected ? "#FFFFFF" : CPH.slate,
                         }}
                     >
