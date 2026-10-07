@@ -6,7 +6,7 @@
  * plain structural types: no Prisma client, no database access.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any, no-redeclare */
+/* eslint-disable no-redeclare */
 
 export type JsonValue =
     | string
@@ -1380,6 +1380,7 @@ export type CustomerPolicy = {
     cost_percent: Decimal | null;
     registration_fee_percent: Decimal | null;
     policy_change_start_date: Date;
+    policy_change_end_date: Date | null;
     status: customer_policy_status;
     is_active: boolean;
     capacity_gap_amount: number | null;

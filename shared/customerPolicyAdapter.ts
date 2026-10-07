@@ -12,6 +12,7 @@ export type CustomerPolicyHistoryRow = {
     approved_limit_expiration_date?: string | Date | null;
     zero_limit_date?: string | Date | null;
     policy_change_start_date?: string | Date | null;
+    policy_change_end_date?: string | Date | null;
     status?: string | null;
     limit_type?: string | null;
     max_payment_term?: number | null;
@@ -229,8 +230,8 @@ export function getEffectivePolicyId(customer: CustomerWithPolicyFields): number
     }
     const policies = customer.customerPolicies;
     if (policies?.length) {
-        const row = policies.find((p) => p.is_active) ?? policies[0];
-        return row.insurance_policy_id ?? null;
+        const row = policies.find((p) => p.is_active);
+        return row?.insurance_policy_id ?? null;
     }
     const pid = customer.policy_id;
     return pid == null ? null : Number(pid);
