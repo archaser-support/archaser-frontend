@@ -21,7 +21,6 @@ import {
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import type { ApexOptions } from "apexcharts";
-import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import React, { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -32,10 +31,7 @@ import {
     formatCurrencyWithRTLSupport,
     resolveCustomerFirstCurrency,
 } from "@/utils/stringFormatters";
-
-const ReactApexChart = dynamic(() => import("react-apexcharts"), {
-    ssr: false,
-});
+import ReactApexChart from "@/shared/components/ApexChart";
 
 interface CustomerAggregatedDataTabProps {
     customerId: number;
@@ -76,7 +72,7 @@ interface AggregatedData {
 const CustomerAggregatedDataTab: React.FC<CustomerAggregatedDataTabProps> = ({
     customerId,
 }) => {
-    const { t, i18n } = useTranslation(["customers", "common"]);
+    const { t, i18n } = useTranslation(["customers", "common", "dashboard"]);
     const theme = useTheme();
     const router = useRouter();
     const params = useParams();
@@ -93,6 +89,7 @@ const CustomerAggregatedDataTab: React.FC<CustomerAggregatedDataTabProps> = ({
         () => data?.childCustomers || [],
         [data?.childCustomers]
     );
+    const hasCollection = data?.has_collection !== false;
     const totalDueAmount: number = data?.totalDueAmount || 0;
     const accountCurrency: string = resolveCustomerFirstCurrency({
         fallbackCurrency: data?.accountCurrency,
@@ -540,6 +537,23 @@ const CustomerAggregatedDataTab: React.FC<CustomerAggregatedDataTabProps> = ({
     const handleChildCustomerClick = (childId: number) => {
         router.push(`/${locale}${AppUrls.Customer_DETAILS(childId)}`);
     };
+
+    if (!hasCollection) {
+        return (
+            <Box
+                sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    p: 4,
+                }}
+            >
+                <Typography color="text.secondary">
+                    {t("messages.no_data", { ns: "common" })}
+                </Typography>
+            </Box>
+        );
+    }
 
     return (
         <Box

@@ -40,6 +40,10 @@
         "time_remaining_minutes_remaining_other": "{{count}} דקות נותרו",
         "business_unit": "יחידת עסקים",
         "parent_customer": "לקוח אב",
+        "parent_customer_inherited_policy": "הגדרות הפוליסה נורשות מלקוח האב",
+        "child_customers_indication": "לקוחות בנים",
+        "child_customers_count_value_one": "בן אחד",
+        "child_customers_count_value_other": "{{count}} בנים",
         "child_customers_count": "מספר לקוחות בנים",
         "no_of_due_invoices": "חשבוניות בתוקף",
         "total_invoices_count": "סה״כ חשבוניות",
@@ -143,6 +147,10 @@
         "try_adjusting_your_filters": "נסה להתאים את המסננים שלך",
         "error_loading_customer_data": "שגיאה בטעינת נתוני הלקוח",
         "customer_saved_success": "הלקוח נשמר בהצלחה",
+        "save_error": "שמירת הלקוח נכשלה",
+        "save_error_network": "לא ניתן להתחבר לשרת בזמן השמירה. אם שינית לקוח אב, המתן לסיום הסנכרון ב-API ונסה שוב.",
+        "parent_credit_pool_sync_failed": "קישור האב נשמר אך סנכרון מאגר האשראי נכשל. נסה שוב בעוד רגע.",
+        "credit_asof_backfill_in_progress": "לא ניתן לעדכן לקוח אב בזמן שרצה היסטוריית אשראי פעילה. נסה שוב כשתסתיים.",
         "follow_up_notification_same_date": "מעקב מתוזמן לתאריך {{date}} בשעה {{customerTime}}",
         "follow_up_notification_different_date": "מעקב מתוזמן לתאריך {{customerDate}} בשעה {{customerTime}} ({{companyDate}} בשעה {{companyTime}} לפי שעון {{companyName}})",
         "follow_up_notification_dual_time": "מעקב מתוזמן לתאריך {{customerDate}} בשעה {{customerTime}} (זמן לקוח) / {{userDate}} בשעה {{userTime}} (זמן משתמש)",
@@ -186,7 +194,7 @@
         "invoices": "חשבוניות",
         "policies": "פוליסות",
         "settings": "הגדרות",
-        "outstanding_invoices": "חשבוניות בפיגור ובתוקף",
+        "outstanding_invoices": "חשבוניות",
         "relevant_bank_accounts": "חשבונות בנק רלוונטיים",
         "address_information": "מידע על כתובת",
         "general_information": "מידע כללי",
@@ -206,7 +214,10 @@
         "child_customers": "לקוחות בנים",
         "outstanding_by_child": "סכומים מצטברים לפי לקוח בן",
         "invoices_by_child": "חשבוניות לפי לקוח בן",
-        "overdue_and_due_invoices": "חשבוניות בפיגור ובתוקף"
+        "overdue_and_due_invoices": "חשבוניות בפיגור ובתוקף",
+        "shared_credit_pool": "מאגר אשראי משותף",
+        "credit_pool_members": "חברי מאגר האשראי",
+        "credit_pool_root": "שורש המאגר"
     },
     "collection": {
         "metrics_section_title": "מדדי גבייה"
@@ -256,6 +267,9 @@
         "usage_pct": "אחוז ניצול",
         "over_limit_amount": "סכום מעל המסגרת",
         "capacity_gap": "פער כיסוי",
+        "pool_dashboard_metric_na": "לא זמין",
+        "pool_dashboard_metric_see_aggregated": "משותף במאגר האשראי",
+        "pool_dashboard_metric_shared_pool": "משותף במאגר האשראי",
         "uninsured_amount": "סכום ללא כיסוי",
         "oldest_overdue_invoice_date": "תאריך חשבונית בפיגור הוותיקה ביותר",
         "overdue_block": "חסימת פיגור",
@@ -277,16 +291,33 @@
         "breach_invoice_count_one": "חשבונית {{count}}",
         "breach_invoice_count_other": "{{count}} חשבוניות",
         "metrics_section_title": "מדדי ביטוח אשראי",
+        "aggregated_open_claims": "תביעות פתוחות",
+        "aggregated_total_claims": "סה״כ תביעות",
+        "aggregated_total_overdue": "סה״כ בפיגור",
+        "aggregated_total_due": "סה״כ לתשלום",
+        "aggregated_total_ar": "סה״כ חייבים",
+        "aggregated_total_capacity_gap": "סה״כ פער כיסוי",
+        "aggregated_total_at_risk": "סה״כ חשיפה בסיכון",
         "policy_trend": "מגמת ניצול פוליסה",
         "history_unavailable": "אין היסטוריית פוליסה זמינה לתקופה שנבחרה.",
         "all_policies": "כל הפוליסות",
         "dashboard_no_policy_title": "לא מקושרת פוליסת ביטוח",
         "dashboard_no_policy_description": "קשרו פוליסת ביטוח בלשונית פוליסות כדי לצפות במדדי האשראי בלוח הבקרה.",
+        "remove_policy": "הסר פוליסה",
+        "remove_policy_title": "להסיר את הפוליסה?",
+        "remove_policy_confirm_action": "הסר",
+        "unassign_date": "תאריך הסרה",
+        "remove_policy_confirm": "החל מ-{{date}}, חשבוניות שנותרו שהונפקו לפני יום זה יישארו על הפוליסה הנוכחית. חשבוניות שהונפקו ביום זה ואילך יאבדו את הפוליסה.",
+        "remove_policy_success": "הפוליסה הוסרה",
+        "remove_policy_pending_success": "הסרת הפוליסה תוזמנה",
+        "remove_policy_error": "הסרת הפוליסה נכשלה",
         "validation": {
             "policy_change_start_date_required": "תאריך תחילת שינוי הפוליסה הוא שדה חובה",
             "pending_policy_change_exists": "קיים שינוי פוליסה ממתין. בטלו אותו לפני שינויים נוספים בלשונית הפוליסות.",
             "pending_policy_change_not_found": "לא נמצא שינוי פוליסה ממתין לביטול",
-            "top_up_date_overlap": "ההשלמה חופפת להשלמה קיימת עבור אותו מוצר. השלמות מקבילות אינן מותרות בפוליסה זו."
+            "top_up_date_overlap": "ההשלמה חופפת להשלמה קיימת עבור אותו מוצר. השלמות מקבילות אינן מותרות בפוליסה זו.",
+            "unassign_date_required": "תאריך ההסרה הוא שדה חובה",
+            "unassign_date_before_version_start": "תאריך ההסרה חייב להיות ביום תחילת פוליסת הביטוח או אחריו"
         },
         "pending_change_banner": "שינוי פוליסה מתוזמן ל-{{date}}. בטלו אותו לפני שינויים נוספים בלשונית הפוליסות.",
         "cancel_pending_change": "בטל שינוי ממתין",
@@ -327,6 +358,14 @@
         "invalid_invoice": "חשבונית לא תקינה",
         "date_required": "נא לבחור תאריך תשלום אחרון"
     },
+    "mep_ignore": {
+        "ignore_action": "התעלם בחישוב MEP",
+        "unignore_action": "כלול בחישוב MEP",
+        "save_success_ignored": "החשבונית לא תיכלל בחישוב MEP",
+        "save_success_unignored": "החשבונית תיכלל שוב בחישוב MEP",
+        "save_error": "לא ניתן לעדכן התעלמות MEP",
+        "invalid_invoice": "חשבונית לא תקינה"
+    },
     "credit_insurance_violations": {
         "column_title": "מכיל חריגות / הפרות",
         "causes": {
@@ -342,6 +381,33 @@
         "circular_relationship": "לא ניתן ליצור קשר מעגלי",
         "self_reference": "לקוח לא יכול להיות האב של עצמו",
         "parent_not_found": "לקוח אב לא נמצא",
-        "different_account": "לקוח אב חייב להיות שייך לאותו חשבון"
+        "different_account": "לקוח אב חייב להיות שייך לאותו חשבון",
+        "parent_has_invoices_or_payments": "לקוח אב לא יכול לכלול חשבוניות או תשלומים",
+        "customer_has_children_no_ar": "לקוחות עם בנים לא יכולים לכלול חשבוניות או תשלומים"
+    },
+    "credit_history_refresh": {
+        "title": "מרענן היסטוריית אשראי",
+        "title_syncing": "מעדכן מאגר אשראי משותף",
+        "body": "קישור האב נשמר. היסטוריית האשראי של הלקוח מתעדכנת ברקע. גרפי לוח הבקרה יתעדכנו במהלך הלילה.",
+        "body_syncing": "שומר את קישור האב ומעדכן את מאגר האשראי המשותף. אנא המתן — בחשבונות גדולים זה עשוי לקחת דקה.",
+        "body_starting": "מתחיל עדכון מאגר אשראי…",
+        "body_blocked": "רענון היסטוריית אשראי כבר רץ. שינוי קישור האב חסום עד שיסתיים. גרפי לוח הבקרה יתעדכנו במהלך הלילה.",
+        "progress": "מעדכן היסטוריה: {{done}} מתוך {{total}} ימים",
+        "run_in_background": "המשך ברקע",
+        "close": "סגור",
+        "complete": "היסטוריית האשראי של הלקוח מעודכנת. גרפי לוח הבקרה יתעדכנו במהלך הלילה.",
+        "eta_seconds": "~{{count}} שנ׳",
+        "eta_minutes": "~{{count}} דק׳",
+        "eta_hours": "~{{hours}} שע׳",
+        "eta_hours_minutes": "~{{hours}} שע׳ {{mins}} דק׳",
+        "steps": {
+            "remirror": "מחיל הגדרות אשראי משותפות על המאגר",
+            "capacity_gap": "מחשב מחדש פער קיבולת",
+            "ctp_today": "מעדכן מגמות אשראי להיום",
+            "ctp_overlay": "מחיל פער מאגר וחשיפה בסיכון",
+            "cdp_today": "מעדכן לוח בקרת אשראי להיום",
+            "breach_and_open_ar": "מרכז הפרות וחוב פתוח",
+            "history": "מרענן היסטוריית אשראי"
+        }
     }
 }

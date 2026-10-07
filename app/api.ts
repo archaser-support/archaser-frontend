@@ -9,6 +9,7 @@ import {
 import { normalizeProductApiPath } from "@/utils/apiFetch";
 import { getNestAccessToken } from "@/utils/nestAuth";
 import { shouldAttachNestBearer } from "@/utils/amplifyMode";
+import { applyViewAsHeaders } from "@/utils/viewAsTransport";
 
 const api = axios.create({
     baseURL: getAxiosBaseUrl(),
@@ -51,6 +52,13 @@ api.interceptors.request.use((config) => {
         config.headers.Authorization = authorization;
     }
 
+    const headerBag: Record<string, string> = {};
+    applyViewAsHeaders(headerBag);
+    for (const [key, value] of Object.entries(headerBag)) {
+        config.headers = config.headers || {};
+        config.headers[key] = value;
+    }
+
     // Add CSRF token if available (same-origin cookie mode)
     if (!shouldAttachNestBearer()) {
         const csrfToken = document.cookie
@@ -59,6 +67,7 @@ api.interceptors.request.use((config) => {
             ?.split("=")[1];
 
         if (csrfToken) {
+            config.headers = config.headers || {};
             config.headers["X-CSRF-Token"] = csrfToken;
         }
     }

@@ -42,6 +42,7 @@ import { markNotificationRead } from "@/shared/services/notificationService";
 import { isWebSocketEnabled, resolveNotificationsSseUrl } from "@/utils/amplifyMode";
 import { getNestAccessToken } from "@/utils/nestAuth";
 import { getLocalizedNotificationText } from "@/utils/notificationDisplayText";
+import { appendViewAsQueryParams } from "@/utils/viewAsTransport";
 
 interface Notification {
     id: string;
@@ -88,10 +89,13 @@ interface NotificationStats {
 
 interface NotificationCenterProps {
     anchorElOverride?: HTMLElement | null;
+    /** When false, hide the Control Center type filter (no collection product). */
+    showControlCenterFilter?: boolean;
 }
 
 const NotificationCenter: React.FC<NotificationCenterProps> = ({
     anchorElOverride = null,
+    showControlCenterFilter = true,
 }) => {
     // Component initialization
     const { data: session, status: sessionStatus } = useSession();
@@ -117,6 +121,12 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
         return () =>
             window.removeEventListener("closeAllHeaderOverlays", handler);
     }, []);
+
+    useEffect(() => {
+        if (!showControlCenterFilter && filter === "control-center") {
+            setFilter("all");
+        }
+    }, [showControlCenterFilter, filter]);
 
     const TransitionDown = React.useMemo(
         () =>
@@ -221,7 +231,9 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
             }
 
             try {
-                const sseUrl = resolveNotificationsSseUrl(getNestAccessToken());
+                const sseUrl = appendViewAsQueryParams(
+                    resolveNotificationsSseUrl(getNestAccessToken())
+                );
                 eventSource = new EventSource(sseUrl, {
                     withCredentials: true,
                 });
@@ -241,10 +253,12 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
                         const message = JSON.parse(event.data);
 
                         if (message.type === "notification-update") {
-                            // Check if this update is relevant for the current user
+                            const effectiveUserId =
+                                session.user.view_as_user_id || session.user.id;
+                            // Check if this update is relevant for the current (effective) user
                             const isRelevantUpdate =
                                 !message.userId ||
-                                message.userId === session.user.id ||
+                                message.userId === effectiveUserId ||
                                 message.userId === "";
 
                             if (isRelevantUpdate) {
@@ -348,7 +362,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
                 clearTimeout(reconnectTimeout);
             }
         };
-    }, [session?.user?.id, sessionStatus]);
+    }, [session?.user?.id, session?.user?.view_as_user_id, sessionStatus]);
 
     // Fetch initial stats when component mounts
     useEffect(() => {
@@ -909,13 +923,17 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
                                                 "All types"
                                             ),
                                         },
-                                        {
-                                            value: "control-center",
-                                            label: t(
-                                                "fields.filters_control_center",
-                                                "Control Center"
-                                            ),
-                                        },
+                                        ...(showControlCenterFilter
+                                            ? [
+                                                  {
+                                                      value: "control-center" as const,
+                                                      label: t(
+                                                          "fields.filters_control_center",
+                                                          "Control Center"
+                                                      ),
+                                                  },
+                                              ]
+                                            : []),
                                         {
                                             value: "dispute",
                                             label: t(

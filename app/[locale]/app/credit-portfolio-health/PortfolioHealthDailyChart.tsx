@@ -4,10 +4,10 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Activity } from "lucide-react";
 import {
-    Area,
     CartesianGrid,
     ComposedChart,
     Line,
+    ReferenceArea,
     ReferenceLine,
     ResponsiveContainer,
     Tooltip,
@@ -22,8 +22,9 @@ import { ChartTooltip } from "./ChartTooltip";
 import { Eyebrow } from "./Eyebrow";
 import { IslandCard } from "./IslandCard";
 import { CPH } from "./designTokens";
+import { chartColors } from "./chartColors";
+import { formatPct } from "./chartFormat";
 import layout from "./islandLayout.module.css";
-import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
 export type PortfolioHealthDailyChartProps = {
     daily: PortfolioHealthDailyPoint[];
@@ -33,6 +34,9 @@ export type PortfolioHealthDailyChartProps = {
     fromYmd: string;
     toYmd: string;
 };
+
+const HEALTH_KEY = "health" as const;
+const CARRIED_FORWARD_KEY = "stale" as const;
 
 function formatDayLabel(ymd: string, language: string): string {
     const date = new Date(`${ymd}T12:00:00.000Z`);
@@ -46,12 +50,54 @@ function formatDayLabel(ymd: string, language: string): string {
     });
 }
 
-function formatPct(value: number, language: string): string {
+function formatPctPrecise(value: number, language: string): string {
     const locale = language.startsWith("he") ? "he-IL" : "en-US";
     return `${value.toLocaleString(locale, {
         maximumFractionDigits: 1,
         minimumFractionDigits: 0,
     })}%`;
+}
+
+type HealthDotProps = {
+    cx?: number;
+    cy?: number;
+    payload?: {
+        health?: number | null;
+        stale?: boolean;
+    };
+};
+
+function makeHealthDot(threshold: number) {
+    return function HealthDot({ cx, cy, payload }: HealthDotProps) {
+        if (cx == null || cy == null || payload?.health == null) {
+            return null;
+        }
+        if (payload.health < threshold) {
+            return (
+                <circle
+                    cx={cx}
+                    cy={cy}
+                    r={4}
+                    fill={chartColors.danger}
+                    stroke={chartColors.markerRing}
+                    strokeWidth={1.5}
+                />
+            );
+        }
+        if (payload[CARRIED_FORWARD_KEY]) {
+            return (
+                <circle
+                    cx={cx}
+                    cy={cy}
+                    r={3.5}
+                    fill={chartColors.markerRing}
+                    stroke={chartColors.muted}
+                    strokeWidth={1.5}
+                />
+            );
+        }
+        return null;
+    };
 }
 
 export function PortfolioHealthDailyChart({
@@ -64,8 +110,10 @@ export function PortfolioHealthDailyChart({
     const { i18n, t } = useTranslation(["dashboard"]);
     const language = i18n.language;
     const ns = { ns: "dashboard" as const };
-    const prefersReducedMotion = usePrefersReducedMotion();
-    const animDuration = prefersReducedMotion ? 0 : 1200;
+    const HealthDot = useMemo(
+        () => makeHealthDot(belowThresholdPct),
+        [belowThresholdPct]
+    );
 
     const data = useMemo(
         () =>
@@ -76,38 +124,54 @@ export function PortfolioHealthDailyChart({
                 (point) => point.snapshotDate
             ).map(({ ymd, point }) => ({
                 label: formatDayLabel(ymd, language),
-                health: point?.healthIndex ?? null,
-                stale: Boolean(point?.isStaleCarriedForward),
+                [HEALTH_KEY]: point?.healthIndex ?? null,
+                [CARRIED_FORWARD_KEY]: Boolean(point?.isStaleCarriedForward),
             })),
         [daily, fromYmd, toYmd, language]
     );
 
-    const staleCount = useMemo(
-        () => data.filter((d) => d.stale && d.health != null).length,
-        [data]
+    const showDotFootnote = useMemo(
+        () =>
+            data.some(
+                (d) =>
+                    d.health != null &&
+                    (d.stale || d.health < belowThresholdPct)
+            ),
+        [data, belowThresholdPct]
     );
 
-    const avgLabel = t("credit_portfolio_health.chart_avg_health_ref", {
-        ...ns,
-        defaultValue: "Period avg. health",
-    });
+    const yMin = useMemo(() => {
+        const values = data
+            .map((d) => d.health)
+            .filter((v): v is number => v != null && Number.isFinite(v));
+        const minVal = Math.min(...values, belowThresholdPct);
+        if (!Number.isFinite(minVal)) {
+            return 0;
+        }
+        return Math.max(0, Math.floor((minVal - 5) / 5) * 5);
+    }, [data, belowThresholdPct]);
+
     const thresholdLabel = t("credit_portfolio_health.chart_threshold_ref", {
         ...ns,
         defaultValue: "Threshold {{pct}}%",
         pct: belowThresholdPct,
     });
-    /** Red under-curve fill only when period average health is below 100%. */
-    const avgBelow100 =
-        Number.isFinite(averageHealthPct) && averageHealthPct < 100;
+    const avgLabel = t("credit_portfolio_health.chart_avg_health_ref_value", {
+        ...ns,
+        defaultValue: "Period avg. {{pct}}%",
+        pct: Number.isFinite(averageHealthPct)
+            ? averageHealthPct.toFixed(1)
+            : "—",
+    });
 
     return (
-        <IslandCard accent="teal" className={layout.cardPad}>
+        <IslandCard accent="primary" className={layout.cardPad}>
             <Eyebrow
                 icon={Activity}
                 help={t("credit_portfolio_health.daily_health_chart_help", {
                     ...ns,
                     defaultValue:
-                        "Daily portfolio health (compliant AR ÷ total open AR × 100). Violet line: period average. Red line: below-threshold cut-off ({{pct}}%). Red fill under the health line when period average is below 100%.",
+                        "Daily portfolio health (compliant AR ÷ total open AR × 100). Gray dashed line: period average. Orange-red dashed line: below-threshold cut-off ({{pct}}%). Light orange-red band: zone below the threshold.",
                     pct: belowThresholdPct,
                 })}
             >
@@ -135,81 +199,84 @@ export function PortfolioHealthDailyChart({
                     <ResponsiveContainer width="100%" height="100%">
                         <ComposedChart
                             data={data}
-                            margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+                            margin={{
+                                top: 10,
+                                right: 110,
+                                left: -10,
+                                bottom: 0,
+                            }}
                         >
                             <CartesianGrid
-                                strokeDasharray="3 6"
-                                stroke={CPH.border}
+                                strokeDasharray="3 3"
+                                stroke={chartColors.grid}
                                 vertical={false}
                             />
                             <XAxis
                                 dataKey="label"
-                                tick={{ fill: CPH.slate, fontSize: 12 }}
+                                tick={{
+                                    fill: chartColors.axisText,
+                                    fontSize: 12,
+                                }}
                                 axisLine={{ stroke: CPH.border }}
                                 tickLine={false}
                                 interval="preserveStartEnd"
                                 minTickGap={28}
                             />
                             <YAxis
-                                tick={{ fill: CPH.slate, fontSize: 12 }}
+                                tick={{
+                                    fill: chartColors.axisText,
+                                    fontSize: 12,
+                                }}
                                 axisLine={false}
                                 tickLine={false}
                                 width={48}
-                                domain={[0, 100]}
-                                tickFormatter={(v: number) =>
-                                    formatPct(v, language)
-                                }
+                                domain={[yMin, 100]}
+                                tickFormatter={formatPct}
                             />
                             <Tooltip
                                 content={
                                     <ChartTooltip
                                         language={language}
                                         formatValue={(v) =>
-                                            formatPct(v, language)
+                                            formatPctPrecise(v, language)
                                         }
                                     />
                                 }
                             />
+                            <ReferenceArea
+                                y1={yMin}
+                                y2={belowThresholdPct}
+                                fill={chartColors.danger}
+                                fillOpacity={0.08}
+                                ifOverflow="extendDomain"
+                            />
                             <ReferenceLine
                                 y={belowThresholdPct}
-                                stroke={CPH.critical}
+                                stroke={chartColors.danger}
                                 strokeDasharray="6 4"
                                 strokeWidth={1.5}
                                 label={{
                                     value: thresholdLabel,
-                                    fill: CPH.criticalText,
-                                    fontSize: 11,
-                                    position: "insideTopLeft",
+                                    position: "right",
+                                    fill: chartColors.danger,
+                                    fontSize: 12,
                                 }}
                             />
                             <ReferenceLine
                                 y={averageHealthPct}
-                                stroke={CPH.violet}
-                                strokeDasharray="6 4"
+                                stroke={chartColors.reference}
+                                strokeDasharray="2 3"
                                 strokeWidth={1.5}
                                 label={{
                                     value: avgLabel,
-                                    fill: CPH.violetText,
-                                    fontSize: 11,
-                                    position: "insideTopRight",
+                                    position: "right",
+                                    fill: chartColors.reference,
+                                    fontSize: 12,
                                 }}
                             />
-                            {avgBelow100 ? (
-                                <Area
-                                    type="monotone"
-                                    dataKey="health"
-                                    fill={CPH.criticalArea}
-                                    fillOpacity={0.55}
-                                    stroke="none"
-                                    connectNulls={false}
-                                    isAnimationActive={false}
-                                    legendType="none"
-                                    tooltipType="none"
-                                />
-                            ) : null}
                             <Line
-                                type="monotone"
-                                dataKey="health"
+                                type="linear"
+                                dataKey={HEALTH_KEY}
                                 name={t(
                                     "credit_portfolio_health.chart_daily_health",
                                     {
@@ -217,50 +284,23 @@ export function PortfolioHealthDailyChart({
                                         defaultValue: "Avg. health",
                                     }
                                 )}
-                                stroke={CPH.teal}
-                                strokeWidth={2.5}
-                                dot={(props: {
-                                    cx?: number;
-                                    cy?: number;
-                                    payload?: { stale?: boolean };
-                                }) => {
-                                    const { cx, cy, payload } = props;
-                                    if (
-                                        cx == null ||
-                                        cy == null ||
-                                        !payload?.stale
-                                    ) {
-                                        return (
-                                            <circle
-                                                key={`${cx}-${cy}-n`}
-                                                cx={cx}
-                                                cy={cy}
-                                                r={0}
-                                            />
-                                        );
-                                    }
-                                    return (
-                                        <circle
-                                            key={`${cx}-${cy}-s`}
-                                            cx={cx}
-                                            cy={cy}
-                                            r={3.5}
-                                            fill={CPH.slate}
-                                            stroke={CPH.border}
-                                            strokeWidth={1}
-                                            strokeDasharray="2 2"
-                                            opacity={0.55}
-                                        />
-                                    );
+                                stroke={chartColors.primary}
+                                strokeWidth={2}
+                                dot={<HealthDot />}
+                                activeDot={{
+                                    r: 5,
+                                    fill: chartColors.marker,
+                                    stroke: chartColors.markerRing,
+                                    strokeWidth: 2,
                                 }}
                                 connectNulls={false}
-                                animationDuration={animDuration}
+                                isAnimationActive={false}
                             />
                         </ComposedChart>
                     </ResponsiveContainer>
                 </div>
             )}
-            {staleCount > 0 ? (
+            {showDotFootnote ? (
                 <p
                     style={{
                         margin: "8px 0 0",
@@ -271,8 +311,7 @@ export function PortfolioHealthDailyChart({
                     {t("credit_portfolio_health.chart_stale_days_note", {
                         ...ns,
                         defaultValue:
-                            "{{count}} carried-forward snapshot days marked (muted).",
-                        count: staleCount,
+                            "Hollow gray dots mark carried-forward snapshot days. Orange-red dots mark days below threshold.",
                     })}
                 </p>
             ) : null}

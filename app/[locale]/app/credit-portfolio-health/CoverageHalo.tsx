@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { SPACE_GROTESK_FONT_FAMILY } from "./fontTokens";
 import { CPH } from "./designTokens";
+import { chartColors } from "./chartColors";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
 export type CoverageHaloProps = {
@@ -101,7 +102,7 @@ export function CoverageHalo({
                     cy={size / 2}
                     r={radius}
                     fill="none"
-                    stroke={CPH.teal}
+                    stroke={chartColors.primary}
                     strokeWidth={stroke}
                     strokeLinecap="round"
                     strokeDasharray={circumference}

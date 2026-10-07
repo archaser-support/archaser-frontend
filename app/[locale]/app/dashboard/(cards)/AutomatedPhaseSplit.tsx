@@ -2,7 +2,6 @@ import { Timeline as TimelineIcon } from "@mui/icons-material";
 import { Box, useTheme } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import type { ApexOptions } from "apexcharts";
-import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -11,10 +10,7 @@ import { pushFinancialChartDetails } from "@/shared/dashboard/financialChartDeta
 import { useDashboardBusinessUnitId } from "@/shared/dashboard/DashboardBusinessUnitContext";
 import { appendDashboardBusinessUnitId } from "@/shared/dashboard/dashboardBusinessUnitParams";
 import { FinancialDashboardChartCard } from "./FinancialDashboardChartCard";
-
-const ReactApexChart = dynamic(() => import("react-apexcharts"), {
-    ssr: false,
-});
+import ReactApexChart from "@/shared/components/ApexChart";
 
 type AutomatedPhaseSplitProps = {
     options?: ApexOptions;

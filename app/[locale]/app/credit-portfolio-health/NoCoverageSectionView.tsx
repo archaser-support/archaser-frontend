@@ -26,6 +26,7 @@ import {
 } from "./formatPortfolioMoney";
 import { IslandCard } from "./IslandCard";
 import { CPH } from "./designTokens";
+import { chartColors, chartCssVars } from "./chartColors";
 import layout from "./islandLayout.module.css";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
@@ -147,51 +148,51 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                     icon={ShieldAlert}
                     tone={CPH.critical}
                     help={t(
-                        "credit_portfolio_health.kpi_uncovered_exposure_help",
+                        "credit_portfolio_health.kpi_at_risk_exposure_help",
                         {
                             ...ns,
                             defaultValue:
-                                "Customer %: mean daily share of customers with no linked policy or any exclusion reason. Amount: mean daily open AR for that uncovered cohort over available days.",
+                                "Customer %: mean daily share of customers with no linked policy or any exclusion reason. Amount: mean daily open AR for that at-risk cohort over available days.",
                         }
                     )}
                 >
-                    {t("credit_portfolio_health.kpi_uncovered_exposure", {
+                    {t("credit_portfolio_health.kpi_at_risk_exposure", {
                         ...ns,
-                        defaultValue: "Uncovered exposure",
+                        defaultValue: "At-risk exposure",
                     })}
                 </Eyebrow>
                 <BigNumber
-                    value={section.averageUncoveredCustomerPct}
+                    value={section.averageAtRiskCustomerPct}
                     suffix="%"
                     label={t(
-                        "credit_portfolio_health.kpi_uncovered_customer_pct",
+                        "credit_portfolio_health.kpi_at_risk_customer_pct",
                         {
                             ...ns,
-                            defaultValue: "Of customers with zero coverage",
+                            defaultValue: "Of at-risk customers",
                         }
                     )}
                     color={CPH.critical}
                     locale={language}
                     sub={t(
-                        "credit_portfolio_health.kpi_uncovered_customer_count",
+                        "credit_portfolio_health.kpi_at_risk_customer_count",
                         {
                             ...ns,
                             defaultValue: "Avg daily customers: {{count}}",
-                            count: section.averageUncoveredCustomerCount,
+                            count: section.averageAtRiskCustomerCount,
                         }
                     )}
                 />
                 <div className={layout.dividerTop}>
                     <BigNumber
-                        value={section.averageUncoveredAmount}
+                        value={section.averageAtRiskAmount}
                         decimals={0}
                         prefix={moneyAffixes.prefix}
                         suffix={moneyAffixes.suffix}
                         label={t(
-                            "credit_portfolio_health.kpi_uncovered_amount",
+                            "credit_portfolio_health.kpi_at_risk_amount",
                             {
                                 ...ns,
-                                defaultValue: "Uncovered monetary exposure",
+                                defaultValue: "At-risk monetary exposure",
                             }
                         )}
                         color={CPH.ink}
@@ -201,7 +202,7 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
             </IslandCard>
 
             <IslandCard
-                accent="violet"
+                accent="secondary"
                 className={`${layout.span12} ${layout.mdSpan8} ${layout.cardPad}`}
             >
                 <Eyebrow
@@ -211,7 +212,7 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                         {
                             ...ns,
                             defaultValue:
-                                "Average daily uncovered open AR by exclusion reason (or no linked policy) over available days in the range.",
+                                "Average daily at-risk open AR by exclusion reason (or no linked policy) over available days in the range.",
                         }
                     )}
                 >
@@ -236,13 +237,13 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                                 margin={{ left: 10, right: 28, top: 4, bottom: 8 }}
                             >
                                 <CartesianGrid
-                                    strokeDasharray="3 6"
-                                    stroke={CPH.border}
+                                    strokeDasharray="3 3"
+                                    stroke={chartColors.grid}
                                     horizontal={false}
                                 />
                                 <XAxis
                                     type="number"
-                                    tick={{ fill: CPH.slate, fontSize: 11 }}
+                                    tick={{ fill: chartColors.axisText, fontSize: 11 }}
                                     axisLine={false}
                                     tickLine={false}
                                     height={36}
@@ -258,7 +259,7 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                                     type="category"
                                     dataKey="label"
                                     width={160}
-                                    tick={{ fill: CPH.slate, fontSize: 11.5 }}
+                                    tick={{ fill: chartColors.axisText, fontSize: 11.5 }}
                                     axisLine={false}
                                     tickLine={false}
                                 />
@@ -298,10 +299,10 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                                 <Bar
                                     dataKey="amount"
                                     name={t(
-                                        "credit_portfolio_health.kpi_uncovered_amount",
+                                        "credit_portfolio_health.kpi_at_risk_amount",
                                         {
                                             ...ns,
-                                            defaultValue: "Uncovered amount",
+                                            defaultValue: "At-risk amount",
                                         }
                                     )}
                                     radius={[0, 6, 6, 0]}
@@ -312,8 +313,8 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                                             key={i}
                                             fill={
                                                 i === 0
-                                                    ? CPH.violet
-                                                    : CPH.tealDim
+                                                    ? chartColors.secondary
+                                                    : chartColors.primary
                                             }
                                         />
                                     ))}
@@ -381,7 +382,7 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                                 defaultValue: "Share of total violations",
                             }
                         )}
-                        color={CPH.violet}
+                        color={chartCssVars.secondaryText}
                         locale={language}
                     />
                 </div>

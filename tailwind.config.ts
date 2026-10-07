@@ -52,6 +52,17 @@ module.exports = {
                     600: "#4f46e5",
                     700: "#4338ca",
                 },
+                chart: {
+                    primary: "var(--chart-primary)",
+                    secondary: "var(--chart-secondary)",
+                    "primary-text": "var(--chart-primary-text)",
+                    "secondary-text": "var(--chart-secondary-text)",
+                    "primary-tint": "var(--chart-primary-tint)",
+                    "secondary-tint": "var(--chart-secondary-tint)",
+                    marker: "var(--chart-marker)",
+                    grid: "var(--chart-grid)",
+                    "axis-text": "var(--chart-axis-text)",
+                },
             },
             // Only include spacing that's actually used
             spacing: {

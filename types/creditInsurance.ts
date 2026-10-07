@@ -60,12 +60,12 @@ export type PolicyLimitUsageCategoryTotals = {
     /** Sum of per-customer remaining: Σ max(0, approved limit − AR). */
     remaining: number;
     /**
-     * Sum of per-customer AR above base covered by that customer's top-up
+     * Sum of per-customer AR above base made compliant by that customer's top-up
      * (not min(portfolio excess, Σ top-up)).
      */
-    topUpCoveredExcess: number;
+    topUpCompliantExcess: number;
     /** Sum of per-customer AR beyond base approved limit plus that customer's top-up. */
-    uncoveredExposure: number;
+    atRiskExposure: number;
     /**
      * Portfolio usage percentage: usedWithinLimit / approved capacity × 100.
      * Combined uses base + top-up; Named and DCL use base approved only.
@@ -106,7 +106,7 @@ export type CreditDashboardSummary = {
      */
     compliantExposure: number;
     /**
-     * Sum of per-customer at-risk under the shared formula: uncovered → full AR;
+     * Sum of per-customer at-risk under the shared formula: at-risk cohort → full AR;
      * insured → Σ max(capacity_gap_i, terms_breach_i) per open invoice.
      * Live portfolio has no policy max-cover residual on top of customer sums.
      */
@@ -139,7 +139,7 @@ export type CreditDashboardSummary = {
         /** Invoices per breach flag (counts may overlap across categories). */
         countByReason: TermsBreachCountByReason;
     };
-    /** Customers with no linked policy: count and total open AR (treated as uninsured in at-risk logic). */
+    /** Customers with no linked policy: count and total open AR (full open AR contributes to at-risk). */
     withoutPolicy: {
         customerCount: number;
         totalAmount: number;
@@ -357,8 +357,8 @@ export type PortfolioBreachDilutionStreakSection = {
 export type PortfolioNoCoverageDailyPoint = {
     snapshotDate: string;
     totalCustomerCount: number;
-    uncoveredCustomerCount: number;
-    uncoveredAmount: number;
+    atRiskCustomerCount: number;
+    atRiskAmount: number;
     approvedTotalReceivables: number;
     approvedTermsBreachAmount: number;
     amountByReason: Partial<Record<string, number>>;
@@ -375,9 +375,9 @@ export type PortfolioNoCoverageReasonItem = {
 };
 
 export type PortfolioNoCoverageSection = {
-    averageUncoveredCustomerPct: number;
-    averageUncoveredAmount: number;
-    averageUncoveredCustomerCount: number;
+    averageAtRiskCustomerPct: number;
+    averageAtRiskAmount: number;
+    averageAtRiskCustomerCount: number;
     reasons: PortfolioNoCoverageReasonItem[];
     averageViolationPct: number;
     mainViolationReason: string | null;
@@ -409,9 +409,28 @@ export type PortfolioUtilizationDailyPoint = {
     customersWithActiveTopUp: number;
 };
 
+export type PortfolioTopUpDrawCustomer = {
+    customerId: number;
+    customerName: string;
+    policyLimit: number;
+    topUpTotal: number;
+    peakUsageAmount: number;
+    peakTopUpUsagePct: number | null;
+    peakDate: string;
+    durationDays: number;
+    daysUsed: number;
+};
+
+export type PortfolioTopUpDrawSection = {
+    customerCount: number;
+    averageDurationDays: number | null;
+    customers: PortfolioTopUpDrawCustomer[];
+};
+
 export type PortfolioUtilizationTopCustomer = {
     customerId: number;
     customerName: string;
+    policyNumber?: string | null;
     /** Mean daily usage_amount over available snapshot days in the range. */
     usageAmount: number;
     /** Mean daily total_receivables (open AR) over available snapshot days. */
@@ -421,6 +440,19 @@ export type PortfolioUtilizationTopCustomer = {
      * limit; null when no such day exists.
      */
     utilizationPct: number | null;
+    /** Mean daily approved limit in the range. */
+    approvedLimit?: number | null;
+    /** Mean daily top-up cover in the range; null when none. */
+    topUpTotal?: number | null;
+    /** Mean daily effective approved limit in the range. */
+    effectiveApprovedLimit?: number | null;
+    policyUsagePct?: number | null;
+    topUpUsagePct?: number | null;
+    effectiveUsagePct?: number | null;
+    barPolicyPct?: number;
+    barTopUpPct?: number;
+    barOverPct?: number;
+    usagePct?: number | null;
 };
 
 /** Per-customer utilization overshoot ranking (Bucket 1 KPI #2). */
@@ -468,14 +500,14 @@ export type PortfolioUtilizationSection = {
     peakUtilizationStreakStart: string | null;
     peakUtilizationStreakEnd: string | null;
     /**
-     * DCL (self-underwriting) share of covered customers (DCL + Named).
-     * Uncovered customers are excluded from the denominator.
+     * DCL (self-underwriting) share of compliant customers (DCL + Named).
+     * At-risk customers are excluded from the denominator.
      */
     selfUnderwrittenCustomerPct: number;
     selfUnderwrittenArSharePct: number;
     selfUnderwrittenAverageAr: number;
     selfUnderwrittenAverageUtilizationPct: number | null;
-    /** Named (insurer-approved) share of covered customers (DCL + Named). */
+    /** Named (insurer-approved) share of compliant customers (DCL + Named). */
     approvedCustomerPct: number;
     approvedArSharePct: number;
     approvedAverageAr: number;
@@ -483,8 +515,13 @@ export type PortfolioUtilizationSection = {
     averageTopUpUtilizationPct: number | null;
     /** Unique top-ups active on at least one day in the range. */
     periodActiveTopUpCount: number;
-    /** Unique customers with an active top-up on at least one day in the range. */
+    /** Unique roots with top-up cover on at least one day (credit-pool shells included). */
     periodCustomersWithTopUp: number;
+    /**
+     * Customers with active top-up cover in the range (peak usage may
+     * stay inside the policy limit).
+     */
+    topUpDraw?: PortfolioTopUpDrawSection;
     topCustomers: PortfolioUtilizationTopCustomer[];
     efficiencyA: number | null;
     /** @deprecated Health B removed from UI; kept null for API compatibility. */
@@ -602,6 +639,7 @@ export type PortfolioExposureReconciliationSection = {
 export type CreditAsOfBackfillJobStatus =
     | "idle"
     | "running"
+    | "syncing"
     | "paused"
     | "failed"
     | "complete";
@@ -621,6 +659,12 @@ export type CreditAsOfBackfillJobView = {
     estimatedSecondsRemaining?: number | null;
     /** Pending rewrite queue window only; null when processing/done/missing. */
     pendingRewrite?: { from: string; to: string } | null;
+    /** Parent-change: Save-time sync vs async history. */
+    phase?: "sync" | "history" | null;
+    /** Parent-change sync checklist step key. */
+    step?: string | null;
+    syncStepsTotal?: number | null;
+    syncStepsDone?: number | null;
 };
 
 export type CreditPortfolioHealthResponse = {
@@ -684,7 +728,7 @@ export type CustomerDashboardKpiCards = {
     /** Distinct open Due/Overdue invoices with any terms-breach flag (same membership as outstanding). */
     termsBreachInvoiceCount: number;
     capacityGapAmount: number;
-    /** Uninsured exposure: full open AR when excluded from policy, else stored uninsured (0 when outdated DCL). */
+    /** Uninsured amount: full open AR when excluded from policy, else stored uninsured (0 when outdated DCL). */
     uninsuredAmount: number;
     /** True when the scoped customer policy is excluded from policy. */
     isExcludedFromPolicy: boolean;

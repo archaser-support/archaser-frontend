@@ -1457,6 +1457,35 @@
         ]
       }
     },
+    "/api/entities/customers/{id}/policies/unassign": {
+      "post": {
+        "operationId": "CustomersController_unassignPolicy",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove customer policy from a UTC unassign date (Nest-native)",
+        "tags": [
+          "entities"
+        ]
+      }
+    },
     "/api/entities/customers/{id}/top-ups": {
       "get": {
         "operationId": "CustomersController_topUps",
@@ -2241,6 +2270,44 @@
           }
         ],
         "summary": "Update invoice last payment date (Nest-native)",
+        "tags": [
+          "invoices"
+        ]
+      }
+    },
+    "/api/invoices/mep-ignored": {
+      "get": {
+        "operationId": "InvoiceMepIgnoredController_listMepIgnored",
+        "parameters": [],
+        "responses": {
+          "401": {
+            "description": "Missing Bearer or session cookie"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List invoice ids ignored for MEP on a customer",
+        "tags": [
+          "invoices"
+        ]
+      },
+      "post": {
+        "operationId": "InvoiceMepIgnoredController_updateMepIgnored",
+        "parameters": [],
+        "responses": {
+          "401": {
+            "description": "Missing Bearer or session cookie"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Toggle invoice ignored for MEP overdue_block",
         "tags": [
           "invoices"
         ]

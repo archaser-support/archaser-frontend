@@ -120,7 +120,6 @@ const CustomerFormField = memo<CustomerFormFieldProps>(
         activePolicies = [],
         editedCustomer,
         label,
-        icon,
     }) => {
         const { t: tHook, i18n } = useTranslation(["customers", "common"]);
         const theme = useTheme();
@@ -531,9 +530,13 @@ const CustomerFormField = memo<CustomerFormFieldProps>(
                     <Autocomplete
                         options={activePolicies}
                         getOptionLabel={(o) => o.policy_number}
-                        value={selectedPolicy}
+                        value={selectedPolicy ?? undefined}
+                        disableClearable={selectedPolicy != null}
                         onChange={(_, newVal) =>
-                            onChange("policy_id", newVal?.id ?? null)
+                            onChange(
+                                "policy_id",
+                                newVal?.id ?? selectedPolicy?.id ?? null
+                            )
                         }
                         renderInput={(params) => (
                             <TextField
@@ -849,7 +852,37 @@ const CustomerFormField = memo<CustomerFormFieldProps>(
                 );
             }
 
-            case "parent_customer_id":
+            case "parent_customer_id": {
+                const parent = editedCustomer?.ParentCustomer;
+                let initialOption: {
+                    id: number;
+                    name: string;
+                    customer_number: string | null;
+                    type: "Person" | "Company";
+                } | null = null;
+                if (parent && value) {
+                    const parentId = Number(value);
+                    if (Number.isFinite(parentId)) {
+                        let name = "";
+                        if (parent.type === "Person") {
+                            const fullName = parent.Person?.full_name;
+                            name =
+                                fullName ||
+                                `${parent.Person?.first_name || ""} ${parent.Person?.last_name || ""}`.trim();
+                        } else {
+                            name = parent.Company?.name || "";
+                        }
+                        initialOption = {
+                            id: parentId,
+                            name:
+                                name ||
+                                parent.customer_number ||
+                                `Customer ${parentId}`,
+                            customer_number: parent.customer_number ?? null,
+                            type: parent.type,
+                        };
+                    }
+                }
                 return (
                     <ParentCustomerAutocomplete
                         value={value ? Number(value) : null}
@@ -858,8 +891,10 @@ const CustomerFormField = memo<CustomerFormFieldProps>(
                         error={error}
                         disabled={!isEditing}
                         label={label}
+                        initialOption={initialOption}
                     />
                 );
+            }
 
             default:
                 return (

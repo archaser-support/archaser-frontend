@@ -245,9 +245,9 @@
         "sync_mode_backfill": "מילוי היסטוריה",
         "sync_mode_incremental": "מצטבר",
         "sync_mode_label": "מצב סנכרון",
-        "last_sync_at_label": "סנכרון אחרון (UTC)",
+        "last_sync_at_label": "סנכרון אחרון",
         "last_sync_at_empty": "—",
-        "next_scheduled_sync_at_label": "הסנכרון המתוזמן הבא (UTC)",
+        "next_scheduled_sync_at_label": "הסנכרון הבא",
         "extension_matched": "{{label}} ({{key}})"
     },
     "as_of_backfill": {

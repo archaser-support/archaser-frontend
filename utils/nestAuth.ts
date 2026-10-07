@@ -3,7 +3,13 @@
  * Used when NEXT_PUBLIC_USE_NEST_AUTH=true or NEXT_PUBLIC_AMPLIFY_UI=true.
  */
 
+import {
+    isLogoutInProgress,
+    markLogoutInProgress,
+} from "@/shared/utils/sessionLanguageKeys";
+import { clearLoginShellPrefetch } from "@/shared/services/loginShellPrefetch";
 import { isNestUiMode } from "@/utils/amplifyMode";
+import { applyViewAsHeaders } from "@/utils/viewAsTransport";
 
 const NEST_TOKEN_KEY = "archaser_nest_access_token";
 const LOGIN_HANDOFF_STORAGE_KEY = "loginHandoffInProgress";
@@ -60,6 +66,30 @@ function isCustomerPortalPath(pathname: string): boolean {
 }
 
 /**
+ * Leave /app immediately. Do not await signOut — that left pages mounted
+ * long enough to paint 401 load errors (e.g. credit dashboard).
+ */
+export function beginHardLogout(loginPath?: string): void {
+    if (typeof window === "undefined") {
+        return;
+    }
+    markLogoutInProgress();
+    handlingExpiredSession = true;
+    clearLoginShellPrefetch();
+    clearNestAccessToken();
+    const target =
+        loginPath || resolveLoginPathname(window.location.pathname || "/");
+    void import("next-auth/react")
+        .then(({ signOut }) => signOut({ redirect: false }))
+        .catch(() => {
+            // NextAuth may be unavailable depending on deploy mode.
+        });
+    if (window.location.pathname !== target) {
+        window.location.assign(target);
+    }
+}
+
+/**
  * Global expired-session handler for Nest bearer auth.
  * Clears local bearer token, signs out NextAuth cookie session, then routes to login.
  */
@@ -85,20 +115,10 @@ export async function handleExpiredNestSession(): Promise<void> {
     } catch {
         // storage may be unavailable
     }
-    handlingExpiredSession = true;
-    clearNestAccessToken();
-    try {
-        const { signOut } = await import("next-auth/react");
-        await signOut({ redirect: false });
-    } catch {
-        // NextAuth may be unavailable depending on deploy mode.
-    } finally {
-        const target = resolveLoginPathname(window.location.pathname || "/");
-        if (window.location.pathname !== target) {
-            window.location.assign(target);
-        }
-        handlingExpiredSession = false;
+    if (isLogoutInProgress()) {
+        return;
     }
+    beginHardLogout();
 }
 
 /** Re-apply token after login clears storage. */
@@ -215,10 +235,15 @@ export async function nestFetch(
     if (!headers.has("Content-Type") && init.body) {
         headers.set("Content-Type", "application/json");
     }
+    applyViewAsHeaders(headers);
     const url = path.startsWith("http")
         ? path
         : `${getNestApiBaseUrl()}${path.startsWith("/") ? path : `/${path}`}`;
-    const response = await fetch(url, { ...init, headers });
+    const response = await fetch(url, {
+        ...init,
+        headers,
+        credentials: init.credentials ?? "include",
+    });
     if (response.status === 401) {
         await handleExpiredNestSession();
     }
@@ -240,6 +265,13 @@ export type NestMeProfile = {
     secondary_color?: string | null;
     chart_palette_color?: string | null;
     sidebar_collapsed?: boolean | null;
+    has_collection?: boolean;
+    has_credit_insurance?: boolean;
+    is_demo?: boolean;
+    last_sync_date?: string | null;
+    effective_user_id?: string | null;
+    effective_account_id?: number | null;
+    effective_role?: string | null;
 };
 
 export async function nestFetchMe(): Promise<NestMeProfile> {

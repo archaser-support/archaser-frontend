@@ -3,6 +3,7 @@ import { QueryFunction } from "@tanstack/react-query";
 
 import api from "@/app/api";
 import { applyEffectivePolicyFieldsToCustomer } from "@/shared/customerPolicyAdapter";
+import type { CustomerAggregatedCreditBlock } from "@/shared/customerCreditPool";
 import { ContactResponse, InvalidContactResponse } from "@/types/contact";
 import { Customer, CustomerResponse, CustomerStats } from "@/types/Customer";
 import { OpenDisputeResponse } from "@/types/CustomerDispute";
@@ -604,6 +605,9 @@ export const getCustomerAggregatedData = async (
     customerTotalDueCurrency1?: string | null;
     customerTotalDueAmount2?: number | null;
     customerTotalDueCurrency2?: string | null;
+    has_collection?: boolean;
+    has_credit_insurance?: boolean;
+    credit?: CustomerAggregatedCreditBlock | null;
 }> => {
     try {
         const response = await api.get(
@@ -642,6 +646,31 @@ export const searchCustomersForParent = async (
     excludeId: number
 ): Promise<Array<Customer & { name?: string }>> =>
     searchCustomers(searchTerm, { excludeId });
+
+/** Resolve one customer for parent Autocomplete hydration (by id, not search page). */
+export const fetchCustomerForParentSelect = async (
+    customerId: number
+): Promise<(Customer & { name?: string }) | null> => {
+    try {
+        const response = await api.get(`${API_BASE_URL}/${customerId}`);
+        const customer = applyEffectivePolicyFieldsToCustomer(
+            response.data as Record<string, unknown>
+        ) as Customer & { name?: string };
+        if (!customer?.id) {
+            return null;
+        }
+        const name =
+            customer.name ||
+            (customer as { Company?: { name?: string } }).Company?.name ||
+            (customer as { Person?: { full_name?: string } }).Person
+                ?.full_name ||
+            customer.customer_number ||
+            undefined;
+        return { ...customer, name };
+    } catch {
+        return null;
+    }
+};
 
 // Customer Statistics
 export const fetchCustomerStats: QueryFunction<{

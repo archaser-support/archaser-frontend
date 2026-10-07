@@ -21,6 +21,7 @@ import DeleteDialog from "@/shared/layout-components/modal/DeleteDialog";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import { Customer } from "@/types/Customer";
 import AddBankToCustomerModal from "./AddBankToCustomerModal";
+import { customerSectionHeaderSx } from "./customerCardStyles";
 
 // No need for a custom interface - report data is dynamic and we can use GridRenderCellParams<any>
 // The report execution service returns data with keys like "AccountBankAccounts.bank_name"
@@ -543,19 +544,10 @@ const CustomerBanksList: React.FC<CustomerBanksListProps> = ({ customer }) => {
                 bgcolor: "background.default",
                 borderRadius: theme.shape.borderRadius,
                 position: "relative",
-                mt: { xs: 2, sm: 2 },
             }}
         >
             {/* Header Section */}
-            <Box
-                sx={{
-                    p: { xs: 1, sm: 1.25 },
-                    mb: theme.spacing(1),
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                }}
-            >
+            <Box sx={customerSectionHeaderSx}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     <AccountBalanceIcon
                         sx={{

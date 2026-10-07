@@ -3,7 +3,9 @@
         "circular_relationship": "Cannot create circular relationship",
         "self_reference": "Customer cannot be its own parent",
         "parent_not_found": "Parent customer not found",
-        "different_account": "Parent customer must belong to the same account"
+        "different_account": "Parent customer must belong to the same account",
+        "parent_has_invoices_or_payments": "Parent customer must not have invoices or payments",
+        "customer_has_children_no_ar": "Customers with children cannot have invoices or payments"
     },
     "fields": {
         "name": "Name",
@@ -47,6 +49,10 @@
         "time_remaining_minutes_remaining_other": "{{count}} minutes remaining",
         "business_unit": "Business Unit",
         "parent_customer": "Parent Customer",
+        "parent_customer_inherited_policy": "Policy settings are inherited from the parent customer",
+        "child_customers_indication": "Child customers",
+        "child_customers_count_value_one": "{{count}} child",
+        "child_customers_count_value_other": "{{count}} children",
         "child_customers_count": "Child Customers Count",
         "total_invoices_count": "Total Invoices",
         "total_paid_amount": "Total Paid Amount",
@@ -151,6 +157,10 @@
         "try_adjusting_your_filters": "Try adjusting your filters",
         "error_loading_customer_data": "Error loading customer data",
         "customer_saved_success": "Customer Saved Successfully",
+        "save_error": "Failed to save customer",
+        "save_error_network": "Could not reach the server while saving. If you changed the parent customer, wait for the API to finish syncing and try again.",
+        "parent_credit_pool_sync_failed": "Parent link saved but credit pool sync failed. Try again in a moment.",
+        "credit_asof_backfill_in_progress": "Cannot update parent while a credit history backfill is running. Try again when it finishes.",
         "follow_up_notification_same_date": "Follow-up scheduled for {{date}} at {{customerTime}}",
         "follow_up_notification_different_date": "Follow-up scheduled for {{customerDate}} at {{customerTime}} ({{companyDate}} at {{companyTime}} according to {{companyName}} timezone)",
         "follow_up_notification_dual_time": "Follow-up scheduled for {{customerDate}} at {{customerTime}} (Customer Time) / {{userDate}} at {{userTime}} (User Time)",
@@ -194,7 +204,7 @@
         "invoices": "Invoices",
         "policies": "Policies",
         "settings": "Settings",
-        "outstanding_invoices": "Due and Overdue Invoices",
+        "outstanding_invoices": "Invoices",
         "relevant_bank_accounts": "Relevant Bank Accounts",
         "address_information": "Address Information",
         "general_information": "General Information",
@@ -214,7 +224,10 @@
         "child_customers": "Child Customers",
         "outstanding_by_child": "Outstanding Amounts by Child Customer",
         "invoices_by_child": "Invoices by Child Customer",
-        "overdue_and_due_invoices": "Overdue and Due Invoices"
+        "overdue_and_due_invoices": "Overdue and Due Invoices",
+        "shared_credit_pool": "Shared credit pool",
+        "credit_pool_members": "Credit pool members",
+        "credit_pool_root": "Pool root"
     },
     "collection": {
         "metrics_section_title": "Collection metrics"
@@ -264,6 +277,9 @@
         "usage_pct": "Usage %",
         "over_limit_amount": "Over-limit amount",
         "capacity_gap": "Capacity Gap",
+        "pool_dashboard_metric_na": "N/A",
+        "pool_dashboard_metric_see_aggregated": "Shared across the credit pool",
+        "pool_dashboard_metric_shared_pool": "Shared across the credit pool",
         "uninsured_amount": "Uninsured amount",
         "oldest_overdue_invoice_date": "Oldest Overdue Invoice Date",
         "overdue_block": "Overdue Block",
@@ -285,16 +301,33 @@
         "breach_invoice_count_one": "{{count}} invoice",
         "breach_invoice_count_other": "{{count}} invoices",
         "metrics_section_title": "Credit insurance metrics",
+        "aggregated_open_claims": "Open claims",
+        "aggregated_total_claims": "Total claims",
+        "aggregated_total_overdue": "Total Overdue",
+        "aggregated_total_due": "Total Due",
+        "aggregated_total_ar": "Total AR",
+        "aggregated_total_capacity_gap": "Total Capacity Gap",
+        "aggregated_total_at_risk": "Total At-Risk Exposure",
         "policy_trend": "Policy trend",
         "history_unavailable": "Policy history is unavailable for the selected period.",
         "all_policies": "All Policies",
         "dashboard_no_policy_title": "No Insurance Policy Linked",
         "dashboard_no_policy_description": "Link an insurance policy on the Policies tab to view credit metrics on this dashboard.",
+        "remove_policy": "Remove policy",
+        "remove_policy_title": "Remove policy?",
+        "remove_policy_confirm_action": "Remove",
+        "unassign_date": "Unassign date",
+        "remove_policy_confirm": "From {{date}}, leftover invoices issued before this day stay on the current policy. Invoices issued on or after this day lose that policy.",
+        "remove_policy_success": "Policy removed",
+        "remove_policy_pending_success": "Policy removal scheduled",
+        "remove_policy_error": "Failed to remove policy",
         "validation": {
             "policy_change_start_date_required": "Policy change start date is required",
             "pending_policy_change_exists": "A pending policy change exists. Cancel it before making further Policies changes.",
             "pending_policy_change_not_found": "No pending policy change to cancel",
-            "top_up_date_overlap": "This top-up overlaps an existing top-up for the same product. Concurrent top-ups are not allowed for this policy."
+            "top_up_date_overlap": "This top-up overlaps an existing top-up for the same product. Concurrent top-ups are not allowed for this policy.",
+            "unassign_date_required": "Unassign date is required",
+            "unassign_date_before_version_start": "Unassign date must be on or after this insurance policy start date"
         },
         "pending_change_banner": "A policy change is scheduled for {{date}}. Cancel it before making further Policies changes.",
         "cancel_pending_change": "Cancel pending change",
@@ -335,6 +368,14 @@
         "invalid_invoice": "Invalid invoice",
         "date_required": "Please select a last payment date"
     },
+    "mep_ignore": {
+        "ignore_action": "Ignore for MEP",
+        "unignore_action": "Include in MEP",
+        "save_success_ignored": "Invoice ignored for MEP",
+        "save_success_unignored": "Invoice included in MEP again",
+        "save_error": "Could not update MEP ignore",
+        "invalid_invoice": "Invalid invoice"
+    },
     "credit_insurance_violations": {
         "column_title": "Contains breaches / violations",
         "causes": {
@@ -344,6 +385,31 @@
             "excluded_from_policy": "Customer excluded from policy at creation",
             "outdated_dcl": "Outdated DCL at creation",
             "invoice_after_policy_end": "Invoice dated after policy end"
+        }
+    },
+    "credit_history_refresh": {
+        "title": "Refreshing credit history",
+        "title_syncing": "Updating credit pool",
+        "body": "Parent link is saved. Customer credit history is updating in the background. Dashboard charts will catch up overnight.",
+        "body_syncing": "Saving the parent link and updating the shared credit pool. Please wait — this can take a minute on large accounts.",
+        "body_starting": "Starting credit pool update…",
+        "body_blocked": "A credit history refresh is already running. Parent link changes are blocked until it finishes. Dashboard charts will catch up overnight.",
+        "progress": "Updating history: {{done}} of {{total}} days",
+        "run_in_background": "Run in background",
+        "close": "Close",
+        "complete": "Customer credit history is up to date. Dashboard charts will catch up overnight.",
+        "eta_seconds": "~{{count}} sec",
+        "eta_minutes": "~{{count}} min",
+        "eta_hours": "~{{hours}} hr",
+        "eta_hours_minutes": "~{{hours}} hr {{mins}} min",
+        "steps": {
+            "remirror": "Applying shared credit settings to the pool",
+            "capacity_gap": "Recalculating capacity gap",
+            "ctp_today": "Updating today’s credit trends",
+            "ctp_overlay": "Applying pool gap and at-risk totals",
+            "cdp_today": "Updating today’s credit dashboard",
+            "breach_and_open_ar": "Rolling up breach and open receivables",
+            "history": "Refreshing credit history"
         }
     }
 }
