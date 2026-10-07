@@ -40,6 +40,30 @@
         "modal_edit_title": "עריכת פוליסת ביטוח",
         "create_failed": "לא ניתן ליצור פוליסה",
         "save_failed": "לא ניתן לשמור את הפוליסה",
+        "save_confirm": {
+            "title": "אישור שינויים בפוליסה",
+            "intro": "השינויים האלה חלים על לקוחות בפוליסה זו. יש לבדוק אותם לפני השמירה.",
+            "field_change": "{{old}} ← {{new}}",
+            "empty_value": "—",
+            "field_customer_count": "לקוחות שיעודכנו: {{count}}",
+            "unique_customer_count": "לקוחות שתיווצר להם גרסת פוליסה חדשה: {{count}}",
+            "skipped_pending_count": "לקוחות שידולגו (יש להם שינוי פוליסה ממתין משלהם): {{count}}",
+            "no_customers_to_update": "אין לקוח שזקוק לגרסת פוליסה חדשה. רק הפוליסה תעודכן.",
+            "effective_date": "תאריך תחולה",
+            "effective_date_future_hint": "הפוליסה והלקוחות שלה יתעדכנו בתאריך {{date}}. עד אז ההגדרות הנוכחיות נשארות בתוקף וטופס הפוליסה נעול.",
+            "confirm": "אישור ושמירה",
+            "confirm_schedule": "אישור ותזמון",
+            "preview_failed": "לא ניתן לבדוק כיצד השינוי משפיע על הלקוחות",
+            "confirm_failed": "לא ניתן לשמור את הפוליסה. לא בוצעו שינויים."
+        },
+        "pending_revision": {
+            "banner": "שינוי בפוליסה מתוזמן לתאריך {{date}}: {{fields}}. טופס הפוליסה נעול עד שהשינוי ייכנס לתוקף או עד שתבטלו אותו.",
+            "cancel": "ביטול השינוי המתוזמן",
+            "cancel_success": "השינוי המתוזמן בפוליסה בוטל",
+            "cancel_failed": "לא ניתן לבטל את השינוי המתוזמן בפוליסה",
+            "scheduled_success": "שינוי בפוליסה תוזמן לתאריך {{date}}",
+            "already_exists": "כבר קיים שינוי מתוזמן בפוליסה. יש לבטל אותו לפני ביצוע שינויים נוספים."
+        },
         "load_policy_failed": "לא ניתן לטעון את הפוליסה",
         "edit_page_description": "ערוך את פרטי הפוליסה ונהל מגבלות ברמת מדינה עבור תקופת תשלום, MEP, ימי דיווח וספי כיסוי.",
         "delete_policy_country_title": "מחיקת מדינה מהפוליסה",
@@ -219,7 +243,9 @@
             "cutoff_requires_substitute": "שדה חלופי הוא חובה כאשר מוגדר יום חיתוך",
             "substitute_requires_cutoff": "יום חיתוך הוא שדה חובה כאשר מוגדר ערך חלופי",
             "max_dcl_lte_max_total_cover": "DCL/SDL מרבי חייב להיות קטן או שווה לכיסוי הכולל המרבי",
-            "named_customer_number_exists": "שורה אחרת כבר משתמשת במספר לקוח זה"
+            "named_customer_number_exists": "שורה אחרת כבר משתמשת במספר לקוח זה",
+            "effective_date_required": "תאריך תחולה הוא שדה חובה",
+            "effective_date_in_past": "תאריך התחולה חייב להיות היום או מאוחר יותר"
         }
     }
 }
