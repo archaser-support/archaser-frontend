@@ -530,9 +530,13 @@ const CustomerFormField = memo<CustomerFormFieldProps>(
                     <Autocomplete
                         options={activePolicies}
                         getOptionLabel={(o) => o.policy_number}
-                        value={selectedPolicy}
+                        value={selectedPolicy ?? undefined}
+                        disableClearable={selectedPolicy != null}
                         onChange={(_, newVal) =>
-                            onChange("policy_id", newVal?.id ?? null)
+                            onChange(
+                                "policy_id",
+                                newVal?.id ?? selectedPolicy?.id ?? null
+                            )
                         }
                         renderInput={(params) => (
                             <TextField
