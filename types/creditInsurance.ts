@@ -430,6 +430,7 @@ export type PortfolioTopUpDrawSection = {
 export type PortfolioUtilizationTopCustomer = {
     customerId: number;
     customerName: string;
+    policyNumber?: string | null;
     /** Mean daily usage_amount over available snapshot days in the range. */
     usageAmount: number;
     /** Mean daily total_receivables (open AR) over available snapshot days. */
@@ -443,12 +444,15 @@ export type PortfolioUtilizationTopCustomer = {
     approvedLimit?: number | null;
     /** Mean daily top-up cover in the range; null when none. */
     topUpTotal?: number | null;
+    /** Mean daily effective approved limit in the range. */
+    effectiveApprovedLimit?: number | null;
     policyUsagePct?: number | null;
     topUpUsagePct?: number | null;
     effectiveUsagePct?: number | null;
     barPolicyPct?: number;
     barTopUpPct?: number;
     barOverPct?: number;
+    usagePct?: number | null;
 };
 
 /** Per-customer utilization overshoot ranking (Bucket 1 KPI #2). */

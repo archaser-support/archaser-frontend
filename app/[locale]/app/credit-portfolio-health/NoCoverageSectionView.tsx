@@ -26,6 +26,7 @@ import {
 } from "./formatPortfolioMoney";
 import { IslandCard } from "./IslandCard";
 import { CPH } from "./designTokens";
+import { chartColors, chartCssVars } from "./chartColors";
 import layout from "./islandLayout.module.css";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
@@ -201,7 +202,7 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
             </IslandCard>
 
             <IslandCard
-                accent="violet"
+                accent="secondary"
                 className={`${layout.span12} ${layout.mdSpan8} ${layout.cardPad}`}
             >
                 <Eyebrow
@@ -236,13 +237,13 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                                 margin={{ left: 10, right: 28, top: 4, bottom: 8 }}
                             >
                                 <CartesianGrid
-                                    strokeDasharray="3 6"
-                                    stroke={CPH.border}
+                                    strokeDasharray="3 3"
+                                    stroke={chartColors.grid}
                                     horizontal={false}
                                 />
                                 <XAxis
                                     type="number"
-                                    tick={{ fill: CPH.slate, fontSize: 11 }}
+                                    tick={{ fill: chartColors.axisText, fontSize: 11 }}
                                     axisLine={false}
                                     tickLine={false}
                                     height={36}
@@ -258,7 +259,7 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                                     type="category"
                                     dataKey="label"
                                     width={160}
-                                    tick={{ fill: CPH.slate, fontSize: 11.5 }}
+                                    tick={{ fill: chartColors.axisText, fontSize: 11.5 }}
                                     axisLine={false}
                                     tickLine={false}
                                 />
@@ -312,8 +313,8 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                                             key={i}
                                             fill={
                                                 i === 0
-                                                    ? CPH.violet
-                                                    : CPH.tealDim
+                                                    ? chartColors.secondary
+                                                    : chartColors.primary
                                             }
                                         />
                                     ))}
@@ -381,7 +382,7 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
                                 defaultValue: "Share of total violations",
                             }
                         )}
-                        color={CPH.violet}
+                        color={chartCssVars.secondaryText}
                         locale={language}
                     />
                 </div>

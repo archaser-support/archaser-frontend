@@ -31,6 +31,7 @@ import {
 import { IslandCard } from "./IslandCard";
 import { StatNumber } from "./StatNumber";
 import { CPH } from "./designTokens";
+import { chartColors, chartCssVars } from "./chartColors";
 import { SPACE_GROTESK_FONT_FAMILY } from "./fontTokens";
 import layout from "./islandLayout.module.css";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
@@ -100,7 +101,7 @@ export function CostsSectionView({
     return (
         <div className={layout.grid12}>
             <IslandCard
-                accent="teal"
+                accent="primary"
                 className={`${layout.span6} ${layout.mdSpan4} ${layout.cardPad}`}
             >
                 <Eyebrow
@@ -134,7 +135,7 @@ export function CostsSectionView({
             </IslandCard>
 
             <IslandCard
-                accent="teal"
+                accent="primary"
                 className={`${layout.span6} ${layout.mdSpan4} ${layout.cardPad}`}
             >
                 <Eyebrow
@@ -159,7 +160,7 @@ export function CostsSectionView({
                         <div
                             className="text-3xl font-semibold tracking-tight"
                             style={{
-                                color: CPH.teal,
+                                color: chartCssVars.primaryText,
                                 fontFamily: SPACE_GROTESK_FONT_FAMILY,
                             }}
                         >
@@ -186,7 +187,7 @@ export function CostsSectionView({
             </IslandCard>
 
             <IslandCard
-                accent="violet"
+                accent="secondary"
                 className={`${layout.span6} ${layout.mdSpan4} ${layout.cardPad}`}
             >
                 <Eyebrow
@@ -237,7 +238,7 @@ export function CostsSectionView({
 
             {showMonthlyBars ? (
                 <IslandCard
-                    accent="teal"
+                    accent="primary"
                     className={`${layout.span12} ${layout.cardPad}`}
                 >
                     <Eyebrow
@@ -263,18 +264,18 @@ export function CostsSectionView({
                                 margin={{ top: 10, left: 8, right: 10 }}
                             >
                                 <CartesianGrid
-                                    strokeDasharray="3 6"
-                                    stroke={CPH.border}
+                                    strokeDasharray="3 3"
+                                    stroke={chartColors.grid}
                                     vertical={false}
                                 />
                                 <XAxis
                                     dataKey="label"
-                                    tick={{ fill: CPH.slate, fontSize: 12 }}
+                                    tick={{ fill: chartColors.axisText, fontSize: 12 }}
                                     axisLine={false}
                                     tickLine={false}
                                 />
                                 <YAxis
-                                    tick={{ fill: CPH.slate, fontSize: 11 }}
+                                    tick={{ fill: chartColors.axisText, fontSize: 11 }}
                                     axisLine={false}
                                     tickLine={false}
                                     width={84}
@@ -326,7 +327,7 @@ export function CostsSectionView({
                                                         value:
                                                             row.insuranceCost ??
                                                             0,
-                                                        color: CPH.teal,
+                                                        color: chartColors.primary,
                                                         dataKey:
                                                             "insuranceCost",
                                                     },
@@ -342,7 +343,7 @@ export function CostsSectionView({
                                                         value:
                                                             row.registrationFeeCost ??
                                                             0,
-                                                        color: CPH.teal,
+                                                        color: chartColors.primary,
                                                         dataKey:
                                                             "registrationFeeCost",
                                                     },
@@ -357,7 +358,7 @@ export function CostsSectionView({
                                                         ),
                                                         value:
                                                             row.topUpCost ?? 0,
-                                                        color: CPH.teal,
+                                                        color: chartColors.primary,
                                                         dataKey: "topUpCost",
                                                     },
                                                     {
@@ -370,7 +371,7 @@ export function CostsSectionView({
                                                             }
                                                         ),
                                                         value: row.totalCost,
-                                                        color: CPH.teal,
+                                                        color: chartColors.primary,
                                                         dataKey: "totalCost",
                                                     },
                                                 ]}
@@ -395,8 +396,8 @@ export function CostsSectionView({
                                             defaultValue: "Policy cost",
                                         }
                                     )}
-                                    fill={CPH.teal}
-                                    radius={[8, 8, 0, 0]}
+                                    fill={chartColors.primary}
+                                    radius={[3, 3, 0, 0]}
                                     animationDuration={animDuration}
                                 />
                             </BarChart>

@@ -1,7 +1,7 @@
 "use client";
 
 import { TruncatedChartLabel } from "@/shared/components/TruncatedChartLabel";
-import { CPH } from "./designTokens";
+import { chartColors } from "./chartColors";
 
 export const CUSTOMER_NAME_Y_AXIS_WIDTH = 180;
 
@@ -33,7 +33,7 @@ export function CustomerNameYTick(props: CustomerNameYTickProps) {
                 style={{
                     fontSize: 11.5,
                     lineHeight: "20px",
-                    color: CPH.slate,
+                    color: chartColors.axisText,
                 }}
             />
         </foreignObject>

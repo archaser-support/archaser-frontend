@@ -313,11 +313,21 @@
         "all_policies": "All Policies",
         "dashboard_no_policy_title": "No Insurance Policy Linked",
         "dashboard_no_policy_description": "Link an insurance policy on the Policies tab to view credit metrics on this dashboard.",
+        "remove_policy": "Remove policy",
+        "remove_policy_title": "Remove policy?",
+        "remove_policy_confirm_action": "Remove",
+        "unassign_date": "Unassign date",
+        "remove_policy_confirm": "From {{date}}, leftover invoices issued before this day stay on the current policy. Invoices issued on or after this day lose that policy.",
+        "remove_policy_success": "Policy removed",
+        "remove_policy_pending_success": "Policy removal scheduled",
+        "remove_policy_error": "Failed to remove policy",
         "validation": {
             "policy_change_start_date_required": "Policy change start date is required",
             "pending_policy_change_exists": "A pending policy change exists. Cancel it before making further Policies changes.",
             "pending_policy_change_not_found": "No pending policy change to cancel",
-            "top_up_date_overlap": "This top-up overlaps an existing top-up for the same product. Concurrent top-ups are not allowed for this policy."
+            "top_up_date_overlap": "This top-up overlaps an existing top-up for the same product. Concurrent top-ups are not allowed for this policy.",
+            "unassign_date_required": "Unassign date is required",
+            "unassign_date_before_version_start": "Unassign date must be on or after this insurance policy start date"
         },
         "pending_change_banner": "A policy change is scheduled for {{date}}. Cancel it before making further Policies changes.",
         "cancel_pending_change": "Cancel pending change",
