@@ -1,6 +1,7 @@
 "use client";
 
 import { CPH } from "./designTokens";
+import { chartColors } from "./chartColors";
 import { PortaledHoverTooltip } from "./PortaledHoverTooltip";
 
 type TooltipPayloadItem = {
@@ -133,7 +134,7 @@ export function ChartTooltip({
                                     height: 8,
                                     borderRadius: "50%",
                                     flexShrink: 0,
-                                    backgroundColor: entry.color ?? CPH.teal,
+                                    backgroundColor: entry.color ?? chartColors.primary,
                                 }}
                             />
                             <span

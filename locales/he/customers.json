@@ -303,11 +303,21 @@
         "all_policies": "כל הפוליסות",
         "dashboard_no_policy_title": "לא מקושרת פוליסת ביטוח",
         "dashboard_no_policy_description": "קשרו פוליסת ביטוח בלשונית פוליסות כדי לצפות במדדי האשראי בלוח הבקרה.",
+        "remove_policy": "הסר פוליסה",
+        "remove_policy_title": "להסיר את הפוליסה?",
+        "remove_policy_confirm_action": "הסר",
+        "unassign_date": "תאריך הסרה",
+        "remove_policy_confirm": "החל מ-{{date}}, חשבוניות שנותרו שהונפקו לפני יום זה יישארו על הפוליסה הנוכחית. חשבוניות שהונפקו ביום זה ואילך יאבדו את הפוליסה.",
+        "remove_policy_success": "הפוליסה הוסרה",
+        "remove_policy_pending_success": "הסרת הפוליסה תוזמנה",
+        "remove_policy_error": "הסרת הפוליסה נכשלה",
         "validation": {
             "policy_change_start_date_required": "תאריך תחילת שינוי הפוליסה הוא שדה חובה",
             "pending_policy_change_exists": "קיים שינוי פוליסה ממתין. בטלו אותו לפני שינויים נוספים בלשונית הפוליסות.",
             "pending_policy_change_not_found": "לא נמצא שינוי פוליסה ממתין לביטול",
-            "top_up_date_overlap": "ההשלמה חופפת להשלמה קיימת עבור אותו מוצר. השלמות מקבילות אינן מותרות בפוליסה זו."
+            "top_up_date_overlap": "ההשלמה חופפת להשלמה קיימת עבור אותו מוצר. השלמות מקבילות אינן מותרות בפוליסה זו.",
+            "unassign_date_required": "תאריך ההסרה הוא שדה חובה",
+            "unassign_date_before_version_start": "תאריך ההסרה חייב להיות ביום תחילת פוליסת הביטוח או אחריו"
         },
         "pending_change_banner": "שינוי פוליסה מתוזמן ל-{{date}}. בטלו אותו לפני שינויים נוספים בלשונית הפוליסות.",
         "cancel_pending_change": "בטל שינוי ממתין",

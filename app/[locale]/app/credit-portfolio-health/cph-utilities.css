@@ -5,3 +5,16 @@
  * the rest of the app.
  */
 @tailwind utilities;
+
+/* Keep in sync with `chartColors.ts`. */
+:root {
+    --chart-primary: #0072b2;
+    --chart-secondary: #e69f00;
+    --chart-primary-text: #005a8c;
+    --chart-secondary-text: #b45309;
+    --chart-primary-tint: #dcebf5;
+    --chart-secondary-tint: #fcefd6;
+    --chart-marker: #111111;
+    --chart-grid: #e5e7eb;
+    --chart-axis-text: #4b5563;
+}

@@ -147,6 +147,7 @@ export type CustomerPolicyHistoryItem = {
     approved_limit_expiration_date?: Date | string | null;
     zero_limit_date?: Date | string | null;
     policy_change_start_date?: Date | string | null;
+    policy_change_end_date?: Date | string | null;
     status?: string | null;
     limit_type?: string | null;
     max_payment_term?: number | null;

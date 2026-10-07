@@ -48,6 +48,7 @@ import {
     applyEffectivePolicyFieldsToCustomer,
     buildCustomerPutPayload,
     getEffectivePolicyId,
+    getPendingCustomerPolicyFromCustomer,
     stripLegacyPolicyFieldsFromPayload,
 } from "@/shared/customerPolicyAdapter";
 import {
@@ -244,7 +245,6 @@ const ActivitiesTab = React.memo(
         customer,
         showLogActivity,
         setShowLogActivity,
-        showSendEmail,
         setShowSendEmail,
         refreshTrigger,
         refreshTimeline,
@@ -254,7 +254,6 @@ const ActivitiesTab = React.memo(
         customer: Customer;
         showLogActivity: boolean;
         setShowLogActivity: React.Dispatch<React.SetStateAction<boolean>>;
-        showSendEmail: boolean;
         setShowSendEmail: React.Dispatch<React.SetStateAction<boolean>>;
         refreshTrigger: number;
         refreshTimeline: () => void;
@@ -478,7 +477,6 @@ const TabContent = React.memo(
         customer,
         showLogActivity,
         setShowLogActivity,
-        showSendEmail,
         setShowSendEmail,
         loadedTabs,
         refreshTrigger,
@@ -497,6 +495,8 @@ const TabContent = React.memo(
         isSaving,
         onCancelPendingPolicyChange,
         isCancellingPending,
+        onRemovePolicy,
+        isRemovingPolicy,
         validationErrors,
         sequenceContainers,
         businessUnits,
@@ -517,7 +517,6 @@ const TabContent = React.memo(
         customer: Customer;
         showLogActivity: boolean;
         setShowLogActivity: React.Dispatch<React.SetStateAction<boolean>>;
-        showSendEmail: boolean;
         setShowSendEmail: React.Dispatch<React.SetStateAction<boolean>>;
         loadedTabs: Set<number>;
         refreshTrigger: number;
@@ -536,6 +535,8 @@ const TabContent = React.memo(
         isSaving: boolean;
         onCancelPendingPolicyChange?: () => void;
         isCancellingPending?: boolean;
+        onRemovePolicy?: (unassignDate: string) => Promise<void>;
+        isRemovingPolicy?: boolean;
         validationErrors: { [key: string]: string };
         sequenceContainers: any[];
         businessUnits: any[];
@@ -603,7 +604,6 @@ const TabContent = React.memo(
                             customer={customer}
                             showLogActivity={showLogActivity}
                             setShowLogActivity={setShowLogActivity}
-                            showSendEmail={showSendEmail}
                             setShowSendEmail={setShowSendEmail}
                             refreshTrigger={refreshTrigger}
                             refreshTimeline={refreshTimeline}
@@ -764,6 +764,13 @@ const TabContent = React.memo(
                                     : undefined
                             }
                             isCancellingPending={isCancellingPending}
+                            onRemovePolicy={
+                                hasEditCustomerPermission &&
+                                customer?.parent_customer_id == null
+                                    ? onRemovePolicy
+                                    : undefined
+                            }
+                            isRemovingPolicy={isRemovingPolicy}
                             customerId={customerIdNumber}
                         />
                     )}
@@ -872,6 +879,7 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
     const [editedCustomer, setEditedCustomer] = useState<any>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isCancellingPending, setIsCancellingPending] = useState(false);
+    const [isRemovingPolicy, setIsRemovingPolicy] = useState(false);
     const [creditHistoryRefreshOpen, setCreditHistoryRefreshOpen] =
         useState(false);
     const [creditHistoryRefreshJob, setCreditHistoryRefreshJob] =
@@ -2144,6 +2152,91 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
         }
     }, [customerIdNumber, queryClient, refetch, showToast, t]);
 
+    const handleRemovePolicy = useCallback(
+        async (unassignDate: string) => {
+            setIsRemovingPolicy(true);
+            try {
+                const response = await apiFetch(
+                    `/api/entities/customers/${customerIdNumber}/policies/unassign`,
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ unassign_date: unassignDate }),
+                    }
+                );
+                if (response.ok) {
+                    await queryClient.invalidateQueries({
+                        queryKey: ["customer", customerIdNumber],
+                    });
+                    const { data: freshCustomer } = await refetch();
+                    if (freshCustomer) {
+                        setEditedCustomer(
+                            applyEffectivePolicyFieldsToCustomer({
+                                ...freshCustomer,
+                                customer_name: freshCustomer?.Person
+                                    ? `${freshCustomer.Person.first_name || ""} ${freshCustomer.Person.last_name || ""}`.trim()
+                                    : freshCustomer?.Company?.name || "",
+                                category_for_new_collection:
+                                    freshCustomer?.category_for_new_collection ||
+                                    "Automated",
+                            })
+                        );
+                    }
+                    const todayUtcYmd = new Date().toISOString().slice(0, 10);
+                    const scheduledUnassign =
+                        unassignDate > todayUtcYmd ||
+                        Boolean(
+                            getPendingCustomerPolicyFromCustomer(freshCustomer)
+                        );
+                    showToast(
+                        t(
+                            scheduledUnassign
+                                ? "credit_insurance.remove_policy_pending_success"
+                                : "credit_insurance.remove_policy_success",
+                            { ns: "customers" }
+                        ),
+                        "success"
+                    );
+                    return;
+                }
+                const errBody = await response.json().catch(() => ({}));
+                const code =
+                    typeof errBody?.code === "string" ? errBody.code : null;
+                const codeKey =
+                    code === "UNASSIGN_DATE_BEFORE_POLICY_START" ||
+                    code === "UNASSIGN_DATE_BEFORE_VERSION_START"
+                        ? "credit_insurance.validation.unassign_date_before_version_start"
+                        : code === "UNASSIGN_DATE_REQUIRED"
+                            ? "credit_insurance.validation.unassign_date_required"
+                            : code === "PENDING_POLICY_CHANGE_EXISTS"
+                              ? "credit_insurance.validation.pending_policy_change_exists"
+                              : null;
+                const apiError =
+                    typeof errBody?.error === "string" ? errBody.error : null;
+                showToast(
+                    codeKey
+                        ? t(codeKey, { ns: "customers" })
+                        : (apiError ??
+                              t("credit_insurance.remove_policy_error", {
+                                  ns: "customers",
+                              })),
+                    "error"
+                );
+                return;
+            } catch {
+                showToast(
+                    t("credit_insurance.remove_policy_error", {
+                        ns: "customers",
+                    }),
+                    "error"
+                );
+            } finally {
+                setIsRemovingPolicy(false);
+            }
+        },
+        [customerIdNumber, queryClient, refetch, showToast, t]
+    );
+
     const handleSave = useCallback(async () => {
         if (!editedCustomer) return;
 
@@ -2188,7 +2281,6 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
 
         // Determine error type
         const is403 = statusCode === 403;
-        const is404 = statusCode === 404;
 
         let errorTitle = t("messages.customer_not_found");
         let errorDescription = t("messages.customer_not_found_description");
@@ -2447,7 +2539,6 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                         }
                         showLogActivity={showLogActivity}
                         setShowLogActivity={setShowLogActivity}
-                        showSendEmail={showSendEmail}
                         setShowSendEmail={setShowSendEmail}
                         loadedTabs={loadedTabs}
                         refreshTrigger={refreshTrigger}
@@ -2468,6 +2559,8 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                             handleCancelPendingPolicyChange
                         }
                         isCancellingPending={isCancellingPending}
+                        onRemovePolicy={handleRemovePolicy}
+                        isRemovingPolicy={isRemovingPolicy}
                         validationErrors={validationErrors}
                         sequenceContainers={sequenceContainers}
                         businessUnits={businessUnits}

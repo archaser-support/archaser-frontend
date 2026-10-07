@@ -7,7 +7,6 @@ import { RefreshCw } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import {
     Bar,
-    CartesianGrid,
     ComposedChart,
     ResponsiveContainer,
     Tooltip,
@@ -20,11 +19,19 @@ import type {
     PortfolioUtilizationDailyPoint,
 } from "@/types/creditInsurance";
 
+import { BetweenBarDividers } from "./BetweenBarDividers";
 import { BigNumber } from "./BigNumber";
 import { Eyebrow } from "./Eyebrow";
 import { IslandCard } from "./IslandCard";
 import { PortaledHoverTooltip } from "./PortaledHoverTooltip";
 import { CPH } from "./designTokens";
+import { chartColors, chartCssVars } from "./chartColors";
+import { PeakDot, PeakDotSwatch } from "./PeakDot";
+import {
+    SecondaryHatchDefs,
+    SecondarySwatch,
+    useSecondaryHatch,
+} from "./SecondaryHatch";
 import {
     formatPortfolioAxisMoney,
     formatPortfolioMoney,
@@ -37,9 +44,10 @@ const VISIBLE_ROWS = 10;
 const AXIS_HEIGHT = 32;
 const CHART_RIGHT = 72;
 const CHART_LEFT = 8;
-const POLICY_FILL = CPH.seriesSky;
-const TOP_UP_FILL = CPH.seriesOrange;
-const PEAK_FILL = CPH.ink;
+const POLICY_FILL = chartColors.primary;
+const TOP_UP_FILL = chartColors.secondary;
+const PEAK_FILL = chartColors.marker;
+const BAR_END_RADIUS = 3;
 
 export type TopUpDrawCapacityChartProps = {
     customers: PortfolioTopUpDrawCustomer[];
@@ -126,6 +134,8 @@ function TopUpBarWithPeak(props: {
     width?: number;
     height?: number;
     fill?: string;
+    stroke?: string;
+    strokeWidth?: number | string;
     payload?: ChartRow;
 }) {
     const x = props.x ?? 0;
@@ -143,27 +153,22 @@ function TopUpBarWithPeak(props: {
     const cy = y + height / 2;
     const peakPctLabel = payload?.peakPctLabel ?? "";
     const barEnd = x + width;
-    const labelX = Math.max(peakX + 10, barEnd + 8);
+    const labelX = Math.max(peakX + 12, barEnd + 8);
+    const r = Math.min(BAR_END_RADIUS, width / 2, height / 2);
 
     return (
         <g>
-            <rect
-                x={x}
-                y={y}
-                width={width}
-                height={height}
-                fill={props.fill ?? TOP_UP_FILL}
-            />
+            {width > 0 && height > 0 ? (
+                <path
+                    d={`M${x},${y} H${barEnd - r} Q${barEnd},${y} ${barEnd},${y + r} V${y + height - r} Q${barEnd},${y + height} ${barEnd - r},${y + height} H${x} Z`}
+                    fill={props.fill ?? TOP_UP_FILL}
+                    stroke={props.stroke}
+                    strokeWidth={props.strokeWidth}
+                />
+            ) : null}
             {payload != null && pxPerUnit > 0 ? (
                 <>
-                    <circle
-                        cx={peakX}
-                        cy={cy}
-                        r={5}
-                        fill={PEAK_FILL}
-                        stroke={CPH.card}
-                        strokeWidth={2}
-                    />
+                    <PeakDot cx={peakX} cy={cy} />
                     {peakPctLabel ? (
                         <text
                             x={labelX}
@@ -369,6 +374,7 @@ export function TopUpDrawCapacityChart({
     const params = useParams();
     const locale = typeof params?.locale === "string" ? params.locale : "en";
     const chartElRef = useRef<HTMLDivElement>(null);
+    const { patternId: hatchPatternId, secondaryFill } = useSecondaryHatch();
 
     const data = useMemo<ChartRow[]>(
         () =>
@@ -454,7 +460,7 @@ export function TopUpDrawCapacityChart({
 
     return (
         <IslandCard
-            accent="violet"
+            accent="secondary"
             className={`${layout.span12} ${layout.cardPad}`}
         >
             <Eyebrow
@@ -523,7 +529,7 @@ export function TopUpDrawCapacityChart({
                                   }
                               )
                     }
-                    color={TOP_UP_FILL}
+                    color={chartCssVars.secondaryText}
                     locale={language}
                 />
             </div>
@@ -544,7 +550,7 @@ export function TopUpDrawCapacityChart({
                             flexWrap: "wrap",
                             gap: 16,
                             fontSize: 12,
-                            color: CPH.slate,
+                            color: chartColors.axisText,
                         }}
                     >
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -559,25 +565,11 @@ export function TopUpDrawCapacityChart({
                             {policyName}
                         </span>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                            <span
-                                style={{
-                                    width: 10,
-                                    height: 10,
-                                    borderRadius: 2,
-                                    backgroundColor: TOP_UP_FILL,
-                                }}
-                            />
+                            <SecondarySwatch secondaryFill={secondaryFill} />
                             {topUpName}
                         </span>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                            <span
-                                style={{
-                                    width: 8,
-                                    height: 8,
-                                    borderRadius: "50%",
-                                    backgroundColor: PEAK_FILL,
-                                }}
-                            />
+                            <PeakDotSwatch />
                             {peakName}
                         </span>
                     </div>
@@ -602,7 +594,7 @@ export function TopUpDrawCapacityChart({
                                     type="number"
                                     domain={[0, domainMax]}
                                     orientation="top"
-                                    tick={{ fill: CPH.slate, fontSize: 11 }}
+                                    tick={{ fill: chartColors.axisText, fontSize: 11 }}
                                     axisLine={false}
                                     tickLine={false}
                                     tickFormatter={(v: number) =>
@@ -640,11 +632,8 @@ export function TopUpDrawCapacityChart({
                                     data={data}
                                     margin={sharedMargin}
                                 >
-                                    <CartesianGrid
-                                        strokeDasharray="3 6"
-                                        stroke={CPH.border}
-                                        horizontal={false}
-                                    />
+                                    <SecondaryHatchDefs patternId={hatchPatternId} />
+                                    <BetweenBarDividers rowCount={data.length} />
                                     <XAxis
                                         type="number"
                                         domain={[0, domainMax]}
@@ -670,7 +659,7 @@ export function TopUpDrawCapacityChart({
                                         reversed={isRtl}
                                     />
                                     <Tooltip
-                                        cursor={{ fill: CPH.surfaceMuted }}
+                                        cursor={false}
                                         allowEscapeViewBox={{
                                             x: true,
                                             y: true,
@@ -734,6 +723,9 @@ export function TopUpDrawCapacityChart({
                                         stackId="cover"
                                         name={policyName}
                                         fill={POLICY_FILL}
+                                        radius={[BAR_END_RADIUS, 0, 0, BAR_END_RADIUS]}
+                                        // Match Coverage Apex chart barHeight: "68%".
+                                        barSize={Math.round(ROW_HEIGHT * 0.68)}
                                         cursor="pointer"
                                         animationDuration={animDuration}
                                         onClick={(entry) => {
@@ -751,8 +743,11 @@ export function TopUpDrawCapacityChart({
                                         dataKey="topUpTotal"
                                         stackId="cover"
                                         name={topUpName}
-                                        fill={TOP_UP_FILL}
+                                        fill={secondaryFill}
+                                        stroke={chartColors.segmentGap}
+                                        strokeWidth={2}
                                         shape={TopUpBarWithPeak}
+                                        barSize={Math.round(ROW_HEIGHT * 0.68)}
                                         cursor="pointer"
                                         animationDuration={animDuration}
                                         legendType="rect"
