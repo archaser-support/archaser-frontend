@@ -208,12 +208,19 @@ const isNumericColumn = (columnField: string): boolean => {
  * splitCurrencyValue("$ 1,234") // { amount: "1,234", currency: "$" }
  * splitCurrencyValue("1,234.50 EUR") // { amount: "1,234.50", currency: "EUR" }
  */
+/** Strip bidi marks / NBSP so Hebrew money strings split and parse cleanly. */
+const normalizeMoneyText = (value: string): string =>
+    value
+        .replace(/[\u200E\u200F\u202A-\u202E]/g, "")
+        .replace(/\u00A0/g, " ")
+        .trim();
+
 export const splitCurrencyValue = (value: any): SplitCurrencyResult => {
     if (value === null || value === undefined || value === "") {
         return { amount: "", currency: "" };
     }
 
-    const stringValue = String(value).trim();
+    const stringValue = normalizeMoneyText(String(value));
 
     // Handle NaN values
     if (
@@ -225,13 +232,13 @@ export const splitCurrencyValue = (value: any): SplitCurrencyResult => {
     }
 
     // Match patterns like "USD 1,234", "EUR 2,345.67", "$ 1,234", "₪ 1,234" (currency first)
-    // or "1,234 USD", "2,345.67 EUR" (amount first - English format)
+    // or "1,234 USD", "2,345.67 EUR" (amount first - English/Hebrew ISO format)
     const currencyFirstMatch = stringValue.match(/^([A-Z₪$€£¥]+)\s+(.+)$/);
     const amountFirstMatch = stringValue.match(/^(.+)\s+([A-Z₪$€£¥]+)$/);
 
     if (currencyFirstMatch) {
         const currency = currencyFirstMatch[1];
-        const amount = currencyFirstMatch[2];
+        const amount = normalizeMoneyText(currencyFirstMatch[2]);
 
         return {
             currency: currency,
@@ -240,7 +247,7 @@ export const splitCurrencyValue = (value: any): SplitCurrencyResult => {
     }
 
     if (amountFirstMatch) {
-        const amount = amountFirstMatch[1];
+        const amount = normalizeMoneyText(amountFirstMatch[1]);
         const currency = amountFirstMatch[2];
 
         return {
@@ -255,6 +262,48 @@ export const splitCurrencyValue = (value: any): SplitCurrencyResult => {
         currency: "",
     };
 };
+
+/** ISO currency code (2–3 letters) or a common currency symbol. */
+const isCurrencyToken = (token: string): boolean =>
+    /^([A-Z]{2,3}|[₪$€£¥])$/.test(token);
+
+/**
+ * True when a cell is money-with-currency text that can be split into a
+ * parseable amount and a real currency code/symbol.
+ */
+const isMoneyWithCurrencyValue = (value: unknown): boolean => {
+    if (!looksLikeFormattedCurrency(value)) {
+        return false;
+    }
+    const { amount, currency } = splitCurrencyValue(value);
+    if (!currency || !isCurrencyToken(currency)) {
+        return false;
+    }
+    const numeric = Number(normalizeMoneyText(String(amount)).replace(/,/g, ""));
+    return Number.isFinite(numeric);
+};
+
+/** Parse a split/bare amount string into a real number when possible. */
+const parseExportAmount = (amount: unknown): number | string => {
+    if (typeof amount === "number") {
+        return Number.isFinite(amount) ? amount : "";
+    }
+    if (amount === null || amount === undefined || amount === "") {
+        return "";
+    }
+    const cleaned = normalizeMoneyText(String(amount)).replace(/,/g, "");
+    if (!cleaned) {
+        return "";
+    }
+    const numeric = Number(cleaned);
+    return Number.isFinite(numeric) ? numeric : String(amount);
+};
+
+const exportCurrencyFieldFor = (field: string): string =>
+    `${field}__export_currency`;
+
+const isExportCurrencySiblingField = (field: string): boolean =>
+    field.endsWith("__export_currency");
 
 /**
  * Safe amount converter that handles NaN, null, undefined values
@@ -287,8 +336,9 @@ export const safeAmount = (value: any, fieldName?: string): number => {
 };
 
 /**
- * Format a numeric amount with currency code (English format: "1,234.00 USD").
- * Prefer this combined string for exports instead of splitting amount/currency columns.
+ * Format a numeric amount with currency code (e.g. "1,234.00 USD").
+ * Call sites may still produce this for display/export rows; the Excel/CSV
+ * exporter splits money-with-currency strings into numeric amount + Currency.
  *
  * @param amount - The numeric amount
  * @param currencyCode - The currency code (e.g., "USD", "EUR")
@@ -384,64 +434,147 @@ export const exportToExcel = async (
     // Process currency columns if specified
     let processedColumns = [...selectedColumns];
     const processedColumnHeaders = { ...columnHeaders };
+    /** Columns that are Currency siblings (never numeric-typed). */
+    const currencySiblingFields = new Set<string>();
+    /** Explicit amountField → original selected field (for reading row values). */
+    const explicitAmountToOriginal = new Map<string, string>();
+    /** Explicit currencyField → original selected field. */
+    const explicitCurrencyToOriginal = new Map<string, string>();
+    /** Auto-split amount fields that gained a Currency sibling. */
+    const autoSplitAmountFields = new Set<string>();
 
-    if (currencyColumns) {
-        // Add new columns for currency splits
-        Object.entries(currencyColumns).forEach(([originalField, config]) => {
-            if (selectedColumns.includes(originalField)) {
-                // Add amount and currency fields to the columns list
-                processedColumns = processedColumns.filter(
-                    (col) => col !== originalField
-                );
-                processedColumns.push(config.amountField, config.currencyField);
+    // PDF keeps human-readable money-with-currency strings (no Amount/Currency split).
+    const shouldSplitMoneyForFile = format === "excel" || format === "csv";
 
-                // Add headers for the new columns
-                const originalHeader =
-                    columnHeaders[originalField] || originalField;
-                processedColumnHeaders[config.amountField] =
-                    `${originalHeader} (Amount)`;
-                processedColumnHeaders[config.currencyField] =
-                    `${originalHeader} (Currency)`;
+    if (currencyColumns && shouldSplitMoneyForFile) {
+        const nextColumns: string[] = [];
+        processedColumns.forEach((col) => {
+            const config = currencyColumns[col];
+            if (!config) {
+                nextColumns.push(col);
+                return;
             }
+            const originalHeader = columnHeaders[col] || col;
+            // Keep original amount header; sibling is "{Header} (Currency)".
+            processedColumnHeaders[config.amountField] = originalHeader;
+            processedColumnHeaders[config.currencyField] =
+                `${originalHeader} (Currency)`;
+            explicitAmountToOriginal.set(config.amountField, col);
+            explicitCurrencyToOriginal.set(config.currencyField, col);
+            currencySiblingFields.add(config.currencyField);
+            nextColumns.push(config.amountField, config.currencyField);
         });
+        processedColumns = nextColumns;
+    }
+
+    if (shouldSplitMoneyForFile) {
+        const nextColumns: string[] = [];
+        processedColumns.forEach((col) => {
+            nextColumns.push(col);
+            if (
+                currencySiblingFields.has(col) ||
+                explicitAmountToOriginal.has(col) ||
+                isPolicyIdentifierColumn(col) ||
+                isIntegerNumericColumn(col)
+            ) {
+                return;
+            }
+            const hasMoneyWithCurrency = sortedData.some((row) =>
+                isMoneyWithCurrencyValue(row[col])
+            );
+            if (!hasMoneyWithCurrency) {
+                return;
+            }
+            const currencyField = exportCurrencyFieldFor(col);
+            const originalHeader =
+                processedColumnHeaders[col] || columnHeaders[col] || col;
+            processedColumnHeaders[currencyField] =
+                `${originalHeader} (Currency)`;
+            currencySiblingFields.add(currencyField);
+            autoSplitAmountFields.add(col);
+            nextColumns.push(currencyField);
+        });
+        processedColumns = nextColumns;
     }
 
     // Prepare data for export
-    const exportData = sortedData.map((row, rowIndex) => {
+    const exportData = sortedData.map((row) => {
         const exportRow: Record<string, any> = {};
 
         processedColumns.forEach((columnField) => {
-            // Check if this is a currency split field
-            const currencyConfig = Object.values(currencyColumns || {}).find(
-                (config) =>
-                    config.amountField === columnField ||
-                    config.currencyField === columnField
+            const explicitOriginal =
+                explicitAmountToOriginal.get(columnField) ||
+                explicitCurrencyToOriginal.get(columnField);
+
+            if (explicitOriginal) {
+                const { amount, currency } = splitCurrencyValue(
+                    row[explicitOriginal]
+                );
+                if (explicitAmountToOriginal.has(columnField)) {
+                    exportRow[columnField] = parseExportAmount(amount);
+                } else {
+                    exportRow[columnField] = currency;
+                }
+                return;
+            }
+
+            if (isExportCurrencySiblingField(columnField)) {
+                const amountField = columnField.replace(/__export_currency$/, "");
+                const raw = row[amountField];
+                if (isMoneyWithCurrencyValue(raw)) {
+                    exportRow[columnField] = splitCurrencyValue(raw).currency;
+                } else {
+                    exportRow[columnField] = "";
+                }
+                return;
+            }
+
+            if (autoSplitAmountFields.has(columnField)) {
+                const raw = row[columnField];
+                if (typeof raw === "number") {
+                    exportRow[columnField] = parseExportAmount(raw);
+                } else if (typeof raw === "string" && raw.trim() !== "") {
+                    const { amount } = splitCurrencyValue(raw);
+                    exportRow[columnField] = parseExportAmount(amount);
+                } else {
+                    exportRow[columnField] = formatCellForExport(
+                        raw,
+                        columnField,
+                        locale,
+                        timezone
+                    );
+                }
+                return;
+            }
+
+            const cellValue = formatCellForExport(
+                row[columnField],
+                columnField,
+                locale,
+                timezone
             );
 
-            if (currencyConfig) {
-                // This is a split currency field
-                const originalField = Object.keys(currencyColumns || {}).find(
-                    (key) => currencyColumns![key] === currencyConfig
-                );
-
-                if (originalField) {
-                    const originalValue = row[originalField];
-                    const { amount, currency } =
-                        splitCurrencyValue(originalValue);
-
-                    if (columnField === currencyConfig.amountField) {
-                        exportRow[columnField] = amount;
-                    } else if (columnField === currencyConfig.currencyField) {
-                        exportRow[columnField] = currency;
-                    }
-                }
+            // Bare numeric strings in money/amount columns → real numbers (Excel SUM).
+            if (
+                shouldSplitMoneyForFile &&
+                !currencySiblingFields.has(columnField) &&
+                isNumericColumn(columnField) &&
+                typeof cellValue === "string" &&
+                cellValue.trim() !== "" &&
+                !looksLikeFormattedCurrency(cellValue)
+            ) {
+                exportRow[columnField] = parseExportAmount(cellValue);
+            } else if (
+                shouldSplitMoneyForFile &&
+                !currencySiblingFields.has(columnField) &&
+                isNumericColumn(columnField) &&
+                isMoneyWithCurrencyValue(cellValue)
+            ) {
+                // Safety net: split even if the column was not auto-flagged.
+                const { amount } = splitCurrencyValue(cellValue);
+                exportRow[columnField] = parseExportAmount(amount);
             } else {
-                exportRow[columnField] = formatCellForExport(
-                    row[columnField],
-                    columnField,
-                    locale,
-                    timezone
-                );
+                exportRow[columnField] = cellValue;
             }
         });
 
@@ -449,7 +582,6 @@ export const exportToExcel = async (
     });
 
     if (format === "csv") {
-        // Export as CSV
         exportToCSV(
             exportData,
             processedColumns,
@@ -457,7 +589,6 @@ export const exportToExcel = async (
             fileName
         );
     } else if (format === "pdf") {
-        // Export as PDF
         exportToPDF(
             exportData,
             processedColumns,
@@ -465,13 +596,13 @@ export const exportToExcel = async (
             fileName
         );
     } else {
-        // Export as Excel
         await exportToExcelFormat(
             exportData,
             processedColumns,
             processedColumnHeaders,
             fileName,
-            locale
+            locale,
+            currencySiblingFields
         );
     }
 };
@@ -710,7 +841,8 @@ const exportToExcelFormat = async (
     selectedColumns: string[],
     columnHeaders: Record<string, string>,
     fileName: string,
-    locale?: string
+    locale?: string,
+    currencySiblingFields: Set<string> = new Set()
 ): Promise<void> => {
     // Create workbook
     const workbook = new ExcelJS.Workbook();
@@ -718,25 +850,25 @@ const exportToExcelFormat = async (
     // Add worksheet
     const worksheet = workbook.addWorksheet("Export");
 
-    // Prepare data for export (dates already locale-formatted by formatCellForExport upstream)
+    // Values are already transformed upstream (numeric amounts, Currency siblings).
     const exportData = data.map((row) => {
         const exportRow: Record<string, any> = {};
         selectedColumns.forEach((columnField) => {
             const value = row[columnField];
-
-            if (typeof value === "string") {
-                // Keep formatted currency strings intact (e.g. "7,000.00 ILS")
-                if (
-                    isNumericColumn(columnField) &&
-                    value.trim() !== "" &&
-                    !looksLikeFormattedCurrency(value)
-                ) {
-                    const numericValue = parseFloat(value.replace(/[,$]/g, ""));
-                    if (!isNaN(numericValue)) {
-                        exportRow[columnField] = numericValue;
-                    } else {
-                        exportRow[columnField] = value;
-                    }
+            if (
+                typeof value === "string" &&
+                !currencySiblingFields.has(columnField) &&
+                !isPolicyIdentifierColumn(columnField) &&
+                isNumericColumn(columnField) &&
+                value.trim() !== ""
+            ) {
+                // Final pass: coerce bare numeric strings; split leftover money text.
+                if (isMoneyWithCurrencyValue(value)) {
+                    exportRow[columnField] = parseExportAmount(
+                        splitCurrencyValue(value).amount
+                    );
+                } else if (!looksLikeFormattedCurrency(value)) {
+                    exportRow[columnField] = parseExportAmount(value);
                 } else {
                     exportRow[columnField] = value;
                 }
@@ -754,7 +886,7 @@ const exportToExcelFormat = async (
     const headerRow = worksheet.addRow(headers);
 
     // Style the header row
-    headerRow.eachCell((cell, colNumber) => {
+    headerRow.eachCell((cell) => {
         cell.fill = {
             type: "pattern",
             pattern: "solid",
@@ -786,7 +918,7 @@ const exportToExcelFormat = async (
 
         // Apply alternating row colors for better readability
         const isEvenRow = rowIndex % 2 === 0;
-        dataRow.eachCell((cell, colNumber) => {
+        dataRow.eachCell((cell) => {
             cell.fill = {
                 type: "pattern",
                 pattern: "solid",
@@ -820,6 +952,12 @@ const exportToExcelFormat = async (
         );
         column.width = Math.max(headerLength, maxDataLength, 12) + 2; // Add padding
 
+        // Currency sibling columns stay as text codes (e.g. ILS)
+        if (currencySiblingFields.has(columnField)) {
+            column.numFmt = "@";
+            return;
+        }
+
         // Policy numbers: force text so Excel does not add decimals or grouping
         if (isPolicyIdentifierColumn(columnField)) {
             column.numFmt = "@";
@@ -833,30 +971,32 @@ const exportToExcelFormat = async (
                 ? "#,##0"
                 : "#,##0.00";
 
-            // Right-align numeric columns
+            // Right-align numeric columns; coerce leftover numeric strings
             column.eachCell({ includeEmpty: false }, (cell, rowNumber) => {
                 if (rowNumber > 1) {
                     const cellValue = cell.value;
-                    if (looksLikeFormattedCurrency(cellValue)) {
-                        cell.value = String(cellValue);
-                        cell.numFmt = "@";
-                        cell.alignment = {
-                            ...cell.alignment,
-                            horizontal: "right",
-                        };
-                        return;
-                    }
                     if (
                         typeof cellValue === "string" &&
                         cellValue.trim() !== ""
                     ) {
-                        const numericValue = parseFloat(
-                            cellValue.replace(/[,$]/g, "")
-                        );
-                        if (!isNaN(numericValue)) {
-                            cell.value = isIntegerNumericColumn(columnField)
-                                ? Math.round(numericValue)
-                                : numericValue;
+                        if (isMoneyWithCurrencyValue(cellValue)) {
+                            const parsed = parseExportAmount(
+                                splitCurrencyValue(cellValue).amount
+                            );
+                            if (typeof parsed === "number") {
+                                cell.value = isIntegerNumericColumn(columnField)
+                                    ? Math.round(parsed)
+                                    : parsed;
+                            }
+                        } else {
+                            const numericValue = parseFloat(
+                                cellValue.replace(/[,$]/g, "")
+                            );
+                            if (!isNaN(numericValue)) {
+                                cell.value = isIntegerNumericColumn(columnField)
+                                    ? Math.round(numericValue)
+                                    : numericValue;
+                            }
                         }
                     } else if (
                         typeof cellValue === "number" &&
@@ -865,26 +1005,6 @@ const exportToExcelFormat = async (
                         cell.value = Math.round(cellValue);
                     }
 
-                    cell.alignment = {
-                        ...cell.alignment,
-                        horizontal: "right",
-                    };
-                }
-            });
-        }
-
-        // Apply currency formatting for currency amount columns
-        if (
-            columnField.includes("Amount)") &&
-            !columnField.includes("Currency)")
-        ) {
-            // Format as numbers with thousand separators for amount columns
-            column.numFmt = "#,##0";
-
-            // Right-align currency amount columns
-            column.eachCell({ includeEmpty: false }, (cell, rowNumber) => {
-                if (rowNumber > 1) {
-                    // Skip header row
                     cell.alignment = {
                         ...cell.alignment,
                         horizontal: "right",
