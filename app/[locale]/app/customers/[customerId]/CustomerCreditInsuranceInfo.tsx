@@ -21,7 +21,7 @@ import {
     TextField,
     Typography,
 } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import moment from "moment";
 import { useSession } from "next-auth/react";
@@ -41,7 +41,9 @@ import {
 } from "@/utils/stringFormatters";
 import { getEffectivePolicyId, getActiveCustomerPolicyFromCustomer, getPendingCustomerPolicyFromCustomer } from "@/shared/customerPolicyAdapter";
 import {
+    buildCustomerPolicyHistoryChangedFieldsById,
     buildPolicyHistoryHeaderAuditSegment,
+    type CustomerPolicyHistoryComparedField,
     resolveCustomerPolicyHistoryChipKind,
     resolveUserAuditDisplayName,
 } from "@/shared/creditInsurance/customerPolicyHistoryPresentation";
@@ -557,6 +559,16 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
         [policyHistory]
     );
 
+    const policyHistoryChangedFieldsById = useMemo(
+        () => buildCustomerPolicyHistoryChangedFieldsById(policyHistory),
+        [policyHistory]
+    );
+
+    const policyHistoryChangedFieldSx = useMemo(
+        () => ({ bgcolor: alpha(theme.palette.warning.main, 0.12) }),
+        [theme.palette.warning.main]
+    );
+
     const pendingCustomerPolicy = useMemo(
         () => getPendingCustomerPolicyFromCustomer(customer),
         [customer]
@@ -798,7 +810,13 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
         [activeInsurancePolicyId, t]
     );
 
-    const renderHistoricalPolicyReadonlyGrid = (row: PolicyHistoryRow) => (
+    const renderHistoricalPolicyReadonlyGrid = (row: PolicyHistoryRow) => {
+        const changedFields = policyHistoryChangedFieldsById.get(String(row.id));
+        const changedSx = (...fields: CustomerPolicyHistoryComparedField[]) =>
+            fields.some((field) => changedFields?.has(field))
+                ? policyHistoryChangedFieldSx
+                : undefined;
+        return (
         <Box
             sx={{
                 display: "grid",
@@ -816,6 +834,7 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
             <CreditInsuranceReadonlyField
                 label={creditInsuranceLabels.insurancePolicy}
                 value={policyLabelFromRow(row)}
+                sx={changedSx("insurance_policy_id")}
             />
             <CreditInsuranceReadonlyField
                 label={creditInsuranceLabels.customerNumberPolicy}
@@ -824,22 +843,27 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                         ? String(row.customer_number_policy)
                         : null
                 }
+                sx={changedSx("customer_number_policy")}
             />
             <CreditInsuranceReadonlyField
                 label={creditInsuranceLabels.limitType}
                 value={row.limit_type != null ? String(row.limit_type) : null}
+                sx={changedSx("limit_type")}
             />
             <CreditInsuranceReadonlyField
                 label={creditInsuranceLabels.approvedLimit}
                 value={formatRowApprovedLimit(row)}
+                sx={changedSx("approved_limit", "approved_limit_currency")}
             />
             <CreditInsuranceReadonlyField
                 label={creditInsuranceLabels.approvedLimitExpirationDate}
                 value={formatRowDate(row.approved_limit_expiration_date)}
+                sx={changedSx("approved_limit_expiration_date")}
             />
             <CreditInsuranceReadonlyField
                 label={creditInsuranceLabels.zeroLimitDate}
                 value={formatRowDate(row.zero_limit_date)}
+                sx={changedSx("zero_limit_date")}
             />
             <CreditInsuranceReadonlyField
                 label={creditInsuranceLabels.policyChangeStartDate}
@@ -852,6 +876,7 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                         ? String(row.max_payment_term)
                         : null
                 }
+                sx={changedSx("max_payment_term")}
             />
             <CreditInsuranceReadonlyField
                 label={creditInsuranceLabels.maxAllowedMepDays}
@@ -860,6 +885,7 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                         ? String(row.max_allowed_mep)
                         : null
                 }
+                sx={changedSx("max_allowed_mep")}
             />
             <CreditInsuranceReadonlyField
                 label={creditInsuranceLabels.reportingDays}
@@ -868,41 +894,48 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                         ? String(row.reporting_days)
                         : null
                 }
+                sx={changedSx("reporting_days")}
             />
             {row.mep_cutoff_day != null ? (
                 <CreditInsuranceReadonlyField
                     label={mepCutoffDayLabel}
                     value={String(row.mep_cutoff_day)}
+                    sx={changedSx("mep_cutoff_day")}
                 />
             ) : null}
             {row.mep_substitute_extra_days != null ? (
                 <CreditInsuranceReadonlyField
                     label={mepSubstituteExtraDaysLabel}
                     value={String(row.mep_substitute_extra_days)}
+                    sx={changedSx("mep_substitute_extra_days")}
                 />
             ) : null}
             {row.reporting_cutoff_day != null ? (
                 <CreditInsuranceReadonlyField
                     label={reportingCutoffDayLabel}
                     value={String(row.reporting_cutoff_day)}
+                    sx={changedSx("reporting_cutoff_day")}
                 />
             ) : null}
             {row.reporting_substitute_extra_days != null ? (
                 <CreditInsuranceReadonlyField
                     label={reportingSubstituteExtraDaysLabel}
                     value={String(row.reporting_substitute_extra_days)}
+                    sx={changedSx("reporting_substitute_extra_days")}
                 />
             ) : null}
             {row.payment_term_cutoff_day != null ? (
                 <CreditInsuranceReadonlyField
                     label={creditInsuranceLabels.paymentTermCutoffDay}
                     value={String(row.payment_term_cutoff_day)}
+                    sx={changedSx("payment_term_cutoff_day")}
                 />
             ) : null}
             {row.payment_term_substitute_day != null ? (
                 <CreditInsuranceReadonlyField
                     label={creditInsuranceLabels.paymentTermSubstituteDay}
                     value={String(row.payment_term_substitute_day)}
+                    sx={changedSx("payment_term_substitute_day")}
                 />
             ) : null}
             <CreditInsuranceReadonlyField
@@ -910,19 +943,23 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                 value={
                     row.credit_score != null ? String(row.credit_score) : null
                 }
+                sx={changedSx("credit_score")}
             />
             <CreditInsuranceReadonlyField
                 label={creditInsuranceLabels.creditScoreInputDate}
                 value={formatRowDate(row.credit_score_input_date)}
+                sx={changedSx("credit_score_input_date")}
             />
             <CreditInsuranceReadonlyField
                 label={creditInsuranceLabels.activeCustomerSince}
                 value={formatRowDate(row.active_customer_since)}
+                sx={changedSx("active_customer_since")}
             />
             {row.limit_type !== "Named" ? (
                 <CreditInsuranceReadonlyField
                     label={creditInsuranceLabels.outdatedDcl}
                     value={formatRowYesNo(row.outdated_dcl)}
+                    sx={changedSx("outdated_dcl")}
                 />
             ) : null}
             <CreditInsuranceReadonlyField
@@ -933,9 +970,11 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                         ? String(row.policy_exclusion_reason)
                         : null
                 }
+                sx={changedSx("policy_exclusion_reason")}
             />
         </Box>
-    );
+        );
+    };
 
     const activePolicyGrid = (
         <Box
