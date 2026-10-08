@@ -23,6 +23,7 @@ import {
     ExpandMore,
     FilterList,
     Close,
+    Settings,
     ArrowUpward,
     ArrowDownward,
 } from "@mui/icons-material";
@@ -683,6 +684,17 @@ const SortableFieldCard: React.FC<SortableFieldCardProps> = React.memo(
 );
 SortableFieldCard.displayName = "SortableFieldCard";
 
+const chipIconButtonSx = {
+    width: 18,
+    height: 18,
+    padding: 0,
+    opacity: 0.7,
+    flexShrink: 0,
+    "& .MuiSvgIcon-root": {
+        fontSize: 16,
+    },
+} as const;
+
 interface SortableFormulaCardProps {
     formula: ReportFormula;
     sortableId: string;
@@ -816,6 +828,27 @@ const SortableFormulaCard: React.FC<SortableFormulaCardProps> = React.memo(
                         size="small"
                         onClick={(e) => {
                             e.stopPropagation();
+                            onEdit();
+                        }}
+                        aria-label={t("formulas.edit", {
+                            defaultValue: "Edit formula",
+                        })}
+                        sx={{
+                            ...chipIconButtonSx,
+                            color: "text.secondary",
+                            "&:hover": {
+                                bgcolor: "action.hover",
+                                color: "primary.main",
+                                opacity: 1,
+                            },
+                        }}
+                    >
+                        <Settings fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                        size="small"
+                        onClick={(e) => {
+                            e.stopPropagation();
                             onDelete();
                         }}
                         aria-label={t("actions.delete", {
@@ -823,19 +856,12 @@ const SortableFormulaCard: React.FC<SortableFormulaCardProps> = React.memo(
                             defaultValue: "Delete",
                         })}
                         sx={{
-                            width: 18,
-                            height: 18,
-                            padding: 0,
+                            ...chipIconButtonSx,
                             color: "error.main",
-                            opacity: 0.7,
-                            flexShrink: 0,
                             "&:hover": {
                                 bgcolor: "action.hover",
                                 color: "error.main",
                                 opacity: 1,
-                            },
-                            "& .MuiSvgIcon-root": {
-                                fontSize: 16,
                             },
                         }}
                     >
