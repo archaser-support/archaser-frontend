@@ -29,6 +29,8 @@ export interface ReportFormula {
     currencySource?: string;
     /** Required when the report uses grouping or field aggregation. */
     aggregation?: FormulaAggregation;
+    /** Not shown as a column; still usable in filters and other formulas. */
+    hidden?: boolean;
 }
 
 /** Prefix for formula output / column-order keys. */
@@ -59,6 +61,26 @@ export function parseFormulaIdFromOutputKey(key: string): string | null {
         return null;
     }
     return key.slice(FORMULA_OUTPUT_KEY_PREFIX.length);
+}
+
+/**
+ * Grouped reports require an aggregation on every formula; ungrouped reports reject one.
+ * Formulas added before grouping default to SUM (for yes/no: count of "Yes" rows).
+ */
+export function alignFormulaAggregationsWithGrouping(
+    formulas: ReportFormula[],
+    isGrouped: boolean
+): ReportFormula[] {
+    return formulas.map((formula) => {
+        if (isGrouped && !formula.aggregation) {
+            return { ...formula, aggregation: "SUM" };
+        }
+        if (!isGrouped && formula.aggregation) {
+            const { aggregation: _aggregation, ...rest } = formula;
+            return rest;
+        }
+        return formula;
+    });
 }
 
 export interface FormulaWarningSummary {

@@ -267,7 +267,6 @@
         "between_filter_incomplete": "Filter with 'between' operator requires both start and end values to be filled",
         "filter_field_required": "Please choose a table and field for every filter, or remove unused filters.",
         "filter_value_required": "Every filter must have a value. Choose values, switch to \"Is empty\" or \"Is not empty\" if appropriate, or remove the filter.",
-        "formula_filter_grouping_conflict": "Formula filters cannot be used with grouping. Remove the formula filter(s) or the grouping.",
         "orphan_formula_filter": "A filter references a formula that is not on this report. Remove or update the filter.",
         "duplicate_name": "A report with this name already exists"
     },
@@ -293,6 +292,8 @@
         "currency_source": "Currency source",
         "currency_field_required": "Currency formulas must reference an amount field in the expression",
         "aggregation": "Aggregation",
+        "show_as_column": "Show as column",
+        "show_as_column_help": "Turn off to use this formula only in filters or other formulas.",
         "default_label": "Formula {{n}}",
         "max_reached": "Maximum of {{max}} formulas allowed",
         "no_fields": "Add at least one field before creating a formula",
