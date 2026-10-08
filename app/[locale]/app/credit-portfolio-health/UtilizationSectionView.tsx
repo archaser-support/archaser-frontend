@@ -42,6 +42,7 @@ import { IslandCard } from "./IslandCard";
 import { UtilizationDailyChart } from "./UtilizationDailyChart";
 import { TopUpDrawCapacityChart } from "./TopUpDrawCapacityChart";
 import { StatNumber } from "./StatNumber";
+import { sectionTopCustomersUtilization } from "./topCustomersUtilization";
 import { CPH } from "./designTokens";
 import { chartColors, chartCssVars } from "./chartColors";
 import { SecondaryHatchDefs, useSecondaryHatch } from "./SecondaryHatch";
@@ -73,41 +74,6 @@ function riskZoneForBin(bin: UtilizationDistributionBinKey): UtilizationRiskZone
         return "warning";
     }
     return "danger";
-}
-
-function averageTopCustomersUtilization(
-    customers: {
-        utilizationPct: number | null;
-        openAr?: number;
-    }[],
-    totalOpenAr: number
-): {
-    averagePct: number | null;
-    count: number;
-    total: number;
-    openArTotal: number;
-    /** Top cohort open AR as % of portfolio open AR; null when denom is 0. */
-    openArSharePct: number | null;
-} {
-    const total = customers.length;
-    const openArTotal = customers.reduce(
-        (sum, row) => sum + Math.max(0, Number(row.openAr) || 0),
-        0
-    );
-    const denom = Math.max(0, Number(totalOpenAr) || 0);
-    const openArSharePct =
-        denom > 0 ? Math.min(100, (100 * openArTotal) / denom) : null;
-    const withPct = customers.filter(
-        (row): row is { utilizationPct: number; openAr?: number } =>
-            row.utilizationPct != null && Number.isFinite(row.utilizationPct)
-    );
-    const count = withPct.length;
-    if (count === 0) {
-        return { averagePct: null, count, total, openArTotal, openArSharePct };
-    }
-    const averagePct =
-        withPct.reduce((sum, row) => sum + row.utilizationPct, 0) / count;
-    return { averagePct, count, total, openArTotal, openArSharePct };
 }
 
 function seriesFillForRisk(
@@ -485,19 +451,19 @@ export function UtilizationSectionView({
         [overshoot?.ranking]
     );
 
-    const top10AvgUtilization = useMemo(() => {
-        const totalOpenAr =
-            Math.max(0, Number(section.selfUnderwrittenAverageAr) || 0) +
-            Math.max(0, Number(section.approvedAverageAr) || 0);
-        return averageTopCustomersUtilization(
+    const top10AvgUtilization = useMemo(
+        () =>
+            sectionTopCustomersUtilization({
+                topCustomers: section.topCustomers,
+                selfUnderwrittenAverageAr: section.selfUnderwrittenAverageAr,
+                approvedAverageAr: section.approvedAverageAr,
+            }),
+        [
             section.topCustomers,
-            totalOpenAr
-        );
-    }, [
-        section.topCustomers,
-        section.selfUnderwrittenAverageAr,
-        section.approvedAverageAr,
-    ]);
+            section.selfUnderwrittenAverageAr,
+            section.approvedAverageAr,
+        ]
+    );
 
     const distChartHeight = 280;
 

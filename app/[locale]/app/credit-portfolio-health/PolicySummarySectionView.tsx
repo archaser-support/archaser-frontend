@@ -25,7 +25,10 @@ import { CPH } from "./designTokens";
 import { chartCssVars } from "./chartColors";
 import { Eyebrow } from "./Eyebrow";
 import { SPACE_GROTESK_FONT_FAMILY } from "./fontTokens";
-import { formatPortfolioMoney } from "./formatPortfolioMoney";
+import {
+    formatPortfolioMoney,
+    formatPortfolioNumber,
+} from "./formatPortfolioMoney";
 import { IslandCard } from "./IslandCard";
 import layout from "./islandLayout.module.css";
 import {
@@ -73,8 +76,7 @@ function formatPercent(
     if (value == null) {
         return empty;
     }
-    const locale = language.startsWith("he") ? "he-IL" : "en-US";
-    return `${value.toLocaleString(locale, {
+    return `${formatPortfolioNumber(value, language, {
         maximumFractionDigits: 3,
     })}%`;
 }

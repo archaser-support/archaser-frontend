@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { TruncatedChartLabel } from "@/shared/components/TruncatedChartLabel";
 import { chartColors } from "./chartColors";
 
@@ -11,6 +12,8 @@ type CustomerNameYTickProps = {
     payload?: { value?: string; rowKey?: string };
     /** When set, map category key → display name; otherwise show the tick value. */
     names?: Map<string, string>;
+    /** When set, map category key → customer detail href. */
+    hrefs?: Map<string, string>;
     isRtl: boolean;
     axisWidth?: number;
 };
@@ -22,20 +25,39 @@ export function CustomerNameYTick(props: CustomerNameYTickProps) {
     const raw = props.payload;
     const key = String(raw?.value ?? raw?.rowKey ?? "");
     const name = props.names?.get(key) ?? key;
+    const href = props.hrefs?.get(key);
     const axisWidth = props.axisWidth ?? CUSTOMER_NAME_Y_AXIS_WIDTH;
     const width = axisWidth - 8;
+    const label = (
+        <TruncatedChartLabel
+            text={name}
+            fallbackDir={props.isRtl ? "rtl" : "ltr"}
+            textAlign="right"
+            style={{
+                fontSize: 11.5,
+                lineHeight: "20px",
+                color: chartColors.axisText,
+                cursor: href ? "pointer" : undefined,
+            }}
+        />
+    );
     return (
         <foreignObject x={x - width} y={y - 10} width={width} height={20}>
-            <TruncatedChartLabel
-                text={name}
-                fallbackDir={props.isRtl ? "rtl" : "ltr"}
-                textAlign="right"
-                style={{
-                    fontSize: 11.5,
-                    lineHeight: "20px",
-                    color: chartColors.axisText,
-                }}
-            />
+            {href ? (
+                <Link
+                    href={href}
+                    title={name}
+                    style={{
+                        display: "block",
+                        color: "inherit",
+                        textDecoration: "none",
+                    }}
+                >
+                    {label}
+                </Link>
+            ) : (
+                label
+            )}
         </foreignObject>
     );
 }

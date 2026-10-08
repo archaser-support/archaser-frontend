@@ -1,37 +1,41 @@
 "use client";
 
 import { Warning } from "@mui/icons-material";
-import { Box, Tooltip } from "@mui/material";
+import { Box, Divider, Tooltip, Typography } from "@mui/material";
+import { useSession } from "next-auth/react";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import {
-    getInvoiceFieldFromGridRow,
-    INVOICE_CREDIT_INSURANCE_VIOLATION_FIELDS,
-    isTruthyFlag,
-} from "@/shared/utils/invoiceGridRowFields";
+import { formatDateOnlyYmdForSession } from "@/utils/datetimeOperations";
+import { getRTLTooltipProps } from "@/utils/reportFieldUtils";
+
+import { buildCreditInsuranceViolationSections } from "./creditInsuranceViolationSections";
 
 interface CreditInsuranceViolationsCellProps {
     row: Record<string, unknown>;
+    /** Same formatter as the grid amount columns. */
+    formatAmount: (value: number, currency: string) => string;
 }
 
 export function CreditInsuranceViolationsCell({
     row,
+    formatAmount,
 }: CreditInsuranceViolationsCellProps) {
-    const { t } = useTranslation(["customers"]);
+    const { t, i18n } = useTranslation(["customers"]);
+    const { data: session } = useSession();
 
-    const activeCauses = useMemo(() => {
-        const causes: string[] = [];
-        for (const { field, labelKey } of INVOICE_CREDIT_INSURANCE_VIOLATION_FIELDS) {
-            const v = getInvoiceFieldFromGridRow(row, field);
-            if (isTruthyFlag(v)) {
-                causes.push(t(labelKey, { ns: "customers" }));
-            }
-        }
-        return causes;
-    }, [row, t]);
+    const sections = useMemo(
+        () =>
+            buildCreditInsuranceViolationSections(
+                row,
+                t,
+                (ymd) => formatDateOnlyYmdForSession(ymd, session),
+                formatAmount
+            ),
+        [row, t, session, formatAmount]
+    );
 
-    if (activeCauses.length === 0) {
+    if (sections.length === 0) {
         return (
             <Box
                 sx={{
@@ -45,12 +49,26 @@ export function CreditInsuranceViolationsCell({
         );
     }
 
+    const tooltipProps = getRTLTooltipProps(i18n);
+
     const title = (
-        <Box component="ul" sx={{ m: 0, pl: 2, maxWidth: 280 }}>
-            {activeCauses.map((line, i) => (
-                <Box component="li" key={`${i}-${line}`} sx={{ typography: "caption" }}>
-                    {line}
-                </Box>
+        <Box>
+            {sections.map((section, i) => (
+                <React.Fragment key={section.field}>
+                    {i > 0 && (
+                        <Divider
+                            sx={{ my: 0.75, borderColor: "currentColor", opacity: 0.2 }}
+                        />
+                    )}
+                    <Typography variant="caption" component="div" sx={{ fontWeight: 600 }}>
+                        {section.title}
+                    </Typography>
+                    {section.rows.map((detail) => (
+                        <Typography key={detail.label} variant="caption" component="div">
+                            {detail.label}: <bdi>{detail.value}</bdi>
+                        </Typography>
+                    ))}
+                </React.Fragment>
             ))}
         </Box>
     );
@@ -65,13 +83,24 @@ export function CreditInsuranceViolationsCell({
                 width: "100%",
             }}
         >
-            <Tooltip title={title} arrow placement="bottom">
+            <Tooltip
+                title={title}
+                {...tooltipProps}
+                PopperProps={{
+                    sx: {
+                        "& .MuiTooltip-tooltip": {
+                            ...tooltipProps.PopperProps.sx["& .MuiTooltip-tooltip"],
+                            maxWidth: 320,
+                        },
+                    },
+                }}
+            >
                 <Box
                     component="span"
                     sx={{
                         display: "inline-flex",
                         alignItems: "center",
-                        cursor: "default",
+                        cursor: "help",
                     }}
                 >
                     <Warning

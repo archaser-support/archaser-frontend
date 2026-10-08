@@ -23,6 +23,7 @@ import type { PortfolioCostsSection } from "@/types/creditInsurance";
 import { padSeriesByUtcMonth } from "@/shared/creditInsurance/portfolioHealthDateRange";
 
 import { ChartTooltip } from "./ChartTooltip";
+import { formatChartMonthLabel } from "./chartFormat";
 import { Eyebrow } from "./Eyebrow";
 import {
     formatPortfolioAxisMoney,
@@ -47,24 +48,11 @@ export type CostsSectionViewProps = {
 
 type MonthlyCostChartRow = {
     label: string;
-    cost: number | null;
     insuranceCost: number | null;
     registrationFeeCost: number | null;
     topUpCost: number | null;
     totalCost: number | null;
 };
-
-function formatMonthLabel(month: string, language: string): string {
-    const [y, m] = month.split("-").map(Number);
-    if (!y || !m) {
-        return month;
-    }
-    const locale = language.startsWith("he") ? "he-IL" : "en-US";
-    return new Date(y, m - 1, 1).toLocaleDateString(locale, {
-        month: "short",
-        year: "2-digit",
-    });
-}
 
 export function CostsSectionView({
     section,
@@ -86,14 +74,49 @@ export function CostsSectionView({
                 toYmd,
                 (point) => point.month
             ).map(({ month, point }): MonthlyCostChartRow => ({
-                label: formatMonthLabel(month, language),
-                cost: point?.totalCost ?? null,
-                insuranceCost: point?.insuranceCost ?? null,
-                registrationFeeCost: point?.registrationFeeCost ?? null,
-                topUpCost: point?.topUpCost ?? null,
+                label: formatChartMonthLabel(month, language),
+                insuranceCost: point?.insuranceCost ?? 0,
+                registrationFeeCost: point?.registrationFeeCost ?? 0,
+                topUpCost: point?.topUpCost ?? 0,
                 totalCost: point?.totalCost ?? null,
             })),
         [section.monthly, fromYmd, toYmd, language]
+    );
+
+    const monthlyCostLegendItems = useMemo(
+        () => [
+            {
+                label: t(
+                    "credit_portfolio_health.chart_monthly_cost_insurance",
+                    {
+                        ...ns,
+                        defaultValue: "Insurance fee",
+                    }
+                ),
+                color: chartColors.primary,
+            },
+            {
+                label: t(
+                    "credit_portfolio_health.chart_monthly_cost_registration",
+                    {
+                        ...ns,
+                        defaultValue: "Registration fee",
+                    }
+                ),
+                color: chartColors.series[2],
+            },
+            {
+                label: t(
+                    "credit_portfolio_health.chart_monthly_cost_top_ups",
+                    {
+                        ...ns,
+                        defaultValue: "Top-ups",
+                    }
+                ),
+                color: chartColors.secondary,
+            },
+        ],
+        [t]
     );
 
     const showMonthlyBars = monthlyChartData.length >= 1;
@@ -343,7 +366,7 @@ export function CostsSectionView({
                                                         value:
                                                             row.registrationFeeCost ??
                                                             0,
-                                                        color: chartColors.primary,
+                                                        color: chartColors.series[2],
                                                         dataKey:
                                                             "registrationFeeCost",
                                                     },
@@ -358,7 +381,7 @@ export function CostsSectionView({
                                                         ),
                                                         value:
                                                             row.topUpCost ?? 0,
-                                                        color: chartColors.primary,
+                                                        color: chartColors.secondary,
                                                         dataKey: "topUpCost",
                                                     },
                                                     {
@@ -371,7 +394,7 @@ export function CostsSectionView({
                                                             }
                                                         ),
                                                         value: row.totalCost,
-                                                        color: chartColors.primary,
+                                                        color: chartColors.marker,
                                                         dataKey: "totalCost",
                                                     },
                                                 ]}
@@ -388,21 +411,83 @@ export function CostsSectionView({
                                     }}
                                 />
                                 <Bar
-                                    dataKey="cost"
+                                    dataKey="insuranceCost"
                                     name={t(
-                                        "credit_portfolio_health.chart_monthly_cost",
+                                        "credit_portfolio_health.chart_monthly_cost_insurance",
                                         {
                                             ...ns,
-                                            defaultValue: "Policy cost",
+                                            defaultValue: "Insurance fee",
                                         }
                                     )}
+                                    stackId="monthlyPolicyCost"
                                     fill={chartColors.primary}
+                                    animationDuration={animDuration}
+                                />
+                                <Bar
+                                    dataKey="registrationFeeCost"
+                                    name={t(
+                                        "credit_portfolio_health.chart_monthly_cost_registration",
+                                        {
+                                            ...ns,
+                                            defaultValue: "Registration fee",
+                                        }
+                                    )}
+                                    stackId="monthlyPolicyCost"
+                                    fill={chartColors.series[2]}
+                                    animationDuration={animDuration}
+                                />
+                                <Bar
+                                    dataKey="topUpCost"
+                                    name={t(
+                                        "credit_portfolio_health.chart_monthly_cost_top_ups",
+                                        {
+                                            ...ns,
+                                            defaultValue: "Top-ups",
+                                        }
+                                    )}
+                                    stackId="monthlyPolicyCost"
+                                    fill={chartColors.secondary}
                                     radius={[3, 3, 0, 0]}
                                     animationDuration={animDuration}
                                 />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
+                    <ul
+                        style={{
+                            listStyle: "none",
+                            margin: "8px 0 0",
+                            padding: 0,
+                            display: "flex",
+                            flexWrap: "wrap",
+                            justifyContent: "center",
+                            gap: 14,
+                            fontSize: 12,
+                            color: chartColors.axisText,
+                        }}
+                    >
+                        {monthlyCostLegendItems.map((item) => (
+                            <li
+                                key={item.label}
+                                style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                }}
+                            >
+                                <span
+                                    style={{
+                                        width: 10,
+                                        height: 10,
+                                        borderRadius: 2,
+                                        backgroundColor: item.color,
+                                        flexShrink: 0,
+                                    }}
+                                />
+                                {item.label}
+                            </li>
+                        ))}
+                    </ul>
                 </IslandCard>
             ) : null}
 
