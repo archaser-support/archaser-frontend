@@ -4,6 +4,10 @@ import { useEffect, useRef, useState } from "react";
 
 import { SPACE_GROTESK_FONT_FAMILY } from "./fontTokens";
 import { CPH } from "./designTokens";
+import {
+    formatPortfolioNumber,
+    resolvePortfolioNumberDecimals,
+} from "./formatPortfolioMoney";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
 export type StatNumberProps = {
@@ -22,39 +26,6 @@ function easeOutCubic(t: number): number {
     return 1 - Math.pow(1 - t, 3);
 }
 
-function formatValue(
-    value: number,
-    decimals: number,
-    language: string
-): string {
-    const locale = language.startsWith("he") ? "he-IL" : "en-US";
-    return value.toLocaleString(locale, {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals,
-    });
-}
-
-const SUB_ONE_MAX_DECIMALS = 2;
-
-/**
- * Sub-1 magnitudes keep enough fraction digits so a positive value does not
- * collapse to 0 (e.g. 0.1 → 1 dp, 0.03 → 2 dp). Caps at {@link SUB_ONE_MAX_DECIMALS}.
- */
-function resolveDecimals(value: number, decimals: number): number {
-    const abs = Math.abs(value);
-    if (!(abs > 0) || abs >= 1) {
-        return decimals;
-    }
-    let resolved = Math.max(decimals, 1);
-    while (
-        resolved < SUB_ONE_MAX_DECIMALS &&
-        Math.round(abs * 10 ** resolved) / 10 ** resolved === 0
-    ) {
-        resolved += 1;
-    }
-    return resolved;
-}
-
 export function StatNumber({
     value,
     decimals = 1,
@@ -70,7 +41,7 @@ export function StatNumber({
     );
     const frameRef = useRef<number | null>(null);
     const fromRef = useRef(0);
-    const effectiveDecimals = resolveDecimals(value, decimals);
+    const effectiveDecimals = resolvePortfolioNumberDecimals(value, decimals);
 
     useEffect(() => {
         if (prefersReducedMotion) {
@@ -110,7 +81,10 @@ export function StatNumber({
             }}
         >
             {prefix}
-            {formatValue(display, effectiveDecimals, locale)}
+            {formatPortfolioNumber(display, locale, {
+                minimumFractionDigits: effectiveDecimals,
+                maximumFractionDigits: effectiveDecimals,
+            })}
             {suffix}
         </span>
     );
