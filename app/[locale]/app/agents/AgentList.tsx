@@ -1,4 +1,5 @@
 "use client";
+import { usePageWheelScrollsTable } from "@/shared/hooks/usePageWheelScrollsTable";
 import { apiFetch } from "@/utils/apiFetch";
 
 import {
@@ -438,74 +439,7 @@ const AgentList: React.FC<AgentListProps> = ({
 
     // Follow-up tab stays available even when count is 0 (empty state in grid).
 
-    // Handle page-wide scrolling to scroll the table
-    React.useEffect(() => {
-        const findScrollableContainer = (): HTMLElement | null => {
-            if (!tableContainerRef.current) return null;
-
-            // The scrollable container is a direct child div with overflow-y: auto
-            // Look for divs that have overflow styles
-            const allDivs =
-                tableContainerRef.current.querySelectorAll<HTMLElement>("div");
-
-            for (const div of Array.from(allDivs)) {
-                const style = window.getComputedStyle(div);
-                // Check if it's scrollable vertically
-                if (
-                    (style.overflowY === "auto" ||
-                        style.overflowY === "scroll") &&
-                    div.scrollHeight > div.clientHeight
-                ) {
-                    return div;
-                }
-            }
-            return null;
-        };
-
-        const handleWheel = (e: WheelEvent) => {
-            // Only handle vertical scrolling
-            if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-                return; // Horizontal scroll, let it pass through
-            }
-
-            const container = findScrollableContainer();
-            if (!container) return;
-
-            // Check if the table container is visible and in viewport
-            const containerRect = container.getBoundingClientRect();
-            const isVisible =
-                containerRect.top < window.innerHeight &&
-                containerRect.bottom > 0 &&
-                containerRect.width > 0 &&
-                containerRect.height > 0;
-
-            if (!isVisible) return;
-
-            const { scrollTop, scrollHeight, clientHeight } = container;
-            const canScrollUp = scrollTop > 0;
-            const canScrollDown = scrollTop < scrollHeight - clientHeight;
-
-            // Only intercept scroll if table can scroll in that direction
-            const scrollingDown = e.deltaY > 0;
-            const scrollingUp = e.deltaY < 0;
-
-            if (
-                (scrollingDown && canScrollDown) ||
-                (scrollingUp && canScrollUp)
-            ) {
-                e.preventDefault();
-                e.stopPropagation();
-                container.scrollTop += e.deltaY;
-            }
-        };
-
-        // Add wheel event listener with passive: false to allow preventDefault
-        window.addEventListener("wheel", handleWheel, { passive: false });
-
-        return () => {
-            window.removeEventListener("wheel", handleWheel);
-        };
-    }, [activeTab]);
+    usePageWheelScrollsTable(tableContainerRef);
 
     // Reset to page 1 when search or filter changes (but not for tab changes)
     // Tab changes are handled automatically by the query key change
