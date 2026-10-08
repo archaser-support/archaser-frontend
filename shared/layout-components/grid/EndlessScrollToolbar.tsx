@@ -764,6 +764,11 @@ const EndlessScrollToolbarComponent: React.FC<EndlessScrollToolbarProps> = ({
                             }}
                             loading={reportsLoading}
                             size="small"
+                            slotProps={{
+                                listbox: {
+                                    className: "grid-style-scrollbar",
+                                },
+                            }}
                             dir={isHebrew ? "rtl" : "ltr"}
                             {...(isHebrew && {
                                 "data-hebrew": true,

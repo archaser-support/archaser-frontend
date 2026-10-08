@@ -1,4 +1,5 @@
 "use client";
+import { usePageWheelScrollsTable } from "@/shared/hooks/usePageWheelScrollsTable";
 import { apiFetch } from "@/utils/apiFetch";
 
 import {
@@ -183,94 +184,7 @@ const SystemHealthContainer = () => {
         return () => clearInterval(timer);
     }, [refreshCountdown]);
 
-    // Handle page-wide scrolling to scroll the tables
-    useEffect(() => {
-        const findScrollableContainer = (
-            ref: React.RefObject<HTMLDivElement>
-        ): HTMLElement | null => {
-            if (!ref.current) return null;
-
-            // The scrollable container is a direct child div with overflow-y: auto
-            // Look for divs that have overflow styles
-            const allDivs = ref.current.querySelectorAll<HTMLElement>("div");
-
-            for (const div of Array.from(allDivs)) {
-                const style = window.getComputedStyle(div);
-                // Check if it's scrollable vertically
-                if (
-                    (style.overflowY === "auto" ||
-                        style.overflowY === "scroll") &&
-                    div.scrollHeight > div.clientHeight
-                ) {
-                    return div;
-                }
-            }
-            return null;
-        };
-
-        const handleWheel = (e: WheelEvent) => {
-            // Only handle vertical scrolling
-            if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-                return; // Horizontal scroll, let it pass through
-            }
-
-            // Try both table containers
-            const cronJobsContainer = findScrollableContainer(cronJobsTableRef);
-            const importsContainer = findScrollableContainer(importsTableRef);
-
-            // Check which container is visible and can scroll
-            let container: HTMLElement | null = null;
-            if (cronJobsContainer) {
-                const rect = cronJobsContainer.getBoundingClientRect();
-                const isVisible =
-                    rect.top < window.innerHeight &&
-                    rect.bottom > 0 &&
-                    rect.width > 0 &&
-                    rect.height > 0;
-                if (isVisible) {
-                    container = cronJobsContainer;
-                }
-            }
-
-            if (!container && importsContainer) {
-                const rect = importsContainer.getBoundingClientRect();
-                const isVisible =
-                    rect.top < window.innerHeight &&
-                    rect.bottom > 0 &&
-                    rect.width > 0 &&
-                    rect.height > 0;
-                if (isVisible) {
-                    container = importsContainer;
-                }
-            }
-
-            if (!container) return;
-
-            const { scrollTop, scrollHeight, clientHeight } = container;
-            const canScrollUp = scrollTop > 0;
-            const canScrollDown = scrollTop < scrollHeight - clientHeight;
-
-            // Only intercept scroll if table can scroll in that direction
-            const scrollingDown = e.deltaY > 0;
-            const scrollingUp = e.deltaY < 0;
-
-            if (
-                (scrollingDown && canScrollDown) ||
-                (scrollingUp && canScrollUp)
-            ) {
-                e.preventDefault();
-                e.stopPropagation();
-                container.scrollTop += e.deltaY;
-            }
-        };
-
-        // Add wheel event listener with passive: false to allow preventDefault
-        window.addEventListener("wheel", handleWheel, { passive: false });
-
-        return () => {
-            window.removeEventListener("wheel", handleWheel);
-        };
-    }, []);
+    usePageWheelScrollsTable([cronJobsTableRef, importsTableRef]);
 
     // Helper functions (must be defined before early returns for useMemo)
     const formatDuration = (seconds: number | null): string => {

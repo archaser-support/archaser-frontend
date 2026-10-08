@@ -72,13 +72,15 @@ import {
     syncFieldsOrderFromColumnOrder,
 } from "@/shared/reportFormula/columnOrder";
 import { findFormulasReferencingOperand } from "@/shared/reportFormula/findFormulasReferencingOperand";
-import { MAX_FORMULAS_PER_REPORT } from "@/shared/reportFormula/types";
+import {
+    MAX_FORMULAS_PER_REPORT,
+    alignFormulaAggregationsWithGrouping,
+} from "@/shared/reportFormula/types";
 import {
     resolveFormulaValidationMessage,
     validateAllReportFormulas,
 } from "@/shared/reportFormula/validateFormulaDraft";
 import {
-    FORMULA_FILTER_GROUPING_CONFLICT_CODE,
     ORPHAN_FORMULA_FILTER_CODE,
     findOrphanFormulaFilterIndexes,
     getFormulaFilterGuardFailure,
@@ -564,12 +566,16 @@ const ReportBuilderPage: React.FC = () => {
                 (f) => !nextFieldKeys.has(getFieldOutputKey(f))
             );
             const formulas = prev.formulas || [];
-            const dependentFormulas = removedFields.flatMap((f) =>
-                findFormulasReferencingOperand(
-                    formulas,
-                    getFormulaOperandReference(f)
-                )
-            );
+            // Execution fetches formula operands that are not selected columns,
+            // so removal only breaks a formula when the field's table leaves the report.
+            const dependentFormulas = removedFields
+                .filter((f) => !activeTableSet.has(f.table))
+                .flatMap((f) =>
+                    findFormulasReferencingOperand(
+                        formulas,
+                        getFormulaOperandReference(f)
+                    )
+                );
             if (dependentFormulas.length > 0) {
                 const names = Array.from(
                     new Set(dependentFormulas.map((f) => f.label))
@@ -602,21 +608,12 @@ const ReportBuilderPage: React.FC = () => {
                     const matched = normalizedFields.find(
                         (f) => getFieldOutputKey(f) === groupKey
                     );
-                    if (matched) {
-                        return activeTableSet.has(matched.table);
-                    }
-                    const firstDot = groupKey.indexOf(".");
-                    if (firstDot !== -1) {
-                        const tableName = groupKey.substring(0, firstDot);
-                        return activeTableSet.has(tableName);
-                    }
-                    return false;
+                    return !!matched && activeTableSet.has(matched.table);
                 }
             );
 
-            // Aggregated columns must not appear in GROUP BY (legacy `table.field` can linger
-            // because cleanedGrouping keeps unknown keys when the table is still selected).
-            // Uses all aggregation suffix variants so SUMâ†’MAX (etc.) does not leave stale keys.
+            // Aggregated columns must not appear in GROUP BY.
+            // Uses all aggregation suffix variants so SUM→MAX (etc.) does not leave stale keys.
             const groupingKeysFromAggregatedFields =
                 getForbiddenGroupingKeysForAggregatedFields(normalizedFields);
             const cleanedGroupingWithoutAggregatedSources = cleanedGrouping.filter(
@@ -1056,7 +1053,15 @@ const ReportBuilderPage: React.FC = () => {
         }
 
         const selectedFields = reportConfig.fields || [];
-        const groupingKeys = new Set(reportConfig.grouping || []);
+        const selectedGroupableKeys = new Set(
+            selectedFields
+                .filter((field) => !field.aggregation)
+                .map((field) => getFieldOutputKey(field))
+        );
+        const sanitizedGrouping = (reportConfig.grouping || []).filter((key) =>
+            selectedGroupableKeys.has(key)
+        );
+        const groupingKeys = new Set(sanitizedGrouping);
         const hasAggregatedField = selectedFields.some((field) => !!field.aggregation);
         if (hasAggregatedField) {
             const missingGroupingFields = selectedFields.filter((field) => !field.aggregation).filter((field) => {
@@ -1080,15 +1085,20 @@ const ReportBuilderPage: React.FC = () => {
             name: string;
             fields: Array<{ name: string; type: string; label?: string }>;
         }>;
-        const formulaFailures = validateAllReportFormulas(
+        const isGroupedOnSave = isGroupedReportConfig({
+            ...reportConfig,
+            grouping: sanitizedGrouping,
+        });
+        const alignedFormulas = alignFormulaAggregationsWithGrouping(
             reportConfig.formulas || [],
-            {
-                locale: i18n.language,
-                reportTableNames: reportConfig.tables || [],
-                tablesMetadata,
-                isGrouped: isGroupedReportConfig(reportConfig),
-            }
+            isGroupedOnSave
         );
+        const formulaFailures = validateAllReportFormulas(alignedFormulas, {
+            locale: i18n.language,
+            reportTableNames: reportConfig.tables || [],
+            tablesMetadata,
+            isGrouped: isGroupedOnSave,
+        });
         if (Object.keys(formulaFailures).length > 0) {
             const messages: Record<string, string> = {};
             for (const [formulaId, failure] of Object.entries(formulaFailures)) {
@@ -1106,18 +1116,7 @@ const ReportBuilderPage: React.FC = () => {
         const formulaFilterGuard = getFormulaFilterGuardFailure({
             filters: reportConfig.filters || [],
             formulas: reportConfig.formulas || [],
-            isGrouped: isGroupedReportConfig(reportConfig),
         });
-        if (formulaFilterGuard === FORMULA_FILTER_GROUPING_CONFLICT_CODE) {
-            alert(
-                t("validation.formula_filter_grouping_conflict", {
-                    defaultValue:
-                        "Formula filters cannot be used with grouping. Remove the formula filter(s) or the grouping.",
-                })
-            );
-            setActiveStep(2);
-            return;
-        }
         if (formulaFilterGuard === ORPHAN_FORMULA_FILTER_CODE) {
             const orphanErrors: Record<number, string> = {};
             const orphanMessage = t("validation.orphan_formula_filter", {
@@ -1175,6 +1174,12 @@ const ReportBuilderPage: React.FC = () => {
                     description: description || undefined,
                     report_config: {
                         ...reportConfig,
+                        ...(reportConfig.formulas
+                            ? { formulas: alignedFormulas }
+                            : {}),
+                        ...(reportConfig.grouping
+                            ? { grouping: sanitizedGrouping }
+                            : {}),
                         tables: syncReportTablesWithPrimary(
                             reportConfig.tables || [],
                             reportConfig.primaryTable ||
@@ -1207,17 +1212,6 @@ const ReportBuilderPage: React.FC = () => {
                         errorMessage = t(
                             "messages.duplicate_report_name",
                             "A report with this name already exists. Please choose a different name."
-                        );
-                    } else if (
-                        errorData.errorCode ===
-                        FORMULA_FILTER_GROUPING_CONFLICT_CODE
-                    ) {
-                        errorMessage = t(
-                            "validation.formula_filter_grouping_conflict",
-                            {
-                                defaultValue:
-                                    "Formula filters cannot be used with grouping. Remove the formula filter(s) or the grouping.",
-                            }
                         );
                     } else if (
                         errorData.errorCode === ORPHAN_FORMULA_FILTER_CODE

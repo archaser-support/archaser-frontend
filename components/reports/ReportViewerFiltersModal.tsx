@@ -1,7 +1,7 @@
 "use client";
 
 import FilterListIcon from "@mui/icons-material/FilterList";
-import { Box, Button, Typography, useTheme } from "@mui/material";
+import { Box, Button, useTheme } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,10 +10,6 @@ import FilterBuilder from "@/components/reports/FilterBuilder";
 import AppDialog from "@/shared/layout-components/modal/AppDialog";
 import ModalScrollBox from "@/shared/layout-components/modal/ModalScrollBox";
 import type { ReportFormula } from "@/shared/reportFormula/types";
-import {
-    FORMULA_FILTER_GROUPING_CONFLICT_CODE,
-    getFormulaFilterGuardFailure,
-} from "@/shared/reportFormula/validateFormulaFilterGuards";
 import {
     areReportFiltersEqual,
     cloneReportFilters,
@@ -33,8 +29,6 @@ export interface ReportViewerFiltersModalProps {
     selectedTables: string[];
     tables: ReportMetadataTable[];
     formulas?: ReportFormula[];
-    /** True when the report uses grouping or field aggregation. */
-    isGrouped?: boolean;
     onApply: (filters: ReportFilterRow[] | null) => void;
 }
 
@@ -46,7 +40,6 @@ const ReportViewerFiltersModal: React.FC<ReportViewerFiltersModalProps> = ({
     selectedTables,
     tables,
     formulas = [],
-    isGrouped = false,
     onApply,
 }) => {
     const { t, i18n } = useTranslation(["reports", "common"]);
@@ -57,9 +50,6 @@ const ReportViewerFiltersModal: React.FC<ReportViewerFiltersModalProps> = ({
     const [validationErrors, setValidationErrors] = useState<
         Record<number, string>
     >({});
-    const [reportGuardError, setReportGuardError] = useState<string | null>(
-        null
-    );
     const savedFiltersRef = useRef<ReportFilterRow[]>([]);
 
     useEffect(() => {
@@ -69,7 +59,6 @@ const ReportViewerFiltersModal: React.FC<ReportViewerFiltersModalProps> = ({
         savedFiltersRef.current = cloneReportFilters(savedFilters);
         setModalFilters(cloneReportFilters(initialFilters));
         setValidationErrors({});
-        setReportGuardError(null);
     }, [open, savedFilters, initialFilters]);
 
     useEffect(() => {
@@ -105,25 +94,9 @@ const ReportViewerFiltersModal: React.FC<ReportViewerFiltersModalProps> = ({
     const handleResetToSaved = useCallback(() => {
         setModalFilters(cloneReportFilters(savedFiltersRef.current));
         setValidationErrors({});
-        setReportGuardError(null);
     }, []);
 
     const handleApply = useCallback(() => {
-        setReportGuardError(null);
-        const guard = getFormulaFilterGuardFailure({
-            filters: modalFilters,
-            formulas,
-            isGrouped,
-        });
-        if (guard === FORMULA_FILTER_GROUPING_CONFLICT_CODE) {
-            setReportGuardError(
-                t("validation.formula_filter_grouping_conflict", {
-                    defaultValue:
-                        "Formula filters cannot be used with grouping. Remove the formula filter(s) or the grouping.",
-                })
-            );
-            return;
-        }
         const errors = validateReportFilters(
             modalFilters,
             (key, opts) =>
@@ -146,7 +119,7 @@ const ReportViewerFiltersModal: React.FC<ReportViewerFiltersModalProps> = ({
             onApply(cloneReportFilters(modalFilters));
         }
         onClose();
-    }, [formulas, isGrouped, modalFilters, onApply, onClose, t]);
+    }, [formulas, modalFilters, onApply, onClose, t]);
 
     return (
         <AppDialog
@@ -246,15 +219,6 @@ const ReportViewerFiltersModal: React.FC<ReportViewerFiltersModalProps> = ({
                 }}
             >
                 <ModalScrollBox id={SCROLL_CONTAINER_ID} isRTL={isRTL}>
-                    {reportGuardError ? (
-                        <Typography
-                            color="error"
-                            variant="body2"
-                            sx={{ mb: 2 }}
-                        >
-                            {reportGuardError}
-                        </Typography>
-                    ) : null}
                     <FilterBuilder
                         mode="viewer"
                         selectedTables={selectedTables}
@@ -280,7 +244,6 @@ const ReportViewerFiltersModal: React.FC<ReportViewerFiltersModalProps> = ({
                         }>}
                         onFiltersChange={(next) => {
                             setModalFilters(next);
-                            setReportGuardError(null);
                             setValidationErrors({});
                         }}
                         validationErrors={validationErrors}
