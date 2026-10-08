@@ -23,8 +23,9 @@ import { Eyebrow } from "./Eyebrow";
 import { IslandCard } from "./IslandCard";
 import { CPH } from "./designTokens";
 import { chartColors } from "./chartColors";
-import { formatPct } from "./chartFormat";
+import { formatChartDayLabel, formatChartPct, formatPct } from "./chartFormat";
 import layout from "./islandLayout.module.css";
+import { portfolioHealthChartYMin } from "./portfolioHealthBelowThreshold";
 
 export type PortfolioHealthDailyChartProps = {
     daily: PortfolioHealthDailyPoint[];
@@ -37,26 +38,6 @@ export type PortfolioHealthDailyChartProps = {
 
 const HEALTH_KEY = "health" as const;
 const CARRIED_FORWARD_KEY = "stale" as const;
-
-function formatDayLabel(ymd: string, language: string): string {
-    const date = new Date(`${ymd}T12:00:00.000Z`);
-    if (Number.isNaN(date.getTime())) {
-        return ymd;
-    }
-    const locale = language.startsWith("he") ? "he-IL" : "en-US";
-    return date.toLocaleDateString(locale, {
-        month: "short",
-        day: "numeric",
-    });
-}
-
-function formatPctPrecise(value: number, language: string): string {
-    const locale = language.startsWith("he") ? "he-IL" : "en-US";
-    return `${value.toLocaleString(locale, {
-        maximumFractionDigits: 1,
-        minimumFractionDigits: 0,
-    })}%`;
-}
 
 type HealthDotProps = {
     cx?: number;
@@ -123,7 +104,7 @@ export function PortfolioHealthDailyChart({
                 toYmd,
                 (point) => point.snapshotDate
             ).map(({ ymd, point }) => ({
-                label: formatDayLabel(ymd, language),
+                label: formatChartDayLabel(ymd, language),
                 [HEALTH_KEY]: point?.healthIndex ?? null,
                 [CARRIED_FORWARD_KEY]: Boolean(point?.isStaleCarriedForward),
             })),
@@ -140,16 +121,14 @@ export function PortfolioHealthDailyChart({
         [data, belowThresholdPct]
     );
 
-    const yMin = useMemo(() => {
-        const values = data
-            .map((d) => d.health)
-            .filter((v): v is number => v != null && Number.isFinite(v));
-        const minVal = Math.min(...values, belowThresholdPct);
-        if (!Number.isFinite(minVal)) {
-            return 0;
-        }
-        return Math.max(0, Math.floor((minVal - 5) / 5) * 5);
-    }, [data, belowThresholdPct]);
+    const yMin = useMemo(
+        () =>
+            portfolioHealthChartYMin(
+                data.map((d) => d.health),
+                belowThresholdPct
+            ),
+        [data, belowThresholdPct]
+    );
 
     const thresholdLabel = t("credit_portfolio_health.chart_threshold_ref", {
         ...ns,
@@ -238,7 +217,7 @@ export function PortfolioHealthDailyChart({
                                     <ChartTooltip
                                         language={language}
                                         formatValue={(v) =>
-                                            formatPctPrecise(v, language)
+                                            formatChartPct(v, language)
                                         }
                                     />
                                 }

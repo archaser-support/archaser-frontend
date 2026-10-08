@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, type RefObject } from "react";
+import { useParams } from "next/navigation";
 import { useTheme } from "@mui/material";
 import {
     Bar,
@@ -57,6 +58,7 @@ export type CoverageTopCustomersChartProps = {
 
 type ChartRow = {
     rowKey: string;
+    customerId: number;
     customerName: string;
     amount: number;
     limit: number | null;
@@ -137,7 +139,7 @@ type CoverageTooltipProps = {
     active?: boolean;
     payload?: Array<{ payload?: ChartRow }>;
     coordinate?: { x: number; y: number };
-    chartEl?: HTMLDivElement | null;
+    chartElRef?: RefObject<HTMLDivElement | null>;
     language: string;
     currency: string;
     showTopUpStack: boolean;
@@ -148,7 +150,7 @@ function CoverageTooltip({
     active,
     payload,
     coordinate,
-    chartEl,
+    chartElRef,
     language,
     currency,
     showTopUpStack,
@@ -206,7 +208,7 @@ function CoverageTooltip({
     return (
         <PortaledHoverTooltip
             active={active}
-            chartEl={chartEl}
+            chartElRef={chartElRef}
             coordinate={coordinate}
             estimatedWidth={280}
             estimatedHeight={220}
@@ -327,6 +329,8 @@ export function CoverageTopCustomersChart({
     labels,
 }: CoverageTopCustomersChartProps) {
     const theme = useTheme();
+    const params = useParams();
+    const locale = typeof params?.locale === "string" ? params.locale : "en";
     const chartElRef = useRef<HTMLDivElement | null>(null);
     const showTopUpStack = hasTopUpPolicies === true;
     const policyBarColor = chartColors.primary;
@@ -415,6 +419,7 @@ export function CoverageTopCustomersChart({
 
             return {
                 rowKey: `${row.customerId}-${index}`,
+                customerId: row.customerId,
                 customerName: row.customerName,
                 amount: Math.max(0, row.usageAmount ?? 0),
                 limit: row.approvedLimit,
@@ -466,6 +471,14 @@ export function CoverageTopCustomersChart({
         return names;
     }, [chartData]);
 
+    const customerHrefs = useMemo(() => {
+        const hrefs = new Map<string, string>();
+        for (const row of chartData) {
+            hrefs.set(row.rowKey, `/${locale}/app/customers/${row.customerId}`);
+        }
+        return hrefs;
+    }, [chartData, locale]);
+
     const chartHeight = Math.max(
         showTopUpStack ? 380 : 340,
         chartData.length * ROW_HEIGHT + (showTopUpStack ? 48 : 16)
@@ -485,6 +498,7 @@ export function CoverageTopCustomersChart({
                 <BarChart
                     layout="vertical"
                     data={chartData}
+                    accessibilityLayer={false}
                     margin={{
                         left: CHART_LEFT,
                         right: CHART_RIGHT,
@@ -517,6 +531,7 @@ export function CoverageTopCustomersChart({
                                 y={tickProps.y}
                                 payload={tickProps.payload}
                                 names={customerNames}
+                                hrefs={customerHrefs}
                                 isRtl={isRtl}
                             />
                         )}
@@ -530,7 +545,7 @@ export function CoverageTopCustomersChart({
                         wrapperStyle={{ pointerEvents: "none" }}
                         content={
                             <CoverageTooltip
-                                chartEl={chartElRef.current}
+                                chartElRef={chartElRef}
                                 language={language}
                                 currency={accountCurrency}
                                 showTopUpStack={showTopUpStack}

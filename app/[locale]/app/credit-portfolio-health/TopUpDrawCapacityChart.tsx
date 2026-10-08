@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, type RefObject } from "react";
 import { CustomerNameYTick, CUSTOMER_NAME_Y_AXIS_WIDTH } from "./CustomerNameYTick";
 import { useTranslation } from "react-i18next";
 import { RefreshCw } from "lucide-react";
@@ -197,7 +197,7 @@ type DrawTooltipProps = {
     active?: boolean;
     payload?: Array<{ payload?: ChartRow; color?: string }>;
     coordinate?: { x: number; y: number };
-    chartEl?: HTMLDivElement | null;
+    chartElRef?: RefObject<HTMLDivElement | null>;
     language: string;
     currency: string;
     policyName: string;
@@ -214,7 +214,7 @@ function DrawTooltip({
     active,
     payload,
     coordinate,
-    chartEl,
+    chartElRef,
     language,
     currency,
     policyName,
@@ -285,7 +285,7 @@ function DrawTooltip({
         <PortaledHoverTooltip
             active={active}
             coordinate={coordinate}
-            chartEl={chartEl}
+            chartElRef={chartElRef}
             estimatedHeight={220}
         >
         <div
@@ -403,7 +403,7 @@ export function TopUpDrawCapacityChart({
                     return pct == null ? "" : formatPct(pct, language);
                 })(),
             })),
-        [customers, language, t]
+        [customers, language]
     );
 
     const customerNames = useMemo(() => {
@@ -413,6 +413,14 @@ export function TopUpDrawCapacityChart({
         }
         return names;
     }, [data]);
+
+    const customerHrefs = useMemo(() => {
+        const hrefs = new Map<string, string>();
+        for (const row of data) {
+            hrefs.set(row.rowKey, `/${locale}/app/customers/${row.customerId}`);
+        }
+        return hrefs;
+    }, [data, locale]);
 
     const domainMax = useMemo(() => {
         const peak = data.reduce((max, row) => {
@@ -630,6 +638,7 @@ export function TopUpDrawCapacityChart({
                                 <ComposedChart
                                     layout="vertical"
                                     data={data}
+                                    accessibilityLayer={false}
                                     margin={sharedMargin}
                                 >
                                     <SecondaryHatchDefs patternId={hatchPatternId} />
@@ -651,6 +660,7 @@ export function TopUpDrawCapacityChart({
                                                 y={tickProps.y}
                                                 payload={tickProps.payload}
                                                 names={customerNames}
+                                                hrefs={customerHrefs}
                                                 isRtl={isRtl}
                                             />
                                         )}
@@ -669,7 +679,7 @@ export function TopUpDrawCapacityChart({
                                         }}
                                         content={
                                             <DrawTooltip
-                                                chartEl={chartElRef.current}
+                                                chartElRef={chartElRef}
                                                 language={language}
                                                 currency={accountCurrency}
                                                 policyName={policyName}

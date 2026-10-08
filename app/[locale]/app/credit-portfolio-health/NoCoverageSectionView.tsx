@@ -14,7 +14,7 @@ import {
     YAxis,
 } from "recharts";
 
-import type { NoCoverageReasonKey, PortfolioNoCoverageSection } from "@/types/creditInsurance";
+import type { PortfolioNoCoverageSection } from "@/types/creditInsurance";
 
 import { BigNumber } from "./BigNumber";
 import { ChartTooltip } from "./ChartTooltip";
@@ -28,61 +28,14 @@ import { IslandCard } from "./IslandCard";
 import { CPH } from "./designTokens";
 import { chartColors, chartCssVars } from "./chartColors";
 import layout from "./islandLayout.module.css";
+import {
+    BREACH_REASON_LABEL_KEYS,
+    NO_COVERAGE_REASON_LABEL_KEYS,
+} from "./noCoverageReasonLabels";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
 export type NoCoverageSectionViewProps = {
     section: PortfolioNoCoverageSection;
-};
-
-const REASON_LABEL_KEYS: Partial<
-    Record<NoCoverageReasonKey, { key: string; defaultValue: string }>
-> = {
-    pending_review: {
-        key: "credit_portfolio_health.reason_pending_review",
-        defaultValue: "Pending review",
-    },
-    credit_hold: {
-        key: "credit_portfolio_health.reason_credit_hold",
-        defaultValue: "Credit hold",
-    },
-    insurer_declined: {
-        key: "credit_portfolio_health.reason_insurer_declined",
-        defaultValue: "Insurer declined",
-    },
-    no_linked_policy: {
-        key: "credit_portfolio_health.reason_no_linked_policy",
-        defaultValue: "No linked policy",
-    },
-};
-
-const BREACH_REASON_LABEL_KEYS: Record<
-    string,
-    { key: string; defaultValue: string }
-> = {
-    reportingBreach: {
-        key: "credit_insurance_dashboard.breach_type_reporting_breach",
-        defaultValue: "Reporting Breach",
-    },
-    paymentTerm: {
-        key: "credit_insurance_dashboard.breach_type_payment_term",
-        defaultValue: "Payment Term Breach",
-    },
-    customerOverdueMep: {
-        key: "credit_insurance_dashboard.breach_type_customer_overdue_mep",
-        defaultValue: "Customer Overdue MEP",
-    },
-    outdatedDcl: {
-        key: "credit_insurance_dashboard.breach_type_outdated_dcl",
-        defaultValue: "Outdated DCL",
-    },
-    invoiceAfterPolicyEnd: {
-        key: "credit_insurance_dashboard.breach_type_invoice_after_policy_end",
-        defaultValue: "Invoice After Policy End",
-    },
-    other: {
-        key: "credit_insurance_dashboard.breach_type_other",
-        defaultValue: "Other",
-    },
 };
 
 export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
@@ -103,7 +56,7 @@ export function NoCoverageSectionView({ section }: NoCoverageSectionViewProps) {
             [...reasonsWithSignal]
                 .sort((a, b) => b.averageAmount - a.averageAmount)
                 .map((item) => {
-                    const meta = REASON_LABEL_KEYS[item.reason];
+                    const meta = NO_COVERAGE_REASON_LABEL_KEYS[item.reason];
                     return {
                         reason: item.reason,
                         label: meta

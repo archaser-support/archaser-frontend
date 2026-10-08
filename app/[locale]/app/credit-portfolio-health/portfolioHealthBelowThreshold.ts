@@ -53,6 +53,21 @@ export function writePortfolioHealthBelowThreshold(value: number): void {
     }
 }
 
+/** Daily health chart y-axis floor: 5 pts under the lowest value or threshold, on a 5-pt step. */
+export function portfolioHealthChartYMin(
+    values: Array<number | null>,
+    thresholdPct: number
+): number {
+    const finite = values.filter(
+        (v): v is number => v != null && Number.isFinite(v)
+    );
+    const minVal = Math.min(...finite, thresholdPct);
+    if (!Number.isFinite(minVal)) {
+        return 0;
+    }
+    return Math.max(0, Math.floor((minVal - 5) / 5) * 5);
+}
+
 /**
  * Share of eligible days with health strictly below `thresholdPct`.
  * Matches server series math: zero-AR days are excluded from the denominator.

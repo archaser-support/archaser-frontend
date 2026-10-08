@@ -61,6 +61,19 @@ type ChartRow = ExposureTrendLinesPoint & {
     atRiskSharePct: number | null;
 };
 
+/** At-risk share of total AR (%); null when total is not positive. */
+export function exposureAtRiskSharePct(
+    total: number | null,
+    atRisk: number | null
+): number | null {
+    return total != null &&
+        total > 0 &&
+        atRisk != null &&
+        Number.isFinite(atRisk)
+        ? (atRisk / total) * 100
+        : null;
+}
+
 function ExposureLegend({
     seriesLabels,
 }: {
@@ -306,21 +319,13 @@ export function ExposureTrendLinesChart({
 
     const chartData = useMemo<ChartRow[]>(
         () =>
-            data.map((point) => {
-                const total = point.total;
-                const atRisk = point.atRisk;
-                const atRiskSharePct =
-                    total != null &&
-                    total > 0 &&
-                    atRisk != null &&
-                    Number.isFinite(atRisk)
-                        ? (atRisk / total) * 100
-                        : null;
-                return {
-                    ...point,
-                    atRiskSharePct,
-                };
-            }),
+            data.map((point) => ({
+                ...point,
+                atRiskSharePct: exposureAtRiskSharePct(
+                    point.total,
+                    point.atRisk
+                ),
+            })),
         [data]
     );
 
