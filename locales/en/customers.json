@@ -385,6 +385,21 @@
             "excluded_from_policy": "Customer excluded from policy at creation",
             "outdated_dcl": "Outdated DCL at creation",
             "invoice_after_policy_end": "Invoice dated after policy end"
+        },
+        "details": {
+            "target_reporting_date": "Target reporting date",
+            "days_late": "Days late",
+            "credit_days": "Credit days",
+            "credit_days_vs_max": "{{days}} (max {{max}})",
+            "caused_by": "Caused by",
+            "due_date": "Due date",
+            "outstanding_then": "Outstanding then",
+            "days_past_mep": "Days past MEP",
+            "exclusion_reason": "Exclusion reason",
+            "credit_score_input_date": "Credit score input date",
+            "score_validity_period_months": "Score validity (months)",
+            "invoice_date": "Invoice date",
+            "policy_end_date": "Policy end date"
         }
     },
     "credit_history_refresh": {
