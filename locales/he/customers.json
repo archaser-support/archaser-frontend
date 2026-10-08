@@ -375,6 +375,21 @@
             "excluded_from_policy": "לקוח מוחרג מהפוליסה בעת יצירה",
             "outdated_dcl": "DCL לא עדכני בעת יצירה",
             "invoice_after_policy_end": "חשבונית לאחר סיום הפוליסה"
+        },
+        "details": {
+            "target_reporting_date": "תאריך יעד לדיווח",
+            "days_late": "ימי איחור",
+            "credit_days": "ימי אשראי",
+            "credit_days_vs_max": "{{days}} (מקסימום {{max}})",
+            "caused_by": "נגרם על ידי",
+            "due_date": "תאריך פירעון",
+            "outstanding_then": "יתרה פתוחה באותו מועד",
+            "days_past_mep": "ימים מעבר למועד ה-MEP",
+            "exclusion_reason": "סיבת החרגה",
+            "credit_score_input_date": "תאריך הזנת ציון אשראי",
+            "score_validity_period_months": "תוקף ציון (בחודשים)",
+            "invoice_date": "תאריך חשבונית",
+            "policy_end_date": "תאריך סיום הפוליסה"
         }
     },
     "validation": {

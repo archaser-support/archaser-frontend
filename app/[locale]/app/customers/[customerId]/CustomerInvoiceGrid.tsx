@@ -771,10 +771,11 @@ const CustomerInvoiceGrid: React.FC<CustomerProp> = ({
             renderCell: (params) => (
                 <CreditInsuranceViolationsCell
                     row={params.row as Record<string, unknown>}
+                    formatAmount={formatAmountCell}
                 />
             ),
         };
-    }, [t]);
+    }, [t, formatAmountCell]);
 
     const actionsColumnRenderer = useCallback(
         (params: GridRenderCellParams) => {
