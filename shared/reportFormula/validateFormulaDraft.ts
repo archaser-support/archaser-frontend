@@ -66,6 +66,7 @@ export type ValidateFormulaDraftInput = {
     expression: string;
     format: FormulaResultFormat;
     aggregation?: ReportFormula["aggregation"] | "";
+    hidden?: boolean;
     editingId: string | null;
     formulaId?: string | null;
     locale: string;
@@ -507,6 +508,7 @@ export function validateFormulaDraft(
             ...(input.isGrouped && input.aggregation
                 ? { aggregation: input.aggregation }
                 : {}),
+            ...(input.hidden ? { hidden: true } : {}),
         },
         ...(warning ? { warning } : {}),
     };
@@ -528,6 +530,7 @@ export function validateAllReportFormulas(
             expression: formula.expression,
             format: formula.format,
             aggregation: formula.aggregation || "",
+            hidden: formula.hidden,
             editingId: formula.id,
             formulaId: formula.id,
             locale: options.locale,

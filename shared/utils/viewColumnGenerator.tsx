@@ -662,6 +662,9 @@ export function generateViewColumns(
         cleanedFields.map((f: any) => getFieldOutputKey(f))
     );
     for (const formula of formulas) {
+        if (formula.hidden) {
+            continue;
+        }
         selectedFieldKeys.add(
             `formula:${formula.id}`
         );
