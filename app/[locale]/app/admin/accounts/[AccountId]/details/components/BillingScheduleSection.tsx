@@ -55,6 +55,9 @@ function formatLocalTimestamp(value: string, language: string): string {
         day: "numeric",
         hour: "2-digit",
         minute: "2-digit",
+        hourCycle: "h12",
+        timeZone: "UTC",
+        timeZoneName: "short",
     });
 }
 /** Info icon sits after the control (outside the input), matching Customer autocomplete. */
