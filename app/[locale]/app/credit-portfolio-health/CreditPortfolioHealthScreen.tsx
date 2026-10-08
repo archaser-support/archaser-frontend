@@ -24,6 +24,7 @@ import { CreditDashboardExcludedCustomersFilter } from "@/app/[locale]/app/credi
 import BusinessUnitDashboardFilter from "@/shared/components/BusinessUnitDashboardFilter";
 import {
     resolveGenerateModalAutoOpen,
+    shouldAutoCloseGenerateModal,
     type GenerateModalJobStatus,
 } from "@/shared/creditInsurance/generateModalAttention";
 import {
@@ -39,7 +40,6 @@ import {
 } from "@/utils/datetimeOperations";
 import { getRTLTooltipProps } from "@/utils/reportFieldUtils";
 import type {
-    CreditAsOfBackfillJobStatus,
     CreditAsOfBackfillJobView,
     CreditPortfolioHealthResponse,
 } from "@/types/creditInsurance";
@@ -422,12 +422,17 @@ export function CreditPortfolioHealthScreen({
         // never emits it — normalize so GenerateModalJobStatus stays narrow.
         const status: GenerateModalJobStatus =
             backfillStatus === "syncing" ? "idle" : backfillStatus;
+        const previousStatus = previousBackfillStatusRef.current;
         const result = resolveGenerateModalAutoOpen({
             status,
-            previousStatus: previousBackfillStatusRef.current,
+            previousStatus,
             dismissed: generateModalDismissed,
         });
         previousBackfillStatusRef.current = status;
+        if (shouldAutoCloseGenerateModal(status, previousStatus)) {
+            setGenerateModalOpen(false);
+            setConfirmingLargeGenerate(null);
+        }
         if (result.nextDismissed !== generateModalDismissed) {
             setGenerateModalDismissed(result.nextDismissed);
         }
