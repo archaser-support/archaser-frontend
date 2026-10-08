@@ -87,7 +87,8 @@ const ReportsPage: React.FC = () => {
     const queryClient = useQueryClient();
     const { success, error: showError } = useToast();
 
-    const isAdmin = session?.user?.account_id === 10013;
+    // Master account (10013): catalog of every system report (all contexts) for sync/admin.
+    const isAdmin = Number(session?.user?.account_id) === 10013;
 
     const userLocale = useMemo(() => getUserDateLocale(session), [session]);
     const userTimezone = useMemo(() => getUserTimezone(session), [session]);
@@ -189,8 +190,9 @@ const ReportsPage: React.FC = () => {
             search: debouncedSearch,
             sortField: sortField || "",
             sortDirection: sortDirection || "asc",
-            context: "reports",
-            ...(isAdmin ? { isSystem: "true" } : {}),
+            ...(isAdmin
+                ? { isSystem: "true" }
+                : { context: "reports" }),
         }),
         [debouncedSearch, sortField, sortDirection, isAdmin]
     );
@@ -352,8 +354,9 @@ const ReportsPage: React.FC = () => {
             search: debouncedSearch,
             sortField: sortField || "",
             sortDirection: sortDirection || "asc",
-            context: "reports",
-            ...(isAdmin ? { isSystem: "true" } : {}),
+            ...(isAdmin
+                ? { isSystem: "true" }
+                : { context: "reports" }),
             export: "true",
             limit: "10000",
         });
