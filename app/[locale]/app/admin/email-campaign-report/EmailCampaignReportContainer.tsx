@@ -12,9 +12,10 @@ import {
     TextField,
     Autocomplete,
     Button,
-    CircularProgress,
     useTheme,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
+import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/app/api";
 import moment from "moment";
@@ -194,7 +195,7 @@ const EmailCampaignReportContainer = () => {
                     minHeight: "400px",
                 }}
             >
-                <CircularProgress size={40} />
+                <PageLoader />
             </Box>
         );
     }
@@ -501,7 +502,7 @@ const EmailCampaignReportContainer = () => {
                         height: "400px",
                     }}
                 >
-                    <CircularProgress size={40} />
+                    <AppSpinner size={40} />
                 </Box>
             ) : reportData && reportData.data ? (
                 <EmailCampaignReportTable

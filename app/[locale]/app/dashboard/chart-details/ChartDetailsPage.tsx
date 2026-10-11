@@ -11,10 +11,10 @@ import {
 import {
     Alert,
     Box,
-    CircularProgress,
     useMediaQuery,
     useTheme,
 } from "@mui/material";
+import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery } from "@tanstack/react-query";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -888,7 +888,7 @@ export default function ChartDetailsPage({ params }: ChartDetailsProps) {
                     height: "50vh",
                 }}
             >
-                <CircularProgress color="primary" />
+                <PageLoader />
             </Box>
         );
     }

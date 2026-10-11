@@ -5,7 +5,7 @@ import Autocomplete from "@mui/material/Autocomplete";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
-import CircularProgress from "@mui/material/CircularProgress";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
@@ -514,7 +514,7 @@ const InvoicesWithoutCustomerList: React.FC = () => {
                         height: "400px",
                     }}
                 >
-                    <CircularProgress size={40} />
+                    <AppSpinner size={40} />
                 </Box>
             ) : (
                 <Box
@@ -605,7 +605,7 @@ const InvoicesWithoutCustomerList: React.FC = () => {
                             fullWidth={false}
                             endIcon={
                                 isBulkUpdating ? (
-                                    <CircularProgress
+                                    <AppSpinner
                                         size={16}
                                         sx={{ color: "inherit" }}
                                     />

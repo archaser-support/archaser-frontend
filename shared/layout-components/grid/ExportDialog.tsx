@@ -5,7 +5,6 @@ import {
     Box,
     Button,
     Checkbox,
-    CircularProgress,
     FormControl,
     FormControlLabel,
     Radio,
@@ -13,6 +12,7 @@ import {
     TextField,
     Typography,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { alpha, useTheme } from "@mui/material/styles";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -210,7 +210,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
                         fullWidth={false}
                         endIcon={
                             isExporting ? (
-                                <CircularProgress
+                                <AppSpinner
                                     size={16}
                                     sx={{ color: "inherit" }}
                                 />

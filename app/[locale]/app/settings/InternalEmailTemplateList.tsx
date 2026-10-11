@@ -6,9 +6,9 @@ import {
     Typography,
     Paper,
     Chip,
-    CircularProgress,
     Alert,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -71,7 +71,7 @@ const InternalEmailTemplateList: React.FC<{ accountId: number }> = () => {
                     height: 400,
                 }}
             >
-                <CircularProgress color="primary" size={40} />
+                <AppSpinner color="primary" size={40} />
             </Box>
         );
     }

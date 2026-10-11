@@ -8,7 +8,6 @@ import {
     Button,
     Card,
     CardContent,
-    CircularProgress,
     FormControl,
     Grid,
     InputLabel,
@@ -17,6 +16,7 @@ import {
     TextField,
     Typography,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import {
     ExpandMore as ExpandMoreIcon,
@@ -334,7 +334,7 @@ const BillingConnectionSection = memo(function BillingConnectionSection({
                                         className="save-button"
                                         startIcon={
                                             testPending ? (
-                                                <CircularProgress size={16} />
+                                                <AppSpinner size={16} />
                                             ) : (
                                                 <SyncIcon />
                                             )

@@ -1,5 +1,6 @@
 "use client";
-import { CircularProgress, Button, Tooltip, useTheme } from "@mui/material";
+import { Button, Tooltip, useTheme } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import Typography from "@mui/material/Typography";
@@ -622,7 +623,7 @@ const CustomersWithoutContactList: React.FC = () => {
                         height: "400px",
                     }}
                 >
-                    <CircularProgress size={40} />
+                    <AppSpinner size={40} />
                 </Box>
             ) : (
                 <Box

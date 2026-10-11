@@ -91,18 +91,17 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import PersonIcon from "@mui/icons-material/Person";
 import PhoneIcon from "@mui/icons-material/Phone";
 import {
-    Backdrop,
     Box,
     Breadcrumbs,
     Button,
     Card,
     CardContent,
-    CircularProgress,
     Container,
     Fade,
     Link,
     Typography,
 } from "@mui/material";
+import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { useTheme } from "@mui/material/styles";
 
 export default function CreateCustomerPage() {
@@ -1488,17 +1487,7 @@ export default function CreateCustomerPage() {
                             </Box>
                         </form>
 
-                        {/* Saving Backdrop */}
-                        <Backdrop
-                            sx={{
-                                color: "#fff",
-                                zIndex: (theme) => theme.zIndex.drawer + 1,
-                                bgcolor: "rgba(0,0,0,0.5)",
-                            }}
-                            open={isLoading}
-                        >
-                            <CircularProgress color="inherit" size={40} />
-                        </Backdrop>
+                        {isLoading ? <PageLoader /> : null}
                     </Box>
                 </Fade>
             </Container>

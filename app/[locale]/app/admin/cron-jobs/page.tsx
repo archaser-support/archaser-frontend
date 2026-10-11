@@ -19,7 +19,6 @@ import {
     CardContent,
     Checkbox,
     Chip,
-    CircularProgress,
     FormControlLabel,
     LinearProgress,
     Paper,
@@ -35,6 +34,8 @@ import {
     Typography,
     useTheme,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
+import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -846,7 +847,7 @@ const CronJobsPage = () => {
                 alignItems="center"
                 minHeight="400px"
             >
-                <CircularProgress />
+                <PageLoader />
             </Box>
         );
     }
@@ -932,7 +933,7 @@ const CronJobsPage = () => {
                                     alignItems="center"
                                     minHeight="200px"
                                 >
-                                    <CircularProgress />
+                                    <AppSpinner />
                                 </Box>
                             )}
 
@@ -1255,7 +1256,7 @@ const CronJobsPage = () => {
                                     alignItems="center"
                                     minHeight="200px"
                                 >
-                                    <CircularProgress />
+                                    <AppSpinner />
                                 </Box>
                             )}
 

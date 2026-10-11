@@ -8,7 +8,8 @@ import {
     Payments as PaymentsIcon,
     Receipt as ReceiptIcon,
 } from "@mui/icons-material";
-import { Box, CircularProgress, IconButton, Tooltip, Typography } from "@mui/material";
+import { Box, IconButton, Tooltip, Typography } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import { GridColDef, GridRenderCellParams } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
@@ -897,7 +898,7 @@ const CustomerInvoiceGrid: React.FC<CustomerProp> = ({
                                     )}
                                 >
                                     {isTogglingMepIgnore ? (
-                                        <CircularProgress size={16} />
+                                        <AppSpinner size={16} />
                                     ) : isMepIgnored ? (
                                         <NotificationsOffIcon fontSize="small" />
                                     ) : (
@@ -947,7 +948,7 @@ const CustomerInvoiceGrid: React.FC<CustomerProp> = ({
                                     })}
                                 >
                                     {isIssuingThis ? (
-                                        <CircularProgress size={16} />
+                                        <AppSpinner size={16} />
                                     ) : (
                                         <GavelIcon fontSize="small" />
                                     )}

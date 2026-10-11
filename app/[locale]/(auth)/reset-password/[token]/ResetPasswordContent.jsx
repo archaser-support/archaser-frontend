@@ -19,8 +19,8 @@ import {
     useTheme,
     useMediaQuery,
     Fade,
-    CircularProgress,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -349,7 +349,7 @@ export default function ResetPasswordContent({ token }) {
                                         }}
                                         endIcon={
                                             isLoading ? (
-                                                <CircularProgress size={20} color="inherit" />
+                                                <AppSpinner size={20} color="inherit" />
                                             ) : (
                                                 <ArrowForward />
                                             )

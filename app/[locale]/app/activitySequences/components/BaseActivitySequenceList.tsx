@@ -1,6 +1,7 @@
 "use client";
 
-import { Box, CircularProgress } from "@mui/material";
+import { Box } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import React, {
     useCallback,
     useEffect,
@@ -649,7 +650,7 @@ export default function BaseActivitySequenceList({
                     width: "100%",
                 }}
             >
-                <CircularProgress color="primary" size={40} />
+                <AppSpinner color="primary" size={40} />
             </Box>
         );
     }

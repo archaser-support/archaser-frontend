@@ -6,8 +6,8 @@ import {
     Typography,
     IconButton,
     alpha,
-    CircularProgress,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import React from "react";
 import { useTranslation } from "react-i18next";
@@ -107,10 +107,12 @@ const ViewAsBanner: React.FC<ViewAsBannerProps> = ({
                         {currentViewAsUserName ? (
                             <span>{currentViewAsUserName}</span>
                         ) : (
-                            <>
-                                <CircularProgress size={14} sx={{ color: "white" }} />
-                                <span style={{ opacity: 0.8 }}>Loading...</span>
-                            </>
+                            <AppSpinner
+                                size={14}
+                                color="inherit"
+                                label={t("messages.loading", { ns: "common" })}
+                                sx={{ color: "white", opacity: 0.8 }}
+                            />
                         )}
                     </Typography>
                 </Box>

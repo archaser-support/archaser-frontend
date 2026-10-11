@@ -9,12 +9,12 @@ import {
 import {
     Box,
     IconButton,
-    CircularProgress,
     Tooltip,
     Typography,
     Chip,
     Link as MuiLink,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -557,7 +557,7 @@ export const DisputeReasonsList: React.FC<DisputeReasonsListProps> = ({
                     height: 200,
                 }}
             >
-                <CircularProgress />
+                <AppSpinner />
             </Box>
         );
     }
