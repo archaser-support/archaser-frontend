@@ -12,7 +12,6 @@ import {
     Box,
     Button,
     Chip,
-    CircularProgress,
     FormControl,
     FormControlLabel,
     IconButton,
@@ -25,6 +24,7 @@ import {
     Typography,
     useTheme,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/app/api";
@@ -610,7 +610,7 @@ const SMSVendors = () => {
                             endIcon={
                                 createVendorMutation.isPending ||
                                     updateVendorMutation.isPending ? (
-                                    <CircularProgress
+                                    <AppSpinner
                                         size={16}
                                         sx={{ color: "inherit" }}
                                     />

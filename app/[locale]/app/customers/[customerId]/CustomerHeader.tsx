@@ -36,7 +36,10 @@ import { useSession } from "next-auth/react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { CreditMetricCard } from "@/app/[locale]/app/credit-dashboard/CreditMetricCard";
+import {
+    CreditMetricCard,
+    CreditMetricCardLoading,
+} from "@/app/[locale]/app/credit-dashboard/CreditMetricCard";
 import {
     deriveSecondaryAmountFromInvoiceBucketRatio,
     resolveCapacityGapDisplayAmounts,
@@ -289,6 +292,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
         "agents",
         "dashboard",
     ]);
+    const metricLoading = <CreditMetricCardLoading size={16} />;
     const queryClient = useQueryClient();
     const router = useRouter();
     const pathname = usePathname();
@@ -1855,18 +1859,14 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                             : hasCreditPoolChildren
                                               ? creditPoolHeaderQuery.isPending ||
                                                 !creditPoolHeader
-                                                  ? t("messages.loading", {
-                                                        ns: "common",
-                                                    })
+                                                  ? metricLoading
                                                   : formatHeaderAmount(
                                                         capacityGapDisplay.primary,
                                                         capacityGapDisplay.secondary
                                                     )
                                               : creditKpiQuery.isPending ||
                                                   !creditKpiCards
-                                                ? t("messages.loading", {
-                                                      ns: "common",
-                                                  })
+                                                ? metricLoading
                                                 : formatHeaderAmount(
                                                       capacityGapDisplay.primary,
                                                       capacityGapDisplay.secondary
@@ -1897,7 +1897,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                     })}
                                     value={
                                         creditKpiQuery.isPending || !creditKpiCards
-                                            ? t("messages.loading", { ns: "common" })
+                                            ? metricLoading
                                             : formatHeaderAmount(
                                                   creditKpiCards.termsBreachOutstanding,
                                                   creditKpiCards.termsBreachOutstandingSecondary

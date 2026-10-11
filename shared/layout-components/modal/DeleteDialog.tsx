@@ -9,11 +9,11 @@ import {
 import {
     Box,
     Button,
-    CircularProgress,
     Tooltip,
     Typography,
     useTheme,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import React from "react";
 import { useTranslation } from "react-i18next";
 
@@ -135,7 +135,7 @@ const DeleteDialog: React.FC<DeleteDialogProps> = ({
             className="save-button"
             endIcon={
                 showConfirmSpinner && isLoading ? (
-                    <CircularProgress size={16} sx={{ color: "inherit" }} />
+                    <AppSpinner size={16} sx={{ color: "inherit" }} />
                 ) : undefined
             }
             sx={{

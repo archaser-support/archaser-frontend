@@ -1,4 +1,5 @@
-import { Box, CircularProgress } from "@mui/material";
+import { Box } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { alpha, useTheme } from "@mui/material/styles";
 import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import React, {
@@ -1020,10 +1021,9 @@ const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
                             height: "100%",
                         }}
                     >
-                        <CircularProgress
+                        <AppSpinner
                             color="primary"
                             size={40}
-                            thickness={4}
                         />
                     </Box>
                 </Box>
@@ -1177,7 +1177,7 @@ const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
                                     backgroundColor: theme.palette.action.hover,
                                 }}
                             >
-                                <CircularProgress color="primary" size={24} />
+                                <AppSpinner color="primary" size={24} />
                             </Box>
                         )}
                     </Box>

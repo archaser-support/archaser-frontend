@@ -9,9 +9,9 @@ import {
     Box,
     Typography,
     IconButton,
-    CircularProgress,
     Link as MuiLink,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import {
     GridColDef,
@@ -718,7 +718,7 @@ const DisputeTemplateList: React.FC<DisputeTemplateListProps> = ({
                     height: 400,
                 }}
             >
-                <CircularProgress size={40} />
+                <AppSpinner size={40} />
             </Box>
         );
     }

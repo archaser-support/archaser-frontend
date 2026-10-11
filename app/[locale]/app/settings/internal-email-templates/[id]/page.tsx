@@ -4,13 +4,13 @@ import {
     Box,
     Breadcrumbs,
     Button,
-    CircularProgress,
     Link,
     Paper,
     Stack,
     TextField,
-    Typography
+    Typography,
 } from "@mui/material";
+import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { useTheme } from "@mui/material/styles";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api, { apiFetch } from "@/app/api";
@@ -348,7 +348,7 @@ export default function InternalEmailTemplateEditPage() {
                     height: "50vh",
                 }}
             >
-                <CircularProgress />
+                <PageLoader />
             </Box>
         );
     }

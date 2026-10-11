@@ -39,6 +39,7 @@ import { getPortalLogoAvatarSx } from "@/app/theme/portalCard";
 import { PORTAL_LOGO_AVATAR_BORDER_RADIUS_PX } from "@/app/theme/constants";
 import { PORTAL_MENU_PAPER_CLASS } from "@/app/theme/portalMenu";
 import { LanguageFlag } from "@/components/LocationSelects";
+import ArchaserLogo from "@/shared/components/ArchaserLogo";
 import { PortalUrls } from "@/utils/portalUrlUtils";
 
 interface PortalHamburgerMenuProps {
@@ -531,17 +532,10 @@ const PortalHamburgerMenu: React.FC<PortalHamburgerMenuProps> = ({
                             >
                                 {t("fields.general_powered_by")}
                             </Typography>
-                            <Box
-                                component="img"
-                                src="/assets/images/brand-logos/logo.png"
-                                alt="Archaser"
-                                sx={{
-                                    height: "16px",
-                                    width: "auto",
-                                    objectFit: "contain",
-                                    filter: "brightness(0.7)",
-                                    opacity: 0.8,
-                                }}
+                            <ArchaserLogo
+                                title="ARChaser"
+                                height={16}
+                                sx={{ color: theme.palette.primary.main }}
                             />
                         </Box>
 

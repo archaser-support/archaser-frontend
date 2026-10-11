@@ -5,7 +5,6 @@ import {
     Autocomplete,
     Box,
     Button,
-    CircularProgress,
     Divider,
     FormControlLabel,
     IconButton,
@@ -15,6 +14,7 @@ import {
     Tooltip,
     Typography,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/app/api";
@@ -522,7 +522,7 @@ const ShareReportModal: React.FC<ShareReportModalProps> = ({
                         disabled={isSubmitting || saveChangesMutation.isPending || (pendingShares.length === 0 && removedShareIds.size === 0 && updatedShares.size === 0)}
                         endIcon={
                             isSubmitting || saveChangesMutation.isPending ? (
-                                <CircularProgress
+                                <AppSpinner
                                     size={16}
                                     sx={{ color: "inherit" }}
                                 />
@@ -1028,7 +1028,7 @@ const ShareReportModal: React.FC<ShareReportModalProps> = ({
                         <Box>
                             {isLoadingShares ? (
                                 <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
-                                    <CircularProgress color="primary" size={24} />
+                                    <AppSpinner color="primary" size={24} />
                                 </Box>
                             ) : displayShares.length === 0 ? (
                                 <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>

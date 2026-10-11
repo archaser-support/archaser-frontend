@@ -20,7 +20,6 @@ import {
     Autocomplete,
     Box,
     Button,
-    CircularProgress,
     Divider,
     FormControlLabel,
     IconButton,
@@ -29,8 +28,9 @@ import {
     Switch,
     TextField,
     Tooltip,
-    Typography
+    Typography,
 } from "@mui/material";
+import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { alpha, useTheme } from "@mui/material/styles";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -1836,7 +1836,7 @@ const ReportBuilderPage: React.FC = () => {
                         minHeight: { xs: "300px", sm: "400px" },
                     }}
                 >
-                    <CircularProgress color="primary" size={48} />
+                    <PageLoader />
                 </Box>
             </Box>
         );

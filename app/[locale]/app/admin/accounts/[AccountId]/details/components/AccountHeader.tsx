@@ -11,13 +11,13 @@ import {
     Box,
     Button,
     Chip,
-    CircularProgress,
     Grid,
     Paper,
     Stack,
     Typography,
     useTheme,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -425,7 +425,7 @@ const AccountHeader: React.FC<AccountHeaderProps> = ({
                                     className="save-button"
                                     endIcon={
                                         isSaving ? (
-                                            <CircularProgress
+                                            <AppSpinner
                                                 size={24}
                                                 sx={{
                                                     color: theme.palette.common

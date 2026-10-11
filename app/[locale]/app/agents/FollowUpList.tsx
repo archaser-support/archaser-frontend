@@ -4,11 +4,11 @@ import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
 import {
     Box,
     Button,
-    CircularProgress,
     IconButton,
     Tooltip,
     Typography,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import { GridColDef, GridRenderCellParams } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery } from "@tanstack/react-query";
@@ -281,7 +281,7 @@ const FollowUpList: React.FC = () => {
                     }}
                 >
                     <Box sx={{ textAlign: "center" }}>
-                        <CircularProgress color="primary" size={40} />
+                        <AppSpinner color="primary" size={40} />
                     </Box>
                 </Box>
             </Box>

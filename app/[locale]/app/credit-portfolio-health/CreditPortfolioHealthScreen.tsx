@@ -3,12 +3,12 @@
 import {
     Box,
     Button,
-    CircularProgress,
     LinearProgress,
     Tooltip,
     Typography,
     useTheme,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useSession } from "next-auth/react";
 import { CalendarDays } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -898,7 +898,7 @@ export function CreditPortfolioHealthScreen({
                                                 },
                                             }}
                                         >
-                                            <CircularProgress
+                                            <AppSpinner
                                                 color="primary"
                                                 size={48}
                                             />
@@ -1108,7 +1108,7 @@ export function CreditPortfolioHealthScreen({
                                 }
                             >
                                 {largeConfirmPending ? (
-                                    <CircularProgress size={18} color="inherit" />
+                                    <AppSpinner size={18} color="inherit" />
                                 ) : (
                                     t(
                                         "credit_portfolio_health.large_range_confirm_button",
@@ -1149,7 +1149,7 @@ export function CreditPortfolioHealthScreen({
                                         onClick={handleGenerateClick}
                                     >
                                         {generatePending ? (
-                                            <CircularProgress
+                                            <AppSpinner
                                                 size={18}
                                                 color="inherit"
                                             />
@@ -1176,7 +1176,7 @@ export function CreditPortfolioHealthScreen({
                                         onClick={handleGenerateRecentClick}
                                     >
                                         {generateRecentPending ? (
-                                            <CircularProgress
+                                            <AppSpinner
                                                 size={18}
                                                 color="inherit"
                                             />
@@ -1201,7 +1201,7 @@ export function CreditPortfolioHealthScreen({
                                     onClick={onStopGenerate}
                                 >
                                     {stopPending ? (
-                                        <CircularProgress
+                                        <AppSpinner
                                             size={18}
                                             color="inherit"
                                         />
@@ -1227,7 +1227,7 @@ export function CreditPortfolioHealthScreen({
                                     onClick={onRetryGenerate}
                                 >
                                     {retryPending ? (
-                                        <CircularProgress
+                                        <AppSpinner
                                             size={18}
                                             color="inherit"
                                         />

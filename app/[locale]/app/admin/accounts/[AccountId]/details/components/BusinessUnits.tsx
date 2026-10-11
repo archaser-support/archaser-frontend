@@ -9,11 +9,11 @@ import {
 import {
     Box,
     Chip,
-    CircularProgress,
     IconButton,
     Tooltip,
     Typography,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -816,7 +816,7 @@ export function BusinessUnits({ accountId }: BusinessUnitsProps) {
                     height: 200,
                 }}
             >
-                <CircularProgress color="primary" />
+                <AppSpinner color="primary" />
             </Box>
         );
     }

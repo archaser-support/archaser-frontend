@@ -8,10 +8,10 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import {
     Box,
     Button,
-    CircularProgress,
     TextField,
     Typography,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import moment, { Moment } from "moment";
 import { useSession } from "next-auth/react";
@@ -192,7 +192,7 @@ export function BulkMarkInvoicesReportedDialog({
                         disabled={saving || invoiceIds.length === 0}
                         endIcon={
                             saving ? (
-                                <CircularProgress size={16} sx={{ color: "inherit" }} />
+                                <AppSpinner size={16} sx={{ color: "inherit" }} />
                             ) : undefined
                         }
                         sx={{

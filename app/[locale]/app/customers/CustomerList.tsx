@@ -6,7 +6,6 @@ import {
 } from "@mui/icons-material";
 import {
     Box,
-    CircularProgress,
     IconButton,
     ListItemIcon,
     ListItemText,
@@ -14,6 +13,7 @@ import {
     Popover,
     Tooltip,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api, { apiFetch } from "@/app/api";
@@ -495,7 +495,7 @@ const CustomerList: React.FC<CustomerListProps> = ({
                             borderRadius: 1,
                         }}
                     >
-                        <CircularProgress />
+                        <AppSpinner />
                     </Box>
                 ) : (
                     <Box

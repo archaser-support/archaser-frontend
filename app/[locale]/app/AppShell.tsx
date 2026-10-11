@@ -23,7 +23,6 @@ import {
 import {
     Box,
     Chip,
-    CircularProgress,
     Divider,
     Drawer,
     IconButton,
@@ -35,11 +34,19 @@ import {
     Typography,
     useTheme,
 } from "@mui/material";
+import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api, { apiFetch } from "@/app/api";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    useSyncExternalStore,
+} from "react";
 import { useTranslation } from "react-i18next";
 
 import FollowUpReminder from "@/app/[locale]/app/agents/components/FollowUpReminder";
@@ -48,9 +55,13 @@ import AppHeader from "@/components/AppHeader";
 import { SessionInitializer } from "@/components/SessionInitializer";
 import ViewAsBanner from "@/components/ViewAsBanner";
 import { useSessionState } from "@/hooks/useSessionState";
+import ArchaserLogo from "@/shared/components/ArchaserLogo";
 import { CreditInsuranceNavIcon } from "@/shared/components/CreditInsuranceNavIcon";
 import SpinnerOverlay from "@/shared/layout-components/spinner/SpinnerOverlay";
-import { SpinnerProvider } from "@/shared/layout-components/spinner/SpinnerProvider";
+import {
+    SpinnerProvider,
+    useSpinner,
+} from "@/shared/layout-components/spinner/SpinnerProvider";
 import { ToastProvider, useToast } from "@/shared/layout-components/toast/ToastProvider";
 import { isFileImportVisible } from "@/shared/utils/accountProducts";
 import {
@@ -162,9 +173,12 @@ const useAriaHiddenFix = () => {
     }, []);
 };
 
+const subscribeToNothing = () => () => {};
+
 const AppLayout = ({ children }: any) => {
     const { t } = useTranslation(["common"]);
     const theme = useTheme();
+    const { isVisible: isPageLoading } = useSpinner();
 
     // Helper function to generate appealing tooltips for menu items
     const getMenuTooltip = (item: { label: string; href: string }) => {
@@ -287,12 +301,15 @@ const AppLayout = ({ children }: any) => {
     const isHebrewUser = session?.user?.language === "Hebrew";
 
     // Language change is now handled in TranslationsProvider
-    const [mounted, setMounted] = useState(false);
+    const mounted = useSyncExternalStore(
+        subscribeToNothing,
+        () => true,
+        () => false
+    );
     const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { showToast } = useToast();
-    const [activeMenuItem, setActiveMenuItem] = useState<string | null>(null);
     const [forceUpdate, setForceUpdate] = useState(0);
     const [isTogglingSidebar, setIsTogglingSidebar] = useState(false);
     const [lastUserToggle, setLastUserToggle] = useState<boolean | null>(null);
@@ -335,48 +352,27 @@ const AppLayout = ({ children }: any) => {
         };
     }, []);
 
-    // Initialize sidebar state from session when session becomes available
-    useEffect(() => {
-        // Don't override user's immediate toggle action
-        if (isTogglingSidebar) {
-            return;
-        }
-        // Don't override if user has manually toggled and local state differs from session
+    // Sync sidebar state from session (inverted: sidebar_collapsed means collapsed=true).
+    // Never override the user's in-flight toggle; wait until the session catches up with it.
+    const sessionSidebarOpenValue =
+        session?.user?.sidebar_collapsed === undefined
+            ? true
+            : !session?.user?.sidebar_collapsed;
+    if (!isTogglingSidebar) {
         if (lastUserToggle !== null) {
-            const sessionSidebarOpen =
-                session?.user?.sidebar_collapsed === undefined
-                    ? true
-                    : !session?.user?.sidebar_collapsed;
-            // Only sync if the session value matches what the user set
-            // This prevents the session from overriding a user action
-            if (lastUserToggle === sessionSidebarOpen) {
-                // Session has caught up, clear the flag
+            if (lastUserToggle === sessionSidebarOpenValue) {
                 setLastUserToggle(null);
-            } else {
-                // Session still has old value, don't override user's action
-                return;
             }
+        } else if (
+            isSessionReady &&
+            session?.user?.id &&
+            sidebarOpen !== sessionSidebarOpenValue
+        ) {
+            setSidebarOpen(sessionSidebarOpenValue);
         }
-        if (isSessionReady && session?.user?.id) {
-            // Use session value if available (inverted: sidebar_collapsed means collapsed=true)
-            const sessionSidebarOpen =
-                session.user.sidebar_collapsed === undefined
-                    ? true
-                    : !session.user.sidebar_collapsed;
-            setSidebarOpen(sessionSidebarOpen);
-        }
-    }, [
-        isSessionReady,
-        session?.user?.id,
-        session?.user?.sidebar_collapsed,
-        isTogglingSidebar,
-        lastUserToggle,
-    ]);
+    }
 
-    // Prevent hydration mismatch by only rendering after mount
     useEffect(() => {
-        setMounted(true);
-
         // Check for fresh login and force refresh if needed
         if (typeof window !== "undefined") {
             const freshLogin = localStorage.getItem("freshLogin");
@@ -395,7 +391,7 @@ const AppLayout = ({ children }: any) => {
 
                     // Force refresh the sidebar
                     setTimeout(() => {
-                        forceRefreshSidebar();
+                        setForceUpdate((prev) => prev + 1);
                     }, 100);
                 }
             }
@@ -429,13 +425,6 @@ const AppLayout = ({ children }: any) => {
     // React Query's broadcastQueryClient already handles syncing queries across tabs
     // No need for a custom broadcast listener since React Query broadcasts automatically
     // when queries are invalidated or refetched
-
-    // Track active menu item and apply animation
-    useEffect(() => {
-        if (pathname && pathname !== activeMenuItem) {
-            setActiveMenuItem(pathname);
-        }
-    }, [pathname, activeMenuItem]);
 
     // Helper function to get user display name
     const getUserDisplayName = (user: any) => {
@@ -822,7 +811,7 @@ const AppLayout = ({ children }: any) => {
             // Redirect to the calculated page after switching to view-as user
             // Use window.location to ensure a full page reload with the new session
             const currentLocale = (params?.locale as string) || "en";
-            window.location.href = `/${currentLocale}${redirectPath}`;
+            window.location.assign(`/${currentLocale}${redirectPath}`);
         } catch (err) {
             setError(err instanceof Error ? err.message : "An error occurred");
             showToast(error || "An error occurred", "error", 4000);
@@ -1230,18 +1219,29 @@ const AppLayout = ({ children }: any) => {
         hasFileImportProduct,
     ]);
 
-    // Force refresh sidebar when view-as state changes
-    useEffect(() => {
-        forceRefreshSidebar();
-    }, [session?.user?.view_as_user_id]);
-
-    // Monitor session changes and force refresh sidebar when session becomes authenticated
-    useEffect(() => {
-        if (status === "authenticated" && session && isSessionReady) {
-            // Force refresh sidebar when session becomes authenticated and ready
+    // Force refresh sidebar when view-as state changes, or when the session
+    // changes while authenticated and ready
+    const viewAsUserId = session?.user?.view_as_user_id;
+    const [sidebarRefreshInputs, setSidebarRefreshInputs] = useState({
+        viewAsUserId,
+        session,
+        status,
+        isSessionReady,
+    });
+    const viewAsChanged = sidebarRefreshInputs.viewAsUserId !== viewAsUserId;
+    const sessionStateChanged =
+        sidebarRefreshInputs.session !== session ||
+        sidebarRefreshInputs.status !== status ||
+        sidebarRefreshInputs.isSessionReady !== isSessionReady;
+    if (viewAsChanged || sessionStateChanged) {
+        setSidebarRefreshInputs({ viewAsUserId, session, status, isSessionReady });
+        if (
+            viewAsChanged ||
+            (status === "authenticated" && session && isSessionReady)
+        ) {
             forceRefreshSidebar();
         }
-    }, [session, status, isSessionReady]);
+    }
 
     const drawerKey = `drawer-${session?.user?.view_as_user_id || "admin"}-${forceUpdate}`;
 
@@ -1280,19 +1280,10 @@ const AppLayout = ({ children }: any) => {
                             order: isHebrewUser ? 1 : 1,
                         }}
                     >
-                        <img
-                            src="/assets/images/brand-logos/logo.png"
-                            alt="ARchaser"
-                            style={{
-                                height: "40px",
-                                width: "auto",
-                                maxWidth: "120px",
-                            }}
-                            onError={(e) => {
-                                // Fallback if image fails to load
-                                e.currentTarget.style.display = 'none';
-                                console.error('Logo failed to load');
-                            }}
+                        <ArchaserLogo
+                            title="ARChaser"
+                            height={28}
+                            sx={{ color: "primary.contrastText" }}
                         />
                     </Box>
                 )}
@@ -1449,9 +1440,7 @@ const AppLayout = ({ children }: any) => {
                                                     pathWithoutLocale.startsWith(
                                                         "/app/admin/accounts/"
                                                     )));
-                                        const isNewlyActive =
-                                            isActive &&
-                                            activeMenuItem === pathname;
+                                        const isNewlyActive = isActive;
 
                                         return (
                                             <Tooltip
@@ -1790,8 +1779,7 @@ const AppLayout = ({ children }: any) => {
                                                 pathWithoutLocale.startsWith(
                                                     "/app/admin/accounts/"
                                                 )));
-                                    const isNewlyActive =
-                                        isActive && activeMenuItem === pathname;
+                                    const isNewlyActive = isActive;
 
                                     return (
                                         <Tooltip
@@ -2124,7 +2112,7 @@ const AppLayout = ({ children }: any) => {
                     width: "100%",
                 }}
             >
-                <CircularProgress size={36} />
+                <PageLoader />
             </Box>
         );
     }
@@ -2274,6 +2262,7 @@ const AppLayout = ({ children }: any) => {
                 </Box>
                 <Box
                     component="main"
+                    aria-busy={isPageLoading || undefined}
                     sx={{
                         flexGrow: 1,
                         minWidth: 0,

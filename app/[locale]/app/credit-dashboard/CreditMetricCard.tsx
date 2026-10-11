@@ -9,8 +9,29 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 
 import type { MetricStatCardIconAccent } from "@/app/theme";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 
 import { CreditDashboardTitleInfoIcon } from "./creditDashboardTitleTooltip";
+
+/**
+ * Loading placeholder for `value`. The card centers it vertically in the space below the
+ * label; horizontally it centers on the whole card (the text column has an icon gutter).
+ */
+export function CreditMetricCardLoading({ size = 20 }: { size?: number }) {
+    const { t } = useTranslation(["common"]);
+    return (
+        <Box
+            component="span"
+            sx={{ display: "flex", alignItems: "center", height: Math.round(size * 1.6) }}
+        >
+            <AppSpinner
+                size={size}
+                label={t("messages.loading", { ns: "common" })}
+                sx={{ position: "absolute", left: "50%", transform: "translateX(-50%)" }}
+            />
+        </Box>
+    );
+}
 
 /** Dual-currency credit lines use `secondary (account)` — see formatDualCurrencyCreditInsuranceLine. */
 function isDualCurrencyMetricValue(value: React.ReactNode): value is string {
@@ -91,6 +112,8 @@ export function CreditMetricCard({
               isPositive ? "+" : "-"
           }${Math.abs(changePct!).toFixed(1)}%`
         : null;
+    const isLoadingValue =
+        React.isValidElement(value) && value.type === CreditMetricCardLoading;
     const isPrimitiveValue = typeof value === "string" || typeof value === "number";
     const dualCurrencyValue = isDualCurrencyMetricValue(value);
     const renderMetricValue = (overrides?: Record<string, unknown>) => {
@@ -241,10 +264,13 @@ export function CreditMetricCard({
                     )}
 
                     <Box
-                        sx={m.valuesStack(theme, {
-                            alignValueToEnd:
-                                !secondaryLine && !footnote && !(compact && secondaryLine),
-                        })}
+                        sx={[
+                            m.valuesStack(theme, {
+                                alignValueToEnd:
+                                    !secondaryLine && !footnote && !(compact && secondaryLine),
+                            }),
+                            isLoadingValue ? { flex: 1, justifyContent: "center" } : {},
+                        ]}
                     >
                         {secondaryLine && compact && !forceSecondaryLineBelow ? (
                             <Box
@@ -316,7 +342,7 @@ export function CreditMetricCard({
                                         {secondaryLine}
                                     </Typography>
                                 ) : (
-                                    forceSecondaryLineBelow && (
+                                    forceSecondaryLineBelow && !isLoadingValue && (
                                         <Typography
                                             variant="body2"
                                             sx={{
