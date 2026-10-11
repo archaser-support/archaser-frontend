@@ -31,6 +31,7 @@ const BARE_FETCH = /(?<![\w.])fetch\s*\(/;
 const BARE_FETCH_ALLOWED_FILES = new Set([
     "app/api.ts",
     "utils/apiFetch.ts",
+    "utils/apiAvailability.ts", // Nest /health probe (absolute URL; must not use apiFetch)
     "utils/nestAuth.ts",
     "utils/nestPortal.ts",
     "app/actions/portalVerification.ts",
