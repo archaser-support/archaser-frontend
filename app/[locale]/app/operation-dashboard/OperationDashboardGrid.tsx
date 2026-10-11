@@ -1,5 +1,6 @@
 "use client";
-import { Box, CircularProgress, Typography, Alert } from "@mui/material";
+import { Box, Typography, Alert } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Info as InfoIcon } from "@mui/icons-material";
@@ -41,7 +42,7 @@ const OperationDashboardGrid = ({
                 justifyContent="center"
                 minHeight="400px"
             >
-                <CircularProgress />
+                <AppSpinner />
             </Box>
         );
     }

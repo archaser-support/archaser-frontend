@@ -14,13 +14,13 @@ import {
     Card,
     CardContent,
     Chip,
-    CircularProgress,
     FormControlLabel,
     MenuItem,
     Switch,
     TextField,
     Typography,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { alpha, useTheme } from "@mui/material/styles";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import moment from "moment";
@@ -2031,7 +2031,7 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                                 className="save-button"
                                 endIcon={
                                     isSaving ? (
-                                        <CircularProgress
+                                        <AppSpinner
                                             size={16}
                                             sx={{ color: "inherit" }}
                                         />
@@ -2316,7 +2316,7 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                         }}
                         endIcon={
                             isRemovingPolicy ? (
-                                <CircularProgress
+                                <AppSpinner
                                     size={16}
                                     sx={{ color: "inherit" }}
                                 />

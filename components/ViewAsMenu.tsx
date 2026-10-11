@@ -15,10 +15,10 @@ import {
     ListItemIcon,
     ListItemText,
     MenuItem,
-    CircularProgress,
     TextField,
     InputAdornment,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { alpha } from "@mui/material/styles";
 import React, { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -271,7 +271,7 @@ const ViewAsMenu: React.FC<ViewAsMenuProps> = ({
                     <Box
                         sx={{ p: 2, display: "flex", justifyContent: "center" }}
                     >
-                        <CircularProgress size={24} />
+                        <AppSpinner size={24} />
                     </Box>
                 ) : filteredAgents.length === 0 ? (
                     <MenuItem disabled>

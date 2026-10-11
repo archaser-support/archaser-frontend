@@ -9,13 +9,11 @@ import {
 import {
     Alert,
     Autocomplete,
-    Backdrop,
     Box,
     Breadcrumbs,
     Button,
     Card,
     CardContent,
-    CircularProgress,
     Fade,
     FormControlLabel,
     IconButton,
@@ -28,6 +26,8 @@ import {
     Typography,
     useTheme,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
+import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -1726,7 +1726,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId }) => {
                                                         endAdornment: (
                                                             <>
                                                                 {isCheckingUsername && (
-                                                                    <CircularProgress
+                                                                    <AppSpinner
                                                                         color="primary"
                                                                         size={16}
                                                                     />
@@ -3498,24 +3498,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId }) => {
                             </Box>
                         </Box>
 
-                        {/* Saving Backdrop */}
-                        <Backdrop
-                            sx={{
-                                color: "#fff",
-                                zIndex: (theme) => theme.zIndex.drawer + 1,
-                                bgcolor: "rgba(0,0,0,0.5)",
-                            }}
-                            open={isSaving}
-                        >
-                            <Box
-                                display="flex"
-                                flexDirection="column"
-                                alignItems="center"
-                                gap={2}
-                            >
-                                <CircularProgress color="primary" size={40} />
-                            </Box>
-                        </Backdrop>
+                        {isSaving ? <PageLoader /> : null}
 
                         {/* Password Change Dialog */}
                         <ChangePasswordModal

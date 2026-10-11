@@ -3,13 +3,13 @@
 import { Receipt as ReceiptIcon } from "@mui/icons-material";
 import {
     Box,
-    CircularProgress,
     Typography,
     Card,
     Tabs,
     Tab,
     Paper,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import type { Theme } from "@mui/material/styles";
 import { useParams, useSearchParams } from "next/navigation";
 import React, { useEffect, useState, useMemo } from "react";
@@ -203,7 +203,7 @@ export default function Page() {
                         gap: 2,
                     }}
                 >
-                    <CircularProgress
+                    <AppSpinner
                         size={60}
                         sx={{
                             color: (theme) => theme.palette.primary.main,

@@ -13,7 +13,6 @@ import {
     Box,
     Typography,
     Chip,
-    CircularProgress,
     Checkbox,
     MenuItem,
     ListItemIcon,
@@ -24,6 +23,7 @@ import {
     IconButton,
     Tooltip,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme, alpha } from "@mui/material/styles";
 import {
     GridSortModel,
@@ -1731,7 +1731,7 @@ const AgentList: React.FC<AgentListProps> = ({
                         borderRadius: theme.shape.borderRadius,
                     }}
                 >
-                    <CircularProgress />
+                    <AppSpinner />
                 </Box>
             ) : (
                 <Box
@@ -1762,7 +1762,7 @@ const AgentList: React.FC<AgentListProps> = ({
                                     justifyContent: "center",
                                 }}
                             >
-                                <CircularProgress />
+                                <AppSpinner />
                             </Box>
                         ) : (
                             <EndlessScrollDataGrid
@@ -1824,7 +1824,7 @@ const AgentList: React.FC<AgentListProps> = ({
                                     justifyContent: "center",
                                 }}
                             >
-                                <CircularProgress />
+                                <AppSpinner />
                             </Box>
                         ) : (
                             <EndlessScrollDataGrid

@@ -5,7 +5,6 @@ import {
     Box,
     Button,
     Checkbox,
-    CircularProgress,
     FormControl,
     FormControlLabel,
     InputLabel,
@@ -15,6 +14,7 @@ import {
     Select,
     Typography,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import type { ConnectorAuthType, ImportType } from "@/types/db";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, forwardRef, type ReactNode } from "react";
@@ -2015,7 +2015,7 @@ const BillingIntegrationSettings = forwardRef<
                 ) : null}
                 {cacheSuggestionDayLoading ? (
                     <Box display="flex" justifyContent="center" py={1}>
-                        <CircularProgress size={24} />
+                        <AppSpinner size={24} />
                     </Box>
                 ) : (
                     <RadioGroup
@@ -2456,7 +2456,7 @@ const BillingIntegrationSettings = forwardRef<
     if (isLoading && config === undefined) {
         return (
             <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-                <CircularProgress />
+                <AppSpinner />
             </Box>
         );
     }
@@ -2693,7 +2693,7 @@ const BillingIntegrationSettings = forwardRef<
                             }
                             startIcon={
                                 startPortfolioGenerateMutation.isPending ? (
-                                    <CircularProgress size={16} color="inherit" />
+                                    <AppSpinner size={16} color="inherit" />
                                 ) : undefined
                             }
                         >

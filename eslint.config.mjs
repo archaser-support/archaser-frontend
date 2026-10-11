@@ -51,6 +51,24 @@ export default defineConfig([
             "no-redeclare": "error",
             "no-unreachable": "error",
             "no-duplicate-imports": "error",
+            "no-restricted-imports": [
+                "error",
+                {
+                    paths: [
+                        {
+                            name: "@mui/material",
+                            importNames: ["CircularProgress"],
+                            message:
+                                "Use AppSpinner (inline) or PageLoader (page-level) from @/shared/layout-components/spinner.",
+                        },
+                        {
+                            name: "@mui/material/CircularProgress",
+                            message:
+                                "Use AppSpinner (inline) or PageLoader (page-level) from @/shared/layout-components/spinner.",
+                        },
+                    ],
+                },
+            ],
             "no-useless-return": "error",
             "no-useless-concat": "error",
             "prefer-template": "error",

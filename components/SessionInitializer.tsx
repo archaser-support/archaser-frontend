@@ -1,6 +1,7 @@
 "use client";
 
-import { Box, CircularProgress } from "@mui/material";
+import { Box } from "@mui/material";
+import { PageLoadingOverlay } from "@/shared/layout-components/spinner/SpinnerOverlay";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
@@ -86,19 +87,7 @@ export const SessionInitializer: React.FC<SessionInitializerProps> = ({
 
     // Show loading state during initialization
     if (!isInitialized || status === "loading") {
-        return (
-            <Box
-                sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    minHeight: "100vh",
-                    width: "100%",
-                }}
-            >
-                <CircularProgress size={48} />
-            </Box>
-        );
+        return <PageLoadingOverlay open />;
     }
 
     // Show error state

@@ -10,7 +10,6 @@ import {
     Box,
     Button,
     Breadcrumbs,
-    CircularProgress,
     IconButton,
     Link,
     SelectChangeEvent,
@@ -18,6 +17,7 @@ import {
     Tooltip,
     Typography,
 } from "@mui/material";
+import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { useTheme } from "@mui/material/styles";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
@@ -2251,7 +2251,7 @@ export default function CreditInsurancePolicyDetailPage() {
                     minHeight: 320,
                 }}
             >
-                <CircularProgress />
+                <PageLoader />
             </Box>
         );
     }

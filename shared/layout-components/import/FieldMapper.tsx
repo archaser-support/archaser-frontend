@@ -9,7 +9,6 @@ import {
     Box,
     Button,
     Chip,
-    CircularProgress,
     IconButton,
     List,
     ListItem,
@@ -25,6 +24,7 @@ import {
     Tooltip,
     Typography,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import { ImportType } from "@/types/db";
 import React, {
@@ -1451,10 +1451,9 @@ const FieldMapper: React.FC<FieldMapperProps> = ({
                                 height: 200,
                             }}
                         >
-                            <CircularProgress
+                            <AppSpinner
                                 color="primary"
                                 size={32}
-                                thickness={4}
                             />
                         </Box>
                     ) : savedMappings.length === 0 ? (

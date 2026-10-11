@@ -3,12 +3,12 @@
 import { Edit as EditIcon } from "@mui/icons-material";
 import {
     Box,
-    CircularProgress,
     IconButton,
     Tooltip,
     Typography,
     Chip,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import EndlessScrollDataGrid, {
@@ -295,7 +295,7 @@ export function GenericFieldsList({ accountId }: GenericFieldsListProps) {
                     height: 200,
                 }}
             >
-                <CircularProgress color="primary" />
+                <AppSpinner color="primary" />
             </Box>
         );
     }

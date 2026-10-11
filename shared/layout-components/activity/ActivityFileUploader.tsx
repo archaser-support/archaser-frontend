@@ -20,8 +20,8 @@ import {
     Chip,
     Fade,
     alpha,
-    CircularProgress,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import React, { ChangeEvent, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -312,7 +312,7 @@ const ActivityFileUploader: React.FC<ActivityFileUploaderProps> = ({
                                 mb: theme.spacing(1),
                             }}
                         >
-                            <CircularProgress size={16} color="primary" />
+                            <AppSpinner size={16} color="primary" />
                             <Typography
                                 variant="body2"
                                 color="primary"

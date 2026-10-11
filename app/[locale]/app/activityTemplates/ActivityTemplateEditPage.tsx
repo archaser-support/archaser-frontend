@@ -5,11 +5,11 @@ import {
     Box,
     Breadcrumbs,
     Button,
-    CircularProgress,
     Link,
     Stack,
-    Typography
+    Typography,
 } from "@mui/material";
+import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { useTheme } from "@mui/material/styles";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api, { apiFetch } from "@/app/api";
@@ -470,7 +470,7 @@ export default function ActivityTemplateEditPage({
                     height: "50vh",
                 }}
             >
-                <CircularProgress />
+                <PageLoader />
             </Box>
         );
     }

@@ -5,12 +5,12 @@ import {
     Box,
     Button,
     Chip,
-    CircularProgress,
     MenuItem,
     Select,
     TextField,
     Typography,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { GridColDef, GridRenderCellParams } from "@/shared/layout-components/grid/gridColumnTypes";
 import type { ImportType } from "@/types/db";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -582,7 +582,7 @@ const ConnectorFieldMapper = React.forwardRef<
     if (isLoading) {
         return (
             <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
-                <CircularProgress size={24} />
+                <AppSpinner size={24} />
             </Box>
         );
     }
@@ -675,7 +675,7 @@ const ConnectorFieldMapper = React.forwardRef<
                             }
                             startIcon={
                                 isRefreshingEntitySetCatalog ? (
-                                    <CircularProgress size={14} />
+                                    <AppSpinner size={14} />
                                 ) : undefined
                             }
                         >
@@ -691,7 +691,7 @@ const ConnectorFieldMapper = React.forwardRef<
                         disabled={!canManage || isDiscovering}
                         startIcon={
                             isDiscovering ? (
-                                <CircularProgress size={14} />
+                                <AppSpinner size={14} />
                             ) : undefined
                         }
                     >

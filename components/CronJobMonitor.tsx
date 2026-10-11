@@ -10,7 +10,6 @@ import {
     CardHeader,
     Typography,
     Chip,
-    CircularProgress,
     Box,
     Table,
     TableBody,
@@ -26,6 +25,7 @@ import {
     Tooltip,
     Snackbar,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { styled } from "@mui/material/styles";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import React, { useState } from "react";
@@ -178,7 +178,7 @@ const CronJobMonitor: React.FC = () => {
                 alignItems="center"
                 minHeight="400px"
             >
-                <CircularProgress />
+                <AppSpinner />
             </Box>
         );
     }
@@ -355,7 +355,7 @@ const CronJobMonitor: React.FC = () => {
                                                         startIcon={
                                                             triggeringJob ===
                                                             job.id ? (
-                                                                <CircularProgress
+                                                                <AppSpinner
                                                                     size={16}
                                                                 />
                                                             ) : (

@@ -12,11 +12,11 @@ import {
     Button,
     Card,
     CardContent,
-    CircularProgress,
     MenuItem,
     TextField,
     Typography,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme, type SxProps, type Theme } from "@mui/material/styles";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import moment from "moment";
@@ -336,7 +336,7 @@ const CustomerGeneralInfo: React.FC<CustomerGeneralInfoProps> = ({
                                 disabled={isSaving}
                                 endIcon={
                                     isSaving ? (
-                                        <CircularProgress
+                                        <AppSpinner
                                             size={16}
                                             sx={{ color: "inherit" }}
                                         />
