@@ -1,25 +1,46 @@
-import {
-    resolveNestOrigin,
-    resolveProductApiOrigin,
-} from "@/utils/amplifyMode";
+/**
+ * Detect API outage for the Amplify UI maintenance overlay.
+ * Health must hit the Nest/API host — never Amplify same-origin `/health`.
+ */
 
 const listeners = new Set<(down: boolean) => void>();
 
 let unavailable = false;
 let checkInFlight: Promise<void> | null = null;
 
+function originFromEnvUrl(raw: string | undefined | null): string {
+    const value = raw?.trim();
+    if (!value) {
+        return "";
+    }
+    try {
+        const withProtocol = /^https?:\/\//i.test(value)
+            ? value
+            : `https://${value}`;
+        return new URL(withProtocol).origin;
+    } catch {
+        return "";
+    }
+}
+
 /**
- * Nest `/health` on the API host. Prefer Nest origin; fall back to product API
- * origin so Amplify still works when only NEXT_PUBLIC_API_BASE_URL is set.
+ * Absolute Nest `/health` URL for the browser.
+ * Reads NEXT_PUBLIC_* directly so Amplify does not depend on isAmplifySsrBuild().
  */
 export function resolveHealthUrl(): string {
-    const nest = resolveNestOrigin().replace(/\/$/, "");
-    if (nest) {
-        return `${nest}/health`;
+    const fromNest = originFromEnvUrl(
+        process.env.NEXT_PUBLIC_NEST_API_BASE_URL
+    );
+    if (fromNest) {
+        return `${fromNest}/health`;
     }
-    const productOrigin = resolveProductApiOrigin().replace(/\/$/, "");
-    if (productOrigin) {
-        return `${productOrigin}/health`;
+    const fromApi = originFromEnvUrl(process.env.NEXT_PUBLIC_API_BASE_URL);
+    if (fromApi) {
+        return `${fromApi}/health`;
+    }
+    // Local / EC2 hybrid: same-origin nginx → Nest
+    if (typeof window !== "undefined") {
+        return `${window.location.origin}/health`;
     }
     return "/health";
 }
@@ -44,46 +65,37 @@ function emit(down: boolean): void {
 export type HealthProbe = "up" | "down" | "unknown";
 
 export async function probeApiHealth(): Promise<HealthProbe> {
+    const url = `${resolveHealthUrl()}?_=${Date.now()}`;
     try {
-        const response = await fetch(resolveHealthUrl(), {
+        const response = await fetch(url, {
             method: "GET",
             cache: "no-store",
             credentials: "omit",
-            signal: AbortSignal.timeout(4000),
+            mode: "cors",
+            signal: AbortSignal.timeout(5000),
         });
         if (response.ok) {
             return "up";
         }
-        if (
-            response.status === 502 ||
-            response.status === 503 ||
-            response.status === 504
-        ) {
-            return "down";
-        }
-        return "unknown";
+        // Nest down → nginx 503; wrong host (Amplify /health 404) → also treat as down
+        // so the overlay is not stuck waiting for a gateway-only status.
+        return "down";
     } catch {
+        // CORS or network failure to a dead/unreachable API host
         return "down";
     }
 }
 
-async function confirmOutage(status?: number): Promise<void> {
+async function confirmOutage(): Promise<void> {
     if (checkInFlight) {
         return checkInFlight;
     }
     checkInFlight = (async () => {
-        const probe = await probeApiHealth();
         if (typeof navigator !== "undefined" && navigator.onLine === false) {
             return;
         }
-        const gatewayStatus =
-            status === 502 || status === 503 || status === 504;
-        // No HTTP status usually means CORS/network failure to a dead API host.
-        const networkFailure = status === undefined;
-        if (
-            probe === "down" ||
-            (probe === "unknown" && (gatewayStatus || networkFailure))
-        ) {
+        const probe = await probeApiHealth();
+        if (probe === "down") {
             emit(true);
         }
     })().finally(() => {
@@ -95,7 +107,7 @@ async function confirmOutage(status?: number): Promise<void> {
 /** Gateway or network failure from a product API call. Confirmed with /health. */
 export function noteUpstreamUnavailable(
     requestUrl?: string,
-    status?: number
+    _status?: number
 ): void {
     if (typeof window === "undefined" || unavailable) {
         return;
@@ -106,7 +118,7 @@ export function noteUpstreamUnavailable(
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
         return;
     }
-    void confirmOutage(status);
+    void confirmOutage();
 }
 
 /** Direct mark from a proactive /health probe (e.g. on app mount). */
