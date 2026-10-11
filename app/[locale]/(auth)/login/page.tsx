@@ -28,7 +28,7 @@ import {
 } from "@mui/material";
 import { getSession, signIn } from "next-auth/react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import React, {
     useCallback,
     useEffect,
@@ -125,7 +125,6 @@ interface FormState {
 function LoginPageContent() {
     const { t, i18n } = useTranslation(["auth", "common"]);
     const searchParams = useSearchParams();
-    const router = useRouter();
 
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -501,14 +500,15 @@ function LoginPageContent() {
 
             const session = await getSession();
             const homePath = session?.user?.homePath || redirectUrl;
-            sessionStorage.removeItem(PENDING_LOGIN_REDIRECT_KEY);
-            await router.replace(`/${language}${homePath}`);
-            loginHandoffOwnedByLiveHandler = false;
+            const target = `/${language}${homePath}`;
+            // Hard-navigate so a post-signIn session/RSC remount cannot
+            // re-paint /login (Fade-in flash) before the dashboard loads.
+            // PENDING stays until SessionLanguageMonitor clears handoff on /app.
+            window.location.replace(target);
         },
         [
             clearLoginHandoff,
             mapLanguageToLocale,
-            router,
             stampLoginExitStorage,
             t,
             updateFormState,
@@ -1140,7 +1140,15 @@ function LoginPageContent() {
                         direction: isHebrew ? "rtl" : "ltr",
                     }}
                 >
-                    <Fade in timeout={800}>
+                    <Fade
+                        in
+                        appear={!formState.isLoading && !isLoginHandoffActive()}
+                        timeout={
+                            formState.isLoading || isLoginHandoffActive()
+                                ? 0
+                                : 800
+                        }
+                    >
                         <AuthPaper
                             elevation={24}
                             dir={isHebrew ? "rtl" : "ltr"}
