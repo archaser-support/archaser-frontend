@@ -39,6 +39,126 @@ export function resolveCustomerPolicyHistoryChipKind(args: {
     return "previous_policy";
 }
 
+export type CustomerPolicyHistoryRemoveKind =
+    | "removed"
+    | "not_applied_after_remove";
+
+type CustomerPolicyHistoryRemoveVersion = {
+    id?: number | string | null;
+    status?: unknown;
+    is_active?: unknown;
+    insurance_policy_id?: unknown;
+    policy_change_start_date?: unknown;
+    policy_change_end_date?: unknown;
+};
+
+function toUtcDayKey(value: unknown): string | null {
+    if (value === null || value === undefined || String(value).trim() === "") {
+        return null;
+    }
+    const date = new Date(String(value).trim());
+    return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10);
+}
+
+function hasInsurancePolicy(version: CustomerPolicyHistoryRemoveVersion) {
+    return version.insurance_policy_id != null && version.insurance_policy_id !== "";
+}
+
+function isVoidedHistoryVersion(version: CustomerPolicyHistoryRemoveVersion) {
+    const start = toUtcDayKey(version.policy_change_start_date);
+    const end = toUtcDayKey(version.policy_change_end_date);
+    return start != null && end != null && end <= start;
+}
+
+function versionIdNumber(version: CustomerPolicyHistoryRemoveVersion): number {
+    return Number(version.id);
+}
+
+/**
+ * Removed row saved by Remove policy: no insurance policy, inactive, open end.
+ * Mirrors `isCustomerPolicyRemovedRow` in `@archaser/credit-insurance-domain`.
+ */
+export function isCustomerPolicyHistoryRemovedRow(
+    version: CustomerPolicyHistoryRemoveVersion
+): boolean {
+    return (
+        !hasInsurancePolicy(version) &&
+        !version.is_active &&
+        version.status !== "pending" &&
+        toUtcDayKey(version.policy_change_end_date) == null
+    );
+}
+
+/**
+ * Version live when the Remove was saved (latest-saved non-voided version with
+ * a policy and a lower id); its policy names the Removed row.
+ */
+export function findCustomerPolicyHistoryVersionEndedByRemove<
+    T extends CustomerPolicyHistoryRemoveVersion,
+>(removedRow: CustomerPolicyHistoryRemoveVersion, versions: readonly T[]): T | null {
+    const removedId = versionIdNumber(removedRow);
+    let ended: T | null = null;
+    for (const version of versions) {
+        const id = versionIdNumber(version);
+        if (
+            !Number.isFinite(id) ||
+            id >= removedId ||
+            version.status === "pending" ||
+            !hasInsurancePolicy(version) ||
+            isVoidedHistoryVersion(version)
+        ) {
+            continue;
+        }
+        if (ended == null || id > versionIdNumber(ended)) {
+            ended = version;
+        }
+    }
+    return ended;
+}
+
+/**
+ * Remove marker per version id (string key), on UTC calendar days.
+ * `removed`: the Removed row itself.
+ * `not_applied_after_remove`: a version saved before a Remove that starts on
+ * or after the remove day, so it never applied. Display-only; the row is not
+ * changed.
+ */
+export function buildCustomerPolicyHistoryRemoveKindById(
+    versions: readonly CustomerPolicyHistoryRemoveVersion[]
+): Map<string, CustomerPolicyHistoryRemoveKind> {
+    const removedRows = versions.filter(
+        (version) =>
+            version.id != null && isCustomerPolicyHistoryRemovedRow(version)
+    );
+    const kindById = new Map<string, CustomerPolicyHistoryRemoveKind>();
+    for (const removed of removedRows) {
+        kindById.set(String(removed.id), "removed");
+    }
+    for (const version of versions) {
+        if (
+            version.id == null ||
+            version.status === "pending" ||
+            !hasInsurancePolicy(version)
+        ) {
+            continue;
+        }
+        const start = toUtcDayKey(version.policy_change_start_date);
+        const notApplied = removedRows.some((removed) => {
+            const removedStart = toUtcDayKey(removed.policy_change_start_date);
+            return (
+                versionIdNumber(version) < versionIdNumber(removed) &&
+                start != null &&
+                removedStart != null &&
+                start >= removedStart
+            );
+        });
+        if (notApplied) {
+            kindById.set(String(version.id), "not_applied_after_remove");
+        }
+    }
+    return kindById;
+}
+
 type CustomerPolicyHistoryFieldKind = "number" | "date" | "string" | "boolean";
 
 /**
@@ -129,7 +249,7 @@ export function listChangedCustomerPolicyHistoryFields(
 /**
  * Changed fields per version id (string key), each version compared to the
  * chronologically previous one (by ascending id = creation order). Pending
- * rows are skipped; the oldest version has no entry.
+ * and Removed rows are skipped; the oldest version has no entry.
  */
 export function buildCustomerPolicyHistoryChangedFieldsById(
     versions: readonly CustomerPolicyHistoryVersion[]
@@ -138,6 +258,7 @@ export function buildCustomerPolicyHistoryChangedFieldsById(
         .filter(
             (version) =>
                 version.status !== "pending" &&
+                !isCustomerPolicyHistoryRemovedRow(version) &&
                 version.id != null &&
                 Number.isFinite(Number(version.id))
         )
