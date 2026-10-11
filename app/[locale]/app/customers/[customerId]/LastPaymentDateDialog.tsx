@@ -5,7 +5,8 @@ import AppDialog from "@/shared/layout-components/modal/AppDialog";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import { EventNote as EventNoteIcon } from "@mui/icons-material";
 import axios from "axios";
-import { Box, Button, CircularProgress } from "@mui/material";
+import { Box, Button } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import moment, { Moment } from "moment";
@@ -177,7 +178,7 @@ const LastPaymentDateDialog: React.FC<LastPaymentDateDialogProps> = ({
                         fullWidth={false}
                         endIcon={
                             saving ? (
-                                <CircularProgress
+                                <AppSpinner
                                     size={16}
                                     sx={{ color: "inherit" }}
                                 />

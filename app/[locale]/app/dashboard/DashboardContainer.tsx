@@ -5,11 +5,11 @@ import { Warning as WarningIcon } from "@mui/icons-material";
 import {
     Box,
     Button,
-    CircularProgress,
     Divider,
     Typography,
     useTheme,
 } from "@mui/material";
+import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import React, { Fragment, useEffect, useRef, useState } from "react";
@@ -216,7 +216,7 @@ const DashboardContainer = () => {
                     px: { xs: 2, sm: 3 },
                 }}
             >
-                <CircularProgress color="primary" size={48} />
+                <PageLoader />
             </Box>
         );
     }
@@ -303,7 +303,7 @@ const DashboardContainer = () => {
                     px: { xs: 2, sm: 3 },
                 }}
             >
-                <CircularProgress color="primary" size={48} />
+                <PageLoader />
             </Box>
         );
     }

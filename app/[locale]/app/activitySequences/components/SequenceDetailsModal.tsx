@@ -4,13 +4,13 @@ import { Info as InfoIcon } from "@mui/icons-material";
 import {
     Box,
     Button,
-    CircularProgress,
     FormControlLabel,
     Switch,
     TextField,
     Typography,
     useTheme,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -194,7 +194,7 @@ export default function SequenceDetailsModal({
                         className="save-button"
                         endIcon={
                             isSaving ? (
-                                <CircularProgress
+                                <AppSpinner
                                     size={16}
                                     sx={{ color: "inherit" }}
                                 />

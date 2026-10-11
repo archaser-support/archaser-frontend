@@ -12,12 +12,12 @@ import {
     Badge,
     Box,
     Button,
-    CircularProgress,
     Tab,
     Tabs,
     Typography,
     useTheme,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import Slide from "@mui/material/Slide";
 import { alpha } from "@mui/material/styles";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -2604,7 +2604,7 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                             onClick={() => void performSave(true)}
                             endIcon={
                                 isSaving ? (
-                                    <CircularProgress
+                                    <AppSpinner
                                         size={16}
                                         sx={{ color: "inherit" }}
                                     />

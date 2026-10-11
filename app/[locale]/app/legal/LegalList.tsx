@@ -11,13 +11,14 @@ import {
     Button,
     Checkbox,
     Chip,
-    CircularProgress,
     ListItemIcon,
     ListItemText,
     MenuItem,
     Popover,
-    Typography
+    Typography,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
+import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { useTheme } from "@mui/material/styles";
 import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -728,8 +729,7 @@ const LegalList: React.FC<LegalListProps> = ({
                     minHeight: "400px",
                 }}
             >
-                <CircularProgress color="primary" size={40} />
-                <CircularProgress color="primary" size={40} />
+                <PageLoader />
             </Box>
         );
     }
@@ -756,7 +756,7 @@ const LegalList: React.FC<LegalListProps> = ({
                         borderRadius: 1,
                     }}
                 >
-                    <CircularProgress />
+                    <AppSpinner />
                 </Box>
             ) : (
                 <Box ref={tableContainerRef}>

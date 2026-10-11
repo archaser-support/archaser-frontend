@@ -8,7 +8,6 @@ import {
     Box,
     Button,
     Chip,
-    CircularProgress,
     FormControl,
     IconButton,
     InputLabel,
@@ -19,6 +18,7 @@ import {
     Typography,
     useTheme,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { alpha } from "@mui/material/styles";
 import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";

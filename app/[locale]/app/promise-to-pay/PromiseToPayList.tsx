@@ -2,7 +2,8 @@
 
 import { usePageWheelScrollsTable } from "@/shared/hooks/usePageWheelScrollsTable";
 import { Handshake as HandshakeIcon } from "@mui/icons-material";
-import { Button, Box, CircularProgress, Typography, Chip } from "@mui/material";
+import { Button, Box, Typography, Chip } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import {
     GridSortModel,
@@ -460,7 +461,7 @@ const PromiseToPayList: React.FC<PromiseToPayListProps> = ({
                         borderRadius: theme.shape.borderRadius,
                     }}
                 >
-                    <CircularProgress />
+                    <AppSpinner />
                 </Box>
             ) : (
                 <Box

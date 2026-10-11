@@ -2,10 +2,10 @@
 
 import {
     Box,
-    CircularProgress,
     Link as MuiLink,
     Typography,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
@@ -132,7 +132,7 @@ export default function AccountRoles({ accountId }: AccountRolesProps) {
                     height: "100%",
                 }}
             >
-                <CircularProgress color="primary" />
+                <AppSpinner color="primary" />
             </Box>
         );
     }

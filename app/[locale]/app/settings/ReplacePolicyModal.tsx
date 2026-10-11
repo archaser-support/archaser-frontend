@@ -4,7 +4,6 @@ import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import {
     Box,
     Button,
-    CircularProgress,
     FormControl,
     InputLabel,
     MenuItem,
@@ -12,6 +11,7 @@ import {
     Typography,
     useTheme,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import api from "@/app/api";
 import { isAxiosError } from "axios";
@@ -156,7 +156,7 @@ export function ReplacePolicyModal({
                         onClick={() => replaceMutation.mutate()}
                         endIcon={
                             replaceMutation.isPending ? (
-                                <CircularProgress size={16} sx={{ color: "inherit" }} />
+                                <AppSpinner size={16} sx={{ color: "inherit" }} />
                             ) : undefined
                         }
                         sx={{
@@ -190,7 +190,7 @@ export function ReplacePolicyModal({
                 </Typography>
                 {isLoading || isLoadingAssignable ? (
                     <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
-                        <CircularProgress size={28} />
+                        <AppSpinner size={28} />
                     </Box>
                 ) : (
                     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>

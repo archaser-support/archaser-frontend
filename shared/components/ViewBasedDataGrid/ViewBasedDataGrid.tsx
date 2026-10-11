@@ -1,7 +1,8 @@
 "use client";
 import { apiFetch } from "@/utils/apiFetch";
 
-import { Box, CircularProgress, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import { GridColDef, GridRenderCellParams, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -1128,7 +1129,7 @@ export const ViewBasedDataGrid: React.FC<ViewBasedDataGridProps> = ({
                     borderRadius: 1,
                 }}
             >
-                <CircularProgress />
+                <AppSpinner />
             </Box>
         );
     }
