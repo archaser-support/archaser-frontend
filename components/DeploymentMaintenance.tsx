@@ -12,6 +12,7 @@ import {
 } from "@/utils/apiAvailability";
 
 const RECHECK_MS = 8000;
+const PROACTIVE_POLL_MS = 5000;
 
 function isPreviewMaintenance(): boolean {
     if (typeof window === "undefined") {
@@ -33,14 +34,30 @@ export default function DeploymentMaintenance() {
         const isPreview = isPreviewMaintenance();
         setPreview(isPreview);
         const unsubscribe = subscribeApiAvailability(setDown);
-        if (!isPreview) {
-            void probeApiHealth().then((probe) => {
-                if (probe === "down") {
-                    noteConfirmedOutage();
-                }
-            });
+
+        if (isPreview) {
+            return unsubscribe;
         }
-        return unsubscribe;
+
+        const check = async () => {
+            const probe = await probeApiHealth();
+            if (probe === "down") {
+                noteConfirmedOutage();
+            } else if (probe === "up") {
+                // Recovery while overlay is showing is handled via subscribe + markApiAvailable
+                // only from the recheck effect below; avoid reload loops on healthy apps.
+            }
+        };
+
+        void check();
+        const pollId = window.setInterval(() => {
+            void check();
+        }, PROACTIVE_POLL_MS);
+
+        return () => {
+            unsubscribe();
+            window.clearInterval(pollId);
+        };
     }, []);
 
     useEffect(() => {
@@ -73,7 +90,7 @@ export default function DeploymentMaintenance() {
             sx={{
                 position: "fixed",
                 inset: 0,
-                zIndex: (theme) => theme.zIndex.modal,
+                zIndex: (theme) => theme.zIndex.modal + 1,
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
