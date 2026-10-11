@@ -42,6 +42,10 @@ import {
     formatCurrencyWithRTLSupport,
     resolveCustomerFirstCurrency,
 } from "@/utils/stringFormatters";
+import {
+    isDueOrOverdueCustomerInvoiceReport,
+    isOverdueCustomerInvoiceReport,
+} from "@/shared/constants/customerUnpaidInvoicePolicyInsightsReports";
 import { getInvoiceFieldFromGridRow } from "@/shared/utils/invoiceGridRowFields";
 
 import { CreditInsuranceViolationsCell } from "./CreditInsuranceViolationsCell";
@@ -240,9 +244,9 @@ const CustomerInvoiceGrid: React.FC<CustomerProp> = ({
         staleTime: 60 * 1000,
     });
 
-    const reportImpliesDueOrOverdue =
-        selectedReportMeta?.unique_name === "due_invoices" ||
-        selectedReportMeta?.unique_name === "overdue_invoices";
+    const reportImpliesDueOrOverdue = isDueOrOverdueCustomerInvoiceReport(
+        selectedReportMeta?.unique_name
+    );
 
     const mepIgnoredInvoiceIds = useMemo(() => {
         const ids = new Set<number>();
@@ -808,7 +812,9 @@ const CustomerInvoiceGrid: React.FC<CustomerProp> = ({
                 togglingMepIgnoreInvoiceId === invoiceId;
             const showOpenClaim =
                 invoiceStatusName === "Overdue" ||
-                selectedReportMeta?.unique_name === "overdue_invoices" ||
+                isOverdueCustomerInvoiceReport(
+                    selectedReportMeta?.unique_name
+                ) ||
                 (Number.isFinite(invoiceId) &&
                     claimedInvoiceIds.has(invoiceId));
             return (
