@@ -8,6 +8,14 @@ const listeners = new Set<(down: boolean) => void>();
 let unavailable = false;
 let checkInFlight: Promise<void> | null = null;
 
+/** Known UI host → Nest origin when env is missing from the client bundle. */
+const UI_HOST_TO_NEST_ORIGIN: Record<string, string> = {
+    "staging.archaser.com": "https://api.staging.archaser.com",
+    "www.staging.archaser.com": "https://api.staging.archaser.com",
+    "portal.archaser.com": "https://api.portal.archaser.com",
+    "www.portal.archaser.com": "https://api.portal.archaser.com",
+};
+
 function originFromEnvUrl(raw: string | undefined | null): string {
     const value = raw?.trim();
     if (!value) {
@@ -23,11 +31,19 @@ function originFromEnvUrl(raw: string | undefined | null): string {
     }
 }
 
+function nestOriginFromUiHost(): string {
+    if (typeof window === "undefined") {
+        return "";
+    }
+    return UI_HOST_TO_NEST_ORIGIN[window.location.hostname] ?? "";
+}
+
 /**
  * Absolute Nest `/health` URL for the browser.
- * Reads NEXT_PUBLIC_* directly so Amplify does not depend on isAmplifySsrBuild().
+ * Prefer NEXT_PUBLIC_* env; fall back to known UI→API host map.
+ * Returns null when we must not probe (Amplify without a Nest origin).
  */
-export function resolveHealthUrl(): string {
+export function resolveHealthUrl(): string | null {
     const fromNest = originFromEnvUrl(
         process.env.NEXT_PUBLIC_NEST_API_BASE_URL
     );
@@ -38,7 +54,14 @@ export function resolveHealthUrl(): string {
     if (fromApi) {
         return `${fromApi}/health`;
     }
-    // Local / EC2 hybrid: same-origin nginx → Nest
+    const fromHost = nestOriginFromUiHost();
+    if (fromHost) {
+        return `${fromHost}/health`;
+    }
+    // Amplify UI must never probe its own origin — /health 404 is not Nest down.
+    if (process.env.NEXT_PUBLIC_AMPLIFY_UI === "true") {
+        return null;
+    }
     if (typeof window !== "undefined") {
         return `${window.location.origin}/health`;
     }
@@ -65,24 +88,51 @@ function emit(down: boolean): void {
 export type HealthProbe = "up" | "down" | "unknown";
 
 export async function probeApiHealth(): Promise<HealthProbe> {
-    const url = `${resolveHealthUrl()}?_=${Date.now()}`;
+    const healthPath = resolveHealthUrl();
+    if (!healthPath) {
+        return "unknown";
+    }
+
+    // Guard: never treat Amplify same-origin as Nest outage.
+    if (typeof window !== "undefined") {
+        try {
+            const healthOrigin = new URL(healthPath, window.location.origin)
+                .origin;
+            if (
+                healthOrigin === window.location.origin &&
+                process.env.NEXT_PUBLIC_AMPLIFY_UI === "true"
+            ) {
+                return "unknown";
+            }
+        } catch {
+            return "unknown";
+        }
+    }
+
+    if (typeof window === "undefined") {
+        return "unknown";
+    }
+
+    const url = `${healthPath}${healthPath.includes("?") ? "&" : "?"}_=${Date.now()}`;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 5000);
     try {
         const response = await fetch(url, {
             method: "GET",
             cache: "no-store",
             credentials: "omit",
             mode: "cors",
-            signal: AbortSignal.timeout(5000),
+            signal: controller.signal,
         });
         if (response.ok) {
             return "up";
         }
-        // Nest down → nginx 503; wrong host (Amplify /health 404) → also treat as down
-        // so the overlay is not stuck waiting for a gateway-only status.
+        // Nest down → nginx 503 (or other non-OK from the API host)
         return "down";
     } catch {
-        // CORS or network failure to a dead/unreachable API host
         return "down";
+    } finally {
+        window.clearTimeout(timer);
     }
 }
 
@@ -129,10 +179,18 @@ export function noteConfirmedOutage(): void {
     emit(true);
 }
 
+/** Clear overlay and reload once Nest /health is healthy again. */
 export function markApiAvailable(): void {
-    if (!unavailable || typeof window === "undefined") {
+    if (typeof window === "undefined") {
+        return;
+    }
+    if (!unavailable) {
         return;
     }
     emit(false);
     window.location.reload();
+}
+
+export function isApiMarkedUnavailable(): boolean {
+    return unavailable;
 }

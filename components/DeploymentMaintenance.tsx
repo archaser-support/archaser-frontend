@@ -5,13 +5,14 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
+    isApiMarkedUnavailable,
     markApiAvailable,
     noteConfirmedOutage,
     probeApiHealth,
     subscribeApiAvailability,
 } from "@/utils/apiAvailability";
 
-const RECHECK_MS = 8000;
+const RECHECK_MS = 5000;
 const PROACTIVE_POLL_MS = 5000;
 
 function isPreviewMaintenance(): boolean {
@@ -43,9 +44,8 @@ export default function DeploymentMaintenance() {
             const probe = await probeApiHealth();
             if (probe === "down") {
                 noteConfirmedOutage();
-            } else if (probe === "up") {
-                // Recovery while overlay is showing is handled via subscribe + markApiAvailable
-                // only from the recheck effect below; avoid reload loops on healthy apps.
+            } else if (probe === "up" && isApiMarkedUnavailable()) {
+                markApiAvailable();
             }
         };
 
@@ -71,6 +71,8 @@ export default function DeploymentMaintenance() {
                 markApiAvailable();
             }
         };
+        // Run immediately — do not wait for the first interval tick.
+        void recheck();
         const id = window.setInterval(() => {
             void recheck();
         }, RECHECK_MS);
