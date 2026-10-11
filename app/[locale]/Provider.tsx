@@ -5,6 +5,7 @@ import { SessionProvider } from "next-auth/react";
 import { ReactNode } from "react";
 
 import ThemeRegistry from "@/app/ThemeRegistry";
+import DeploymentMaintenance from "@/components/DeploymentMaintenance";
 import InactivityMonitor from "@/components/InactivityMonitor";
 import SessionLanguageMonitor from "@/components/SessionLanguageMonitor";
 import { ToastProvider } from "@/shared/layout-components/toast/ToastProvider";
@@ -44,6 +45,7 @@ export default function Provider({ children }: ProviderProps) {
             {!isPortalRoute && !isAuthRoute && <SessionLanguageMonitor />}
             {!isPortalRoute && !isAuthRoute && <InactivityMonitor />}
             <ThemeRegistry>
+                <DeploymentMaintenance />
                 <ToastProvider>{children}</ToastProvider>
             </ThemeRegistry>
         </>

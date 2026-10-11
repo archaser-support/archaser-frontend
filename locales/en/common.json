@@ -219,7 +219,9 @@
         "in_a_moment": "In a moment",
         "in_minutes": "in {{count}} minutes",
         "in_hours": "in {{count}} hours",
-        "in_days": "in {{count}} days"
+        "in_days": "in {{count}} days",
+        "deployment_title": "ARchaser is being updated",
+        "deployment_body": "A new version is being deployed. This page will refresh on its own in a few seconds."
     },
     "values": {
         "status_active": "Active",
