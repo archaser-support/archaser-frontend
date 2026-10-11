@@ -14,7 +14,6 @@ import {
     Card,
     CardContent,
     Typography,
-    CircularProgress,
     IconButton,
     Tooltip,
     Table,
@@ -26,6 +25,7 @@ import {
     Chip,
     Alert,
 } from "@mui/material";
+import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { GridColDef } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
@@ -628,7 +628,7 @@ const SystemHealthContainer = () => {
                     px: { xs: 2, sm: 3 },
                 }}
             >
-                <CircularProgress size={48} />
+                <PageLoader />
             </Box>
         );
     }

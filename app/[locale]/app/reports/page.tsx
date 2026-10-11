@@ -12,13 +12,13 @@ import {
 import {
     Box,
     Button,
-    CircularProgress,
     IconButton,
     Tooltip,
     Switch,
     Link as MuiLink,
     Typography,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import {
     GridColDef,
@@ -866,7 +866,7 @@ const ReportsPage: React.FC = () => {
                             borderRadius: 1,
                         }}
                     >
-                        <CircularProgress />
+                        <AppSpinner />
                     </Box>
                 ) : (
                     <Box

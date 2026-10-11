@@ -6,13 +6,13 @@ import {
     Card,
     CardContent,
     Chip,
-    CircularProgress,
     FormControlLabel,
     Stack,
     Switch,
     TextField,
     Typography,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/app/api";
 import { isAxiosError } from "axios";
@@ -263,7 +263,7 @@ export function NotificationRuleSetsSettings({
                     py: 6,
                 }}
             >
-                <CircularProgress />
+                <AppSpinner />
             </Box>
         );
     }
@@ -465,7 +465,7 @@ function NotificationRuleSetCard({
                                 </Typography>
                             ) : null}
                         </Box>
-                        {isSaving ? <CircularProgress size={20} /> : null}
+                        {isSaving ? <AppSpinner size={20} /> : null}
                     </Box>
 
                     <FormControlLabel

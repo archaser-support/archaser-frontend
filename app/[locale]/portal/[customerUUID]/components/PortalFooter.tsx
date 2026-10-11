@@ -5,6 +5,8 @@ import { useTheme } from "@mui/material/styles";
 import { FC } from "react";
 import { useTranslation } from "react-i18next";
 
+import ArchaserLogo from "@/shared/components/ArchaserLogo";
+
 type PortalFooterProps = {
     className?: string;
 };
@@ -46,14 +48,11 @@ const PortalFooter: FC<PortalFooterProps> = ({ className = "" }) => {
                 rel="noopener noreferrer"
                 className="portal-footer-link"
             >
-                <Box
-                    component="img"
-                    src="/assets/images/brand-logos/logo.png"
-                    alt="ARchaser"
+                <ArchaserLogo
+                    title="ARChaser"
+                    height={24}
                     sx={{
-                        height: "32px",
-                        width: "auto",
-                        objectFit: "contain",
+                        color: theme.palette.primary.contrastText,
                         marginRight:
                             i18n.language === "he" ? 0 : theme.spacing(0.5),
                         marginLeft:

@@ -12,7 +12,6 @@ import {
     Breadcrumbs,
     Button,
     Chip,
-    CircularProgress,
     FormControlLabel,
     IconButton,
     InputAdornment,
@@ -25,6 +24,7 @@ import {
     Typography,
     useTheme,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { alpha, type Theme } from "@mui/material/styles";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/app/api";
@@ -1144,7 +1144,7 @@ export default function RolePermissions({
                                 minHeight: 400,
                             }}
                         >
-                            <CircularProgress />
+                            <AppSpinner />
                         </Box>
                     ) : (
                         <Box

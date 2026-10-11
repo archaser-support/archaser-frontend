@@ -7,12 +7,12 @@ import {
     Box,
     Card,
     CardContent,
-    CircularProgress,
     Divider,
     LinearProgress,
     Tooltip,
     Typography,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import {
     CheckCircle as CheckCircleIcon,
@@ -89,7 +89,7 @@ function PhaseStatusIcon({ phase }: { phase: EntityProgressPhase }) {
             break;
         case "running":
             icon = (
-                <CircularProgress
+                <AppSpinner
                     size={16}
                     color="primary"
                     sx={{ flexShrink: 0 }}

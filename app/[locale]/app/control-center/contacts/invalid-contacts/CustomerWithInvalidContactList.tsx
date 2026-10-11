@@ -1,7 +1,8 @@
 "use client";
 import EditIcon from "@mui/icons-material/Edit";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
-import { CircularProgress, Button } from "@mui/material";
+import { Button } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import { styled, useTheme } from "@mui/material/styles";
@@ -636,7 +637,7 @@ const CustomerWithInvalidContactList: React.FC = () => {
         <StyledContainer>
             {isLoading && contacts.length === 0 ? (
                 <StyledLoadingContainer>
-                    <CircularProgress size={40} />
+                    <AppSpinner size={40} />
                 </StyledLoadingContainer>
             ) : (
                 <Box

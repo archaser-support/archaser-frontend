@@ -12,9 +12,9 @@ import {
     FormControl,
     InputLabel,
     Chip,
-    CircularProgress,
     Alert,
 } from "@mui/material";
+import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { useTheme } from "@mui/material/styles";
 import { GridColDef } from "@/shared/layout-components/grid/gridColumnTypes";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
@@ -229,7 +229,7 @@ const ChannelSelectionAnalytics: React.FC = () => {
     if (loading) {
         return (
             <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
-                <CircularProgress />
+                <PageLoader />
             </Box>
         );
     }

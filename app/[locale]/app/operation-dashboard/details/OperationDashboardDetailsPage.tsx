@@ -4,10 +4,10 @@ import { apiFetch } from "@/utils/apiFetch";
 import {
     Alert,
     Box,
-    CircularProgress,
     Typography,
-    useTheme
+    useTheme,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
@@ -866,7 +866,7 @@ export default function OperationDashboardDetailsPage({
                                 minHeight: "400px",
                             }}
                         >
-                            <CircularProgress color="primary" />
+                            <AppSpinner color="primary" />
                         </Box>
                     ) : (
                         <EndlessScrollDataGrid

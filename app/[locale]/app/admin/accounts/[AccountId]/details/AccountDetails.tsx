@@ -25,7 +25,6 @@ import {
     Card,
     CardContent,
     Chip,
-    CircularProgress,
     Fade,
     FormControlLabel,
     IconButton,
@@ -37,6 +36,8 @@ import {
     Typography,
     useTheme,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
+import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { GridColDef, GridRenderCellParams } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -2044,15 +2045,7 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
                 }}
             >
                 <Box textAlign="center">
-                    <CircularProgress
-                        color="primary"
-                        size={40}
-                        sx={{
-                            mb: { xs: 1, sm: 2 },
-                            width: { xs: 32, sm: 40 },
-                            height: { xs: 32, sm: 40 },
-                        }}
-                    />
+                    <PageLoader />
                 </Box>
             </Box>
         );
@@ -2072,14 +2065,7 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
                 }}
             >
                 <Box textAlign="center">
-                    <CircularProgress
-                        color="primary"
-                        size={40}
-                        sx={{
-                            width: { xs: 32, sm: 40 },
-                            height: { xs: 32, sm: 40 },
-                        }}
-                    />
+                    <PageLoader />
                 </Box>
             </Box>
         );
@@ -2099,14 +2085,7 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
                 }}
             >
                 <Box textAlign="center">
-                    <CircularProgress
-                        color="primary"
-                        size={40}
-                        sx={{
-                            width: { xs: 32, sm: 40 },
-                            height: { xs: 32, sm: 40 },
-                        }}
-                    />
+                    <PageLoader />
                 </Box>
             </Box>
         );
@@ -2651,7 +2630,7 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
                                             disabled={savingConfigurations}
                                             endIcon={
                                                 savingConfigurations ? (
-                                                    <CircularProgress
+                                                    <AppSpinner
                                                         size={16}
                                                         sx={{ color: "inherit" }}
                                                     />
@@ -2721,7 +2700,7 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
                                                 justifyContent="center"
                                                 py={4}
                                             >
-                                                <CircularProgress
+                                                <AppSpinner
                                                     color="primary"
                                                     size={40}
                                                 />
@@ -2935,7 +2914,7 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
                                     fullWidth={false}
                                     endIcon={
                                         savingConfigurations ? (
-                                            <CircularProgress
+                                            <AppSpinner
                                                 size={16}
                                                 sx={{ color: "inherit" }}
                                             />

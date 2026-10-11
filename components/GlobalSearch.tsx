@@ -15,7 +15,6 @@ import {
 import {
     Autocomplete,
     TextField,
-    CircularProgress,
     Box,
     Typography,
     Chip,
@@ -29,6 +28,7 @@ import {
     ListSubheader,
     InputAdornment,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { alpha } from "@mui/material/styles";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -2693,11 +2693,13 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                                 </strong>{" "}
                                                 {previewCreditKpisPending &&
                                                 !previewCreditCards
-                                                    ? t("messages.loading", {
-                                                          ns: "common",
-                                                          defaultValue:
-                                                              "Loading…",
-                                                      })
+                                                    ? (
+                                                          <AppSpinner
+                                                              size={12}
+                                                              label={t("messages.loading", { ns: "common" })}
+                                                              labelVariant="inherit"
+                                                          />
+                                                      )
                                                     : formatPreviewMoney(
                                                           previewCreditCards?.totalAr,
                                                           previewCreditCards?.accountCurrency
@@ -2720,11 +2722,13 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                                 </strong>{" "}
                                                 {previewCreditKpisPending &&
                                                 !previewCreditCards
-                                                    ? t("messages.loading", {
-                                                          ns: "common",
-                                                          defaultValue:
-                                                              "Loading…",
-                                                      })
+                                                    ? (
+                                                          <AppSpinner
+                                                              size={12}
+                                                              label={t("messages.loading", { ns: "common" })}
+                                                              labelVariant="inherit"
+                                                          />
+                                                      )
                                                     : formatPreviewMoney(
                                                           previewCreditCards?.capacityGapAmount,
                                                           previewCreditCards?.accountCurrency
@@ -2747,11 +2751,13 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                                 </strong>{" "}
                                                 {previewCreditKpisPending &&
                                                 !previewCreditCards
-                                                    ? t("messages.loading", {
-                                                          ns: "common",
-                                                          defaultValue:
-                                                              "Loading…",
-                                                      })
+                                                    ? (
+                                                          <AppSpinner
+                                                              size={12}
+                                                              label={t("messages.loading", { ns: "common" })}
+                                                              labelVariant="inherit"
+                                                          />
+                                                      )
                                                     : formatPreviewMoney(
                                                           previewCreditCards?.termsBreachOutstanding,
                                                           previewCreditCards?.accountCurrency
@@ -3107,7 +3113,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                     <>
                                         {showSearchSpinner ? (
                                             <InputAdornment position="start">
-                                                <CircularProgress
+                                                <AppSpinner
                                                     color="inherit"
                                                     size={16}
                                                 />
@@ -3134,7 +3140,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                         </InputAdornment>
                                         {showSearchSpinner ? (
                                             <InputAdornment position="end">
-                                                <CircularProgress
+                                                <AppSpinner
                                                     color="inherit"
                                                     size={16}
                                                 />
@@ -3175,7 +3181,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = () => {
                                 justifyContent: "center",
                             }}
                         >
-                            <CircularProgress
+                            <AppSpinner
                                 color="primary"
                                 size={20}
                             />

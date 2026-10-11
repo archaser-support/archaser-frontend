@@ -9,7 +9,8 @@ import {
     Paper,
     Tabs,
     Tab,
- CircularProgress } from "@mui/material";
+} from "@mui/material";
+import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import React, { useState, useEffect } from "react";
@@ -110,7 +111,7 @@ const SMSManagementPage = () => {
                     minHeight: "400px",
                 }}
             >
-                <CircularProgress size={40} />
+                <PageLoader />
             </Box>
         );
     }

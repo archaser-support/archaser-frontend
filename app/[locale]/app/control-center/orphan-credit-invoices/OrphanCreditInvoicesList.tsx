@@ -3,11 +3,11 @@ import { Link as LinkIcon } from "@mui/icons-material";
 import {
     Box,
     Button,
-    CircularProgress,
     IconButton,
     Tooltip,
     Typography,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
@@ -527,7 +527,7 @@ const OrphanCreditInvoicesList: React.FC = () => {
                     alignItems="center"
                     height={400}
                 >
-                    <CircularProgress size={40} />
+                    <AppSpinner size={40} />
                 </Box>
             ) : (
                 <Box

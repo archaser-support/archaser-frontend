@@ -3,9 +3,9 @@
 import {
     Autocomplete,
     TextField,
-    CircularProgress,
     Typography,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -249,7 +249,7 @@ const ParentCustomerAutocomplete: React.FC<ParentCustomerAutocompleteProps> = ({
                         endAdornment: (
                             <>
                                 {loading ? (
-                                    <CircularProgress
+                                    <AppSpinner
                                         color="inherit"
                                         size={20}
                                     />

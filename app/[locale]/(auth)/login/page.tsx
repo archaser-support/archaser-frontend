@@ -13,7 +13,6 @@ import {
     Alert,
     Box,
     CardContent,
-    CircularProgress,
     Container,
     Divider,
     Fade,
@@ -26,6 +25,7 @@ import {
     useMediaQuery,
     useTheme,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { getSession, signIn } from "next-auth/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -1274,10 +1274,11 @@ function LoginPageContent() {
                                             helperText="Enter subdomain to load SSO options"
                                         />
                                         {isLoadingAccount && (
-                                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
-                                                <CircularProgress size={16} />
-                                                <Typography variant="caption">Loading account...</Typography>
-                                            </Box>
+                                            <AppSpinner
+                                                size={16}
+                                                label={t("messages.loading_account")}
+                                                sx={{ display: "flex", mt: 1 }}
+                                            />
                                         )}
                                         {accountInfo && (
                                             <Alert severity="success" sx={{ mt: 1 }}>
@@ -1662,7 +1663,7 @@ export default function LoginPage() {
     // No need to initialize translations here as they're already provided by the root layout
 
     return (
-        <React.Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><CircularProgress /></Box>}>
+        <React.Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><AppSpinner /></Box>}>
             <LoginPageContent />
         </React.Suspense>
     );

@@ -3,11 +3,11 @@
 import {
     Autocomplete,
     Box,
-    CircularProgress,
     TextField,
     Tooltip,
     Typography,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { Info as InfoIcon } from "@mui/icons-material";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
@@ -256,7 +256,7 @@ const BillingCustomerAutocomplete: React.FC<BillingCustomerAutocompleteProps> = 
                             endAdornment: (
                                 <>
                                     {loading ? (
-                                        <CircularProgress
+                                        <AppSpinner
                                             color="inherit"
                                             size={16}
                                         />

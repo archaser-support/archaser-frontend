@@ -1,6 +1,7 @@
 "use client";
 import { apiFetch } from "@/utils/apiFetch";
-import { CircularProgress, Box, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -106,7 +107,7 @@ export default function PromiseToPayPage() {
                             gap: 2,
                         }}
                     >
-                        <CircularProgress
+                        <AppSpinner
                             size={60}
                             sx={{
                                 color: (theme) => theme.palette.primary.main,

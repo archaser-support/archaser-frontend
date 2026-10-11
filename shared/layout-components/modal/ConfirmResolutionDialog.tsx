@@ -4,10 +4,10 @@ import { CheckCircle as CheckCircleIcon } from "@mui/icons-material";
 import {
     Box,
     Button,
-    CircularProgress,
     Typography,
     useTheme,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import React from "react";
 import { useTranslation } from "react-i18next";
 
@@ -105,7 +105,7 @@ const ConfirmResolutionDialog: React.FC<ConfirmResolutionDialogProps> = ({
                         fullWidth={false}
                         endIcon={
                             isLoading ? (
-                                <CircularProgress
+                                <AppSpinner
                                     size={16}
                                     sx={{ color: "inherit" }}
                                 />
