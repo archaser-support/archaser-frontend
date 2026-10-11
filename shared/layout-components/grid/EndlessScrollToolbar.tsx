@@ -160,6 +160,9 @@ const EndlessScrollToolbarComponent: React.FC<EndlessScrollToolbarProps> = ({
             if (reportContext) {
                 params.append("context", reportContext);
             }
+            // Selector needs the full context list (system + custom); default API
+            // page size is 20 and can omit Policy Insights / other system views.
+            params.append("limit", "100");
             const url = `/api/reports${params.toString() ? `?${params.toString()}` : ""}`;
             const response = await api.get(url);
             return response.data;
