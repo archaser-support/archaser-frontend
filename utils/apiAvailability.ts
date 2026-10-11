@@ -1,13 +1,27 @@
-import { resolveNestOrigin } from "@/utils/amplifyMode";
+import {
+    resolveNestOrigin,
+    resolveProductApiOrigin,
+} from "@/utils/amplifyMode";
 
 const listeners = new Set<(down: boolean) => void>();
 
 let unavailable = false;
 let checkInFlight: Promise<void> | null = null;
 
+/**
+ * Nest `/health` on the API host. Prefer Nest origin; fall back to product API
+ * origin so Amplify still works when only NEXT_PUBLIC_API_BASE_URL is set.
+ */
 export function resolveHealthUrl(): string {
-    const origin = resolveNestOrigin().replace(/\/$/, "");
-    return origin ? `${origin}/health` : "/health";
+    const nest = resolveNestOrigin().replace(/\/$/, "");
+    if (nest) {
+        return `${nest}/health`;
+    }
+    const productOrigin = resolveProductApiOrigin().replace(/\/$/, "");
+    if (productOrigin) {
+        return `${productOrigin}/health`;
+    }
+    return "/health";
 }
 
 export function subscribeApiAvailability(
@@ -64,7 +78,12 @@ async function confirmOutage(status?: number): Promise<void> {
         }
         const gatewayStatus =
             status === 502 || status === 503 || status === 504;
-        if (probe === "down" || (probe === "unknown" && gatewayStatus)) {
+        // No HTTP status usually means CORS/network failure to a dead API host.
+        const networkFailure = status === undefined;
+        if (
+            probe === "down" ||
+            (probe === "unknown" && (gatewayStatus || networkFailure))
+        ) {
             emit(true);
         }
     })().finally(() => {
@@ -88,6 +107,14 @@ export function noteUpstreamUnavailable(
         return;
     }
     void confirmOutage(status);
+}
+
+/** Direct mark from a proactive /health probe (e.g. on app mount). */
+export function noteConfirmedOutage(): void {
+    if (typeof window === "undefined" || unavailable) {
+        return;
+    }
+    emit(true);
 }
 
 export function markApiAvailable(): void {

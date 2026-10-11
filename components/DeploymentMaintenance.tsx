@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 
 import {
     markApiAvailable,
+    noteConfirmedOutage,
     probeApiHealth,
     subscribeApiAvailability,
 } from "@/utils/apiAvailability";
@@ -29,8 +30,17 @@ export default function DeploymentMaintenance() {
     const [preview, setPreview] = useState(false);
 
     useEffect(() => {
-        setPreview(isPreviewMaintenance());
-        return subscribeApiAvailability(setDown);
+        const isPreview = isPreviewMaintenance();
+        setPreview(isPreview);
+        const unsubscribe = subscribeApiAvailability(setDown);
+        if (!isPreview) {
+            void probeApiHealth().then((probe) => {
+                if (probe === "down") {
+                    noteConfirmedOutage();
+                }
+            });
+        }
+        return unsubscribe;
     }, []);
 
     useEffect(() => {
