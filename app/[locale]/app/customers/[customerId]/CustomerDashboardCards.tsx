@@ -1354,9 +1354,6 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                             <CustomerDashboardCreditCharts
                                 riskExposureByPolicy={vm.riskExposureByPolicy}
                                 termsBreachReasonSlices={termsBreachReasonSlices}
-                                termsBreachInvoiceCount={
-                                    creditKpis?.termsBreachInvoiceCount
-                                }
                                 formatAmount={(amount) => formatAmount(amount)}
                                 zeroLineSubtitle={creditInsuranceLabels.zeroLineSubtitle}
                                 noBreachesLabel={creditInsuranceLabels.noBreaches}
