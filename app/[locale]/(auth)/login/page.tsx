@@ -455,7 +455,7 @@ function LoginPageContent() {
             }
 
             const path = { language, redirectUrl };
-            const target = stampLoginExitStorage(nestAccessToken, path, {
+            const stampedRedirect = stampLoginExitStorage(nestAccessToken, path, {
                 id: claims?.sub,
                 role: claims?.role,
                 account_id: accountId,
@@ -471,7 +471,7 @@ function LoginPageContent() {
                         userName: logContext.userName,
                         userId: claims?.sub,
                         language: path.language,
-                        redirectUrl: target,
+                        redirectUrl: stampedRedirect,
                         userRole: claims?.role,
                         isAdmin: isArchaserAdminAccount(accountId),
                         action: "login_successful",
@@ -500,11 +500,11 @@ function LoginPageContent() {
 
             const session = await getSession();
             const homePath = session?.user?.homePath || redirectUrl;
-            const target = `/${language}${homePath}`;
+            const navigateTo = `/${language}${homePath}`;
             // Hard-navigate so a post-signIn session/RSC remount cannot
             // re-paint /login (Fade-in flash) before the dashboard loads.
             // PENDING stays until SessionLanguageMonitor clears handoff on /app.
-            window.location.replace(target);
+            window.location.replace(navigateTo);
         },
         [
             clearLoginHandoff,
