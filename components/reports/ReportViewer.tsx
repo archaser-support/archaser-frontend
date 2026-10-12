@@ -484,90 +484,16 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
         }));
     }, [reportData, reportId]);
 
-    // Export function - fetches all data and applies same transformation as grid rows
+    // Export function - fetches all data and applies same transformation as grid rows.
+    // PDF uses the same execute rows; useExport → exportToExcel builds the file client-side.
     const handleExport = useCallback(
         async (
-            selectedColumns: string[],
-            fileName: string,
-            format: "csv" | "excel" | "pdf"
+            _selectedColumns: string[],
+            _fileName: string,
+            _format: "csv" | "excel" | "pdf"
         ): Promise<any[]> => {
             const executionParams = getViewerExecutionParams();
 
-            // For PDF export, use the API endpoint directly
-            if (format === "pdf") {
-                try {
-                    const columnsParam = encodeURIComponent(
-                        JSON.stringify(selectedColumns)
-                    );
-                    const queryParts = [
-                        `format=pdf`,
-                        `columns=${columnsParam}`,
-                    ];
-                    if (
-                        executionParams.filters &&
-                        executionParams.filters.length > 0
-                    ) {
-                        queryParts.push(
-                            `filters=${encodeURIComponent(JSON.stringify(executionParams.filters))}`
-                        );
-                        queryParts.push("replaceConfigFilters=true");
-                    }
-                    if (executionParams.search) {
-                        queryParts.push(
-                            `search=${encodeURIComponent(executionParams.search)}`
-                        );
-                    }
-                    if (executionParams.sortField) {
-                        queryParts.push(
-                            `sortField=${encodeURIComponent(executionParams.sortField)}`
-                        );
-                    }
-                    if (executionParams.sortDirection) {
-                        queryParts.push(
-                            `sortDirection=${encodeURIComponent(executionParams.sortDirection)}`
-                        );
-                    }
-                    const response = await apiFetch(
-                        `/api/reports/${reportId}/export?${queryParts.join("&")}`,
-                        {
-                            method: "GET",
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                        }
-                    );
-
-                    if (!response.ok) {
-                        throw new Error(
-                            `HTTP error! status: ${response.status}`
-                        );
-                    }
-
-                    // Get the PDF blob
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const link = document.createElement("a");
-                    link.href = url;
-                    link.download = `${fileName}.pdf`;
-
-                    // Trigger download
-                    document.body.appendChild(link);
-                    link.click();
-
-                    // Cleanup
-                    document.body.removeChild(link);
-                    window.URL.revokeObjectURL(url);
-
-                    // Return empty array since PDF is handled separately
-                    return [];
-                } catch (error) {
-                    throw new Error(
-                        `Failed to export PDF: ${error instanceof Error ? error.message : "Unknown error"}`
-                    );
-                }
-            }
-
-            // For CSV and Excel, fetch data and return it
             const requestBody: Record<string, unknown> = {
                 page: 1,
                 limit: 10000,
