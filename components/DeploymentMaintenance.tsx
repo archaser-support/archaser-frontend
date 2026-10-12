@@ -1,9 +1,10 @@
 "use client";
 
-import { Box, CircularProgress, Typography } from "@mui/material";
-import { useEffect, useState } from "react";
+import { Box, Typography } from "@mui/material";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import {
     isApiMarkedUnavailable,
     markApiAvailable,
@@ -26,17 +27,21 @@ function isPreviewMaintenance(): boolean {
     );
 }
 
+const subscribeNoop = () => () => {};
+
 export default function DeploymentMaintenance() {
     const { t } = useTranslation("common");
     const [down, setDown] = useState(false);
-    const [preview, setPreview] = useState(false);
+    const preview = useSyncExternalStore(
+        subscribeNoop,
+        isPreviewMaintenance,
+        () => false
+    );
 
     useEffect(() => {
-        const isPreview = isPreviewMaintenance();
-        setPreview(isPreview);
         const unsubscribe = subscribeApiAvailability(setDown);
 
-        if (isPreview) {
+        if (preview) {
             return unsubscribe;
         }
 
@@ -58,7 +63,7 @@ export default function DeploymentMaintenance() {
             unsubscribe();
             window.clearInterval(pollId);
         };
-    }, []);
+    }, [preview]);
 
     useEffect(() => {
         if (!down || preview) {
@@ -103,7 +108,7 @@ export default function DeploymentMaintenance() {
                 bgcolor: "background.default",
             }}
         >
-            <CircularProgress />
+            <AppSpinner />
             <Typography variant="h5" component="h1">
                 {t("messages.deployment_title")}
             </Typography>
