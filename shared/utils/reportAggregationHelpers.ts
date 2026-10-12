@@ -146,9 +146,17 @@ export function getAggregationLabelSuffix(
     omitRedundantAggregationType?: boolean,
     /** Grouped reports: full-dataset sum for COUNT columns (from execute API). */
     aggregationTotals?: Record<string, number>,
-    t?: TFunction
+    t?: TFunction,
+    /** When true, keep the aggregation type but omit the total number (and currency). */
+    hideHeaderAggregationValue?: boolean
 ): string {
     if (!fieldConfig?.aggregation) return "";
+
+    if (hideHeaderAggregationValue) {
+        return omitRedundantAggregationType
+            ? ""
+            : ` (${translateReportAggregationType(fieldConfig.aggregation, t)})`;
+    }
 
     const fromTotals =
         fieldConfig.aggregation === "COUNT" &&

@@ -20,10 +20,6 @@ export function resolveDataGridCellValue(
     column: GridColDef,
     actualIndex: number
 ): unknown {
-    if (column.field === "__rowNumber") {
-        return actualIndex + 1;
-    }
-
     const baseValue = row[column.field];
     const valueGetter = column.valueGetter as
         | ((params: DataGridValueGetterParams) => unknown)
@@ -34,6 +30,10 @@ export function resolveDataGridCellValue(
             value: baseValue,
             field: column.field,
         });
+    }
+
+    if (column.field === "__rowNumber") {
+        return actualIndex + 1;
     }
 
     return baseValue;

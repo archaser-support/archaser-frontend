@@ -431,6 +431,14 @@ export const exportToExcel = async (
         });
     }
 
+    const totalRowIndex = sortedData.findIndex(
+        (row) => row?.id === "__report_total_row"
+    );
+    if (totalRowIndex >= 0 && totalRowIndex !== sortedData.length - 1) {
+        const [totalRow] = sortedData.splice(totalRowIndex, 1);
+        sortedData.push(totalRow);
+    }
+
     // Process currency columns if specified
     let processedColumns = [...selectedColumns];
     const processedColumnHeaders = { ...columnHeaders };

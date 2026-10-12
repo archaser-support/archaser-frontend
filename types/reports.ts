@@ -48,4 +48,21 @@ export interface ReportConfig {
     formulas?: ReportFormula[];
     /** Interleaved column order: field output keys and `formula:{id}` entries. */
     columnOrder?: string[];
+    /** Viewer shows a fixed total row; missing = off. Needs at least one aggregation. */
+    showTotalRow?: boolean;
+}
+
+/** One aggregated column in the execute `totals` response. */
+export interface ReportTotalsCell {
+    value: number | null;
+    currency?: string;
+    mixedCurrency?: boolean;
+    formatted?: string;
+}
+
+/** Execute response `totals` (requested with `includeTotals`). */
+export interface ReportTotals {
+    cells: Record<string, ReportTotalsCell>;
+    /** Column that carries the "Total" label; null when every column is aggregated. */
+    labelKey: string | null;
 }

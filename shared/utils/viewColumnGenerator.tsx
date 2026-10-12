@@ -8,7 +8,10 @@ import React from "react";
 
 import { resolvePolicyNumberFromReportRow } from "@/shared/customerPolicyAdapter";
 import { INVOICE_CREDIT_INSURANCE_VIOLATION_FIELDS } from "./invoiceGridRowFields";
-import { translateReportAggregationType } from "./reportAggregationHelpers";
+import {
+    getAggregationLabelSuffix,
+    translateReportAggregationType,
+} from "./reportAggregationHelpers";
 import {
     getFormulaByOutputKey,
     resolveReportColumnOrder,
@@ -359,6 +362,8 @@ interface GenerateViewColumnsOptions {
     accountCurrency?: string;
     /** Grouped report execute: full-dataset COUNT sums for column headers */
     aggregationTotals?: Record<string, number>;
+    /** Report viewer: omit the header total number when the total row is on. */
+    hideHeaderAggregationValue?: boolean;
     /** Credit-only accounts: blank category column and hide automation-stuck icon. */
     hideCollectionCategoryDisplay?: boolean;
 }
@@ -618,7 +623,10 @@ export function generateViewColumns(
         linkHandlers = {},
         customCellRenderers = {},
         enableAggregation = false,
+        rawData,
         accountCurrency,
+        aggregationTotals,
+        hideHeaderAggregationValue = false,
         hideCollectionCategoryDisplay = false,
     } = options;
 
@@ -803,12 +811,28 @@ export function generateViewColumns(
             );
         }
 
-        // Aggregation type in the header label only (e.g. "Invoices COUNT").
-        // Do not append dataset totals beside headers.
+        // Aggregation type in the header label (e.g. "Invoices COUNT").
+        // The numeric total is appended unless hideHeaderAggregationValue is on.
         if (enableAggregation && fieldConfig?.aggregation) {
+            const dataForAggregation = rawData || rows;
             const omitRedundantAggInHeader = !fieldConfig?.alias;
             if (omitRedundantAggInHeader && label) {
                 label = `${label} ${translateReportAggregationType(fieldConfig.aggregation, t)}`;
+            }
+            const aggregationSuffix = getAggregationLabelSuffix(
+                fieldConfig,
+                dataForAggregation,
+                key,
+                tablesMetadata,
+                i18n,
+                accountCurrency,
+                omitRedundantAggInHeader,
+                aggregationTotals,
+                t,
+                hideHeaderAggregationValue
+            );
+            if (label && aggregationSuffix) {
+                label = label + aggregationSuffix;
             }
         }
 

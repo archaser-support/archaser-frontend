@@ -1,4 +1,5 @@
 import { ExportFormat } from "../../utility/exportToExcel";
+import type { ReportTotals } from "@/types/reports";
 import type {
     GridColDef,
     GridRenderCellParams,
@@ -69,6 +70,8 @@ export interface GridRefs {
     highlightedRow: React.RefObject<HTMLDivElement | null>;
     /** Wrapper ref for viewport calculations */
     wrapper: React.RefObject<HTMLDivElement>;
+    /** Optional fixed footer row (report total row) */
+    footer?: React.RefObject<HTMLDivElement>;
 }
 
 /**
@@ -346,6 +349,8 @@ export interface UseColumnWidthSyncOptions {
     headerRef: React.RefObject<HTMLDivElement>;
     /** Body ref */
     bodyRef: React.RefObject<HTMLDivElement>;
+    /** Optional footer row ref — same cell widths as the header */
+    footerRef?: React.RefObject<HTMLDivElement>;
     /** Loading state */
     isLoading?: boolean;
     /** Visible range for virtual scrolling - syncs when this changes */
@@ -454,6 +459,7 @@ export interface UseVirtualInfiniteScrollOptions<T> {
         totalRecords: number;
         hasMore: boolean;
         aggregationTotals?: Record<string, number>;
+        totals?: ReportTotals;
         formulaWarnings?: Array<{
             formulaId: string;
             label: string;
@@ -478,6 +484,8 @@ export interface UseVirtualInfiniteScrollReturn<T> {
     totalRecords: number;
     /** From first page of grouped report execute — full-dataset COUNT sums for headers */
     aggregationTotals?: Record<string, number>;
+    /** From first page when execute `includeTotals` is set */
+    totals?: ReportTotals;
     /** Per-formula invalid row/group counts from report execution */
     formulaWarnings?: Array<{
         formulaId: string;
