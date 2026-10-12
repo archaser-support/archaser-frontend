@@ -109,6 +109,7 @@ const CronJobsPage = () => {
         useState<NodeJS.Timeout | null>(null);
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const isPollingRef = useRef<boolean>(false);
+    const pollStartedAtRef = useRef<number | null>(null);
     const [seenLogIds, setSeenLogIds] = useState<Set<string>>(new Set());
     const [mainTab, setMainTab] = useState<"overview" | "details" | "debug">(
         "overview"
@@ -351,9 +352,10 @@ const CronJobsPage = () => {
                     }
                 }
 
-                // Check if execution is complete AFTER processing logs
-                // This ensures we stop polling immediately when status is detected
-                const executionStatus = data.data?.status;
+                // Check if execution is complete AFTER processing logs.
+                // Nest returns status on both top-level and data.status (BullMQ run-now).
+                const executionStatus =
+                    data.data?.status ?? data.status ?? null;
 
                 if (
                     executionStatus === "completed" ||
@@ -366,6 +368,7 @@ const CronJobsPage = () => {
                         pollingIntervalRef.current = null;
                         setPollingInterval(null);
                     }
+                    pollStartedAtRef.current = null;
                     isPollingRef.current = false;
                     setIsExecuting(false);
                     setTriggeringJobId(null);
@@ -390,6 +393,24 @@ const CronJobsPage = () => {
                             : completionMessage
                     );
                     // Exit after processing logs and detecting completion
+                } else {
+                    // Safety: stop polling after 10 minutes so a stuck status
+                    // never spins the UI forever.
+                    const startedAt = pollStartedAtRef.current;
+                    if (
+                        startedAt != null &&
+                        Date.now() - startedAt > 10 * 60 * 1000
+                    ) {
+                        stopLogPolling();
+                        setIsExecuting(false);
+                        setTriggeringJobId(null);
+                        const timeoutMessage = `[${new Date().toLocaleString()}] [WARNING] Stopped waiting for job status after 10 minutes — check worker logs / CronJob last_run_at`;
+                        setRealTimeLogs((prev) =>
+                            prev
+                                ? `${prev}\n${timeoutMessage}`
+                                : timeoutMessage
+                        );
+                    }
                 }
             } else {
                 await response.text();
@@ -415,6 +436,7 @@ const CronJobsPage = () => {
 
     const startLogPolling = (execId: string) => {
         setExecutionId(execId);
+        pollStartedAtRef.current = Date.now();
 
         // Clear any existing interval first
         if (pollingIntervalRef.current) {
@@ -428,6 +450,8 @@ const CronJobsPage = () => {
 
         pollingIntervalRef.current = interval;
         setPollingInterval(interval);
+        // First poll immediately so short jobs complete without a 1s delay
+        void pollForLogs(execId);
     };
 
     const stopLogPolling = () => {
@@ -438,6 +462,7 @@ const CronJobsPage = () => {
             setPollingInterval(null);
         }
         isPollingRef.current = false;
+        pollStartedAtRef.current = null;
         setExecutionId(null);
     };
 
