@@ -1,7 +1,85 @@
 import type { TFunction } from "i18next";
 
 import { formatCurrencyWithRTLSupport } from "@/utils/stringFormatters";
+import {
+    getFieldOutputKey,
+    getLegacyFieldOutputKey,
+    type Field,
+} from "@/utils/reportTableUtils";
 import { isAmountField } from "./viewFieldHelpers";
+
+function coerceAggregationTotal(value: unknown): number | null {
+    if (typeof value === "number" && Number.isFinite(value)) {
+        return value;
+    }
+    if (typeof value === "string" && value.trim() !== "") {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+}
+
+/** Normalize `Table.field__sum` → `Table.field__SUM` so FE/BE casing cannot miss. */
+export function normalizeAggregationOutputKey(key: string): string {
+    return String(key || "").replace(
+        /__(sum|avg|count|min|max)$/i,
+        (_match, agg: string) => `__${agg.toUpperCase()}`
+    );
+}
+
+/**
+ * Resolve a full-dataset total from execute `aggregationTotals`, trying output /
+ * legacy / alias keys (case-insensitive aggregation suffix).
+ */
+export function resolveAggregationTotalFromMap(
+    aggregationTotals: Record<string, number> | undefined,
+    fieldKey: string,
+    fieldConfig?: Pick<Field, "table" | "field" | "alias" | "aggregation"> | null
+): number | null {
+    if (!aggregationTotals) {
+        return null;
+    }
+    const byNormalized = new Map<string, number>();
+    for (const [key, value] of Object.entries(aggregationTotals)) {
+        const total = coerceAggregationTotal(value);
+        if (total === null) {
+            continue;
+        }
+        byNormalized.set(normalizeAggregationOutputKey(key), total);
+        byNormalized.set(key, total);
+    }
+    const candidates = new Set<string>();
+    if (fieldKey) {
+        candidates.add(fieldKey);
+        candidates.add(normalizeAggregationOutputKey(fieldKey));
+    }
+    if (fieldConfig) {
+        const outputKey = getFieldOutputKey(fieldConfig as Field);
+        const legacyKey = getLegacyFieldOutputKey(fieldConfig as Field);
+        candidates.add(outputKey);
+        candidates.add(normalizeAggregationOutputKey(outputKey));
+        candidates.add(legacyKey);
+        candidates.add(normalizeAggregationOutputKey(legacyKey));
+        if (fieldConfig.alias) {
+            candidates.add(fieldConfig.alias);
+        }
+        if (fieldConfig.aggregation) {
+            candidates.add(
+                `${fieldConfig.table}.${fieldConfig.field}__${String(fieldConfig.aggregation).toUpperCase()}`
+            );
+        }
+    }
+    for (const key of Array.from(candidates)) {
+        if (!key) {
+            continue;
+        }
+        const total = byNormalized.get(key);
+        if (total !== undefined) {
+            return total;
+        }
+    }
+    return null;
+}
 
 const AGGREGATION_TYPE_I18N_KEYS: Record<string, string> = {
     SUM: "values.aggregation_sum",
@@ -150,18 +228,32 @@ export function getAggregationLabelSuffix(
 ): string {
     if (!fieldConfig?.aggregation) return "";
 
-    // Prefer server full-dataset totals (all pages). Client-side calc only
-    // covers rows loaded so far and drifts under infinite scroll.
-    const fromTotals =
-        aggregationTotals &&
-        typeof aggregationTotals[fieldKey] === "number"
-            ? aggregationTotals[fieldKey]
-            : null;
+    // Prefer server full-dataset totals (all pages). Caller should pass a map
+    // that does not grow with infinite scroll (server totals or a frozen seed).
+    const fromTotals = resolveAggregationTotalFromMap(
+        aggregationTotals,
+        fieldKey,
+        fieldConfig
+    );
 
     const aggregationValue =
         fromTotals !== null
             ? fromTotals
-            : calculateAggregation(data, fieldKey, fieldConfig.aggregation);
+            : calculateAggregation(
+                  data,
+                  fieldKey,
+                  fieldConfig.aggregation
+              ) ??
+              calculateAggregation(
+                  data,
+                  getFieldOutputKey(fieldConfig as Field),
+                  fieldConfig.aggregation
+              ) ??
+              calculateAggregation(
+                  data,
+                  getLegacyFieldOutputKey(fieldConfig as Field),
+                  fieldConfig.aggregation
+              );
 
     if (aggregationValue !== null) {
         const formatted = formatAggregationValue(
