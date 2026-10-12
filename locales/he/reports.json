@@ -60,7 +60,8 @@
         "days": "ימים",
         "months": "חודשים",
         "start_value": "ערך התחלה",
-        "end_value": "ערך סיום"
+        "end_value": "ערך סיום",
+        "show_total_row": "הצג שורת סה״כ"
     },
     "actions": {
         "create_report": "צור דוח",
@@ -179,7 +180,10 @@
         "system_report_active_customers": "לקוחות פעילים",
         "system_report_inactive_customers": "לקוחות לא פעילים",
         "permission_view": "צפייה",
-        "permission_edit": "עריכה"
+        "permission_edit": "עריכה",
+        "total": "סה״כ",
+        "total_with_value": "סה״כ: {{value}}",
+        "em_dash": "—"
     },
     "tables": {
         "customers": "לקוחות",
@@ -254,7 +258,8 @@
         "you_are_sharing_this_report": "אתה משתף את הדוח הזה",
         "add_share": "הוסף שיתוף",
         "primary_table": "טבלה זו היא גרעין הדוח (שורה אחת לכל רשומה).",
-        "set_as_primary": "השתמש בטבלה זו כגרעין הדוח בלי להסיר שדות."
+        "set_as_primary": "השתמש בטבלה זו כגרעין הדוח בלי להסיר שדות.",
+        "total_row_requires_aggregation": "כדי להציג שורת סה״כ, הוסף צבירה (SUM, AVG, COUNT, MIN או MAX) לשדה אחד לפחות."
     },
     "validation": {
         "name_required": "שם הדוח נדרש",
@@ -284,7 +289,6 @@
         "insert_field": "הוסף שדה",
         "formulas_object": "נוסחאות",
         "no_operands_hint": "בחר תחילה שדות מספריים או תאריך בדוח, ואז בנה את הביטוי.",
-        "no_operands_for_format": "אין שדות התואמים לפורמט הנבחר עבור אובייקט זה.",
         "format": "פורמט",
         "format_number": "מספר",
         "format_currency": "מטבע",
@@ -292,6 +296,8 @@
         "currency_source": "מקור מטבע",
         "currency_field_required": "נוסחאות מטבע חייבות לכלול שדה סכום בביטוי",
         "aggregation": "צבירה",
+        "decimals": "ספרות אחרי הנקודה",
+        "decimals_auto": "אוטומטי",
         "show_as_column": "הצג כעמודה",
         "show_as_column_help": "כבה כדי להשתמש בנוסחה רק במסננים או בנוסחאות אחרות.",
         "default_label": "נוסחה {{n}}",

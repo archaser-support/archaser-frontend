@@ -12,5 +12,6 @@ export const useGridRefs = (): GridRefs => {
         body: useRef<HTMLDivElement>(null),
         highlightedRow: useRef<HTMLDivElement | null>(null),
         wrapper: useRef<HTMLDivElement>(null),
+        footer: useRef<HTMLDivElement>(null),
     };
 };
