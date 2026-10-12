@@ -1,12 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import {
-    useLayoutEffect,
-    useRef,
-    useState,
-    type ComponentProps,
-} from "react";
+import { useLayoutEffect, useRef, type ComponentProps } from "react";
 import {
     applyChartLabelTextDirection,
     type TextDirection,
@@ -22,13 +17,18 @@ export type ApexChartProps = ReactApexChartProps & {
     labelDirectionFallback?: TextDirection;
 };
 
-/** Fallback when parent flex/`minHeight` leaves percentage height as 0. */
+/**
+ * Pixel height used when callers pass `height="100%"`.
+ * Flex card bodies often only have `minHeight`, so percentage height collapses
+ * to 0; measuring the parent with ResizeObserver caused unbounded growth
+ * (child height → parent grows → remasure → repeat).
+ */
 const PERCENT_HEIGHT_FALLBACK_PX = 280;
 
 /**
  * ApexCharts wrapper: RTL ellipsis on Hebrew axis labels, LTR on English.
- * Resolves `height="100%"` to a pixel height so charts render inside flex
- * cards that only have `minHeight` (percentage height otherwise collapses to 0).
+ * Maps `height="100%"` to a fixed pixel height so charts render without a
+ * parent-size feedback loop.
  */
 export default function ApexChart({
     labelDirectionFallback = "ltr",
@@ -36,33 +36,10 @@ export default function ApexChart({
     ...props
 }: ApexChartProps) {
     const rootRef = useRef<HTMLDivElement>(null);
-    const [resolvedHeight, setResolvedHeight] = useState<number | string>(
-        typeof height === "number" ? height : PERCENT_HEIGHT_FALLBACK_PX
-    );
-
-    useLayoutEffect(() => {
-        if (typeof height === "number") {
-            setResolvedHeight(height);
-            return;
-        }
-
-        const el = rootRef.current;
-        const parent = el?.parentElement;
-        if (!parent) {
-            setResolvedHeight(PERCENT_HEIGHT_FALLBACK_PX);
-            return;
-        }
-
-        const measure = () => {
-            const h = parent.clientHeight;
-            setResolvedHeight(h > 0 ? h : PERCENT_HEIGHT_FALLBACK_PX);
-        };
-
-        measure();
-        const observer = new ResizeObserver(measure);
-        observer.observe(parent);
-        return () => observer.disconnect();
-    }, [height, props.series, props.options]);
+    const pixelHeight =
+        typeof height === "number" && Number.isFinite(height) && height > 0
+            ? height
+            : PERCENT_HEIGHT_FALLBACK_PX;
 
     useLayoutEffect(() => {
         const root = rootRef.current;
@@ -87,12 +64,7 @@ export default function ApexChart({
             cancelAnimationFrame(frame);
             observer.disconnect();
         };
-    }, [labelDirectionFallback, props.options, props.series, resolvedHeight]);
-
-    const pixelHeight =
-        typeof resolvedHeight === "number"
-            ? resolvedHeight
-            : PERCENT_HEIGHT_FALLBACK_PX;
+    }, [labelDirectionFallback, props.options, props.series, pixelHeight]);
 
     return (
         <div
