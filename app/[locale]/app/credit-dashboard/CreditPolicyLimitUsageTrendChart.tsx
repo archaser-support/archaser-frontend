@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import type { CustomerPolicyUsageTrendResponse } from "@/types/creditInsurance";
 import {
     formatDateForDisplay,
@@ -214,9 +215,19 @@ export function CreditPolicyLimitUsageTrendChart({
                     }}
                 >
                     {isLoading ? (
-                        <Typography color="text.secondary" variant="body2">
-                            {t("messages.loading", { ns: "common" })}
-                        </Typography>
+                        <Box
+                            sx={{
+                                flex: 1,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                            }}
+                        >
+                            <AppSpinner
+                                size={20}
+                                label={t("messages.loading", { ns: "common" })}
+                            />
+                        </Box>
                     ) : empty ? (
                         <Typography color="text.secondary" variant="body2">
                             {t(

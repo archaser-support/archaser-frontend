@@ -13,7 +13,6 @@ import {
     Alert,
     Box,
     CardContent,
-    CircularProgress,
     Container,
     Divider,
     Fade,
@@ -26,9 +25,10 @@ import {
     useMediaQuery,
     useTheme,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { getSession, signIn } from "next-auth/react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import React, {
     useCallback,
     useEffect,
@@ -125,7 +125,6 @@ interface FormState {
 function LoginPageContent() {
     const { t, i18n } = useTranslation(["auth", "common"]);
     const searchParams = useSearchParams();
-    const router = useRouter();
 
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -456,7 +455,7 @@ function LoginPageContent() {
             }
 
             const path = { language, redirectUrl };
-            const target = stampLoginExitStorage(nestAccessToken, path, {
+            const stampedRedirect = stampLoginExitStorage(nestAccessToken, path, {
                 id: claims?.sub,
                 role: claims?.role,
                 account_id: accountId,
@@ -472,7 +471,7 @@ function LoginPageContent() {
                         userName: logContext.userName,
                         userId: claims?.sub,
                         language: path.language,
-                        redirectUrl: target,
+                        redirectUrl: stampedRedirect,
                         userRole: claims?.role,
                         isAdmin: isArchaserAdminAccount(accountId),
                         action: "login_successful",
@@ -501,14 +500,15 @@ function LoginPageContent() {
 
             const session = await getSession();
             const homePath = session?.user?.homePath || redirectUrl;
-            sessionStorage.removeItem(PENDING_LOGIN_REDIRECT_KEY);
-            await router.replace(`/${language}${homePath}`);
-            loginHandoffOwnedByLiveHandler = false;
+            const navigateTo = `/${language}${homePath}`;
+            // Hard-navigate so a post-signIn session/RSC remount cannot
+            // re-paint /login (Fade-in flash) before the dashboard loads.
+            // PENDING stays until SessionLanguageMonitor clears handoff on /app.
+            window.location.replace(navigateTo);
         },
         [
             clearLoginHandoff,
             mapLanguageToLocale,
-            router,
             stampLoginExitStorage,
             t,
             updateFormState,
@@ -1140,7 +1140,15 @@ function LoginPageContent() {
                         direction: isHebrew ? "rtl" : "ltr",
                     }}
                 >
-                    <Fade in timeout={800}>
+                    <Fade
+                        in
+                        appear={!formState.isLoading && !isLoginHandoffActive()}
+                        timeout={
+                            formState.isLoading || isLoginHandoffActive()
+                                ? 0
+                                : 800
+                        }
+                    >
                         <AuthPaper
                             elevation={24}
                             dir={isHebrew ? "rtl" : "ltr"}
@@ -1266,10 +1274,11 @@ function LoginPageContent() {
                                             helperText="Enter subdomain to load SSO options"
                                         />
                                         {isLoadingAccount && (
-                                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
-                                                <CircularProgress size={16} />
-                                                <Typography variant="caption">Loading account...</Typography>
-                                            </Box>
+                                            <AppSpinner
+                                                size={16}
+                                                label={t("messages.loading_account")}
+                                                sx={{ display: "flex", mt: 1 }}
+                                            />
                                         )}
                                         {accountInfo && (
                                             <Alert severity="success" sx={{ mt: 1 }}>
@@ -1654,7 +1663,7 @@ export default function LoginPage() {
     // No need to initialize translations here as they're already provided by the root layout
 
     return (
-        <React.Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><CircularProgress /></Box>}>
+        <React.Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><AppSpinner /></Box>}>
             <LoginPageContent />
         </React.Suspense>
     );

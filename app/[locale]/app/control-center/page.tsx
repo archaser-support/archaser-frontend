@@ -6,7 +6,8 @@ import {
     PersonOutline as PersonOutlineIcon,
     ReceiptOutlined as ReceiptOutlinedIcon,
 } from "@mui/icons-material";
-import { Box, Chip, CircularProgress, Tooltip, useTheme } from "@mui/material";
+import { Box, Chip, Tooltip, useTheme } from "@mui/material";
+import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/app/api";
 import { useParams, useRouter } from "next/navigation";
@@ -112,7 +113,7 @@ const ControlCenter = React.memo(({ params }: ControlCenterProps) => {
                 minHeight: "400px",
             }}
         >
-            <CircularProgress color="primary" size={40} />
+            <PageLoader />
         </Box>
     ), []);
 

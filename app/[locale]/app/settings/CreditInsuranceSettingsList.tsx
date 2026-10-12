@@ -8,13 +8,13 @@ import {
     Box,
     Button,
     Chip,
-    CircularProgress,
     IconButton,
     Link as MuiLink,
     Tooltip,
     Typography,
     useTheme,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { alpha } from "@mui/material/styles";
 import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import Link from "next/link";
@@ -565,7 +565,7 @@ export function CreditInsuranceSettingsList({
                     minHeight: theme.spacing(50),
                 }}
             >
-                <CircularProgress size={40} />
+                <AppSpinner size={40} />
             </Box>
         );
     }

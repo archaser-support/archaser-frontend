@@ -19,7 +19,6 @@ import {
     Badge,
     Box,
     Button,
-    CircularProgress,
     IconButton,
     List,
     ListItem,
@@ -30,6 +29,7 @@ import {
     Tooltip,
     Typography,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { alpha } from "@mui/material/styles";
 import moment from "moment";
 import { useSession } from "next-auth/react";
@@ -1106,7 +1106,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
                                     p: 3,
                                 }}
                             >
-                                <CircularProgress color="primary" size={24} />
+                                <AppSpinner color="primary" size={24} />
                             </Box>
                         ) : filteredNotifications.length === 0 ? (
                             <Box sx={{ p: 3, textAlign: "center" }}>

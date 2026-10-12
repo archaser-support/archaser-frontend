@@ -2,11 +2,11 @@
 
 import {
     Box,
-    CircularProgress,
     Link as MuiLink,
     Typography,
     useTheme,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
@@ -180,7 +180,7 @@ export default function SecurityRolesList() {
                     height: "100%",
                 }}
             >
-                <CircularProgress />
+                <AppSpinner />
             </Box>
         );
     }

@@ -5,11 +5,11 @@ import {
     Autocomplete,
     Box,
     Button,
-    CircularProgress,
     TextField,
     Typography,
     useTheme,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -152,7 +152,7 @@ export function AssignCreditToInvoiceDialog({
                         fullWidth={false}
                         endIcon={
                             isAssigning ? (
-                                <CircularProgress
+                                <AppSpinner
                                     size={16}
                                     sx={{ color: "inherit" }}
                                 />

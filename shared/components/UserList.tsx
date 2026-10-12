@@ -3,7 +3,8 @@
 import EditIcon from "@mui/icons-material/Edit";
 import PersonAdd from "@mui/icons-material/PersonAdd";
 import VisibilityIcon from "@mui/icons-material/Visibility";
-import { CircularProgress, Link as MuiLink } from "@mui/material";
+import { Link as MuiLink } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
@@ -720,7 +721,7 @@ export default function UserList({
                     height: variant === "embedded" ? 150 : 200,
                 }}
             >
-                <CircularProgress color="primary" size={40} />
+                <AppSpinner color="primary" size={40} />
             </Box>
         );
     }

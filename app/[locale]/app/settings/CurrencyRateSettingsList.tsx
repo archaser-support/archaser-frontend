@@ -1,7 +1,8 @@
 "use client";
 import { apiFetch } from "@/utils/apiFetch";
 
-import { Box, CircularProgress, Typography, useTheme } from "@mui/material";
+import { Box, Typography, useTheme } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useSession } from "next-auth/react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -218,7 +219,7 @@ export function CurrencyRateSettingsList() {
                     minHeight: theme.spacing(50),
                 }}
             >
-                <CircularProgress size={40} />
+                <AppSpinner size={40} />
             </Box>
         );
     }

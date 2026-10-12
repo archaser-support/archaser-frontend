@@ -3,10 +3,10 @@
 import {
     Box,
     Button,
-    CircularProgress,
     Tooltip,
     Typography,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import type { ImportType } from "@/types/db";
 import { memo, type ReactNode } from "react";
 
@@ -139,7 +139,7 @@ const BillingProgressHost = memo(function BillingProgressHost({
                                     )}
                                     startIcon={
                                         primaryPending ? (
-                                            <CircularProgress
+                                            <AppSpinner
                                                 size={16}
                                                 color="inherit"
                                             />
@@ -159,7 +159,7 @@ const BillingProgressHost = memo(function BillingProgressHost({
                             placement="bottom"
                         >
                             <span>
-                                <CircularProgress size={24} />
+                                <AppSpinner size={24} />
                             </span>
                         </Tooltip>
                     ) : null}

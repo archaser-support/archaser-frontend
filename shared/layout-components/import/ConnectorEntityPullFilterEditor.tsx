@@ -6,7 +6,6 @@ import {
     Box,
     Button,
     Chip,
-    CircularProgress,
     IconButton,
     MenuItem,
     Tab,
@@ -14,6 +13,7 @@ import {
     TextField,
     Typography,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import type { ImportType } from "@/types/db";
 import React, { useEffect, useMemo, useState } from "react";
@@ -489,7 +489,7 @@ export default React.forwardRef<
                         }
                         startIcon={
                             isSaving ? (
-                                <CircularProgress size={16} />
+                                <AppSpinner size={16} />
                             ) : undefined
                         }
                     >

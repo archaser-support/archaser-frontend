@@ -8,11 +8,11 @@ import {
 import {
     Box,
     IconButton,
-    CircularProgress,
     Tooltip,
     Typography,
     Chip,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import Button from "@mui/material/Button";
 import { useTheme } from "@mui/material/styles";
 import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
@@ -594,7 +594,7 @@ export function BankAccountList({ accountId }: BankAccountListProps) {
                     height: 200,
                 }}
             >
-                <CircularProgress color="primary" size={40} />
+                <AppSpinner color="primary" size={40} />
             </Box>
         );
     }

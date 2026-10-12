@@ -1,7 +1,8 @@
 "use client";
 
 import { Group as GroupIcon } from "@mui/icons-material";
-import { Box, CircularProgress, Typography, useTheme } from "@mui/material";
+import { Box, Typography, useTheme } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { alpha } from "@mui/material/styles";
 import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -179,7 +180,7 @@ const DisputeAgentChart: React.FC<DisputeAgentChartProps> = React.memo(
                             minHeight: 180,
                         }}
                     >
-                        <CircularProgress color="primary" size={40} />
+                        <AppSpinner color="primary" size={40} />
                     </Box>
                 ) : !hasData ? (
                     <Typography

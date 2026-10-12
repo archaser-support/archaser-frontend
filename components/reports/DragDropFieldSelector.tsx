@@ -23,6 +23,7 @@ import {
     ExpandMore,
     FilterList,
     Close,
+    Settings,
     ArrowUpward,
     ArrowDownward,
 } from "@mui/icons-material";
@@ -41,7 +42,6 @@ import {
     Accordion,
     AccordionSummary,
     AccordionDetails,
-    Checkbox,
     Badge,
 } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
@@ -68,7 +68,6 @@ import {
     canTableConnect,
     canAddFieldFromTable,
     getFieldOutputKey,
-    resolveNextPaletteFieldCandidate,
 } from "@/utils/reportTableUtils";
 
 interface DragDropFieldSelectorProps {
@@ -100,10 +99,10 @@ interface DraggableFieldItemProps {
     tableName: string;
     tableLabel: string;
     isSelected: boolean;
-    showCheckbox?: boolean;
-    onCheckboxToggle?: () => void;
+    /** When true, render as a compact tree-list row (available fields palette). */
+    asTreeRow?: boolean;
     disabled?: boolean;
-    /** When true with showCheckbox, row stays draggable to add another column (e.g. second aggregation). */
+    /** When true with asTreeRow, row stays draggable to add another column (e.g. second aggregation). */
     paletteAllowsDuplicateDrag?: boolean;
 }
 
@@ -112,15 +111,14 @@ const DraggableFieldItem: React.FC<DraggableFieldItemProps> = React.memo(
         field,
         tableName,
         isSelected,
-        showCheckbox = false,
-        onCheckboxToggle,
+        asTreeRow = false,
         paletteAllowsDuplicateDrag = false,
     }) => {
         const theme = useTheme();
         const { i18n } = useTranslation();
         const isRTL = i18n?.language === "he";
         const dragFromListBlocked =
-            showCheckbox && isSelected
+            asTreeRow && isSelected
                 ? !paletteAllowsDuplicateDrag
                 : isSelected;
         const {
@@ -143,8 +141,8 @@ const DraggableFieldItem: React.FC<DraggableFieldItemProps> = React.memo(
 
         const FieldTypeIcon = getFieldTypeIcon(field.type);
 
-        // If showCheckbox is true, render as a tree view row
-        if (showCheckbox) {
+        // Compact tree-list row for the available-fields palette
+        if (asTreeRow) {
             return (
                 <Box
                     ref={setNodeRef}
@@ -165,16 +163,6 @@ const DraggableFieldItem: React.FC<DraggableFieldItemProps> = React.memo(
                         },
                     }}
                 >
-                    <Checkbox
-                        size="small"
-                        checked={isSelected}
-                        onChange={(e) => {
-                            e.stopPropagation();
-                            onCheckboxToggle?.();
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        sx={{ p: 0.5 }}
-                    />
                     <FieldTypeIcon
                         sx={{
                             fontSize: 18,
@@ -696,6 +684,17 @@ const SortableFieldCard: React.FC<SortableFieldCardProps> = React.memo(
 );
 SortableFieldCard.displayName = "SortableFieldCard";
 
+const chipIconButtonSx = {
+    width: 18,
+    height: 18,
+    padding: 0,
+    opacity: 0.7,
+    flexShrink: 0,
+    "& .MuiSvgIcon-root": {
+        fontSize: 16,
+    },
+} as const;
+
 interface SortableFormulaCardProps {
     formula: ReportFormula;
     sortableId: string;
@@ -829,6 +828,27 @@ const SortableFormulaCard: React.FC<SortableFormulaCardProps> = React.memo(
                         size="small"
                         onClick={(e) => {
                             e.stopPropagation();
+                            onEdit();
+                        }}
+                        aria-label={t("formulas.edit", {
+                            defaultValue: "Edit formula",
+                        })}
+                        sx={{
+                            ...chipIconButtonSx,
+                            color: "text.secondary",
+                            "&:hover": {
+                                bgcolor: "action.hover",
+                                color: "primary.main",
+                                opacity: 1,
+                            },
+                        }}
+                    >
+                        <Settings fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                        size="small"
+                        onClick={(e) => {
+                            e.stopPropagation();
                             onDelete();
                         }}
                         aria-label={t("actions.delete", {
@@ -836,19 +856,12 @@ const SortableFormulaCard: React.FC<SortableFormulaCardProps> = React.memo(
                             defaultValue: "Delete",
                         })}
                         sx={{
-                            width: 18,
-                            height: 18,
-                            padding: 0,
+                            ...chipIconButtonSx,
                             color: "error.main",
-                            opacity: 0.7,
-                            flexShrink: 0,
                             "&:hover": {
                                 bgcolor: "action.hover",
                                 color: "error.main",
                                 opacity: 1,
-                            },
-                            "& .MuiSvgIcon-root": {
-                                fontSize: 16,
                             },
                         }}
                     >
@@ -1222,59 +1235,6 @@ const DragDropFieldSelector: React.FC<DragDropFieldSelectorProps> = ({
             resizeObserver.disconnect();
         };
     }, [tables.length, expandedTables.size]);
-
-    // Handle field selection via checkbox
-    const handleFieldToggle = useCallback(
-        (tableName: string, fieldName: string) => {
-            const hasAnyForBase = selectedFields.some(
-                (f) => f.table === tableName && f.field === fieldName
-            );
-
-            if (hasAnyForBase) {
-                onFieldsChange(
-                    selectedFields.filter(
-                        (f) =>
-                            !(f.table === tableName && f.field === fieldName)
-                    )
-                );
-            } else {
-                if (!canAddFieldFromTableMemo(tableName)) {
-                    return;
-                }
-
-                const table = tables.find((t) => t.name === tableName);
-                const field = getTableFields(tableName).find(
-                    (f) => f.name === fieldName
-                );
-                if (!table || !field) {
-                    return;
-                }
-
-                const baseField: Field = {
-                    table: tableName,
-                    field: fieldName,
-                };
-                const toAdd = resolveNextPaletteFieldCandidate(
-                    baseField,
-                    field.type,
-                    selectedFieldKeys
-                );
-                if (!toAdd) {
-                    return;
-                }
-
-                onFieldsChange([...selectedFields, toAdd]);
-            }
-        },
-        [
-            selectedFieldKeys,
-            selectedFields,
-            onFieldsChange,
-            tables,
-            getTableFields,
-            canAddFieldFromTableMemo,
-        ]
-    );
 
     // Handle accordion expansion
     const handleAccordionChange = useCallback((tableName: string) => {
@@ -1818,17 +1778,9 @@ const DragDropFieldSelector: React.FC<DragDropFieldSelectorProps> = ({
                                                                 paletteAllowsDuplicateDrag={paletteAllowsAnotherInstance(
                                                                     field.type
                                                                 )}
-                                                                showCheckbox={
-                                                                    true
-                                                                }
+                                                                asTreeRow
                                                                 disabled={
                                                                     fieldDisabled
-                                                                }
-                                                                onCheckboxToggle={() =>
-                                                                    handleFieldToggle(
-                                                                        table.name,
-                                                                        field.name
-                                                                    )
                                                                 }
                                                             />
                                                         );

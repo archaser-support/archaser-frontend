@@ -7,11 +7,11 @@ import {
     Autocomplete,
     Box,
     Button,
-    CircularProgress,
     TextField,
     Typography,
     useTheme,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -189,7 +189,7 @@ export function DeleteBusinessUnitDialog({
                             py: 2,
                         }}
                     >
-                        <CircularProgress color="primary" size={24} />
+                        <AppSpinner color="primary" size={24} />
                     </Box>
                 ) : hasUsers ? (
                     <Box

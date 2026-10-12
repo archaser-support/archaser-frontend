@@ -2177,6 +2177,23 @@ export function buildThemeComponents(ctx: ThemeComponentsContext): ThemeOptions[
                         borderRadius: "2px",
                     },
                 },
+                // Native scrollbar matching the grid's vertical scrollbar (overrides global hiding in globals.scss)
+                ".grid-style-scrollbar": {
+                    scrollbarWidth: "thin",
+                    scrollbarColor: "rgb(var(--primary-rgb)) rgba(0, 0, 0, 0.15)",
+                    "&::-webkit-scrollbar": {
+                        display: "block",
+                        width: "6px",
+                    },
+                    "&::-webkit-scrollbar-track": {
+                        backgroundColor: "rgba(0, 0, 0, 0.15)",
+                        borderRadius: "3px",
+                    },
+                    "&::-webkit-scrollbar-thumb": {
+                        backgroundColor: "rgb(var(--primary-rgb))",
+                        borderRadius: "3px",
+                    },
+                },
                 // Toolbar icon buttons — className `toolbar-button` on IconButton or outlined Button
                 // Color uses --primary-rgb so account theming works (do not use closure `primary`).
                 ".endless-scroll-toolbar .MuiIconButton-root.toolbar-button, .endless-scroll-toolbar .MuiButton-root.toolbar-button, .MuiDataGrid-cell .MuiIconButton-root.toolbar-button, .MuiDataGrid-cell .MuiButton-root.toolbar-button":

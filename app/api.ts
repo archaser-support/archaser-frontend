@@ -1,6 +1,7 @@
 import axios from "axios";
 
 import store from "@/shared/redux/store";
+import { noteUpstreamUnavailable } from "@/utils/apiAvailability";
 import {
     getAxiosBaseUrl,
     resolveAuthorizationHeader,
@@ -95,6 +96,21 @@ api.interceptors.response.use(
             })
         ) {
             store.dispatch({ type: "SUBTRACT_REQUEST_COUNT" });
+        }
+        const status = error.response?.status as number | undefined;
+        const requestUrl =
+            typeof error.config?.url === "string"
+                ? error.config.url
+                : undefined;
+        if (
+            status === 502 ||
+            status === 503 ||
+            status === 504 ||
+            (!error.response &&
+                error.code !== "ERR_CANCELED" &&
+                error.code !== "ECONNABORTED")
+        ) {
+            noteUpstreamUnavailable(requestUrl, status);
         }
         return Promise.reject(error);
     }

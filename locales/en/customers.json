@@ -87,8 +87,9 @@
         "excluded_from_policy": "Excluded From Policy",
         "policy_exclusion_reason": "Policy Exclusion Reason",
         "policy_history": "Policy history",
-        "policy_history_expiration_short": "exp. {{date}}",
-        "previous_policy": "Previous policy",
+        "policy_history_removed": "Removed",
+        "policy_history_removed_from": "From: {{date}}",
+        "policy_history_not_applied_after_remove": "Not applied (after remove)",
         "previous_version": "Previous version",
         "oldest_invoice_overdue_date": "Oldest Overdue Invoice Date",
         "overdue_block": "Overdue Block",
@@ -385,6 +386,21 @@
             "excluded_from_policy": "Customer excluded from policy at creation",
             "outdated_dcl": "Outdated DCL at creation",
             "invoice_after_policy_end": "Invoice dated after policy end"
+        },
+        "details": {
+            "target_reporting_date": "Target reporting date",
+            "days_late": "Days late",
+            "credit_days": "Credit days",
+            "credit_days_vs_max": "{{days}} (max {{max}})",
+            "caused_by": "Caused by",
+            "due_date": "Due date",
+            "outstanding_then": "Outstanding then",
+            "days_past_mep": "Days past MEP",
+            "exclusion_reason": "Exclusion reason",
+            "credit_score_input_date": "Credit score input date",
+            "score_validity_period_months": "Score validity (months)",
+            "invoice_date": "Invoice date",
+            "policy_end_date": "Policy end date"
         }
     },
     "credit_history_refresh": {

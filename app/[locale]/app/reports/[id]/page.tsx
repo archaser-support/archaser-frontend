@@ -1,6 +1,7 @@
 "use client";
 
-import { Box, CircularProgress, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
+import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { useTheme } from "@mui/material/styles";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/app/api";
@@ -106,7 +107,7 @@ const ReportViewerPage: React.FC = () => {
                         px: { xs: 2, sm: 3 },
                     }}
                 >
-                    <CircularProgress color="primary" size={48} />
+                    <PageLoader />
                 </Box>
             </InternalPageWrapper>
         );

@@ -4,7 +4,6 @@ import { apiFetch } from "@/utils/apiFetch";
 import { Refresh } from "@mui/icons-material";
 import {
     Box,
-    CircularProgress,
     FormControlLabel,
     Grid,
     IconButton,
@@ -13,6 +12,7 @@ import {
     Tooltip,
     Typography,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -346,7 +346,7 @@ const PortalSettings: React.FC<PortalSettingsProps> = ({
                                         }}
                                     >
                                         {isUpdatingSubdomain ? (
-                                            <CircularProgress color="primary" size={20} />
+                                            <AppSpinner color="primary" size={20} />
                                         ) : (
                                             <Refresh />
                                         )}

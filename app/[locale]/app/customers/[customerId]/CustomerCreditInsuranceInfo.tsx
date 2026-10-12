@@ -14,14 +14,14 @@ import {
     Card,
     CardContent,
     Chip,
-    CircularProgress,
     FormControlLabel,
     MenuItem,
     Switch,
     TextField,
     Typography,
 } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
+import { alpha, useTheme } from "@mui/material/styles";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import moment from "moment";
 import { useSession } from "next-auth/react";
@@ -41,7 +41,11 @@ import {
 } from "@/utils/stringFormatters";
 import { getEffectivePolicyId, getActiveCustomerPolicyFromCustomer, getPendingCustomerPolicyFromCustomer } from "@/shared/customerPolicyAdapter";
 import {
+    buildCustomerPolicyHistoryChangedFieldsById,
+    buildCustomerPolicyHistoryRemoveKindById,
     buildPolicyHistoryHeaderAuditSegment,
+    type CustomerPolicyHistoryComparedField,
+    findCustomerPolicyHistoryVersionEndedByRemove,
     resolveCustomerPolicyHistoryChipKind,
     resolveUserAuditDisplayName,
 } from "@/shared/creditInsurance/customerPolicyHistoryPresentation";
@@ -557,6 +561,32 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
         [policyHistory]
     );
 
+    const policyHistoryChangedFieldsById = useMemo(
+        () => buildCustomerPolicyHistoryChangedFieldsById(policyHistory),
+        [policyHistory]
+    );
+
+    const policyHistoryRemoveKindById = useMemo(
+        () => buildCustomerPolicyHistoryRemoveKindById(policyHistory),
+        [policyHistory]
+    );
+
+    const isRemovedHistoryRow = useCallback(
+        (row: PolicyHistoryRow) =>
+            policyHistoryRemoveKindById.get(String(row.id)) === "removed",
+        [policyHistoryRemoveKindById]
+    );
+
+    const expandablePolicyHistory = useMemo(
+        () => inactivePolicyHistory.filter((row) => !isRemovedHistoryRow(row)),
+        [inactivePolicyHistory, isRemovedHistoryRow]
+    );
+
+    const policyHistoryChangedFieldSx = useMemo(
+        () => ({ bgcolor: alpha(theme.palette.warning.main, 0.12) }),
+        [theme.palette.warning.main]
+    );
+
     const pendingCustomerPolicy = useMemo(
         () => getPendingCustomerPolicyFromCustomer(customer),
         [customer]
@@ -660,16 +690,16 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
     }, []);
 
     const allPoliciesExpanded =
-        inactivePolicyHistory.length > 0 &&
-        inactivePolicyHistory.every((row) =>
+        expandablePolicyHistory.length > 0 &&
+        expandablePolicyHistory.every((row) =>
             expandedPolicies.has(policyAccordionKey(row))
         );
 
     const handleExpandAllPolicies = useCallback(() => {
         setExpandedPolicies(
-            new Set(inactivePolicyHistory.map((row) => policyAccordionKey(row)))
+            new Set(expandablePolicyHistory.map((row) => policyAccordionKey(row)))
         );
-    }, [inactivePolicyHistory, policyAccordionKey]);
+    }, [expandablePolicyHistory, policyAccordionKey]);
 
     const handleCollapseAllPolicies = useCallback(() => {
         setExpandedPolicies(new Set());
@@ -752,23 +782,6 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
     const buildPolicyHistoryHeaderSummary = useCallback(
         (row: PolicyHistoryRow) => {
             const parts: string[] = [];
-            const limitType = formatRowLimitType(row);
-            if (limitType) {
-                parts.push(limitType);
-            }
-            const approvedLimit = formatRowApprovedLimit(row);
-            if (approvedLimit) {
-                parts.push(approvedLimit);
-            }
-            const expirationDate = formatRowDate(row.approved_limit_expiration_date);
-            if (expirationDate) {
-                parts.push(
-                    t("fields.policy_history_expiration_short", {
-                        ns: "customers",
-                        date: expirationDate,
-                    })
-                );
-            }
             const auditSegment = buildPolicyHistoryHeaderAuditSegment({
                 modifiedAt: row.modified_at,
                 modifiedByDisplayName: resolveUserAuditDisplayName(
@@ -776,16 +789,58 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                 ),
                 formatDate: formatRowDateTime,
             });
-            if (auditSegment) {
-                parts.push(auditSegment);
+            const auditPart = auditSegment
+                ? `${t("fields.modified_at", { ns: "common" })}: ${auditSegment}`
+                : null;
+            if (isRemovedHistoryRow(row)) {
+                const removeDate = formatRowDate(row.policy_change_start_date);
+                if (removeDate) {
+                    parts.push(
+                        t("fields.policy_history_removed_from", {
+                            ns: "customers",
+                            date: removeDate,
+                        })
+                    );
+                }
+                if (auditPart) {
+                    parts.push(auditPart);
+                }
+                return parts;
+            }
+            const limitType = formatRowLimitType(row);
+            if (limitType) {
+                parts.push(`${creditInsuranceLabels.limitType}: ${limitType}`);
+            }
+            const approvedLimit = formatRowApprovedLimit(row);
+            if (approvedLimit) {
+                parts.push(
+                    `${creditInsuranceLabels.approvedLimit}: ${approvedLimit}`
+                );
+            }
+            const expirationDate = formatRowDate(row.approved_limit_expiration_date);
+            if (expirationDate) {
+                parts.push(
+                    `${creditInsuranceLabels.approvedLimitExpirationDate}: ${expirationDate}`
+                );
+            }
+            if (auditPart) {
+                parts.push(auditPart);
             }
             return parts;
         },
-        [formatRowApprovedLimit, formatRowDate, formatRowDateTime, formatRowLimitType, t]
+        [
+            creditInsuranceLabels,
+            formatRowApprovedLimit,
+            formatRowDate,
+            formatRowDateTime,
+            formatRowLimitType,
+            isRemovedHistoryRow,
+            t,
+        ]
     );
 
     const resolvePolicyHistoryChipLabel = useCallback(
-        (row: PolicyHistoryRow) => {
+        (row: PolicyHistoryRow): string | null => {
             const chipKind = resolveCustomerPolicyHistoryChipKind({
                 inactiveInsurancePolicyId: row.insurance_policy_id,
                 activeInsurancePolicyId,
@@ -793,12 +848,18 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
             if (chipKind === "previous_version") {
                 return t("fields.previous_version", { ns: "customers" });
             }
-            return t("fields.previous_policy", { ns: "customers" });
+            return null;
         },
         [activeInsurancePolicyId, t]
     );
 
-    const renderHistoricalPolicyReadonlyGrid = (row: PolicyHistoryRow) => (
+    const renderHistoricalPolicyReadonlyGrid = (row: PolicyHistoryRow) => {
+        const changedFields = policyHistoryChangedFieldsById.get(String(row.id));
+        const changedSx = (...fields: CustomerPolicyHistoryComparedField[]) =>
+            fields.some((field) => changedFields?.has(field))
+                ? policyHistoryChangedFieldSx
+                : undefined;
+        return (
         <Box
             sx={{
                 display: "grid",
@@ -816,6 +877,7 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
             <CreditInsuranceReadonlyField
                 label={creditInsuranceLabels.insurancePolicy}
                 value={policyLabelFromRow(row)}
+                sx={changedSx("insurance_policy_id")}
             />
             <CreditInsuranceReadonlyField
                 label={creditInsuranceLabels.customerNumberPolicy}
@@ -824,22 +886,27 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                         ? String(row.customer_number_policy)
                         : null
                 }
+                sx={changedSx("customer_number_policy")}
             />
             <CreditInsuranceReadonlyField
                 label={creditInsuranceLabels.limitType}
                 value={row.limit_type != null ? String(row.limit_type) : null}
+                sx={changedSx("limit_type")}
             />
             <CreditInsuranceReadonlyField
                 label={creditInsuranceLabels.approvedLimit}
                 value={formatRowApprovedLimit(row)}
+                sx={changedSx("approved_limit", "approved_limit_currency")}
             />
             <CreditInsuranceReadonlyField
                 label={creditInsuranceLabels.approvedLimitExpirationDate}
                 value={formatRowDate(row.approved_limit_expiration_date)}
+                sx={changedSx("approved_limit_expiration_date")}
             />
             <CreditInsuranceReadonlyField
                 label={creditInsuranceLabels.zeroLimitDate}
                 value={formatRowDate(row.zero_limit_date)}
+                sx={changedSx("zero_limit_date")}
             />
             <CreditInsuranceReadonlyField
                 label={creditInsuranceLabels.policyChangeStartDate}
@@ -852,6 +919,7 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                         ? String(row.max_payment_term)
                         : null
                 }
+                sx={changedSx("max_payment_term")}
             />
             <CreditInsuranceReadonlyField
                 label={creditInsuranceLabels.maxAllowedMepDays}
@@ -860,6 +928,7 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                         ? String(row.max_allowed_mep)
                         : null
                 }
+                sx={changedSx("max_allowed_mep")}
             />
             <CreditInsuranceReadonlyField
                 label={creditInsuranceLabels.reportingDays}
@@ -868,41 +937,48 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                         ? String(row.reporting_days)
                         : null
                 }
+                sx={changedSx("reporting_days")}
             />
             {row.mep_cutoff_day != null ? (
                 <CreditInsuranceReadonlyField
                     label={mepCutoffDayLabel}
                     value={String(row.mep_cutoff_day)}
+                    sx={changedSx("mep_cutoff_day")}
                 />
             ) : null}
             {row.mep_substitute_extra_days != null ? (
                 <CreditInsuranceReadonlyField
                     label={mepSubstituteExtraDaysLabel}
                     value={String(row.mep_substitute_extra_days)}
+                    sx={changedSx("mep_substitute_extra_days")}
                 />
             ) : null}
             {row.reporting_cutoff_day != null ? (
                 <CreditInsuranceReadonlyField
                     label={reportingCutoffDayLabel}
                     value={String(row.reporting_cutoff_day)}
+                    sx={changedSx("reporting_cutoff_day")}
                 />
             ) : null}
             {row.reporting_substitute_extra_days != null ? (
                 <CreditInsuranceReadonlyField
                     label={reportingSubstituteExtraDaysLabel}
                     value={String(row.reporting_substitute_extra_days)}
+                    sx={changedSx("reporting_substitute_extra_days")}
                 />
             ) : null}
             {row.payment_term_cutoff_day != null ? (
                 <CreditInsuranceReadonlyField
                     label={creditInsuranceLabels.paymentTermCutoffDay}
                     value={String(row.payment_term_cutoff_day)}
+                    sx={changedSx("payment_term_cutoff_day")}
                 />
             ) : null}
             {row.payment_term_substitute_day != null ? (
                 <CreditInsuranceReadonlyField
                     label={creditInsuranceLabels.paymentTermSubstituteDay}
                     value={String(row.payment_term_substitute_day)}
+                    sx={changedSx("payment_term_substitute_day")}
                 />
             ) : null}
             <CreditInsuranceReadonlyField
@@ -910,19 +986,23 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                 value={
                     row.credit_score != null ? String(row.credit_score) : null
                 }
+                sx={changedSx("credit_score")}
             />
             <CreditInsuranceReadonlyField
                 label={creditInsuranceLabels.creditScoreInputDate}
                 value={formatRowDate(row.credit_score_input_date)}
+                sx={changedSx("credit_score_input_date")}
             />
             <CreditInsuranceReadonlyField
                 label={creditInsuranceLabels.activeCustomerSince}
                 value={formatRowDate(row.active_customer_since)}
+                sx={changedSx("active_customer_since")}
             />
             {row.limit_type !== "Named" ? (
                 <CreditInsuranceReadonlyField
                     label={creditInsuranceLabels.outdatedDcl}
                     value={formatRowYesNo(row.outdated_dcl)}
+                    sx={changedSx("outdated_dcl")}
                 />
             ) : null}
             <CreditInsuranceReadonlyField
@@ -933,9 +1013,11 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                         ? String(row.policy_exclusion_reason)
                         : null
                 }
+                sx={changedSx("policy_exclusion_reason")}
             />
         </Box>
-    );
+        );
+    };
 
     const activePolicyGrid = (
         <Box
@@ -1992,7 +2074,7 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                                 className="save-button"
                                 endIcon={
                                     isSaving ? (
-                                        <CircularProgress
+                                        <AppSpinner
                                             size={16}
                                             sx={{ color: "inherit" }}
                                         />
@@ -2112,28 +2194,51 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                             </Button>
                         </Box>
                         {inactivePolicyHistory.map((row) => {
-                            const label = policyLabelFromRow(row);
                             const accordionKey = policyAccordionKey(row);
+                            const removeKind = policyHistoryRemoveKindById.get(
+                                String(row.id)
+                            );
+                            const isRemovedRow = removeKind === "removed";
+                            const label = policyLabelFromRow(
+                                isRemovedRow
+                                    ? (findCustomerPolicyHistoryVersionEndedByRemove(
+                                          row,
+                                          policyHistory
+                                      ) ?? row)
+                                    : row
+                            );
                             const isExpanded =
+                                !isRemovedRow &&
                                 expandedPolicies.has(accordionKey);
                             const headerSummaryParts =
                                 buildPolicyHistoryHeaderSummary(row);
                             const showOutdatedDclChip =
                                 Boolean(row.outdated_dcl) &&
                                 row.limit_type !== "Named";
+                            const historyChipLabel = isRemovedRow
+                                ? null
+                                : resolvePolicyHistoryChipLabel(row);
                             return (
                                 <Accordion
                                     key={accordionKey}
                                     expanded={isExpanded}
                                     disableGutters
-                                    onChange={() =>
-                                        handlePolicyAccordionChange(accordionKey)
-                                    }
+                                    onChange={() => {
+                                        if (!isRemovedRow) {
+                                            handlePolicyAccordionChange(
+                                                accordionKey
+                                            );
+                                        }
+                                    }}
                                     elevation={0}
                                     sx={policyHistoryAccordionStyles.accordion}
                                 >
                                     <AccordionSummary
-                                        expandIcon={<ExpandMoreIcon />}
+                                        expandIcon={
+                                            isRemovedRow ? undefined : (
+                                                <ExpandMoreIcon />
+                                            )
+                                        }
                                         sx={policyHistoryAccordionStyles.summary(
                                             isExpanded
                                         )}
@@ -2172,16 +2277,45 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                                             >
                                                 {label}
                                             </Typography>
-                                            <Chip
-                                                size="small"
-                                                label={resolvePolicyHistoryChipLabel(row)}
-                                                variant="outlined"
-                                                sx={{
-                                                    fontSize: "0.7rem",
-                                                    height: 20,
-                                                    flexShrink: 0,
-                                                }}
-                                            />
+                                            {historyChipLabel && (
+                                                <Chip
+                                                    size="small"
+                                                    label={historyChipLabel}
+                                                    variant="outlined"
+                                                    sx={{
+                                                        fontSize: "0.7rem",
+                                                        height: 20,
+                                                        flexShrink: 0,
+                                                    }}
+                                                />
+                                            )}
+                                            {removeKind && (
+                                                <Chip
+                                                    size="small"
+                                                    color={
+                                                        isRemovedRow
+                                                            ? "warning"
+                                                            : "default"
+                                                    }
+                                                    label={
+                                                        isRemovedRow
+                                                            ? t(
+                                                                  "fields.policy_history_removed",
+                                                                  { ns: "customers" }
+                                                              )
+                                                            : t(
+                                                                  "fields.policy_history_not_applied_after_remove",
+                                                                  { ns: "customers" }
+                                                              )
+                                                    }
+                                                    variant="outlined"
+                                                    sx={{
+                                                        fontSize: "0.7rem",
+                                                        height: 20,
+                                                        flexShrink: 0,
+                                                    }}
+                                                />
+                                            )}
                                             {headerSummaryParts.length > 0 && (
                                                 <Typography
                                                     variant="body2"
@@ -2216,21 +2350,23 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                                             )}
                                         </Box>
                                     </AccordionSummary>
-                                    <AccordionDetails
-                                        sx={policyHistoryAccordionStyles.details}
-                                    >
-                                        <Box
-                                            sx={
-                                                policyHistoryAccordionStyles.detailsInner
-                                            }
+                                    {!isRemovedRow && (
+                                        <AccordionDetails
+                                            sx={policyHistoryAccordionStyles.details}
                                         >
-                                            <Box sx={{ p: 2 }}>
-                                                {renderHistoricalPolicyReadonlyGrid(
-                                                    row
-                                                )}
+                                            <Box
+                                                sx={
+                                                    policyHistoryAccordionStyles.detailsInner
+                                                }
+                                            >
+                                                <Box sx={{ p: 2 }}>
+                                                    {renderHistoricalPolicyReadonlyGrid(
+                                                        row
+                                                    )}
+                                                </Box>
                                             </Box>
-                                        </Box>
-                                    </AccordionDetails>
+                                        </AccordionDetails>
+                                    )}
                                 </Accordion>
                             );
                         })}
@@ -2277,7 +2413,7 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                         }}
                         endIcon={
                             isRemovingPolicy ? (
-                                <CircularProgress
+                                <AppSpinner
                                     size={16}
                                     sx={{ color: "inherit" }}
                                 />
