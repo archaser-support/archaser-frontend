@@ -8,12 +8,21 @@ import {
     Chip,
     Autocomplete,
     TextField,
+    FormControlLabel,
+    Switch,
+    Tooltip,
 } from "@mui/material";
 import { Add, Delete } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import React from "react";
 import { useTranslation } from "react-i18next";
 
+import { isGroupedReportConfig } from "@/shared/reportFormula/columnOrder";
+import {
+    alignFormulaAggregationsWithGrouping,
+    type ReportFormula,
+} from "@/shared/reportFormula/types";
+import { getRTLTooltipProps } from "@/utils/reportFieldUtils";
 import { getFieldOutputKey } from "@/utils/reportTableUtils";
 
 interface GroupingBuilderProps {
@@ -30,6 +39,9 @@ interface GroupingBuilderProps {
     }>;
     grouping: string[];
     onGroupingChange: (grouping: string[]) => void;
+    formulas?: ReportFormula[];
+    showTotalRow?: boolean;
+    onShowTotalRowChange?: (showTotalRow: boolean) => void;
 }
 
 const GroupingBuilder: React.FC<GroupingBuilderProps> = ({
@@ -37,6 +49,9 @@ const GroupingBuilder: React.FC<GroupingBuilderProps> = ({
     tables,
     grouping,
     onGroupingChange,
+    formulas = [],
+    showTotalRow = false,
+    onShowTotalRowChange,
 }) => {
     const { t, i18n } = useTranslation(["reports", "common"]);
     const theme = useTheme();
@@ -86,6 +101,12 @@ const GroupingBuilder: React.FC<GroupingBuilderProps> = ({
             !field.aggregation &&
             !grouping.includes(getFieldOutputKey(field))
     );
+    const hasAggregation =
+        selectedFields.some((field) => !!field.aggregation) ||
+        alignFormulaAggregationsWithGrouping(
+            formulas,
+            isGroupedReportConfig({ fields: selectedFields, grouping })
+        ).some((formula) => !!formula.aggregation);
 
     // Reset selected field when available fields change
     React.useEffect(() => {
@@ -129,6 +150,43 @@ const GroupingBuilder: React.FC<GroupingBuilderProps> = ({
             marginLeft: isRTL ? theme.spacing(1) : 0,
         },
     } as const;
+
+    const totalRowSwitch = (
+        <FormControlLabel
+            control={
+                <Switch
+                    checked={hasAggregation && !!showTotalRow}
+                    onChange={(e) =>
+                        onShowTotalRowChange?.(e.target.checked)
+                    }
+                    disabled={!hasAggregation}
+                    color="primary"
+                    {...(isHebrew && { "data-rtl": true })}
+                />
+            }
+            label={t("fields.show_total_row", "Show total row")}
+            sx={{
+                m: 0,
+                "& .MuiFormControlLabel-label": {
+                    marginInlineStart: theme.spacing(1),
+                    marginInlineEnd: 0,
+                },
+            }}
+        />
+    );
+    const totalRowToggle = hasAggregation ? (
+        totalRowSwitch
+    ) : (
+        <Tooltip
+            title={t(
+                "tooltips.total_row_requires_aggregation",
+                "Add an aggregation (SUM, AVG, COUNT, MIN or MAX) to at least one field to show a total row."
+            )}
+            {...getRTLTooltipProps(i18n)}
+        >
+            <span>{totalRowSwitch}</span>
+        </Tooltip>
+    );
 
     const addGroupingRowButton = (
         <Button
@@ -371,6 +429,8 @@ const GroupingBuilder: React.FC<GroupingBuilderProps> = ({
                     );
                 })}
             </Box>
+
+            {totalRowToggle}
         </Box>
     );
 };

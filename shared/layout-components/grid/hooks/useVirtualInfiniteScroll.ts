@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { ReportTotals } from "@/types/reports";
 import {
     UseVirtualInfiniteScrollOptions,
     UseVirtualInfiniteScrollReturn,
@@ -26,6 +27,7 @@ export function useVirtualInfiniteScroll<T>({
     const [aggregationTotals, setAggregationTotals] = useState<
         Record<string, number> | undefined
     >(undefined);
+    const [totals, setTotals] = useState<ReportTotals | undefined>(undefined);
     const [formulaWarnings, setFormulaWarnings] = useState<
         | Array<{ formulaId: string; label: string; invalidCount: number }>
         | undefined
@@ -98,6 +100,7 @@ export function useVirtualInfiniteScroll<T>({
                     setAllData([]);
                     setTotalRecords(0);
                     setAggregationTotals(undefined);
+                    setTotals(undefined);
                     setFormulaWarnings(undefined);
                     setHasMore(true);
                 }
@@ -149,6 +152,11 @@ export function useVirtualInfiniteScroll<T>({
                 setAggregationTotals(data.aggregationTotals);
             } else {
                 setAggregationTotals(undefined);
+            }
+            if (data.totals) {
+                setTotals(data.totals);
+            } else {
+                setTotals(undefined);
             }
             if (data.formulaWarnings) {
                 setFormulaWarnings(data.formulaWarnings);
@@ -202,6 +210,11 @@ export function useVirtualInfiniteScroll<T>({
                 } else {
                     setAggregationTotals(undefined);
                 }
+                if (data.totals) {
+                    setTotals(data.totals);
+                } else {
+                    setTotals(undefined);
+                }
                 if (data.formulaWarnings) {
                     setFormulaWarnings(data.formulaWarnings);
                 } else {
@@ -239,6 +252,7 @@ export function useVirtualInfiniteScroll<T>({
         setCurrentPage(1);
         setTotalRecords(0);
         setAggregationTotals(undefined);
+        setTotals(undefined);
         setFormulaWarnings(undefined);
         setHasMore(true);
         setIsLoadingMore(false);
@@ -259,6 +273,7 @@ export function useVirtualInfiniteScroll<T>({
         data: allData,
         totalRecords,
         aggregationTotals,
+        totals,
         formulaWarnings,
         isLoading,
         isLoadingMore,

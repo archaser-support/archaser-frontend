@@ -60,7 +60,8 @@
         "days": "Days",
         "months": "Months",
         "start_value": "Start Value",
-        "end_value": "End Value"
+        "end_value": "End Value",
+        "show_total_row": "Show total row"
     },
     "actions": {
         "create_report": "Create Report",
@@ -179,7 +180,10 @@
         "system_report_active_customers": "Active Customers",
         "system_report_inactive_customers": "Inactive Customers",
         "permission_view": "View",
-        "permission_edit": "Edit"
+        "permission_edit": "Edit",
+        "total": "Total",
+        "total_with_value": "Total: {{value}}",
+        "em_dash": "—"
     },
     "tables": {
         "customers": "Customers",
@@ -254,7 +258,8 @@
         "you_are_sharing_this_report": "You are sharing this report",
         "add_share": "Add share",
         "primary_table": "This table is the report grain (one row per record).",
-        "set_as_primary": "Use this table as the report grain without removing fields."
+        "set_as_primary": "Use this table as the report grain without removing fields.",
+        "total_row_requires_aggregation": "Add an aggregation (SUM, AVG, COUNT, MIN or MAX) to at least one field to show a total row."
     },
     "validation": {
         "name_required": "Report name is required",
@@ -284,7 +289,6 @@
         "insert_field": "Insert field",
         "formulas_object": "Formulas",
         "no_operands_hint": "Select numeric or date report fields first, then build your expression.",
-        "no_operands_for_format": "No fields match the selected format for this object.",
         "format": "Format",
         "format_number": "Number",
         "format_currency": "Currency",
@@ -292,6 +296,8 @@
         "currency_source": "Currency source",
         "currency_field_required": "Currency formulas must reference an amount field in the expression",
         "aggregation": "Aggregation",
+        "decimals": "Decimal places",
+        "decimals_auto": "Auto",
         "show_as_column": "Show as column",
         "show_as_column_help": "Turn off to use this formula only in filters or other formulas.",
         "default_label": "Formula {{n}}",

@@ -88,7 +88,8 @@ interface EndlessScrollDataGridProps {
     onExport?: (
         _selectedColumns: string[],
         _fileName: string,
-        _format: ExportFormat
+        _format: ExportFormat,
+        _includeTotalRow?: boolean
     ) => Promise<any[]>; // Function to fetch all data for export
     exportDisabled?: boolean;
     exportContextInfo?: {
@@ -128,6 +129,11 @@ interface EndlessScrollDataGridProps {
     isUserDefault?: boolean;
     // Refresh current view (with current filters)
     onRefresh?: () => void;
+    /** Opt-in fixed footer row (report totals). Other grids omit this. */
+    fixedFooterRow?: Record<string, unknown> | null;
+    /** Report viewer only — shows the export-dialog total-row checkbox. */
+    totalRowAvailable?: boolean;
+    defaultIncludeTotalRow?: boolean;
 }
 
 const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
@@ -188,6 +194,9 @@ const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
     onSetAsDefault,
     isUserDefault = false,
     onRefresh,
+    fixedFooterRow,
+    totalRowAvailable,
+    defaultIncludeTotalRow,
 }) => {
     const theme = useTheme();
 
@@ -225,6 +234,7 @@ const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
     const bodyContentRef = gridRefs.body;
     const highlightedRowRef = gridRefs.highlightedRow;
     const wrapperRef = gridRefs.wrapper;
+    const footerContentRef = gridRefs.footer;
 
     const lastLoadMoreCallRef = useRef<number>(0);
 
@@ -518,6 +528,7 @@ const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
             rows,
             headerRef: headerContentRef,
             bodyRef: bodyContentRef,
+            footerRef: fixedFooterRow ? footerContentRef : undefined,
             isLoading,
             visibleRange: {
                 startIndex: virtualMetrics.startIndex,
@@ -539,7 +550,7 @@ const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
                 syncColumnWidths(true, true);
             });
         });
-    }, [columnVisibilityModel, syncColumnWidths]);
+    }, [columnVisibilityModel, syncColumnWidths, fixedFooterRow]);
 
     // Sync column widths when rows data changes significantly (e.g., after loading all rows).
     // Sort-driven refetch empties then refills rows — do not treat that as a structure change
@@ -892,6 +903,21 @@ const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
         onRefresh,
     };
 
+    const footerChromeHeight = fixedFooterRow ? ITEM_HEIGHT : 0;
+    const footerColumns = useMemo(
+        () =>
+            enhancedColumns.map((column) => ({
+                ...column,
+                renderCell: undefined,
+                valueGetter:
+                    column.field === "__rowNumber" ||
+                    column.field === "checkbox"
+                        ? () => null
+                        : undefined,
+            })),
+        [enhancedColumns]
+    );
+
     // Render header
     const renderHeader = () => {
         return (
@@ -1093,8 +1119,8 @@ const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
                         sx={{
                             height:
                                 containerHeight !== null
-                                    ? `${containerHeight - ITEM_HEIGHT}px`
-                                    : "auto", // Subtract header height
+                                    ? `${containerHeight - ITEM_HEIGHT - footerChromeHeight}px`
+                                    : "auto", // Subtract header (+ optional footer) height
                             overflowY: "auto",
                             overflowX: "hidden",
                             pointerEvents: "auto",
@@ -1181,6 +1207,51 @@ const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
                             </Box>
                         )}
                     </Box>
+                    {fixedFooterRow ? (
+                        <Box
+                            ref={footerContentRef}
+                            sx={{
+                                overflow: "hidden",
+                                borderTop: `1px solid ${theme.palette.divider}`,
+                                width: "100%",
+                                maxWidth: "100%",
+                                boxSizing: "border-box",
+                                padding: 0,
+                                margin: 0,
+                                fontWeight: theme.typography.fontWeightBold,
+                                "& .MuiTypography-root": {
+                                    fontWeight: theme.typography.fontWeightBold,
+                                },
+                                ...(language === "he"
+                                    ? {
+                                          paddingLeft:
+                                              scrollbarWidth > 0
+                                                  ? `${scrollbarWidth}px`
+                                                  : 0,
+                                          paddingRight: 0,
+                                      }
+                                    : {
+                                          paddingRight:
+                                              scrollbarWidth > 0
+                                                  ? `${scrollbarWidth}px`
+                                                  : 0,
+                                          paddingLeft: 0,
+                                      }),
+                            }}
+                        >
+                            <DataGridRow
+                                row={fixedFooterRow}
+                                index={0}
+                                actualIndex={1}
+                                columns={footerColumns}
+                                columnWidths={columnWidths}
+                                isHighlighted={false}
+                                language={language}
+                                highlightedRowRef={highlightedRowRef}
+                                backgroundColor={theme.palette.background.paper}
+                            />
+                        </Box>
+                    ) : null}
                 </Box>
             )}
 
@@ -1193,6 +1264,8 @@ const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
                 columnVisibilityModel={columnVisibilityModel}
                 isLoading={isExporting}
                 contextInfo={exportContextInfo}
+                totalRowAvailable={totalRowAvailable}
+                defaultIncludeTotalRow={defaultIncludeTotalRow}
             />
         </Box>
     );
