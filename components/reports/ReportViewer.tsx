@@ -45,6 +45,8 @@ import {
     getUserDateLocale,
     getUserTimezone,
 } from "@/utils/datetimeOperations";
+import type { ReportTotals } from "@/types/reports";
+import { buildTotalFooterRow } from "@/shared/utils/reportTotalRowDisplay";
 import {
     cloneReportFilters,
     type Field,
@@ -133,6 +135,16 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
     );
 
     const hasReportFilters = (reportConfig?.filters?.length ?? 0) > 0;
+    const hasTotalsAggregation =
+        (reportConfig?.fields || []).some(
+            (field: { aggregation?: string }) => !!field.aggregation
+        ) ||
+        (reportConfig?.formulas || []).some(
+            (formula: { aggregation?: string; hidden?: boolean }) =>
+                !!formula.aggregation && !formula.hidden
+        );
+    const wantsTotalRow =
+        reportConfig?.showTotalRow === true && hasTotalsAggregation;
 
     // Same grain rule as execution: context → primaryTable → tables[0] → Customer.
     // Do not use fields[0].table — column order must not imply primary.
@@ -240,6 +252,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
                 sortField: sortField || undefined,
                 sortDirection: sortDirection || undefined,
                 sessionFilters: sessionFilterOverrides,
+                includeTotals: wantsTotalRow || undefined,
                 version: queryKeyVersion,
                 locale: getUserDateLocale(session ?? null),
                 timezone: getUserTimezone(session ?? null),
@@ -252,6 +265,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
         sortDirection,
         sessionFilterOverrides,
         queryKeyVersion,
+        wantsTotalRow,
         session,
     ]);
 
@@ -261,6 +275,9 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
                 page,
                 limit: PAGE_LIMIT,
                 ...getViewerExecutionParams(),
+                ...(page === 1 && wantsTotalRow
+                    ? { includeTotals: true }
+                    : {}),
             };
 
             const response = await apiFetch(`/api/reports/${reportId}/execute`, {
@@ -305,6 +322,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
                 aggregationTotals: data.aggregationTotals as
                     | Record<string, number>
                     | undefined,
+                totals: data.totals as ReportTotals | undefined,
                 formulaWarnings: data.formulaWarnings as
                     | Array<{
                           formulaId: string;
@@ -314,7 +332,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
                     | undefined,
             };
         },
-        [reportId, getViewerExecutionParams, t]
+        [reportId, getViewerExecutionParams, t, wantsTotalRow]
     );
 
     // Use virtual infinite scroll hook
@@ -322,6 +340,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
         data: reportData,
         totalRecords,
         aggregationTotals,
+        totals,
         formulaWarnings,
         isLoading,
         hasMore,
@@ -565,9 +584,10 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
     // PDF uses the same execute rows; useExport → exportToExcel builds the file client-side.
     const handleExport = useCallback(
         async (
-            _selectedColumns: string[],
-            _fileName: string,
-            _format: "csv" | "excel" | "pdf"
+            selectedColumns: string[],
+            fileName: string,
+            format: "csv" | "excel" | "pdf",
+            includeTotalRow?: boolean
         ): Promise<any[]> => {
             const executionParams = getViewerExecutionParams();
 
@@ -575,6 +595,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
                 page: 1,
                 limit: 10000,
                 ...executionParams,
+                ...(includeTotalRow ? { includeTotals: true } : {}),
             };
 
             const response = await apiFetch(`/api/reports/${reportId}/execute`, {
@@ -593,7 +614,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
             const rawData = data.data || [];
 
             // Apply same transformation as grid rows (use ___formatted_* for export)
-            return rawData.map((row: any, index: number) => {
+            const transformedRows = rawData.map((row: any, index: number) => {
                 const transformedRow: Record<string, unknown> = {
                     id: row.id || `report-${reportId}-row-${index}`,
                     ...row,
@@ -609,8 +630,29 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
                 });
                 return transformedRow;
             });
+            const totals = data.totals as ReportTotals | undefined;
+            if (includeTotalRow && totals) {
+                transformedRows.push(
+                    buildTotalFooterRow({
+                        totals,
+                        columnFields: selectedColumns,
+                        totalLabel: t("values.total", {
+                            ns: "reports",
+                            defaultValue: "Total",
+                        }),
+                        formatTotalWithValue: (value) =>
+                            t("values.total_with_value", {
+                                ns: "reports",
+                                value,
+                                defaultValue: "Total: {{value}}",
+                            }),
+                        mixedCurrencyLabel: "",
+                    })
+                );
+            }
+            return transformedRows;
         },
-        [reportId, getViewerExecutionParams]
+        [reportId, getViewerExecutionParams, t]
     );
 
     // Determine the context for columns and the toolbar report selector.
@@ -737,6 +779,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
             rawData: reportData,
             accountCurrency,
             aggregationTotals: headerAggregationTotals,
+            hideHeaderAggregationValue: wantsTotalRow,
         });
     }, [
         reportConfig,
@@ -752,7 +795,34 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
         linkHandlers,
         accountCurrency,
         headerAggregationTotals,
+        wantsTotalRow,
     ]);
+
+    const totalFooterRow = useMemo(() => {
+        if (!totals) {
+            return null;
+        }
+        const totalLabel = t("values.total", {
+            ns: "reports",
+            defaultValue: "Total",
+        });
+        const mixedCurrencyLabel = t("values.em_dash", {
+            ns: "reports",
+            defaultValue: "—",
+        });
+        return buildTotalFooterRow({
+            totals,
+            columnFields: columns.map((column) => column.field),
+            totalLabel,
+            formatTotalWithValue: (value) =>
+                t("values.total_with_value", {
+                    ns: "reports",
+                    value,
+                    defaultValue: "Total: {{value}}",
+                }),
+            mixedCurrencyLabel,
+        });
+    }, [totals, columns, t]);
 
     /** Bust fillViewport cache when report shape changes (e.g. after save) — RO does not see sibling reflow. */
     const fillViewportRecalcKey = useMemo(() => {
@@ -1163,6 +1233,8 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
                     resizableColumns={true}
                     onExport={handleExport}
                     exportDisabled={!hasExportReportPermission}
+                    totalRowAvailable={hasTotalsAggregation}
+                    defaultIncludeTotalRow={wantsTotalRow}
                     exportContextInfo={{
                         pageName: reportName || "report-viewer",
                         customPrefix: reportName
@@ -1190,6 +1262,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
                     onDeleteReport={handleDeleteSelectedReport}
                     hasCloneReportPermission={hasCloneReportPermission}
                     onCloneReport={handleCloneSelectedReport}
+                    fixedFooterRow={totalFooterRow}
                 />
             </Box>
 

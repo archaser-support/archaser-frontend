@@ -749,6 +749,10 @@ const ReportBuilderPage: React.FC = () => {
         setReportConfig((prev) => ({ ...prev, grouping }));
     };
 
+    const handleShowTotalRowChange = (showTotalRow: boolean) => {
+        setReportConfig((prev) => ({ ...prev, showTotalRow }));
+    };
+
     // When leaving edit mode (new report / no id), allow re-init next time we open a report
     useEffect(() => {
         if (reportId == null || Number.isNaN(reportId)) {
@@ -1180,6 +1184,14 @@ const ReportBuilderPage: React.FC = () => {
                         ...(reportConfig.grouping
                             ? { grouping: sanitizedGrouping }
                             : {}),
+                        showTotalRow:
+                            (hasAggregatedField ||
+                                alignedFormulas.some(
+                                    (formula) => !!formula.aggregation
+                                )) &&
+                            reportConfig.showTotalRow === true
+                                ? true
+                                : undefined,
                         tables: syncReportTablesWithPrimary(
                             reportConfig.tables || [],
                             reportConfig.primaryTable ||
@@ -1737,6 +1749,9 @@ const ReportBuilderPage: React.FC = () => {
                     tables={allTables}
                     grouping={reportConfig.grouping || []}
                     onGroupingChange={handleGroupingChange}
+                    formulas={reportConfig.formulas || []}
+                    showTotalRow={!!reportConfig.showTotalRow}
+                    onShowTotalRowChange={handleShowTotalRowChange}
                 />
             ),
         },

@@ -224,9 +224,17 @@ export function getAggregationLabelSuffix(
     omitRedundantAggregationType?: boolean,
     /** Grouped reports: full-dataset totals for aggregated columns (from execute API). */
     aggregationTotals?: Record<string, number>,
-    t?: TFunction
+    t?: TFunction,
+    /** When true, keep the aggregation type but omit the total number (and currency). */
+    hideHeaderAggregationValue?: boolean
 ): string {
     if (!fieldConfig?.aggregation) return "";
+
+    if (hideHeaderAggregationValue) {
+        return omitRedundantAggregationType
+            ? ""
+            : ` (${translateReportAggregationType(fieldConfig.aggregation, t)})`;
+    }
 
     // Prefer server full-dataset totals (all pages). Caller should pass a map
     // that does not grow with infinite scroll (server totals or a frozen seed).

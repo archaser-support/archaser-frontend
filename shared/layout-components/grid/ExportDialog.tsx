@@ -26,7 +26,8 @@ interface ExportDialogProps {
     onExport: (
         selectedColumns: string[],
         fileName: string,
-        format: ExportFormat
+        format: ExportFormat,
+        includeTotalRow?: boolean
     ) => Promise<any>;
     columns: any[];
     columnVisibilityModel: Record<string, boolean>;
@@ -37,6 +38,9 @@ interface ExportDialogProps {
         customerNumber?: string;
         customPrefix?: string;
     };
+    /** Report viewer only — omit on other grids. */
+    totalRowAvailable?: boolean;
+    defaultIncludeTotalRow?: boolean;
 }
 
 const ExportDialog: React.FC<ExportDialogProps> = ({
@@ -47,6 +51,8 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
     columnVisibilityModel,
     isLoading = false,
     contextInfo,
+    totalRowAvailable = false,
+    defaultIncludeTotalRow = false,
 }) => {
     const { t, i18n } = useTranslation(["common"]);
     const theme = useTheme();
@@ -56,6 +62,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
     const [fileName, setFileName] = useState<string>("");
     const [isExporting, setIsExporting] = useState(false);
     const [exportFormat, setExportFormat] = useState<ExportFormat>("excel");
+    const [includeTotalRow, setIncludeTotalRow] = useState(false);
 
     // Get exportable columns (exclude hidden columns)
     const exportableColumns = useMemo(() => {
@@ -120,8 +127,9 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
             fileName += `_${timestamp}_${time}`;
 
             setFileName(fileName);
+            setIncludeTotalRow(!!defaultIncludeTotalRow);
         }
-    }, [isOpen, contextInfo]);
+    }, [isOpen, contextInfo, defaultIncludeTotalRow]);
 
     const handleColumnToggle = (columnField: string) => {
         setSelectedColumns((prev) =>
@@ -147,7 +155,12 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
 
         setIsExporting(true);
         try {
-            await onExport(selectedColumns, fileName, exportFormat);
+            await onExport(
+                selectedColumns,
+                fileName,
+                exportFormat,
+                totalRowAvailable ? includeTotalRow : undefined
+            );
             onClose();
         } catch (error) {
             console.error("Export failed:", error);
@@ -394,6 +407,35 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
                                 />
                             </RadioGroup>
                         </FormControl>
+                        {totalRowAvailable ? (
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={includeTotalRow}
+                                        onChange={(e) =>
+                                            setIncludeTotalRow(
+                                                e.target.checked
+                                            )
+                                        }
+                                        disabled={isExporting}
+                                        size="small"
+                                    />
+                                }
+                                label={t("fields.include_total_row")}
+                                sx={{
+                                    direction:
+                                        i18n.language === "he"
+                                            ? "rtl"
+                                            : "ltr",
+                                    "& .MuiFormControlLabel-label": {
+                                        textAlign:
+                                            i18n.language === "he"
+                                                ? "right"
+                                                : "left",
+                                    },
+                                }}
+                            />
+                        ) : null}
                     </Box>
                 </Box>
                 {/* Column Selection Section */}

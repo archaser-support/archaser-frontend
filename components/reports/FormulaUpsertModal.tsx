@@ -21,10 +21,7 @@ import { OUTLINED_LABEL_HELPER_OFFSET } from "@/app/theme/appButton";
 import AppDialog from "@/shared/layout-components/modal/AppDialog";
 import ModalScrollBox from "@/shared/layout-components/modal/ModalScrollBox";
 import { expressionHasRedundantAutoScalePercentDivision } from "@/shared/reportFormula/autoScalePercentFields";
-import {
-    filterFormulaOperandOptionsForFormat,
-    getFormulaOperandReferencesFromTables,
-} from "@/shared/reportFormula/columnOrder";
+import { getFormulaOperandReferencesFromTables } from "@/shared/reportFormula/columnOrder";
 import {
     buildEditTimeFormulaReference,
     expressionToEditTime,
@@ -38,6 +35,8 @@ import {
 import {
     FORMULA_AGGREGATION_TYPES,
     FORMULA_FILTER_TABLE,
+    MAX_FORMULA_DECIMALS,
+    formulaSupportsDecimals,
     type FormulaResultFormat,
     type ReportFormula,
 } from "@/shared/reportFormula/types";
@@ -106,6 +105,78 @@ function themeSpacingToPx(value: string): number {
     return Number.parseFloat(value.replace("px", ""));
 }
 
+type SelectOption<V> = { value: V; label: string };
+
+function FormulaOptionSelect<V>({
+    label,
+    options,
+    value,
+    onChange,
+    disableClearable,
+    isRTL,
+    isHebrew,
+}: {
+    label: string;
+    options: SelectOption<V>[];
+    value: SelectOption<V> | null;
+    onChange: (value: V | undefined) => void;
+    disableClearable?: boolean;
+    isRTL: boolean;
+    isHebrew: boolean;
+}) {
+    return (
+        <Autocomplete<SelectOption<V>, false, boolean, false>
+            fullWidth
+            options={options}
+            value={value}
+            onChange={(_, newValue) => onChange(newValue?.value)}
+            getOptionLabel={(option) => option.label}
+            isOptionEqualToValue={(option, selected) =>
+                option.value === selected.value
+            }
+            disableClearable={disableClearable}
+            size="small"
+            dir={isRTL ? "rtl" : "ltr"}
+            {...(isHebrew && {
+                "data-hebrew": true,
+                "data-rtl": true,
+            })}
+            renderOption={(props, option) => {
+                const { key, ...otherProps } = props;
+                return (
+                    <li
+                        key={key}
+                        {...otherProps}
+                        style={{
+                            direction: isRTL ? "rtl" : "ltr",
+                            textAlign: isRTL ? "right" : "left",
+                        }}
+                    >
+                        <Typography
+                            sx={{
+                                direction: isRTL ? "rtl" : "ltr",
+                                textAlign: isRTL ? "right" : "left",
+                                width: "100%",
+                            }}
+                        >
+                            {option.label}
+                        </Typography>
+                    </li>
+                );
+            }}
+            renderInput={(params) => (
+                <TextField
+                    {...params}
+                    margin="none"
+                    label={label}
+                    {...(isHebrew && { "data-hebrew": true })}
+                    dir={isRTL ? "rtl" : "ltr"}
+                />
+            )}
+        />
+    );
+}
+
 const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
     open,
     mode,
@@ -133,6 +204,9 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
     const formatLabel = t("formulas.format", { defaultValue: "Format" });
     const aggregationLabel = t("formulas.aggregation", {
         defaultValue: "Aggregation",
+    });
+    const decimalsLabel = t("formulas.decimals", {
+        defaultValue: "Decimal places",
     });
     const formulaLabel = t("formulas.field_formula", { defaultValue: "Formula" });
     const expressionLabel = t("formulas.expression", {
@@ -234,6 +308,7 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
         ReportFormula["aggregation"] | ""
     >("");
     const [showAsColumnDraft, setShowAsColumnDraft] = useState(true);
+    const [decimalsDraft, setDecimalsDraft] = useState<number | null>(null);
     const [validationError, setValidationError] = useState<string | null>(null);
     const [validationWarning, setValidationWarning] = useState<string | null>(
         null
@@ -246,6 +321,29 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
     const selectedFormatOption = useMemo(
         () => formatOptions.find((option) => option.value === formatDraft),
         [formatDraft, formatOptions]
+    );
+
+    const decimalsSupported = formulaSupportsDecimals(formatDraft, isGrouped);
+
+    const decimalsOptions = useMemo<SelectOption<number | null>[]>(
+        () => [
+            {
+                value: null,
+                label: t("formulas.decimals_auto", { defaultValue: "Auto" }),
+            },
+            ...Array.from({ length: MAX_FORMULA_DECIMALS + 1 }, (_, n) => ({
+                value: n,
+                label: String(n),
+            })),
+        ],
+        [t]
+    );
+
+    const selectedDecimalsOption = useMemo(
+        () =>
+            decimalsOptions.find((option) => option.value === decimalsDraft) ??
+            decimalsOptions[0],
+        [decimalsDraft, decimalsOptions]
     );
 
     const selectedAggregationOption = useMemo(
@@ -268,42 +366,6 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
         );
     }, [operandOptions, selectedTableName]);
 
-    const formatFilteredOperandOptions = useMemo(() => {
-        const fieldOptions = filterFormulaOperandOptionsForFormat(
-            filteredOperandOptions.filter((o) => !isFormulaOperandOption(o)),
-            formatDraft,
-            tablesMetadata
-        );
-        const formulaOptions = filteredOperandOptions.filter((o) => {
-            if (!isFormulaOperandOption(o)) {
-                return false;
-            }
-            if (formatDraft === "currency") {
-                // Currency, number, and Yes/No (raw 1/0) formulas can feed amount math.
-                return (
-                    o.formulaFormat === "currency" ||
-                    o.formulaFormat === "number" ||
-                    o.formulaFormat === "yes_no"
-                );
-            }
-            if (formatDraft === "percentage") {
-                return (
-                    o.formulaFormat === "percentage" ||
-                    o.formulaFormat === "number" ||
-                    o.formulaFormat === "yes_no"
-                );
-            }
-            if (formatDraft === "yes_no") {
-                return (
-                    o.formulaFormat === "yes_no" ||
-                    o.formulaFormat === "number"
-                );
-            }
-            return true;
-        });
-        return [...fieldOptions, ...formulaOptions];
-    }, [filteredOperandOptions, formatDraft, tablesMetadata]);
-
     const selectedTableOption = useMemo(
         () => tableOptions.find((table) => table.name === selectedTableName) ?? null,
         [tableOptions, selectedTableName]
@@ -311,22 +373,22 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
 
     const selectedOperandOption = useMemo(
         () =>
-            formatFilteredOperandOptions.find(
+            filteredOperandOptions.find(
                 (option) => option.reference === selectedOperandReference
             ) ?? null,
-        [formatFilteredOperandOptions, selectedOperandReference]
+        [filteredOperandOptions, selectedOperandReference]
     );
 
     useEffect(() => {
         if (
             selectedOperandReference &&
-            !formatFilteredOperandOptions.some(
+            !filteredOperandOptions.some(
                 (option) => option.reference === selectedOperandReference
             )
         ) {
             setSelectedOperandReference("");
         }
-    }, [formatFilteredOperandOptions, selectedOperandReference]);
+    }, [filteredOperandOptions, selectedOperandReference]);
 
     useEffect(() => {
         if (!open) {
@@ -346,12 +408,14 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
                 initialFormula.aggregation || (isGrouped ? "SUM" : "")
             );
             setShowAsColumnDraft(!initialFormula.hidden);
+            setDecimalsDraft(initialFormula.decimals ?? null);
         } else {
             setExpressionDraft("");
             setLabelDraft(defaultLabel);
             setFormatDraft("number");
             setAggregationDraft(isGrouped ? "SUM" : "");
             setShowAsColumnDraft(true);
+            setDecimalsDraft(null);
         }
         setValidationError(null);
         setValidationWarning(null);
@@ -404,6 +468,7 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
             format: formatDraft,
             aggregation: aggregationDraft,
             hidden: !showAsColumnDraft,
+            decimals: decimalsDraft,
             editingId: mode === "add" ? null : editingId,
             locale: i18n.language,
             reportTableNames,
@@ -437,13 +502,7 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
                   defaultValue:
                       "Select numeric or date report fields first, then build your expression.",
               })
-            : formatFilteredOperandOptions.length === 0
-              ? t("formulas.no_operands_for_format", {
-                    format: formatDraft,
-                    defaultValue:
-                        "No fields match the selected format for this object.",
-                })
-              : t("formulas.expression_hint", {
+            : t("formulas.expression_hint", {
                     defaultValue:
                         "Use [Table.field], numbers, dates (2026-03-01), + - * / , compare operators (= != < > <= >=), and parentheses. Registration fee (of premium): [Invoice.amount] * [Customer.cost_percent] * [Customer.registration_fee_percent]. Insurance Fee Rate and Registration Fee are percentages automatically (do not divide by 100).",
                 });
@@ -577,109 +636,42 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
                             dir={isRTL ? "rtl" : "ltr"}
                         />
 
-                        <Autocomplete
-                            fullWidth
+                        <FormulaOptionSelect
+                            label={formatLabel}
                             options={formatOptions}
-                            value={selectedFormatOption}
-                            onChange={(_, newValue) => {
-                                setFormatDraft(newValue?.value ?? "number");
-                            }}
-                            getOptionLabel={(option) => option.label}
-                            isOptionEqualToValue={(option, value) =>
-                                option.value === value.value
+                            value={selectedFormatOption ?? null}
+                            onChange={(value) =>
+                                setFormatDraft(value ?? "number")
                             }
                             disableClearable
-                            size="small"
-                            dir={isRTL ? "rtl" : "ltr"}
-                            {...(isHebrew && {
-                                "data-hebrew": true,
-                                "data-rtl": true,
-                            })}
-                            renderOption={(props, option) => {
-                                const { key, ...otherProps } = props;
-                                return (
-                                    <li
-                                        key={key}
-                                        {...otherProps}
-                                        style={{
-                                            direction: isRTL ? "rtl" : "ltr",
-                                            textAlign: isRTL ? "right" : "left",
-                                        }}
-                                    >
-                                        <Typography
-                                            sx={{
-                                                direction: isRTL ? "rtl" : "ltr",
-                                                textAlign: isRTL ? "right" : "left",
-                                                width: "100%",
-                                            }}
-                                        >
-                                            {option.label}
-                                        </Typography>
-                                    </li>
-                                );
-                            }}
-                            renderInput={(params) => (
-                                <TextField
-                                    {...params}
-                                    margin="none"
-                                    label={formatLabel}
-                                    {...(isHebrew && { "data-hebrew": true })}
-                                    dir={isRTL ? "rtl" : "ltr"}
-                                />
-                            )}
+                            isRTL={isRTL}
+                            isHebrew={isHebrew}
                         />
 
-
                         {isGrouped && (
-                            <Autocomplete
-                                fullWidth
+                            <FormulaOptionSelect
+                                label={aggregationLabel}
                                 options={aggregationOptions}
                                 value={selectedAggregationOption}
-                                onChange={(_, newValue) => {
-                                    setAggregationDraft(newValue?.value ?? "");
-                                }}
-                                getOptionLabel={(option) => option.label}
-                                isOptionEqualToValue={(option, value) =>
-                                    option.value === value.value
+                                onChange={(value) =>
+                                    setAggregationDraft(value ?? "")
                                 }
-                                size="small"
-                                dir={isRTL ? "rtl" : "ltr"}
-                                {...(isHebrew && {
-                                    "data-hebrew": true,
-                                    "data-rtl": true,
-                                })}
-                                renderOption={(props, option) => {
-                                    const { key, ...otherProps } = props;
-                                    return (
-                                        <li
-                                            key={key}
-                                            {...otherProps}
-                                            style={{
-                                                direction: isRTL ? "rtl" : "ltr",
-                                                textAlign: isRTL ? "right" : "left",
-                                            }}
-                                        >
-                                            <Typography
-                                                sx={{
-                                                    direction: isRTL ? "rtl" : "ltr",
-                                                    textAlign: isRTL ? "right" : "left",
-                                                    width: "100%",
-                                                }}
-                                            >
-                                                {option.label}
-                                            </Typography>
-                                        </li>
-                                    );
-                                }}
-                                renderInput={(params) => (
-                                    <TextField
-                                        {...params}
-                                        margin="none"
-                                        label={aggregationLabel}
-                                        {...(isHebrew && { "data-hebrew": true })}
-                                        dir={isRTL ? "rtl" : "ltr"}
-                                    />
-                                )}
+                                isRTL={isRTL}
+                                isHebrew={isHebrew}
+                            />
+                        )}
+
+                        {decimalsSupported && (
+                            <FormulaOptionSelect
+                                label={decimalsLabel}
+                                options={decimalsOptions}
+                                value={selectedDecimalsOption}
+                                onChange={(value) =>
+                                    setDecimalsDraft(value ?? null)
+                                }
+                                disableClearable
+                                isRTL={isRTL}
+                                isHebrew={isHebrew}
                             />
                         )}
 
@@ -795,7 +787,7 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
                                 >
                                     <Autocomplete
                                         sx={{ flex: 1, minWidth: 0 }}
-                                        options={formatFilteredOperandOptions}
+                                        options={filteredOperandOptions}
                                         value={selectedOperandOption}
                                         onChange={(_, newValue) => {
                                             setSelectedOperandReference(
@@ -807,7 +799,7 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
                                         isOptionEqualToValue={(option, value) =>
                                             option.reference === value.reference
                                         }
-                                        disabled={formatFilteredOperandOptions.length === 0}
+                                        disabled={filteredOperandOptions.length === 0}
                                         size="small"
                                         dir={isRTL ? "rtl" : "ltr"}
                                         {...(isHebrew && {

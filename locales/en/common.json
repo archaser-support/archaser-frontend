@@ -9,6 +9,7 @@
         "days_past_due": "Days Past Due",
         "default": "Default",
         "file_name": "File Name",
+        "include_total_row": "Include total row",
         "languages_arabic": "Arabic",
         "languages_chinese": "Chinese",
         "languages_english": "English",

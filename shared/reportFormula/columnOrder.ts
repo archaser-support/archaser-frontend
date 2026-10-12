@@ -9,7 +9,6 @@ import {
 import {
     getFormulaOutputKey,
     isFormulaOutputKey,
-    type FormulaResultFormat,
     type ReportFormula,
 } from "@/shared/reportFormula/types";
 import { getFieldOutputKey, type Field } from "@/utils/reportTableUtils";
@@ -77,87 +76,6 @@ export function isFormulaCurrencySourceField(
         return true;
     }
     return fieldName.toLowerCase().includes("amount");
-}
-
-/** Rate / percentage operands (e.g. cost_percent, labels with %). */
-export function isFormulaPercentageOperandField(
-    fieldName: string,
-    fieldMeta?: { label?: string }
-): boolean {
-    const name = fieldName.toLowerCase();
-    const label = (fieldMeta?.label || "").toLowerCase();
-    return name.includes("percent") || label.includes("%");
-}
-
-export function isFormulaOperandEligibleForFormat(
-    tableName: string,
-    fieldName: string,
-    format: FormulaResultFormat,
-    metadataTables: Array<{
-        name: string;
-        fields: Array<{ name: string; type: string; label?: string }>;
-    }>
-): boolean {
-    const tableMeta = metadataTables.find((t) => t.name === tableName);
-    const fieldMeta = tableMeta?.fields.find((f) => f.name === fieldName);
-    if (!fieldMeta || !isFormulaOperandFieldType(fieldMeta.type)) {
-        return false;
-    }
-
-    switch (format) {
-        case "currency":
-            // Amount fields plus dates so mixed `(date = date) * amount` works.
-            return (
-                isFormulaCurrencySourceField(
-                    tableName,
-                    fieldName,
-                    metadataTables
-                ) || isFormulaDateOperandFieldType(fieldMeta.type)
-            );
-        case "percentage":
-            return (
-                isFormulaPercentageOperandField(fieldName, fieldMeta) ||
-                isFormulaDateOperandFieldType(fieldMeta.type)
-            );
-        case "yes_no":
-            return (
-                isFormulaDateOperandFieldType(fieldMeta.type) ||
-                isFormulaNumericOperandFieldType(fieldMeta.type)
-            );
-        case "number":
-        default:
-            return true;
-    }
-}
-
-export function filterFormulaOperandOptionsForFormat<
-    T extends { reference: string }
->(
-    options: T[],
-    format: FormulaResultFormat,
-    metadataTables: Array<{
-        name: string;
-        fields: Array<{ name: string; type: string; label?: string }>;
-    }>
-): T[] {
-    return options.filter((option) => {
-        // Formula operands are format-filtered by the caller (Currency/Percentage/Number).
-        if (isFormulaOperandReference(option.reference)) {
-            return true;
-        }
-        const dot = option.reference.indexOf(".");
-        if (dot <= 0) {
-            return false;
-        }
-        const tableName = option.reference.slice(0, dot);
-        const fieldName = option.reference.slice(dot + 1);
-        return isFormulaOperandEligibleForFormat(
-            tableName,
-            fieldName,
-            format,
-            metadataTables
-        );
-    });
 }
 
 /** First amount/currency-capable field referenced in the expression (left-to-right). */
