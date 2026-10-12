@@ -818,7 +818,9 @@ export function generateViewColumns(
             const aggregationSuffix = getAggregationLabelSuffix(
                 fieldConfig,
                 dataForAggregation,
-                key,
+                fieldConfig
+                    ? getFieldOutputKey(fieldConfig) || key
+                    : key,
                 tablesMetadata,
                 i18n,
                 accountCurrency,
