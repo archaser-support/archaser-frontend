@@ -51,11 +51,17 @@ import {
     cloneReportFilters,
     type Field,
     getFieldOutputKey,
+    getLegacyFieldOutputKey,
     type ReportFilterRow,
     type ReportMetadataTable,
     resolveLegacyFieldOutputKey,
     resolveReportPrimaryTable,
 } from "@/utils/reportTableUtils";
+import {
+    calculateAggregation,
+    normalizeAggregationOutputKey,
+    resolveAggregationTotalFromMap,
+} from "@/shared/utils/reportAggregationHelpers";
 import ReactApexChart from "@/shared/components/ApexChart";
 
 // Constants
@@ -347,6 +353,77 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
         pageSize: PAGE_LIMIT,
     });
 
+    // Header SUM/AVG/… must stay fixed while infinite scroll appends rows.
+    // Prefer execute `aggregationTotals`; for any field still missing, seed once
+    // from the first loaded page and never grow that seed as more pages arrive.
+    const headerTotalsQueryRef = useRef<string>("");
+    const frozenClientHeaderTotalsRef = useRef<Record<string, number>>({});
+    const headerAggregationTotals = useMemo(() => {
+        const queryId = JSON.stringify(queryKey);
+        if (headerTotalsQueryRef.current !== queryId) {
+            headerTotalsQueryRef.current = queryId;
+            frozenClientHeaderTotalsRef.current = {};
+        }
+
+        const serverNormalized: Record<string, number> = {};
+        if (aggregationTotals) {
+            for (const [key, value] of Object.entries(aggregationTotals)) {
+                if (typeof value !== "number" || !Number.isFinite(value)) {
+                    continue;
+                }
+                serverNormalized[key] = value;
+                serverNormalized[normalizeAggregationOutputKey(key)] = value;
+            }
+        }
+
+        const fields = (reportConfig?.fields || []) as Field[];
+        const seeded = { ...frozenClientHeaderTotalsRef.current };
+        if (fields.length > 0 && reportData.length > 0) {
+            for (const field of fields) {
+                if (!field.aggregation) {
+                    continue;
+                }
+                const outputKey = getFieldOutputKey(field);
+                if (
+                    resolveAggregationTotalFromMap(
+                        serverNormalized,
+                        outputKey,
+                        field
+                    ) !== null ||
+                    seeded[outputKey] !== undefined ||
+                    seeded[normalizeAggregationOutputKey(outputKey)] !==
+                        undefined
+                ) {
+                    continue;
+                }
+                const legacyKey = getLegacyFieldOutputKey(field);
+                const value =
+                    calculateAggregation(
+                        reportData,
+                        outputKey,
+                        field.aggregation
+                    ) ??
+                    calculateAggregation(
+                        reportData,
+                        legacyKey,
+                        field.aggregation
+                    );
+                if (value === null) {
+                    continue;
+                }
+                seeded[outputKey] = value;
+                seeded[normalizeAggregationOutputKey(outputKey)] = value;
+                if (legacyKey !== outputKey) {
+                    seeded[legacyKey] = value;
+                }
+            }
+            frozenClientHeaderTotalsRef.current = seeded;
+        }
+
+        const merged = { ...seeded, ...serverNormalized };
+        return Object.keys(merged).length > 0 ? merged : undefined;
+    }, [aggregationTotals, queryKey, reportConfig?.fields, reportData]);
+
     const { data: chartDataResponse } = useQuery({
         queryKey: [
             "report-chart-data",
@@ -503,7 +580,8 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
         }));
     }, [reportData, reportId]);
 
-    // Export function - fetches all data and applies same transformation as grid rows
+    // Export function - fetches all data and applies same transformation as grid rows.
+    // PDF uses the same execute rows; useExport → exportToExcel builds the file client-side.
     const handleExport = useCallback(
         async (
             selectedColumns: string[],
@@ -700,7 +778,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
             enableAggregation: true,
             rawData: reportData,
             accountCurrency,
-            aggregationTotals,
+            aggregationTotals: headerAggregationTotals,
             hideHeaderAggregationValue: wantsTotalRow,
         });
     }, [
@@ -716,7 +794,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
         t,
         linkHandlers,
         accountCurrency,
-        aggregationTotals,
+        headerAggregationTotals,
         wantsTotalRow,
     ]);
 

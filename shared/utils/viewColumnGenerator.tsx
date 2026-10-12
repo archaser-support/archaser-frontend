@@ -360,7 +360,7 @@ interface GenerateViewColumnsOptions {
     rawData?: any[];
     /** Fallback currency for aggregated amount headers when rows lack currency fields */
     accountCurrency?: string;
-    /** Grouped report execute: full-dataset COUNT sums for column headers */
+    /** Grouped report execute: full-dataset aggregation totals for column headers */
     aggregationTotals?: Record<string, number>;
     /** Report viewer: omit the header total number when the total row is on. */
     hideHeaderAggregationValue?: boolean;
@@ -811,7 +811,7 @@ export function generateViewColumns(
             );
         }
 
-        // Aggregation type in the header label (e.g. "Invoices COUNT").
+        // Aggregation type + full-dataset total in the header (e.g. "Amount SUM (SUM: 52,300 USD)").
         // The numeric total is appended unless hideHeaderAggregationValue is on.
         if (enableAggregation && fieldConfig?.aggregation) {
             const dataForAggregation = rawData || rows;
@@ -822,7 +822,9 @@ export function generateViewColumns(
             const aggregationSuffix = getAggregationLabelSuffix(
                 fieldConfig,
                 dataForAggregation,
-                key,
+                fieldConfig
+                    ? getFieldOutputKey(fieldConfig) || key
+                    : key,
                 tablesMetadata,
                 i18n,
                 accountCurrency,
