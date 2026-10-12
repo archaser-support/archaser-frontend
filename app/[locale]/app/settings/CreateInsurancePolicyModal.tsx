@@ -5,7 +5,6 @@ import {
     Box,
     Button,
     Checkbox,
-    CircularProgress,
     FormControlLabel,
     MenuItem,
     Switch,
@@ -13,6 +12,7 @@ import {
     Typography,
     useTheme,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { alpha } from "@mui/material/styles";
 import { AdapterMoment } from "@mui/x-date-pickers/AdapterMoment";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
@@ -958,7 +958,7 @@ export function CreateInsurancePolicyModal({
                                 py: 8,
                             }}
                         >
-                            <CircularProgress />
+                            <AppSpinner />
                         </Box>
                     ) : Boolean(policyId) && isPolicyLoadError ? (
                         <Box sx={{ py: 4, px: 1 }}>

@@ -22,6 +22,7 @@ import { Eyebrow } from "./Eyebrow";
 import { IslandCard } from "./IslandCard";
 import { CPH } from "./designTokens";
 import { chartColors } from "./chartColors";
+import { formatChartDayLabel, formatChartPct } from "./chartFormat";
 import layout from "./islandLayout.module.css";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
@@ -30,26 +31,6 @@ export type UtilizationDailyChartProps = {
     fromYmd: string;
     toYmd: string;
 };
-
-function formatDayLabel(ymd: string, language: string): string {
-    const date = new Date(`${ymd}T12:00:00.000Z`);
-    if (Number.isNaN(date.getTime())) {
-        return ymd;
-    }
-    const locale = language.startsWith("he") ? "he-IL" : "en-US";
-    return date.toLocaleDateString(locale, {
-        month: "short",
-        day: "numeric",
-    });
-}
-
-function formatPct(value: number, language: string): string {
-    const locale = language.startsWith("he") ? "he-IL" : "en-US";
-    return `${value.toLocaleString(locale, {
-        maximumFractionDigits: 1,
-        minimumFractionDigits: 0,
-    })}%`;
-}
 
 export function UtilizationDailyChart({
     daily,
@@ -70,7 +51,7 @@ export function UtilizationDailyChart({
                 toYmd,
                 (point) => point.snapshotDate
             ).map(({ ymd, point }) => ({
-                label: formatDayLabel(ymd, language),
+                label: formatChartDayLabel(ymd, language),
                 portfolio: point?.utilizationPct ?? null,
                 dcl: point?.dclUtilizationPct ?? null,
                 named: point?.namedUtilizationPct ?? null,
@@ -137,7 +118,7 @@ export function UtilizationDailyChart({
                                 width={48}
                                 domain={[0, "auto"]}
                                 tickFormatter={(v: number) =>
-                                    formatPct(v, language)
+                                    formatChartPct(v, language)
                                 }
                             />
                             <Tooltip
@@ -145,7 +126,7 @@ export function UtilizationDailyChart({
                                     <ChartTooltip
                                         language={language}
                                         formatValue={(v) =>
-                                            formatPct(v, language)
+                                            formatChartPct(v, language)
                                         }
                                     />
                                 }

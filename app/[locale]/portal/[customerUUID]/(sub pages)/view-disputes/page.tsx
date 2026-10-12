@@ -1,7 +1,8 @@
 ﻿"use client";
 import { apiFetch } from "@/utils/apiFetch";
 
-import { Box, CircularProgress, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { dispute_status } from "@/types/db";
 import { useParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
@@ -127,7 +128,7 @@ export default function Page() {
                         gap: 2,
                     }}
                 >
-                    <CircularProgress
+                    <AppSpinner
                         size={60}
                         sx={{
                             color: (theme) => theme.palette.primary.main,

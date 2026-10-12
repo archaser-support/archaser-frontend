@@ -8,7 +8,10 @@ import React from "react";
 
 import { resolvePolicyNumberFromReportRow } from "@/shared/customerPolicyAdapter";
 import { INVOICE_CREDIT_INSURANCE_VIOLATION_FIELDS } from "./invoiceGridRowFields";
-import { translateReportAggregationType } from "./reportAggregationHelpers";
+import {
+    getAggregationLabelSuffix,
+    translateReportAggregationType,
+} from "./reportAggregationHelpers";
 import {
     getFormulaByOutputKey,
     resolveReportColumnOrder,
@@ -357,7 +360,7 @@ interface GenerateViewColumnsOptions {
     rawData?: any[];
     /** Fallback currency for aggregated amount headers when rows lack currency fields */
     accountCurrency?: string;
-    /** Grouped report execute: full-dataset COUNT sums for column headers */
+    /** Grouped report execute: full-dataset aggregation totals for column headers */
     aggregationTotals?: Record<string, number>;
     /** Credit-only accounts: blank category column and hide automation-stuck icon. */
     hideCollectionCategoryDisplay?: boolean;
@@ -618,7 +621,9 @@ export function generateViewColumns(
         linkHandlers = {},
         customCellRenderers = {},
         enableAggregation = false,
+        rawData,
         accountCurrency,
+        aggregationTotals,
         hideCollectionCategoryDisplay = false,
     } = options;
 
@@ -662,6 +667,9 @@ export function generateViewColumns(
         cleanedFields.map((f: any) => getFieldOutputKey(f))
     );
     for (const formula of formulas) {
+        if (formula.hidden) {
+            continue;
+        }
         selectedFieldKeys.add(
             `formula:${formula.id}`
         );
@@ -800,12 +808,26 @@ export function generateViewColumns(
             );
         }
 
-        // Aggregation type in the header label only (e.g. "Invoices COUNT").
-        // Do not append dataset totals beside headers.
+        // Aggregation type + full-dataset total in the header (e.g. "Amount SUM (SUM: 52,300 USD)").
         if (enableAggregation && fieldConfig?.aggregation) {
+            const dataForAggregation = rawData || rows;
             const omitRedundantAggInHeader = !fieldConfig?.alias;
             if (omitRedundantAggInHeader && label) {
                 label = `${label} ${translateReportAggregationType(fieldConfig.aggregation, t)}`;
+            }
+            const aggregationSuffix = getAggregationLabelSuffix(
+                fieldConfig,
+                dataForAggregation,
+                key,
+                tablesMetadata,
+                i18n,
+                accountCurrency,
+                omitRedundantAggInHeader,
+                aggregationTotals,
+                t
+            );
+            if (label && aggregationSuffix) {
+                label = label + aggregationSuffix;
             }
         }
 

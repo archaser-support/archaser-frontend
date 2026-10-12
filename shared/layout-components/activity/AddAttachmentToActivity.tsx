@@ -3,10 +3,10 @@ import AppDialog from "@/shared/layout-components/modal/AppDialog";
 import { AttachFile } from "@mui/icons-material";
 import {
     Button,
-    CircularProgress,
     IconButton,
-    Tooltip
+    Tooltip,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -164,7 +164,7 @@ const AddAttachmentToActivity: React.FC<AddAttachmentToActivityProps> = ({
                                 disabled={isUploading}
                                 startIcon={
                                     isUploading ? (
-                                        <CircularProgress size={16} />
+                                        <AppSpinner size={16} />
                                     ) : undefined
                                 }
                                 sx={{

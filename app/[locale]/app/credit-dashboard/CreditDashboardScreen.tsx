@@ -14,11 +14,11 @@ import {
 } from "@mui/icons-material";
 import {
     Box,
-    CircularProgress,
     Link,
     Typography,
     useTheme,
 } from "@mui/material";
+import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { useMemo, useRef } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
@@ -210,7 +210,7 @@ export function CreditDashboardScreen({
                                 minHeight: { xs: "300px", sm: "400px" },
                             }}
                         >
-                            <CircularProgress color="primary" size={48} />
+                            <PageLoader />
                         </Box>
                     </Box>
                 </Box>

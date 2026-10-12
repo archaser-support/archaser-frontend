@@ -10,10 +10,10 @@ import {
     Box,
     Button,
     Chip,
-    CircularProgress,
     IconButton,
-    Typography
+    Typography,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -331,13 +331,13 @@ const ActivityAttachmentViewer: React.FC<ActivityAttachmentViewerProps> = ({
                             />
                         )}
                         {isDeleting && (
-                            <CircularProgress
+                            <AppSpinner
                                 size={12}
                                 color="primary"
                             />
                         )}
                         {Object.keys(fileUrls).length < attachments.length && attachments.length > 0 && (
-                            <CircularProgress
+                            <AppSpinner
                                 size={12}
                                 color="primary"
                             />

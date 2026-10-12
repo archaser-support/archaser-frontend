@@ -1,7 +1,8 @@
 "use client";
 
 import { LockOpen, Security } from "@mui/icons-material";
-import { Alert, Box, CardContent, CircularProgress, Container, Fade, TextField, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { Alert, Box, CardContent, Container, Fade, TextField, Typography, useMediaQuery, useTheme } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useParams, useRouter } from "next/navigation";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -280,7 +281,7 @@ export default function VerificationView({ customerUUID, initialMaskedEmail, con
 
                                 {step === "verified" && (
                                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
-                                        <CircularProgress color="primary" />
+                                        <AppSpinner color="primary" />
                                         <Typography sx={{ mt: 2 }}>{t("messages.redirecting_to_portal")}</Typography>
                                     </Box>
                                 )}

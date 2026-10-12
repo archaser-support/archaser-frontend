@@ -222,6 +222,12 @@
     margin: 0;
 }
 
+/* Chrome draws a focus ring on Recharts' tabindex SVG after click. */
+.islandShell :global(.recharts-surface:focus),
+.islandShell :global(.recharts-surface:focus-visible) {
+    outline: none;
+}
+
 .panel {
     width: 100%;
     align-self: stretch;

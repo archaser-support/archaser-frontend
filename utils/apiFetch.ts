@@ -1,3 +1,4 @@
+import { noteUpstreamUnavailable } from "@/utils/apiAvailability";
 import {
     getAxiosBaseUrl,
     resolveAuthorizationHeader,
@@ -48,11 +49,11 @@ export function normalizeProductApiPath(path: string): string {
  */
 function isPublicPortalProductPath(pathOrUrl: string): boolean {
     try {
-        const path = (
-            /^https?:\/\//i.test(pathOrUrl)
+        const path =
+            (/^https?:\/\//i.test(pathOrUrl)
                 ? new URL(pathOrUrl).pathname
                 : pathOrUrl.split("?")[0]
-        ).replace(/\/+$/, "") || "/";
+            ).replace(/\/+$/, "") || "/";
 
         if (path === "/api/portal" || path.startsWith("/api/portal/")) {
             return true;
@@ -109,13 +110,28 @@ export async function apiFetch(
         }
     }
 
-    const response = await fetch(url, {
-        ...init,
-        headers,
-        credentials: shouldAttachNestBearer()
-            ? init.credentials ?? "omit"
-            : init.credentials ?? "include",
-    });
+    let response: Response;
+    try {
+        response = await fetch(url, {
+            ...init,
+            headers,
+            credentials: shouldAttachNestBearer()
+                ? (init.credentials ?? "omit")
+                : (init.credentials ?? "include"),
+        });
+    } catch (error) {
+        if (!(error instanceof Error && error.name === "AbortError")) {
+            noteUpstreamUnavailable(url);
+        }
+        throw error;
+    }
+    if (
+        response.status === 502 ||
+        response.status === 503 ||
+        response.status === 504
+    ) {
+        noteUpstreamUnavailable(url, response.status);
+    }
     if (!publicPortal && shouldAttachNestBearer() && response.status === 401) {
         await handleExpiredNestSession();
     }

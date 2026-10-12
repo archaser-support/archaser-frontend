@@ -40,6 +40,30 @@
         "modal_edit_title": "Edit Insurance Policy",
         "create_failed": "Could not create policy",
         "save_failed": "Could not save policy",
+        "save_confirm": {
+            "title": "Confirm Policy Changes",
+            "intro": "These changes apply to customers on this policy. Review them before saving.",
+            "field_change": "{{old}} → {{new}}",
+            "empty_value": "—",
+            "field_customer_count": "Customers to update: {{count}}",
+            "unique_customer_count": "Customers that will get a new policy version: {{count}}",
+            "skipped_pending_count": "Customers skipped (they have their own pending policy change): {{count}}",
+            "no_customers_to_update": "No customer needs a new policy version. Only the policy will be updated.",
+            "effective_date": "Effective date",
+            "effective_date_future_hint": "The policy and its customers will update on {{date}}. Until then, the current settings stay live and the policy form is locked.",
+            "confirm": "Confirm and Save",
+            "confirm_schedule": "Confirm and Schedule",
+            "preview_failed": "Could not check how this change affects customers",
+            "confirm_failed": "Could not save the policy. No changes were applied."
+        },
+        "pending_revision": {
+            "banner": "Policy change scheduled for {{date}}: {{fields}}. The policy form is locked until the change applies or you cancel it.",
+            "cancel": "Cancel Scheduled Change",
+            "cancel_success": "Scheduled policy change canceled",
+            "cancel_failed": "Could not cancel the scheduled policy change",
+            "scheduled_success": "Policy change scheduled for {{date}}",
+            "already_exists": "A policy change is already scheduled. Cancel it before making further changes."
+        },
         "load_policy_failed": "Could not load policy",
         "edit_page_description": "Edit policy details and manage country-specific limits for payment terms, MEP, reporting days, and coverage thresholds.",
         "delete_policy_country_title": "Delete Policy Country",
@@ -219,7 +243,9 @@
             "cutoff_requires_substitute": "Substitute is required when cutoff is set",
             "substitute_requires_cutoff": "Cutoff is required when substitute is set",
             "max_dcl_lte_max_total_cover": "Max DCL/SDL must be less than or equal to Max Total Cover",
-            "named_customer_number_exists": "Another row already uses this customer number"
+            "named_customer_number_exists": "Another row already uses this customer number",
+            "effective_date_required": "Effective date is required",
+            "effective_date_in_past": "Effective date must be today or later"
         }
     }
 }

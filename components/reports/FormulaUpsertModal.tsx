@@ -6,6 +6,9 @@ import {
     Alert,
     Box,
     Button,
+    Checkbox,
+    FormControlLabel,
+    FormHelperText,
     Stack,
     TextField,
     Typography,
@@ -230,6 +233,7 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
     const [aggregationDraft, setAggregationDraft] = useState<
         ReportFormula["aggregation"] | ""
     >("");
+    const [showAsColumnDraft, setShowAsColumnDraft] = useState(true);
     const [validationError, setValidationError] = useState<string | null>(null);
     const [validationWarning, setValidationWarning] = useState<string | null>(
         null
@@ -338,19 +342,31 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
             );
             setLabelDraft(initialFormula.label);
             setFormatDraft(initialFormula.format);
-            setAggregationDraft(initialFormula.aggregation || "");
+            setAggregationDraft(
+                initialFormula.aggregation || (isGrouped ? "SUM" : "")
+            );
+            setShowAsColumnDraft(!initialFormula.hidden);
         } else {
             setExpressionDraft("");
             setLabelDraft(defaultLabel);
             setFormatDraft("number");
-            setAggregationDraft("");
+            setAggregationDraft(isGrouped ? "SUM" : "");
+            setShowAsColumnDraft(true);
         }
         setValidationError(null);
         setValidationWarning(null);
         setSelectedOperandReference("");
         setSelectedTableName(tableOptions[0]?.name ?? "");
         setHelpOpen(false);
-    }, [open, mode, initialFormula, defaultLabel, existingFormulas, tableOptions]);
+    }, [
+        open,
+        mode,
+        initialFormula,
+        defaultLabel,
+        existingFormulas,
+        tableOptions,
+        isGrouped,
+    ]);
 
     const insertOperand = useCallback(
         (reference: string) => {
@@ -387,6 +403,7 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
             expression: expressionDraft,
             format: formatDraft,
             aggregation: aggregationDraft,
+            hidden: !showAsColumnDraft,
             editingId: mode === "add" ? null : editingId,
             locale: i18n.language,
             reportTableNames,
@@ -665,6 +682,31 @@ const FormulaUpsertModal: React.FC<FormulaUpsertModalProps> = ({
                                 )}
                             />
                         )}
+
+                        <Box dir={isRTL ? "rtl" : "ltr"}>
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={showAsColumnDraft}
+                                        onChange={(event) =>
+                                            setShowAsColumnDraft(
+                                                event.target.checked
+                                            )
+                                        }
+                                    />
+                                }
+                                label={t("formulas.show_as_column", {
+                                    defaultValue: "Show as column",
+                                })}
+                                {...(isHebrew && { "data-hebrew": true })}
+                            />
+                            <FormHelperText>
+                                {t("formulas.show_as_column_help", {
+                                    defaultValue:
+                                        "Turn off to use this formula only in filters or other formulas.",
+                                })}
+                            </FormHelperText>
+                        </Box>
 
                         <Box
                             sx={{

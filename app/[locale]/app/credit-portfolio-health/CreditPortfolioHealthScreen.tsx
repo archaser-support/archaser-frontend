@@ -3,12 +3,12 @@
 import {
     Box,
     Button,
-    CircularProgress,
     LinearProgress,
     Tooltip,
     Typography,
     useTheme,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useSession } from "next-auth/react";
 import { CalendarDays } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -24,6 +24,7 @@ import { CreditDashboardExcludedCustomersFilter } from "@/app/[locale]/app/credi
 import BusinessUnitDashboardFilter from "@/shared/components/BusinessUnitDashboardFilter";
 import {
     resolveGenerateModalAutoOpen,
+    shouldAutoCloseGenerateModal,
     type GenerateModalJobStatus,
 } from "@/shared/creditInsurance/generateModalAttention";
 import {
@@ -39,7 +40,6 @@ import {
 } from "@/utils/datetimeOperations";
 import { getRTLTooltipProps } from "@/utils/reportFieldUtils";
 import type {
-    CreditAsOfBackfillJobStatus,
     CreditAsOfBackfillJobView,
     CreditPortfolioHealthResponse,
 } from "@/types/creditInsurance";
@@ -422,12 +422,17 @@ export function CreditPortfolioHealthScreen({
         // never emits it — normalize so GenerateModalJobStatus stays narrow.
         const status: GenerateModalJobStatus =
             backfillStatus === "syncing" ? "idle" : backfillStatus;
+        const previousStatus = previousBackfillStatusRef.current;
         const result = resolveGenerateModalAutoOpen({
             status,
-            previousStatus: previousBackfillStatusRef.current,
+            previousStatus,
             dismissed: generateModalDismissed,
         });
         previousBackfillStatusRef.current = status;
+        if (shouldAutoCloseGenerateModal(status, previousStatus)) {
+            setGenerateModalOpen(false);
+            setConfirmingLargeGenerate(null);
+        }
         if (result.nextDismissed !== generateModalDismissed) {
             setGenerateModalDismissed(result.nextDismissed);
         }
@@ -893,7 +898,7 @@ export function CreditPortfolioHealthScreen({
                                                 },
                                             }}
                                         >
-                                            <CircularProgress
+                                            <AppSpinner
                                                 color="primary"
                                                 size={48}
                                             />
@@ -1103,7 +1108,7 @@ export function CreditPortfolioHealthScreen({
                                 }
                             >
                                 {largeConfirmPending ? (
-                                    <CircularProgress size={18} color="inherit" />
+                                    <AppSpinner size={18} color="inherit" />
                                 ) : (
                                     t(
                                         "credit_portfolio_health.large_range_confirm_button",
@@ -1144,7 +1149,7 @@ export function CreditPortfolioHealthScreen({
                                         onClick={handleGenerateClick}
                                     >
                                         {generatePending ? (
-                                            <CircularProgress
+                                            <AppSpinner
                                                 size={18}
                                                 color="inherit"
                                             />
@@ -1171,7 +1176,7 @@ export function CreditPortfolioHealthScreen({
                                         onClick={handleGenerateRecentClick}
                                     >
                                         {generateRecentPending ? (
-                                            <CircularProgress
+                                            <AppSpinner
                                                 size={18}
                                                 color="inherit"
                                             />
@@ -1196,7 +1201,7 @@ export function CreditPortfolioHealthScreen({
                                     onClick={onStopGenerate}
                                 >
                                     {stopPending ? (
-                                        <CircularProgress
+                                        <AppSpinner
                                             size={18}
                                             color="inherit"
                                         />
@@ -1222,7 +1227,7 @@ export function CreditPortfolioHealthScreen({
                                     onClick={onRetryGenerate}
                                 >
                                     {retryPending ? (
-                                        <CircularProgress
+                                        <AppSpinner
                                             size={18}
                                             color="inherit"
                                         />

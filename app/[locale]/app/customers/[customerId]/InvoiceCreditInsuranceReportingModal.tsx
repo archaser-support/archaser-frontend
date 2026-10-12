@@ -9,13 +9,13 @@ import axios from "axios";
 import {
     Box,
     Button,
-    CircularProgress,
     FormControl,
     InputLabel,
     MenuItem,
     Select,
     TextField,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import moment, { Moment } from "moment";
 import { useSession } from "next-auth/react";
@@ -295,7 +295,7 @@ const InvoiceCreditInsuranceReportingModal: React.FC<
                         fullWidth={false}
                         endIcon={
                             saving ? (
-                                <CircularProgress
+                                <AppSpinner
                                     size={16}
                                     sx={{ color: "inherit" }}
                                 />

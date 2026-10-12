@@ -8838,6 +8838,64 @@
         ]
       }
     },
+    "/api/entities/insurance-policies/{id}/save-preview": {
+      "post": {
+        "operationId": "InsurancePoliciesActionsController_savePreview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Missing Bearer or session cookie"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Preview an insurance policy save: changed customer-push fields and affected customer counts",
+        "tags": [
+          "entities"
+        ]
+      }
+    },
+    "/api/entities/insurance-policies/{id}/cancel-pending": {
+      "post": {
+        "operationId": "InsurancePoliciesActionsController_cancelPending",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Missing Bearer or session cookie"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Cancel the scheduled (future-dated) insurance policy revision",
+        "tags": [
+          "entities"
+        ]
+      }
+    },
     "/api/entities/insurance-policies/{id}/customer-prefill": {
       "get": {
         "operationId": "InsurancePoliciesActionsController_customerPrefill",

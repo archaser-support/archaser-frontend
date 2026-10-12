@@ -66,3 +66,11 @@ export function resolveGenerateModalAutoOpen(
     // Same attention status continuing (e.g. poll): do not re-force open.
     return { shouldOpen: false, nextDismissed: dismissed };
 }
+
+/** True when a generate job just finished successfully (running → complete). */
+export function shouldAutoCloseGenerateModal(
+    status: GenerateModalJobStatus,
+    previousStatus: GenerateModalJobStatus | null
+): boolean {
+    return previousStatus === "running" && status === "complete";
+}

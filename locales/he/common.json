@@ -219,7 +219,9 @@
         "in_a_moment": "בעוד רגע",
         "in_minutes": "בעוד {{count}} דקות",
         "in_hours": "בעוד {{count}} שעות",
-        "in_days": "בעוד {{count}} ימים"
+        "in_days": "בעוד {{count}} ימים",
+        "deployment_title": "ARchaser מתעדכן",
+        "deployment_body": "גרסה חדשה עולה עכשיו. הדף יתרענן מעצמו בעוד כמה שניות."
     },
     "values": {
         "status_active": "פעיל",

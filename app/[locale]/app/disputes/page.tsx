@@ -1,6 +1,7 @@
 "use client";
 
-import { Box, Alert, CircularProgress } from "@mui/material";
+import { Box, Alert } from "@mui/material";
+import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { useQuery } from "@tanstack/react-query";
 import React, { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -37,7 +38,7 @@ export default function Page() {
                     minHeight: { xs: "300px", sm: "400px" },
                 }}
             >
-                <CircularProgress />
+                <PageLoader />
             </Box>
         ),
         []

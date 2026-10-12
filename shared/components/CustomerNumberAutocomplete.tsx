@@ -2,13 +2,13 @@
 
 import {
     Autocomplete,
-    CircularProgress,
     SxProps,
     TextField,
     Theme,
     Typography,
     useTheme,
 } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -307,7 +307,7 @@ const CustomerNumberAutocomplete: React.FC<CustomerNumberAutocompleteProps> = ({
                         endAdornment: (
                             <>
                                 {loading ? (
-                                    <CircularProgress
+                                    <AppSpinner
                                         color="inherit"
                                         size={20}
                                     />

@@ -1,5 +1,6 @@
 "use client";
-import { Box, CircularProgress } from "@mui/material";
+import { Box } from "@mui/material";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import React from "react";
 
 import { DashboardResponse } from "@/types/Dashboard";
@@ -53,7 +54,7 @@ const DashboardGrid = ({
                 justifyContent="center"
                 minHeight="400px"
             >
-                <CircularProgress />
+                <AppSpinner />
             </Box>
         );
     }

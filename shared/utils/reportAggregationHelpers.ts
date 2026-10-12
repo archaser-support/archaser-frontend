@@ -144,14 +144,15 @@ export function getAggregationLabelSuffix(
     accountCurrency?: string,
     /** When true, header already includes "FIELD SUM"; omit redundant "(SUM)" / "SUM:" in suffix. */
     omitRedundantAggregationType?: boolean,
-    /** Grouped reports: full-dataset sum for COUNT columns (from execute API). */
+    /** Grouped reports: full-dataset totals for aggregated columns (from execute API). */
     aggregationTotals?: Record<string, number>,
     t?: TFunction
 ): string {
     if (!fieldConfig?.aggregation) return "";
 
+    // Prefer server full-dataset totals (all pages). Client-side calc only
+    // covers rows loaded so far and drifts under infinite scroll.
     const fromTotals =
-        fieldConfig.aggregation === "COUNT" &&
         aggregationTotals &&
         typeof aggregationTotals[fieldKey] === "number"
             ? aggregationTotals[fieldKey]
