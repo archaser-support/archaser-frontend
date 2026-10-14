@@ -27,6 +27,25 @@ const UI_HOST_TO_NEST_ORIGIN: Record<string, string> = {
     "www.portal.archaser.com": "https://api.portal.archaser.com",
 };
 
+/**
+ * Temporary: skip /health polling and the deploy maintenance overlay on staging.
+ * Production keeps the overlay. Remove this gate when staging is stable enough.
+ */
+export function isDeploymentMaintenanceEnabled(): boolean {
+    if (typeof window === "undefined") {
+        return true;
+    }
+    const host = window.location.hostname.toLowerCase();
+    if (
+        host === "staging.archaser.com" ||
+        host === "www.staging.archaser.com" ||
+        host.startsWith("staging.")
+    ) {
+        return false;
+    }
+    return true;
+}
+
 function originFromEnvUrl(raw: string | undefined | null): string {
     const value = raw?.trim();
     if (!value) {
@@ -125,6 +144,9 @@ function recordHealthUp(): void {
 export type HealthProbe = "up" | "down" | "unknown";
 
 export async function probeApiHealth(): Promise<HealthProbe> {
+    if (!isDeploymentMaintenanceEnabled()) {
+        return "unknown";
+    }
     const healthPath = resolveHealthUrl();
     if (!healthPath) {
         return "unknown";
@@ -201,6 +223,9 @@ export function noteUpstreamUnavailable(
     if (typeof window === "undefined" || unavailable) {
         return;
     }
+    if (!isDeploymentMaintenanceEnabled()) {
+        return;
+    }
     if (requestUrl && requestUrl.includes("/health")) {
         return;
     }
@@ -213,6 +238,9 @@ export function noteUpstreamUnavailable(
 /** Proactive /health probe reported down (e.g. app mount / poll). */
 export function noteConfirmedOutage(): void {
     if (typeof window === "undefined" || unavailable) {
+        return;
+    }
+    if (!isDeploymentMaintenanceEnabled()) {
         return;
     }
     recordHealthDown();
