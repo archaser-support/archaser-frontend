@@ -1,11 +1,22 @@
 /**
  * Detect API outage for the Amplify UI maintenance overlay.
  * Health must hit the Nest/API host — never Amplify same-origin `/health`.
+ *
+ * Transient blips (one failed probe or a brief 502/503 under load) must not
+ * flash the overlay + reload. Require consecutive failed /health probes, and
+ * only hard-reload after a sustained outage (typical real deploy).
  */
 
 const listeners = new Set<(down: boolean) => void>();
 
+/** Failed /health probes in a row before showing the overlay. */
+const FAILURES_BEFORE_OVERLAY = 2;
+/** Only full-page reload when Nest was down at least this long. */
+const RELOAD_AFTER_MS = 15_000;
+
 let unavailable = false;
+let consecutiveFailures = 0;
+let unavailableSince: number | null = null;
 let checkInFlight: Promise<void> | null = null;
 
 /** Known UI host → Nest origin when env is missing from the client bundle. */
@@ -85,6 +96,32 @@ function emit(down: boolean): void {
     }
 }
 
+function recordHealthDown(): void {
+    consecutiveFailures += 1;
+    if (consecutiveFailures < FAILURES_BEFORE_OVERLAY || unavailable) {
+        return;
+    }
+    unavailableSince = Date.now();
+    emit(true);
+}
+
+function recordHealthUp(): void {
+    consecutiveFailures = 0;
+    if (!unavailable) {
+        return;
+    }
+    const downForMs = unavailableSince
+        ? Date.now() - unavailableSince
+        : 0;
+    unavailableSince = null;
+    emit(false);
+    // Brief false-positive overlays: hide without reload. Sustained outage
+    // (real deploy): reload so failed in-flight UI state is recovered.
+    if (downForMs >= RELOAD_AFTER_MS) {
+        window.location.reload();
+    }
+}
+
 export type HealthProbe = "up" | "down" | "unknown";
 
 export async function probeApiHealth(): Promise<HealthProbe> {
@@ -146,7 +183,9 @@ async function confirmOutage(): Promise<void> {
         }
         const probe = await probeApiHealth();
         if (probe === "down") {
-            emit(true);
+            recordHealthDown();
+        } else if (probe === "up") {
+            recordHealthUp();
         }
     })().finally(() => {
         checkInFlight = null;
@@ -171,24 +210,20 @@ export function noteUpstreamUnavailable(
     void confirmOutage();
 }
 
-/** Direct mark from a proactive /health probe (e.g. on app mount). */
+/** Proactive /health probe reported down (e.g. app mount / poll). */
 export function noteConfirmedOutage(): void {
     if (typeof window === "undefined" || unavailable) {
         return;
     }
-    emit(true);
+    recordHealthDown();
 }
 
-/** Clear overlay and reload once Nest /health is healthy again. */
+/** Clear overlay once Nest /health is healthy again (reload only if sustained). */
 export function markApiAvailable(): void {
     if (typeof window === "undefined") {
         return;
     }
-    if (!unavailable) {
-        return;
-    }
-    emit(false);
-    window.location.reload();
+    recordHealthUp();
 }
 
 export function isApiMarkedUnavailable(): boolean {
