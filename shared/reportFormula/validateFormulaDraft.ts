@@ -25,7 +25,11 @@ import {
     normalizeFormulaExpression,
     parseFormulaExpression,
 } from "@/shared/reportFormula/parser";
-import type { FormulaResultFormat, ReportFormula } from "@/shared/reportFormula/types";
+import {
+    formulaSupportsDecimals,
+    type FormulaResultFormat,
+    type ReportFormula,
+} from "@/shared/reportFormula/types";
 
 export type FormulaValidationErrorCode =
     | FormulaParseErrorCode
@@ -67,6 +71,7 @@ export type ValidateFormulaDraftInput = {
     format: FormulaResultFormat;
     aggregation?: ReportFormula["aggregation"] | "";
     hidden?: boolean;
+    decimals?: number | null;
     editingId: string | null;
     formulaId?: string | null;
     locale: string;
@@ -509,6 +514,10 @@ export function validateFormulaDraft(
                 ? { aggregation: input.aggregation }
                 : {}),
             ...(input.hidden ? { hidden: true } : {}),
+            ...(input.decimals != null &&
+            formulaSupportsDecimals(input.format, input.isGrouped)
+                ? { decimals: input.decimals }
+                : {}),
         },
         ...(warning ? { warning } : {}),
     };

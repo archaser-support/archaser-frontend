@@ -609,6 +609,7 @@ export const useColumnWidthSync = ({
     rows,
     headerRef,
     bodyRef,
+    footerRef,
     isLoading = false,
     visibleRange,
 }: UseColumnWidthSyncOptions): UseColumnWidthSyncReturn => {
@@ -853,6 +854,34 @@ export const useColumnWidthSync = ({
                     );
                     const firstBodyRow = findFirstRow(bodyRef.current);
 
+                    const applyFooterWidths = (widthsMap: Map<number, number>) => {
+                        const footerEl = footerRef?.current;
+                        if (!footerEl) {
+                            return;
+                        }
+                        const footerRow = footerEl.hasAttribute("data-row-index")
+                            ? footerEl
+                            : (footerEl.querySelector(
+                                  "[data-row-index]"
+                              ) as HTMLElement | null) || footerEl;
+                        const footerCells = Array.from(
+                            footerRow.children
+                        ) as HTMLElement[];
+                        if (footerCells.length === 0) {
+                            return;
+                        }
+                        applyStylesToCells(
+                            footerCells,
+                            widthsMap,
+                            enhancedColumns,
+                            columnWidths,
+                            forceSync,
+                            true,
+                            0,
+                            null
+                        );
+                    };
+
                     // Handle missing rows
                     if (!firstBodyRow) {
                         if (rows.length > 0) {
@@ -872,7 +901,24 @@ export const useColumnWidthSync = ({
                             });
                             return;
                         }
-                        // No rows to sync - mark as synced and exit
+                        // No rows to sync — still align an opt-in footer with the header
+                        const emptyWidths = calculateColumnWidthsMap(
+                            headerCells,
+                            headerCells,
+                            enhancedColumns,
+                            columnWidths
+                        );
+                        applyStylesToCells(
+                            headerCells,
+                            emptyWidths.widthsMap,
+                            enhancedColumns,
+                            columnWidths,
+                            forceSync,
+                            true,
+                            0,
+                            null
+                        );
+                        applyFooterWidths(emptyWidths.widthsMap);
                         lastSyncColumnsRef.current = columnsKey;
                         syncInProgressRef.current = false;
                         return;
@@ -892,6 +938,7 @@ export const useColumnWidthSync = ({
 
                     // Only apply if sync is actually needed
                     if (!needsSync && !forceSync) {
+                        applyFooterWidths(widthsMap);
                         lastSyncColumnsRef.current = columnsKey;
                         syncInProgressRef.current = false;
                         return;
@@ -913,6 +960,7 @@ export const useColumnWidthSync = ({
                     headerCells.forEach((cell) => {
                         void cell.offsetHeight;
                     });
+                    applyFooterWidths(widthsMap);
 
                     // Get header's first cell (row number) padding to match in body cells
                     // CRITICAL: This must be exact to prevent cumulative misalignment
@@ -1118,6 +1166,7 @@ export const useColumnWidthSync = ({
             columnsKey,
             headerRef,
             bodyRef,
+            footerRef,
             rows,
             enhancedColumns,
             columnWidths,

@@ -22,7 +22,8 @@ interface UseExportOptions {
     onExport?: (
         selectedColumns: string[],
         fileName: string,
-        format: ExportFormat
+        format: ExportFormat,
+        includeTotalRow?: boolean
     ) => Promise<any[]>;
     exportDisabled?: boolean;
     totalRecords: number;
@@ -35,7 +36,8 @@ interface UseExportReturn {
     handleExport: (
         selectedColumns: string[],
         fileName: string,
-        format: ExportFormat
+        format: ExportFormat,
+        includeTotalRow?: boolean
     ) => Promise<void>;
     handleExportDialogClose: () => void;
     setIsExportDialogOpen: (open: boolean) => void;
@@ -66,7 +68,8 @@ export const useExport = ({
         async (
             selectedColumns: string[],
             fileName: string,
-            format: ExportFormat
+            format: ExportFormat,
+            includeTotalRow?: boolean
         ) => {
             if (!onExport) {
                 throw new Error("Export function not provided");
@@ -78,7 +81,8 @@ export const useExport = ({
                 const exportData = await onExport(
                     selectedColumns,
                     fileName,
-                    format
+                    format,
+                    includeTotalRow
                 );
 
                 // Create column headers mapping

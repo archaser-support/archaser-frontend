@@ -362,6 +362,8 @@ interface GenerateViewColumnsOptions {
     accountCurrency?: string;
     /** Grouped report execute: full-dataset aggregation totals for column headers */
     aggregationTotals?: Record<string, number>;
+    /** Report viewer: omit the header total number when the total row is on. */
+    hideHeaderAggregationValue?: boolean;
     /** Credit-only accounts: blank category column and hide automation-stuck icon. */
     hideCollectionCategoryDisplay?: boolean;
 }
@@ -624,6 +626,7 @@ export function generateViewColumns(
         rawData,
         accountCurrency,
         aggregationTotals,
+        hideHeaderAggregationValue = false,
         hideCollectionCategoryDisplay = false,
     } = options;
 
@@ -809,6 +812,7 @@ export function generateViewColumns(
         }
 
         // Aggregation type + full-dataset total in the header (e.g. "Amount SUM (SUM: 52,300 USD)").
+        // The numeric total is appended unless hideHeaderAggregationValue is on.
         if (enableAggregation && fieldConfig?.aggregation) {
             const dataForAggregation = rawData || rows;
             const omitRedundantAggInHeader = !fieldConfig?.alias;
@@ -818,13 +822,16 @@ export function generateViewColumns(
             const aggregationSuffix = getAggregationLabelSuffix(
                 fieldConfig,
                 dataForAggregation,
-                key,
+                fieldConfig
+                    ? getFieldOutputKey(fieldConfig) || key
+                    : key,
                 tablesMetadata,
                 i18n,
                 accountCurrency,
                 omitRedundantAggInHeader,
                 aggregationTotals,
-                t
+                t,
+                hideHeaderAggregationValue
             );
             if (label && aggregationSuffix) {
                 label = label + aggregationSuffix;
