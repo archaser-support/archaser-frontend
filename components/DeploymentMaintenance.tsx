@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 
 import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import {
+    isDeploymentMaintenanceEnabled,
     markApiAvailable,
     noteConfirmedOutage,
     probeApiHealth,
@@ -36,8 +37,17 @@ export default function DeploymentMaintenance() {
         isPreviewMaintenance,
         () => false
     );
+    const enabled = useSyncExternalStore(
+        subscribeNoop,
+        isDeploymentMaintenanceEnabled,
+        () => true
+    );
 
     useEffect(() => {
+        if (!enabled && !preview) {
+            return;
+        }
+
         const unsubscribe = subscribeApiAvailability(setDown);
 
         if (preview) {
@@ -64,10 +74,10 @@ export default function DeploymentMaintenance() {
             unsubscribe();
             window.clearInterval(pollId);
         };
-    }, [preview]);
+    }, [preview, enabled]);
 
     useEffect(() => {
-        if (!down || preview) {
+        if (!enabled || !down || preview) {
             return;
         }
         let cancelled = false;
@@ -86,7 +96,12 @@ export default function DeploymentMaintenance() {
             cancelled = true;
             window.clearInterval(id);
         };
-    }, [down, preview]);
+    }, [down, preview, enabled]);
+
+    // Staging: no overlay (unless ?previewMaintenance=1 for local QA).
+    if (!enabled && !preview) {
+        return null;
+    }
 
     if (!down && !preview) {
         return null;
