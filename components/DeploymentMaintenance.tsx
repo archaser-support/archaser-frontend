@@ -6,7 +6,6 @@ import { useTranslation } from "react-i18next";
 
 import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import {
-    isApiMarkedUnavailable,
     markApiAvailable,
     noteConfirmedOutage,
     probeApiHealth,
@@ -49,7 +48,9 @@ export default function DeploymentMaintenance() {
             const probe = await probeApiHealth();
             if (probe === "down") {
                 noteConfirmedOutage();
-            } else if (probe === "up" && isApiMarkedUnavailable()) {
+            } else if (probe === "up") {
+                // Always clear the consecutive-failure streak; reload only if
+                // the overlay was already up for a sustained outage.
                 markApiAvailable();
             }
         };
