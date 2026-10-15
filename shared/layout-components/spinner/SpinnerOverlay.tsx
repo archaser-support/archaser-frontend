@@ -5,11 +5,12 @@ import { alpha } from "@mui/material/styles";
 import React from "react";
 import { useTranslation } from "react-i18next";
 
-import ArchaserTrackRunner from "@/shared/components/ArchaserTrackRunner";
+import ArchaserTrackRunner, {
+    ARCHASER_TRACK_RUNNER_HEIGHT_PX,
+} from "@/shared/components/ArchaserTrackRunner";
 
 import { useSpinner } from "./SpinnerProvider";
 
-const MARK_HEIGHT_PX = 64;
 const LABEL_GAP_PX = 16;
 
 type PageLoadingOverlayProps = {
@@ -60,7 +61,7 @@ export const PageLoadingOverlay = ({ open, label }: PageLoadingOverlayProps) => 
                     outline: 0,
                 }}
             >
-                <ArchaserTrackRunner height={MARK_HEIGHT_PX} />
+                <ArchaserTrackRunner height={ARCHASER_TRACK_RUNNER_HEIGHT_PX} />
                 <Typography
                     variant="body2"
                     dir={i18n.dir()}

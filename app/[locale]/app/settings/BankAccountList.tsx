@@ -594,7 +594,7 @@ export function BankAccountList({ accountId }: BankAccountListProps) {
                     height: 200,
                 }}
             >
-                <AppSpinner color="primary" size={40} />
+                <AppSpinner color="primary" />
             </Box>
         );
     }

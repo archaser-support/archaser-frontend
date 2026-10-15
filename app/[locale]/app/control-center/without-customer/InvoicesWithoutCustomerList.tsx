@@ -514,7 +514,7 @@ const InvoicesWithoutCustomerList: React.FC = () => {
                         height: "400px",
                     }}
                 >
-                    <AppSpinner size={40} />
+                    <AppSpinner />
                 </Box>
             ) : (
                 <Box

@@ -502,7 +502,7 @@ const EmailCampaignReportContainer = () => {
                         height: "400px",
                     }}
                 >
-                    <AppSpinner size={40} />
+                    <AppSpinner />
                 </Box>
             ) : reportData && reportData.data ? (
                 <EmailCampaignReportTable

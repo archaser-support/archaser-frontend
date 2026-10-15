@@ -281,7 +281,7 @@ const FollowUpList: React.FC = () => {
                     }}
                 >
                     <Box sx={{ textAlign: "center" }}>
-                        <AppSpinner color="primary" size={40} />
+                        <AppSpinner color="primary" />
                     </Box>
                 </Box>
             </Box>

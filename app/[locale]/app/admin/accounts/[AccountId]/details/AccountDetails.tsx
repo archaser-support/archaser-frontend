@@ -2702,7 +2702,6 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
                                             >
                                                 <AppSpinner
                                                     color="primary"
-                                                    size={40}
                                                 />
                                             </Box>
                                         ) : smsProviderConfigs.length > 0 ? (

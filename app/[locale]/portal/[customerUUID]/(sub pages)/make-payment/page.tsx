@@ -93,7 +93,6 @@ export default function Page({ params }: PageProps) {
                     }}
                 >
                     <AppSpinner
-                        size={60}
                         sx={{
                             color: (theme) => theme.palette.primary.main,
                         }}
