@@ -1,28 +1,54 @@
 /** Shared Recharts axis / tooltip formatters for the portfolio-health charts. */
 
-export function formatCurrencyCompact(v: number, currency: string): string {
-    return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency,
-        currencyDisplay: "symbol",
+import { getCurrencySymbol } from "@/utils/stringFormatters";
+
+function currencyMarker(currency: string): string {
+    return getCurrencySymbol(currency) || currency.trim().toUpperCase() || "USD";
+}
+
+/**
+ * Compact money for chart axes/tooltips.
+ * - Hebrew: `₪ 35M` · English: `35M ₪`
+ */
+export function formatCurrencyCompact(
+    v: number,
+    currency: string,
+    language = "en"
+): string {
+    const compact = v.toLocaleString("en-US", {
         notation: "compact",
         maximumFractionDigits: 0,
-    }).format(v);
+    });
+    const symbol = currencyMarker(currency);
+    if (language.startsWith("he")) {
+        return `\u200E${symbol}\u00A0${compact}`;
+    }
+    return `\u200E${compact}\u00A0${symbol}`;
 }
 
-export function formatCurrencyFull(v: number, currency: string): string {
-    return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency,
-        currencyDisplay: "symbol",
+/**
+ * Full money for chart tooltips.
+ * - Hebrew: `₪ 112,893,772` · English: `112,893,772 ₪`
+ */
+export function formatCurrencyFull(
+    v: number,
+    currency: string,
+    language = "en"
+): string {
+    const amount = Math.round(v).toLocaleString("en-US", {
         maximumFractionDigits: 0,
-    }).format(v);
+    });
+    const symbol = currencyMarker(currency);
+    if (language.startsWith("he")) {
+        return `\u200E${symbol}\u00A0${amount}`;
+    }
+    return `\u200E${amount}\u00A0${symbol}`;
 }
 
-/** "₪35M" */
+/** "35M ₪" (English default) */
 export const formatIlsCompact = (v: number) => formatCurrencyCompact(v, "ILS");
 
-/** "₪112,893,772" */
+/** "112,893,772 ₪" (English default) */
 export const formatIlsFull = (v: number) => formatCurrencyFull(v, "ILS");
 
 /** "Jan '26" — accepts Date or `YYYY-MM` / ISO date strings. */

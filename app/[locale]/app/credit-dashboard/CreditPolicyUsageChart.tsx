@@ -18,6 +18,7 @@ import type { PolicyLimitUsageCategoryTotals } from "@/types/creditInsurance";
 import {
     formatPortfolioAxisMoney,
     formatPortfolioMoney,
+    PORTFOLIO_MONEY_HTML_STYLE,
 } from "@/app/[locale]/app/credit-portfolio-health/formatPortfolioMoney";
 import ReactApexChart from "@/shared/components/ApexChart";
 
@@ -315,7 +316,7 @@ export function CreditPolicyUsageChart(props: {
                         tooltipContent +=
                             `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 16px;">` +
                             `<div style="font-weight: 400; color: #2F3B52; text-align: ${textAlign}; direction: ${direction}; flex: 1;">${approvedLimitLabel}</div>` +
-                            `<div style="color: #2F3B52; font-weight: 400; text-align: ${isRtl ? "left" : "right"}; direction: ltr;">${fmtMoney(approvedLimitValue)}</div>` +
+                            `<div style="color: #2F3B52; font-weight: 400; text-align: ${isRtl ? "left" : "right"}; ${PORTFOLIO_MONEY_HTML_STYLE}">${fmtMoney(approvedLimitValue)}</div>` +
                             `</div>`;
                     } else if (isTopUpColumn && topUpCapacity > 0) {
                         const totalCoverLabel = t(
@@ -328,7 +329,7 @@ export function CreditPolicyUsageChart(props: {
                         tooltipContent +=
                             `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 16px;">` +
                             `<div style="font-weight: 400; color: #2F3B52; text-align: ${textAlign}; direction: ${direction}; flex: 1;">${totalCoverLabel}</div>` +
-                            `<div style="color: #2F3B52; font-weight: 400; text-align: ${isRtl ? "left" : "right"}; direction: ltr;">${fmtMoney(topUpCapacity)}</div>` +
+                            `<div style="color: #2F3B52; font-weight: 400; text-align: ${isRtl ? "left" : "right"}; ${PORTFOLIO_MONEY_HTML_STYLE}">${fmtMoney(topUpCapacity)}</div>` +
                             `</div>`;
                     }
 
@@ -341,13 +342,13 @@ export function CreditPolicyUsageChart(props: {
                             tooltipContent +=
                                 `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 8px; width: 100%;">` +
                                 `<div style="font-weight: 400; color: #2F3B52; text-align: right; direction: rtl; flex: 1;">${labels[index] ?? ""}</div>` +
-                                `<div style="color: ${colors[index]}; font-weight: 400; text-align: left; direction: ltr; flex-shrink: 0;">${fmtMoney(value)}</div>` +
+                                `<div style="color: ${colors[index]}; font-weight: 400; text-align: left; flex-shrink: 0; ${PORTFOLIO_MONEY_HTML_STYLE}">${fmtMoney(value)}</div>` +
                                 `</div>`;
                         } else {
                             tooltipContent +=
                                 `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 16px;">` +
                                 `<div style="font-weight: 400; color: #2F3B52; text-align: left; direction: ltr; flex: 1;">${labels[index] ?? ""}</div>` +
-                                `<div style="color: ${colors[index]}; font-weight: 400; text-align: right; direction: ltr;">${fmtMoney(value)}</div>` +
+                                `<div style="color: ${colors[index]}; font-weight: 400; text-align: right; ${PORTFOLIO_MONEY_HTML_STYLE}">${fmtMoney(value)}</div>` +
                                 `</div>`;
                         }
                     });

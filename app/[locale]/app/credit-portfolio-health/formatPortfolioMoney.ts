@@ -52,7 +52,11 @@ export function resolvePortfolioNumberDecimals(
     return resolved;
 }
 
-/** Account currency next to amount (RTL-aware). Whole numbers — KPI / portfolio cards. */
+/**
+ * Account currency next to amount. LRM keeps digit runs intact under RTL parents.
+ * - Hebrew: `₪ 50,884` (symbol before)
+ * - English: `50,884 ₪` (symbol after)
+ */
 export function formatPortfolioMoney(
     amount: number,
     currencyCode: string,
@@ -64,10 +68,36 @@ export function formatPortfolioMoney(
     const formattedAmount = formatAmountWithoutSymbolWhole(safeAmount, locale);
     const nbsp = "\u00A0";
     if (language.startsWith("he")) {
-        return `\u200E${formattedAmount}${nbsp}${symbol}`;
+        return `\u200E${symbol}${nbsp}${formattedAmount}`;
     }
-    return `${symbol}${nbsp}${formattedAmount}`;
+    return `\u200E${formattedAmount}${nbsp}${symbol}`;
 }
+
+/**
+ * SVG `<text>` props so {@link formatPortfolioMoney} order survives an RTL page.
+ * Without this, browsers reorder shekel/currency marks to the left of the amount.
+ */
+export const portfolioMoneySvgTextProps = {
+    direction: "ltr" as const,
+    style: {
+        unicodeBidi: "isolate" as const,
+        fontVariantNumeric: "tabular-nums" as const,
+    },
+};
+
+/**
+ * CSS for HTML / tooltip money spans under an RTL `dir` parent.
+ * Same reorder bug as SVG when the tooltip container is Hebrew.
+ */
+export const portfolioMoneyHtmlStyle = {
+    direction: "ltr" as const,
+    unicodeBidi: "isolate" as const,
+    fontVariantNumeric: "tabular-nums" as const,
+};
+
+/** Inline style string for ApexCharts custom HTML tooltips. */
+export const PORTFOLIO_MONEY_HTML_STYLE =
+    "direction: ltr; unicode-bidi: isolate; font-variant-numeric: tabular-nums;";
 
 /** Prefix/suffix for animated StatNumber / BigNumber money displays. */
 export function portfolioMoneyAffixes(
@@ -77,15 +107,15 @@ export function portfolioMoneyAffixes(
     const symbol = portfolioCurrencySymbol(currencyCode);
     const nbsp = "\u00A0";
     if (language.startsWith("he")) {
-        return { prefix: "\u200E", suffix: `${nbsp}${symbol}` };
+        return { prefix: `\u200E${symbol}${nbsp}`, suffix: "" };
     }
-    return { prefix: `${symbol}${nbsp}`, suffix: "" };
+    return { prefix: "\u200E", suffix: `${nbsp}${symbol}` };
 }
 
 /**
- * Compact axis ticks with account currency after the number.
- * Recharts Y-axis labels are right-aligned into the plot; a leading currency
- * marker is clipped by IslandCard overflow:hidden, so keep the symbol on the end.
+ * Compact axis ticks with account currency.
+ * - Hebrew: `₪ 15M` (symbol before)
+ * - English: `15M ₪` (symbol after; avoids left-edge clip on LTR axes)
  */
 export function formatPortfolioAxisMoney(
     amount: number,
@@ -98,5 +128,8 @@ export function formatPortfolioAxisMoney(
         maximumFractionDigits: 1,
     });
     const symbol = portfolioCurrencySymbol(currencyCode);
+    if (language.startsWith("he")) {
+        return `\u200E${symbol}\u00A0${compact}`;
+    }
     return `\u200E${compact}\u00A0${symbol}`;
 }

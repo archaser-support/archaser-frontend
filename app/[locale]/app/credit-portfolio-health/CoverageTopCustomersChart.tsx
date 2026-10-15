@@ -25,6 +25,7 @@ import { chartColors } from "./chartColors";
 import {
     formatPortfolioAxisMoney,
     formatPortfolioMoney,
+    portfolioMoneyHtmlStyle,
 } from "./formatPortfolioMoney";
 import { PortaledHoverTooltip } from "./PortaledHoverTooltip";
 
@@ -251,8 +252,7 @@ function CoverageTooltip({
                         <span
                             style={{
                                 color: CPH.slate,
-                                direction: "ltr",
-                                fontVariantNumeric: "tabular-nums",
+                                ...portfolioMoneyHtmlStyle,
                             }}
                         >
                             {item.display}
