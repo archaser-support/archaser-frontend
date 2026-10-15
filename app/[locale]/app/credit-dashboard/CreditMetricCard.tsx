@@ -95,7 +95,7 @@ export function CreditMetricCard({
     const clickable = Boolean(onClick);
     const cardHoverable = hoverable ?? !clickable;
     const m = theme.metricStatCard;
-    const compactIconSize = 32;
+    const compactIconSize = 36;
     const compactIconGutter = `calc(${compactIconSize}px + ${theme.spacing(1.75)} + ${theme.spacing(0.5)})`;
 
     const showChange = changePct != null && changePct !== 0;
@@ -181,6 +181,10 @@ export function CreditMetricCard({
                     aria-hidden
                     sx={[
                         m.iconBox(theme, isRtl, iconAccent),
+                        {
+                            display: "grid",
+                            placeItems: "center",
+                        },
                         compact
                             ? {
                                   width: compactIconSize,
@@ -189,9 +193,7 @@ export function CreditMetricCard({
                                   left: isRtl ? 14 : "auto",
                                   right: isRtl ? "auto" : 14,
                                   borderRadius: "6px",
-                                  "& .MuiSvgIcon-root": {
-                                      fontSize: "1.125rem",
-                                  },
+                                  fontSize: "1.25rem",
                               }
                             : {},
                     ]}
