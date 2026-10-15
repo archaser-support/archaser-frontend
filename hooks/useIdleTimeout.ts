@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useCallback } from "react";
 
+import { loginUrlWithReturnTo } from "@/utils/loginReturnTo";
 import { beginHardLogout } from "@/utils/nestAuth";
 
 interface UseIdleTimeoutOptions {
@@ -64,7 +65,11 @@ export function useIdleTimeout({
         }
 
         const locale = pathname?.split("/")[1] || "en";
-        beginHardLogout(`/${locale}/login`);
+        const returnPath =
+            typeof window === "undefined"
+                ? pathname || ""
+                : `${pathname || ""}${window.location.search}${window.location.hash}`;
+        beginHardLogout(loginUrlWithReturnTo(locale, returnPath));
     }, [pathname, onIdle]);
 
     // Function to reset the idle timer
