@@ -1,8 +1,8 @@
-import { People as PeopleIcon } from "@mui/icons-material";
 import { Box, useTheme } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
+import { CustomersNavIcon } from "@/shared/components/sidebar-icons";
 import AppUrls from "@/utils/appUrls";
 import { pushFinancialChartDetails } from "@/shared/dashboard/financialChartDetailsTitle";
 import { useDashboardBusinessUnitId } from "@/shared/dashboard/DashboardBusinessUnitContext";
@@ -322,10 +322,10 @@ const ActiveAccountsChart = ({
 
     return (
         <FinancialDashboardChartCard
-            icon={<PeopleIcon />}
+            icon={<CustomersNavIcon />}
             iconAccent="reporting"
             title={t("fields.charts_active_customers_title")}
-            subtitle={t("fields.charts_active_customers_description")}
+            titleTooltip={t("fields.charts_active_customers_description")}
             minHeight={400}
         >
             <Box sx={{ pt: 0.5, height: "100%", minHeight: 280 }}>

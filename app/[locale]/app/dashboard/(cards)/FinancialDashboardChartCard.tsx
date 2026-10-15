@@ -5,13 +5,18 @@ import type { SxProps, Theme } from "@mui/material/styles";
 import React from "react";
 import { useTranslation } from "react-i18next";
 
+import { CreditDashboardTitleInfoIcon } from "@/app/[locale]/app/credit-dashboard/creditDashboardTitleTooltip";
 import type { MetricStatCardIconAccent } from "@/app/theme";
 
 type FinancialDashboardChartCardProps = {
     icon: React.ReactNode;
     iconAccent?: MetricStatCardIconAccent;
     title: React.ReactNode;
-    subtitle?: React.ReactNode;
+    /**
+     * Long help copy shown on the title info icon (credit-dashboard pattern).
+     * Prefer this over a visible subtitle for chart descriptions.
+     */
+    titleTooltip?: React.ReactNode;
     children: React.ReactNode;
     /** Enables pointer cursor and `onClick` when set. */
     clickable?: boolean;
@@ -28,7 +33,7 @@ export function FinancialDashboardChartCard({
     icon,
     iconAccent = "default",
     title,
-    subtitle,
+    titleTooltip,
     children,
     clickable = false,
     onClick,
@@ -38,7 +43,7 @@ export function FinancialDashboardChartCard({
     bodySx,
 }: FinancialDashboardChartCardProps) {
     const theme = useTheme();
-    const { i18n } = useTranslation(["common"]);
+    const { t, i18n } = useTranslation(["dashboard", "common"]);
     const c = theme.creditDashboardChartCard;
     const isRtl = i18n.language === "he";
 
@@ -75,31 +80,50 @@ export function FinancialDashboardChartCard({
                     {icon}
                 </Box>
                 <Box sx={c.headerColumn(theme, isRtl)}>
-                    <Typography
-                        variant="body2"
-                        component="span"
-                        sx={{
-                            ...c.headerTitle(theme, isRtl),
-                            ml: 0,
-                            mr: 0,
-                            mb: subtitle ? theme.spacing(0.5) : theme.spacing(1),
-                            display: "block",
-                        }}
-                    >
-                        {title}
-                    </Typography>
-                    {subtitle ? (
-                        <Typography
-                            variant="body2"
+                    {titleTooltip != null && titleTooltip !== "" ? (
+                        <Box
                             sx={{
-                                ...c.headerCaption(theme, isRtl),
-                                display: "block",
-                                whiteSpace: "pre-line",
+                                ...c.headerTitleRow(theme, isRtl),
+                                mb: theme.spacing(1),
                             }}
                         >
-                            {subtitle}
+                            <Typography
+                                variant="body2"
+                                component="span"
+                                sx={{
+                                    ...c.headerTitleInRow(theme, isRtl),
+                                    ml: 0,
+                                    mr: 0,
+                                    mb: 0,
+                                    minWidth: 0,
+                                }}
+                            >
+                                {title}
+                            </Typography>
+                            <CreditDashboardTitleInfoIcon
+                                isRtl={isRtl}
+                                title={titleTooltip}
+                                ariaLabel={t(
+                                    "credit_insurance_dashboard.chart_title_help_aria",
+                                    { ns: "dashboard" }
+                                )}
+                            />
+                        </Box>
+                    ) : (
+                        <Typography
+                            variant="body2"
+                            component="span"
+                            sx={{
+                                ...c.headerTitle(theme, isRtl),
+                                ml: 0,
+                                mr: 0,
+                                mb: theme.spacing(1),
+                                display: "block",
+                            }}
+                        >
+                            {title}
                         </Typography>
-                    ) : null}
+                    )}
                 </Box>
                 <Box
                     sx={{

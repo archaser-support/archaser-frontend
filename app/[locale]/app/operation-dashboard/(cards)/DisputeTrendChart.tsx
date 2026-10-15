@@ -1,347 +1,376 @@
 "use client";
-import { ShowChart as ShowChartIcon } from "@mui/icons-material";
-import { Box, Card, CardContent, Typography, useTheme } from "@mui/material";
-import React from "react";
-import { useTranslation } from "react-i18next";
 
+import { DisputesNavIcon } from "@/shared/components/sidebar-icons";
+import { Box, Typography, useTheme } from "@mui/material";
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import {
+    Bar,
+    CartesianGrid,
+    ComposedChart,
+    Legend,
+    Line,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from "recharts";
+
+import { FinancialDashboardChartCard } from "@/app/[locale]/app/dashboard/(cards)/FinancialDashboardChartCard";
 import { OperationDashboardResponse } from "@/types/OperationDashboard";
-import Chart from "@/shared/components/ApexChart";
 
 interface DisputeTrendChartProps {
     data: OperationDashboardResponse;
 }
 
+type ChartRow = {
+    label: string;
+    created: number;
+    closed: number;
+};
+
+type DisputeTooltipProps = {
+    active?: boolean;
+    label?: string | number;
+    payload?: ReadonlyArray<{ payload?: ChartRow }>;
+    createdLabel: string;
+    closedLabel: string;
+    createdColor: string;
+    closedColor: string;
+    dateLabel: string;
+    isRtl: boolean;
+};
+
+function DisputeTooltip({
+    active,
+    label,
+    payload,
+    createdLabel,
+    closedLabel,
+    createdColor,
+    closedColor,
+    dateLabel,
+    isRtl,
+}: DisputeTooltipProps) {
+    const row = payload?.[0]?.payload;
+    if (!active || row == null) {
+        return null;
+    }
+    const items = [
+        { name: createdLabel, value: row.created, color: createdColor },
+        { name: closedLabel, value: row.closed, color: closedColor },
+    ];
+    return (
+        <div
+            dir={isRtl ? "rtl" : "ltr"}
+            style={{
+                background: "white",
+                border: "1px solid #DCE3EB",
+                borderRadius: 4,
+                padding: 8,
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                fontSize: 12,
+                minWidth: 160,
+                maxWidth: 220,
+            }}
+        >
+            <div
+                style={{
+                    fontWeight: 700,
+                    color: "#2F3B52",
+                    marginBottom: 6,
+                    borderBottom: "1px solid #DCE3EB",
+                    paddingBottom: 4,
+                }}
+            >
+                {dateLabel}: {label ?? row.label}
+            </div>
+            {items.map((item) => (
+                <div
+                    key={item.name}
+                    style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: isRtl ? 8 : 16,
+                        marginBottom: 4,
+                    }}
+                >
+                    <span style={{ fontWeight: 600, color: "#2F3B52" }}>
+                        {item.name}
+                    </span>
+                    <span
+                        style={{
+                            color: item.color,
+                            fontWeight: 500,
+                            direction: "ltr",
+                            fontVariantNumeric: "tabular-nums",
+                        }}
+                    >
+                        {item.value.toLocaleString()}
+                    </span>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function ChartLegend({
+    createdLabel,
+    closedLabel,
+    createdColor,
+    closedColor,
+    isRtl,
+    showLine,
+}: {
+    createdLabel: string;
+    closedLabel: string;
+    createdColor: string;
+    closedColor: string;
+    isRtl: boolean;
+    showLine: boolean;
+}) {
+    const items = [
+        {
+            label: createdLabel,
+            color: createdColor,
+            kind: showLine ? ("line" as const) : ("square" as const),
+        },
+        {
+            label: closedLabel,
+            color: closedColor,
+            kind: showLine ? ("line" as const) : ("square" as const),
+        },
+    ];
+    return (
+        <ul
+            style={{
+                listStyle: "none",
+                margin: 0,
+                padding: 0,
+                display: "flex",
+                flexWrap: "wrap",
+                justifyContent: "center",
+                gap: 14,
+                fontSize: 12,
+                color: "#7C8DA1",
+                direction: isRtl ? "rtl" : "ltr",
+            }}
+        >
+            {items.map((item) => (
+                <li
+                    key={item.label}
+                    style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                    }}
+                >
+                    {item.kind === "square" ? (
+                        <span
+                            style={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: 2,
+                                backgroundColor: item.color,
+                                flexShrink: 0,
+                            }}
+                        />
+                    ) : (
+                        <span
+                            style={{
+                                width: 14,
+                                height: 0,
+                                borderTop: `3px solid ${item.color}`,
+                                flexShrink: 0,
+                            }}
+                        />
+                    )}
+                    {item.label}
+                </li>
+            ))}
+        </ul>
+    );
+}
+
 const DisputeTrendChart: React.FC<DisputeTrendChartProps> = ({ data }) => {
     const { t, i18n } = useTranslation(["disputes", "dashboard", "common"]);
     const theme = useTheme();
-    const c = theme.creditDashboardChartCard;
     const isRtl = i18n.language === "he";
+    const createdColor = theme.palette.chartPalette.main;
+    const closedColor = theme.palette.success.main;
+    const createdLabel = t("fields.disputes_created", { ns: "disputes" });
+    const closedLabel = t("fields.disputes_closed", { ns: "disputes" });
+    const dateLabel = t("fields.chart_details_date", { ns: "dashboard" });
 
-    // Use dispute trend data if available, otherwise fall back to aggregate totals
     const hasTrendData =
-        data.disputeTrend && data.disputeTrend.dates.length > 0;
+        data.disputeTrend != null && data.disputeTrend.dates.length > 0;
 
-    const chartData = hasTrendData
-        ? {
-            series: [
-                {
-                    name: t("fields.disputes_created", { ns: "disputes" }),
-                    data: data.disputeTrend!.created,
-                },
-                {
-                    name: t("fields.disputes_closed", { ns: "disputes" }),
-                    data: data.disputeTrend!.closed,
-                },
-            ],
-            options: {
-                chart: {
-                    type: "line" as const,
-                    height: 350,
-                    toolbar: { show: false },
-                },
-                stroke: {
-                    curve: "smooth" as const,
-                    width: 3,
-                },
-                markers: {
-                    size: 4,
-                    hover: { size: 7 },
-                },
-                xaxis: {
-                    categories: data.disputeTrend!.dates.map((date) => {
-                        const d = new Date(date);
-                        return `${d.getMonth() + 1}/${d.getDate()}`;
-                    }),
-                    labels: {
-                        style: { colors: theme.palette.text.secondary },
-                    },
-                },
-                yaxis: {
-                    labels: {
-                        style: { colors: theme.palette.text.secondary },
-                    },
-                },
-                colors: [
-                    theme.palette.chartPalette.main,
-                    theme.palette.success.main,
-                ],
-                legend: {
-                    position: "bottom" as const,
-                    horizontalAlign: "center" as const,
-                },
-                grid: {
-                    borderColor: theme.palette.divider,
-                    strokeDashArray: 4,
-                },
-                tooltip: {
-                    theme: "light",
-                    style: {
-                        fontSize: "12px",
-                        fontFamily: "inherit",
-                    },
-                    fillSeriesColor: false,
-                    custom: function ({
-                        series,
-                        dataPointIndex,
-                        w,
-                    }: {
-                        series: number[][];
-                        dataPointIndex: number;
-                        w: any;
-                    }) {
-                        const isHebrew = i18n.language === "he";
-                        const textAlign = isHebrew ? "right" : "left";
-                        const direction = isHebrew ? "rtl" : "ltr";
-                        const dateLabel = t("fields.chart_details_date", {
-                            ns: "dashboard",
-                        });
-                        const disputesCreatedLabel = t(
-                            "fields.disputes_created",
-                            { ns: "disputes" }
-                        );
-                        const disputesClosedLabel = t(
-                            "fields.disputes_closed",
-                            { ns: "disputes" }
-                        );
-                        const labels = [
-                            disputesCreatedLabel,
-                            disputesClosedLabel,
-                        ];
-                        const colors = [
-                            theme.palette.chartPalette.main,
-                            theme.palette.success.main,
-                        ];
-                        const categoryLabel =
-                            w.globals.labels[dataPointIndex] || "";
-
-                        let tooltipContent = `<div class="custom-tooltip" style="background: white !important; border: 1px solid #DCE3EB !important; border-radius: 4px !important; padding: 8px !important; box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important; font-size: 12px !important; font-family: inherit !important; text-align: ${textAlign} !important; direction: ${direction} !important; width: 100% !important; max-width: 200px !important;">`;
-                        tooltipContent += `<div style="font-weight: 700 !important; color: #2F3B52 !important; margin-bottom: 6px !important; border-bottom: 1px solid #DCE3EB !important; padding-bottom: 4px !important; text-align: ${textAlign} !important; direction: ${direction} !important;">${dateLabel}: ${categoryLabel}</div>`;
-
-                        series.forEach((seriesData, index) => {
-                            const value = seriesData[dataPointIndex];
-                            if (value !== undefined && value !== null) {
-                                if (isHebrew) {
-                                    tooltipContent +=
-                                        `<div style="display: flex !important; justify-content: space-between !important; align-items: center !important; margin-bottom: 4px !important; gap: 8px !important; width: 100% !important;">` +
-                                        `<div style="font-weight: 600 !important; color: #2F3B52 !important; text-align: right !important; direction: rtl !important; flex: 1 !important;">${labels[index]}</div>` +
-                                        `<div style="color: ${colors[index]} !important; font-weight: 500 !important; text-align: left !important; direction: ltr !important; flex-shrink: 0 !important;">${value}</div>` +
-                                        `</div>`;
-                                } else {
-                                    tooltipContent +=
-                                        `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 16px;">` +
-                                        `<div style="font-weight: 600; color: #2F3B52; text-align: left !important; direction: ltr; flex: 1;">${labels[index]}</div>` +
-                                        `<div style="color: ${colors[index]}; font-weight: 500; text-align: right !important; direction: ltr;">${value}</div>` +
-                                        `</div>`;
-                                }
-                            }
-                        });
-
-                        tooltipContent += "</div>";
-                        return tooltipContent;
-                    },
-                },
-            },
+    const chartData = useMemo((): ChartRow[] => {
+        if (hasTrendData && data.disputeTrend) {
+            return data.disputeTrend.dates.map((date, index) => {
+                const d = new Date(date);
+                return {
+                    label: `${d.getMonth() + 1}/${d.getDate()}`,
+                    created: data.disputeTrend!.created[index] ?? 0,
+                    closed: data.disputeTrend!.closed[index] ?? 0,
+                };
+            });
         }
-        : {
-            series: [
-                {
-                    name: t("fields.disputes_created", { ns: "disputes" }),
-                    data: [data.aggregate.disputes.created],
-                },
-                {
-                    name: t("fields.disputes_closed", { ns: "disputes" }),
-                    data: [data.aggregate.disputes.closed],
-                },
-            ],
-            options: {
-                chart: {
-                    type: "bar" as const,
-                    height: 350,
-                },
-                plotOptions: {
-                    bar: {
-                        horizontal: false,
-                        columnWidth: "55%",
-                    },
-                },
-                dataLabels: {
-                    enabled: true,
-                },
-                xaxis: {
-                    categories: [
-                        t("fields.current_period", { ns: "dashboard" }),
-                    ],
-                },
-                colors: [
-                    theme.palette.chartPalette.main,
-                    theme.palette.chartPalette.light,
-                ],
-                legend: {
-                    position: "bottom" as const,
-                    horizontalAlign: "center" as const,
-                },
-                tooltip: {
-                    theme: "light",
-                    style: {
-                        fontSize: "12px",
-                        fontFamily: "inherit",
-                    },
-                    fillSeriesColor: false,
-                    custom: function ({
-                        series,
-                        dataPointIndex,
-                        w,
-                    }: {
-                        series: number[][];
-                        dataPointIndex: number;
-                        w: any;
-                    }) {
-                        const isHebrew = i18n.language === "he";
-                        const textAlign = isHebrew ? "right" : "left";
-                        const direction = isHebrew ? "rtl" : "ltr";
-                        const dateLabel = t("fields.chart_details_date", {
-                            ns: "dashboard",
-                        });
-                        const disputesCreatedLabel = t(
-                            "fields.disputes_created",
-                            { ns: "disputes" }
-                        );
-                        const disputesClosedLabel = t(
-                            "fields.disputes_closed",
-                            { ns: "disputes" }
-                        );
-                        const labels = [
-                            disputesCreatedLabel,
-                            disputesClosedLabel,
-                        ];
-                        const colors = [
-                            theme.palette.chartPalette.main,
-                            theme.palette.chartPalette.light,
-                        ];
-                        const categoryLabel =
-                            w.globals.labels[dataPointIndex] || "";
-
-                        let tooltipContent = `<div class="custom-tooltip" style="background: white !important; border: 1px solid #DCE3EB !important; border-radius: 4px !important; padding: 8px !important; box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important; font-size: 12px !important; font-family: inherit !important; text-align: ${textAlign} !important; direction: ${direction} !important; width: 100% !important; max-width: 200px !important;">`;
-                        tooltipContent += `<div style="font-weight: 700 !important; color: #2F3B52 !important; margin-bottom: 6px !important; border-bottom: 1px solid #DCE3EB !important; padding-bottom: 4px !important; text-align: ${textAlign} !important; direction: ${direction} !important;">${dateLabel}: ${categoryLabel}</div>`;
-
-                        series.forEach((seriesData, index) => {
-                            const value = seriesData[dataPointIndex];
-                            if (value !== undefined && value !== null) {
-                                if (isHebrew) {
-                                    tooltipContent +=
-                                        `<div style="display: flex !important; justify-content: space-between !important; align-items: center !important; margin-bottom: 4px !important; gap: 8px !important; width: 100% !important;">` +
-                                        `<div style="font-weight: 600 !important; color: #2F3B52 !important; text-align: right !important; direction: rtl !important; flex: 1 !important;">${labels[index]}</div>` +
-                                        `<div style="color: ${colors[index]} !important; font-weight: 500 !important; text-align: left !important; direction: ltr !important; flex-shrink: 0 !important;">${value}</div>` +
-                                        `</div>`;
-                                } else {
-                                    tooltipContent +=
-                                        `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 16px;">` +
-                                        `<div style="font-weight: 600; color: #2F3B52; text-align: left !important; direction: ltr; flex: 1;">${labels[index]}</div>` +
-                                        `<div style="color: ${colors[index]}; font-weight: 500; text-align: right !important; direction: ltr;">${value}</div>` +
-                                        `</div>`;
-                                }
-                            }
-                        });
-
-                        tooltipContent += "</div>";
-                        return tooltipContent;
-                    },
-                },
+        return [
+            {
+                label: t("fields.current_period", { ns: "dashboard" }),
+                created: data.aggregate.disputes.created,
+                closed: data.aggregate.disputes.closed,
             },
-        };
+        ];
+    }, [data, hasTrendData, t]);
+
+    const hasValues = chartData.some(
+        (row) => row.created > 0 || row.closed > 0
+    );
 
     return (
-        <Card
-            sx={{
-                ...c.card(theme, { clickable: false, hoverable: true }),
-                height: "100%",
-                minHeight: 400,
-            }}
+        <FinancialDashboardChartCard
+            icon={<DisputesNavIcon />}
+            iconAccent="terms"
+            title={t("fields.dispute_trend_chart_title", { ns: "disputes" })}
+            titleTooltip={t("fields.dispute_trend_chart_description", {
+                ns: "disputes",
+            })}
+            minHeight={400}
         >
-            <CardContent
-                sx={{
-                    ...c.cardContent(theme, { withChartBody: true }),
-                    flex: 1,
-                    minHeight: 0,
-                    pb: 1,
-                    direction: isRtl ? "rtl" : "ltr",
-                    display: "flex",
-                    flexDirection: "column",
-                }}
-            >
-                <Box
-                    className="card-icon"
-                    aria-hidden
-                    sx={c.headerIconLeading(theme, isRtl, "terms")}
-                >
-                    <ShowChartIcon />
-                </Box>
-                <Box sx={c.headerColumn(theme, isRtl)}>
+            <Box sx={{ flex: 1, minHeight: 300, direction: "ltr" }}>
+                {!hasValues ? (
                     <Typography
                         variant="body2"
-                        component="span"
-                        sx={{
-                            ...c.headerTitle(theme, isRtl),
-                            ml: 0,
-                            mr: 0,
-                            mb: theme.spacing(1),
-                            display: "block",
-                        }}
+                        color="text.secondary"
+                        sx={{ textAlign: "center", py: 4 }}
                     >
-                        {t("fields.dispute_trend_chart_title", { ns: "disputes" })}
+                        {t("messages.no_data", { ns: "common" })}
                     </Typography>
-                </Box>
-                <Box sx={{ flex: 1, minHeight: 300 }}>
-                    {i18n.language === "he" && (
-                        <style>
-                            {`
-                                .apexcharts-legend {
-                                    direction: rtl !important;
-                                }
-                                .apexcharts-legend-series {
-                                    direction: rtl !important;
-                                    display: flex !important;
-                                    flex-direction: row-reverse !important;
-                                    align-items: center !important;
-                                }
-                                .apexcharts-legend-marker {
-                                    order: 2 !important;
-                                    margin-left: 8px !important;
-                                }
-                                .apexcharts-legend-text {
-                                    order: 1 !important;
-                                    text-align: right !important;
-                                    margin-right: 8px !important;
-                                }
-                            `}
-                        </style>
-                    )}
-                    {hasTrendData && chartData.series[0].data.length > 0 ? (
-                        <Chart
-                            options={chartData.options}
-                            series={chartData.series}
-                            type="line"
-                            height={350}
-                        />
-                    ) : chartData.series[0].data.length > 0 ? (
-                        <Chart
-                            options={chartData.options}
-                            series={chartData.series}
-                            type="bar"
-                            height={350}
-                        />
-                    ) : (
-                        <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{ textAlign: "center", py: 4 }}
+                ) : (
+                    <ResponsiveContainer width="100%" height={320}>
+                        <ComposedChart
+                            data={chartData}
+                            margin={{ top: 16, right: 16, left: 8, bottom: 8 }}
                         >
-                            {t("messages.no_data_available", { ns: "common" })}
-                        </Typography>
-                    )}
-                </Box>
-            </CardContent>
-        </Card>
+                            <CartesianGrid
+                                strokeDasharray="4 4"
+                                stroke={theme.palette.divider}
+                                vertical={false}
+                            />
+                            <XAxis
+                                dataKey="label"
+                                tick={{
+                                    fill: theme.palette.text.secondary,
+                                    fontSize: 12,
+                                }}
+                                axisLine={{ stroke: theme.palette.divider }}
+                                tickLine={false}
+                            />
+                            <YAxis
+                                tick={{
+                                    fill: theme.palette.text.secondary,
+                                    fontSize: 12,
+                                }}
+                                axisLine={false}
+                                tickLine={false}
+                                width={40}
+                                allowDecimals={false}
+                            />
+                            <Tooltip
+                                content={
+                                    <DisputeTooltip
+                                        createdLabel={createdLabel}
+                                        closedLabel={closedLabel}
+                                        createdColor={createdColor}
+                                        closedColor={
+                                            hasTrendData
+                                                ? closedColor
+                                                : theme.palette.chartPalette
+                                                      .light
+                                        }
+                                        dateLabel={dateLabel}
+                                        isRtl={isRtl}
+                                    />
+                                }
+                            />
+                            <Legend
+                                verticalAlign="bottom"
+                                content={() => (
+                                    <ChartLegend
+                                        createdLabel={createdLabel}
+                                        closedLabel={closedLabel}
+                                        createdColor={createdColor}
+                                        closedColor={
+                                            hasTrendData
+                                                ? closedColor
+                                                : theme.palette.chartPalette
+                                                      .light
+                                        }
+                                        isRtl={isRtl}
+                                        showLine={hasTrendData}
+                                    />
+                                )}
+                            />
+                            {hasTrendData ? (
+                                <>
+                                    <Line
+                                        type="monotone"
+                                        dataKey="created"
+                                        name={createdLabel}
+                                        stroke={createdColor}
+                                        strokeWidth={3}
+                                        dot={{
+                                            r: 4,
+                                            fill: createdColor,
+                                            stroke: "#fff",
+                                            strokeWidth: 1.5,
+                                        }}
+                                        activeDot={{ r: 6 }}
+                                        isAnimationActive={false}
+                                    />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="closed"
+                                        name={closedLabel}
+                                        stroke={closedColor}
+                                        strokeWidth={3}
+                                        dot={{
+                                            r: 4,
+                                            fill: closedColor,
+                                            stroke: "#fff",
+                                            strokeWidth: 1.5,
+                                        }}
+                                        activeDot={{ r: 6 }}
+                                        isAnimationActive={false}
+                                    />
+                                </>
+                            ) : (
+                                <>
+                                    <Bar
+                                        dataKey="created"
+                                        name={createdLabel}
+                                        fill={createdColor}
+                                        radius={[4, 4, 0, 0]}
+                                        maxBarSize={48}
+                                        isAnimationActive={false}
+                                    />
+                                    <Bar
+                                        dataKey="closed"
+                                        name={closedLabel}
+                                        fill={theme.palette.chartPalette.light}
+                                        radius={[4, 4, 0, 0]}
+                                        maxBarSize={48}
+                                        isAnimationActive={false}
+                                    />
+                                </>
+                            )}
+                        </ComposedChart>
+                    </ResponsiveContainer>
+                )}
+            </Box>
+        </FinancialDashboardChartCard>
     );
 };
 

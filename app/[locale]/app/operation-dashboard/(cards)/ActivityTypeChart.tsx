@@ -1,11 +1,13 @@
 "use client";
-import { DonutLarge as DonutLargeIcon } from "@mui/icons-material";
-import { Box, Card, CardContent, Typography, useTheme } from "@mui/material";
-import React from "react";
+
+import { OperationDashboardNavIcon } from "@/shared/components/sidebar-icons";
+import { Box, Typography, useTheme } from "@mui/material";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
+import { DashboardDonutChart } from "@/app/[locale]/app/dashboard/(cards)/DashboardDonutChart";
+import { FinancialDashboardChartCard } from "@/app/[locale]/app/dashboard/(cards)/FinancialDashboardChartCard";
 import { OperationDashboardResponse } from "@/types/OperationDashboard";
-import Chart from "@/shared/components/ApexChart";
 
 interface ActivityTypeChartProps {
     data: OperationDashboardResponse;
@@ -14,146 +16,67 @@ interface ActivityTypeChartProps {
 const ActivityTypeChart: React.FC<ActivityTypeChartProps> = ({ data }) => {
     const { t, i18n } = useTranslation(["activities", "common"]);
     const theme = useTheme();
-    const c = theme.creditDashboardChartCard;
-    const isRtl = i18n.language === "he";
 
     const { byType } = data.aggregate.activities;
 
-    const series = [
-        byType.SMS || 0,
-        byType.Email || 0,
-        byType.Call || 0,
-        byType.WhatsApp || 0,
-        byType.Internal || 0,
-    ];
+    const chartData = useMemo(() => {
+        const colors = [
+            theme.palette.chartPalette.dark,
+            theme.palette.chartPalette.main,
+            theme.palette.chartPalette.light,
+            `${theme.palette.chartPalette.main}99`,
+            `${theme.palette.chartPalette.main}4D`,
+        ];
+        const rows = [
+            { name: "SMS", value: byType.SMS || 0 },
+            { name: "Email", value: byType.Email || 0 },
+            { name: "Call", value: byType.Call || 0 },
+            { name: "WhatsApp", value: byType.WhatsApp || 0 },
+            { name: "Internal", value: byType.Internal || 0 },
+        ];
+        return rows.map((row, index) => ({
+            ...row,
+            color: colors[index % colors.length],
+        }));
+    }, [byType, theme]);
 
-    const total = series.reduce((sum, value) => sum + value, 0);
-
-    const chartData = {
-        series,
-        options: {
-            chart: {
-                type: "donut" as const,
-                height: 350,
-            },
-            labels: ["SMS", "Email", "Call", "WhatsApp", "Internal"],
-            colors: [
-                theme.palette.chartPalette.dark,
-                theme.palette.chartPalette.main,
-                theme.palette.chartPalette.light,
-                `${theme.palette.chartPalette.main}99`,
-                `${theme.palette.chartPalette.main}4D`,
-            ],
-            legend: {
-                position: "bottom" as const,
-                formatter: function (seriesName: string, opts: any) {
-                    const value = series[opts.seriesIndex];
-                    const percentage =
-                        total > 0 ? ((value / total) * 100).toFixed(1) : "0.0";
-                    return `${seriesName}\n${value.toLocaleString()}\n(${percentage}%)`;
-                },
-            },
-            dataLabels: {
-                enabled: true,
-                formatter: function (val: number, opts: any) {
-                    const value = series[opts.seriesIndex];
-                    const percentage =
-                        total > 0 ? ((value / total) * 100).toFixed(1) : "0.0";
-                    return `${value.toLocaleString()}\n(${percentage}%)`;
-                },
-                style: {
-                    fontSize: "12px",
-                    fontWeight: 600,
-                },
-            },
-            plotOptions: {
-                pie: {
-                    donut: {
-                        size: "65%",
-                        labels: {
-                            show: true,
-                            name: {
-                                show: true,
-                                fontSize: "14px",
-                                fontWeight: 600,
-                            },
-                            value: {
-                                show: true,
-                                fontSize: "16px",
-                                fontWeight: 700,
-                                formatter: function (val: string) {
-                                    return val;
-                                },
-                            },
-                            total: {
-                                show: true,
-                                label: "Total",
-                                fontSize: "14px",
-                                fontWeight: 600,
-                                formatter: function () {
-                                    return total.toLocaleString();
-                                },
-                            },
-                        },
-                    },
-                },
-            },
-        },
-    };
+    const total = useMemo(
+        () => chartData.reduce((sum, row) => sum + row.value, 0),
+        [chartData]
+    );
 
     return (
-        <Card
-            sx={{
-                ...c.card(theme, { clickable: false, hoverable: true }),
-                height: "100%",
-                minHeight: 400,
-            }}
+        <FinancialDashboardChartCard
+            icon={<OperationDashboardNavIcon />}
+            iconAccent="default"
+            title={t("fields.activity_type_chart_title", { ns: "activities" })}
+            titleTooltip={t("fields.activity_type_chart_description", {
+                ns: "activities",
+            })}
+            minHeight={400}
         >
-            <CardContent
-                sx={{
-                    ...c.cardContent(theme, { withChartBody: true }),
-                    flex: 1,
-                    minHeight: 0,
-                    pb: 1,
-                    direction: isRtl ? "rtl" : "ltr",
-                    display: "flex",
-                    flexDirection: "column",
-                }}
-            >
-                <Box
-                    className="card-icon"
-                    aria-hidden
-                    sx={c.headerIconLeading(theme, isRtl, "default")}
-                >
-                    <DonutLargeIcon />
-                </Box>
-                <Box sx={c.headerColumn(theme, isRtl)}>
+            <Box sx={{ flex: 1, minHeight: 300 }}>
+                {total === 0 ? (
                     <Typography
                         variant="body2"
-                        component="span"
-                        sx={{
-                            ...c.headerTitle(theme, isRtl),
-                            ml: 0,
-                            mr: 0,
-                            mb: theme.spacing(1),
-                            display: "block",
-                        }}
+                        color="text.secondary"
+                        sx={{ textAlign: "center", py: 4 }}
                     >
-                        {t("fields.activity_type_chart_title", {
-                            ns: "activities",
-                        })}
+                        {t("messages.no_data", { ns: "common" })}
                     </Typography>
-                </Box>
-                <Box sx={{ flex: 1, minHeight: 300 }}>
-                    <Chart
-                        options={chartData.options}
-                        series={chartData.series}
-                        type="donut"
-                        height={350}
+                ) : (
+                    <DashboardDonutChart
+                        data={chartData}
+                        language={i18n.language}
+                        height={320}
+                        showLegend
+                        showCenterTotal
+                        centerLabel={t("fields.total", { ns: "common" })}
+                        showPercentLabels
                     />
-                </Box>
-            </CardContent>
-        </Card>
+                )}
+            </Box>
+        </FinancialDashboardChartCard>
     );
 };
 
