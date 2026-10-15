@@ -269,6 +269,10 @@ const ReportsPage: React.FC = () => {
     // Handle delete click
     const handleDeleteClick = useCallback(
         (reportId: number, reportName: string, isSystem = false) => {
+            // Master admin (10013) and system reports: delete is not available.
+            if (isAdmin || isSystem) {
+                return;
+            }
             setDeleteConfirmation({
                 isOpen: true,
                 reportId,
@@ -276,17 +280,26 @@ const ReportsPage: React.FC = () => {
                 isSystem,
             });
         },
-        []
+        [isAdmin]
     );
 
     // Confirm delete
     const confirmDelete = useCallback(async () => {
-        if (!deleteConfirmation.reportId) {
+        if (
+            !deleteConfirmation.reportId ||
+            isAdmin ||
+            deleteConfirmation.isSystem
+        ) {
             return;
         }
 
         await deleteReportMutation.mutateAsync(deleteConfirmation.reportId);
-    }, [deleteConfirmation.reportId, deleteReportMutation]);
+    }, [
+        deleteConfirmation.reportId,
+        deleteConfirmation.isSystem,
+        deleteReportMutation,
+        isAdmin,
+    ]);
 
     const syncReportsMutation = useMutation({
         mutationFn: async (reportIds: number[]) => {
@@ -591,8 +604,10 @@ const ReportsPage: React.FC = () => {
                     );
                 },
             },
-            // Only include actions column if user has edit or delete permissions
-            ...((hasDeleteReportPermission || hasEditReportPermission) &&
+            // Actions when user can edit/delete, or master admin (disabled delete shown).
+            ...((hasDeleteReportPermission ||
+                hasEditReportPermission ||
+                isAdmin) &&
             !isLoadingPermissions
                 ? [
                       {
@@ -607,11 +622,15 @@ const ReportsPage: React.FC = () => {
                           resizable: false,
                           flex: 0, // Always fixed width - never expand
                           renderCell: (params: GridRenderCellParams) => {
-                              // Edit: only master account 10013. Delete: never for system reports.
-                              const isSystemReport =
-                                  params.row.is_system === true;
+                              // Edit: only master account 10013.
+                              // Delete: never for system reports, and never for admin 10013.
+                              const isSystemReport = Boolean(
+                                  params.row.is_system ??
+                                      params.row.raw?.is_system
+                              );
                               const isEditDisabled = isSystemReport && !isAdmin;
-                              const isDeleteDisabled = isSystemReport;
+                              const isDeleteDisabled =
+                                  isAdmin || isSystemReport;
 
                               return (
                                   <Box
@@ -731,7 +750,8 @@ const ReportsPage: React.FC = () => {
                                               </span>
                                           </Tooltip>
                                       )}
-                                      {hasDeleteReportPermission && (
+                                      {(hasDeleteReportPermission ||
+                                          isAdmin) && (
                                           <Tooltip
                                               title={
                                                   isDeleteDisabled
@@ -925,8 +945,9 @@ const ReportsPage: React.FC = () => {
                             modified_by: windowWidth >= BREAKPOINTS.DESKTOP, // Visible on desktop+
                             actions:
                                 (hasDeleteReportPermission ||
-                                    hasEditReportPermission) &&
-                                !isLoadingPermissions, // Only visible if user has permissions
+                                    hasEditReportPermission ||
+                                    isAdmin) &&
+                                !isLoadingPermissions,
                         }}
                         resizableColumns={true}
                         bulkActionButton={
