@@ -178,9 +178,28 @@ export function DashboardDonutChart({
                         ))}
                         {showPercentLabels ? (
                             <LabelList
-                                content={(labelProps) => (
-                                    <PercentLabel {...labelProps} />
-                                )}
+                                content={(labelProps) => {
+                                    const pieLabel = labelProps as {
+                                        cx?: number;
+                                        cy?: number;
+                                        midAngle?: number;
+                                        innerRadius?: number;
+                                        outerRadius?: number;
+                                        percent?: number;
+                                        payload?: DashboardDonutSlice;
+                                    };
+                                    return (
+                                        <PercentLabel
+                                            cx={pieLabel.cx}
+                                            cy={pieLabel.cy}
+                                            midAngle={pieLabel.midAngle}
+                                            innerRadius={pieLabel.innerRadius}
+                                            outerRadius={pieLabel.outerRadius}
+                                            percent={pieLabel.percent}
+                                            payload={pieLabel.payload}
+                                        />
+                                    );
+                                }}
                             />
                         ) : null}
                     </Pie>

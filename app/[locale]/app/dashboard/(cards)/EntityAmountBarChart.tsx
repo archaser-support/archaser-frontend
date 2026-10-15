@@ -331,7 +331,16 @@ export function EntityAmountBarChart({
                             dataKey="amount"
                             content={(labelProps) => (
                                 <AmountEndLabel
-                                    {...labelProps}
+                                    x={labelProps.x}
+                                    y={labelProps.y}
+                                    width={labelProps.width}
+                                    height={labelProps.height}
+                                    value={
+                                        typeof labelProps.value === "string" ||
+                                        typeof labelProps.value === "number"
+                                            ? labelProps.value
+                                            : undefined
+                                    }
                                     horizontal={horizontal}
                                     currency={currency}
                                     language={language}
