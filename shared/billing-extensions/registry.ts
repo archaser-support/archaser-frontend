@@ -1,13 +1,16 @@
 import Account10149Panel from "./account_10149/Account10149Panel";
+import Account10151Panel from "./account_10151/Account10151Panel";
 import SampleNoopPanel from "./sample_noop/SampleNoopPanel";
 import {
     ACCOUNT_10149_EXTENSION_KEY,
+    ACCOUNT_10151_EXTENSION_KEY,
     SAMPLE_NOOP_EXTENSION_KEY,
     type BillingExtensionPanelRegistration,
 } from "./types";
 
 export {
     ACCOUNT_10149_EXTENSION_KEY,
+    ACCOUNT_10151_EXTENSION_KEY,
     SAMPLE_NOOP_EXTENSION_KEY,
 } from "./types";
 export type {
@@ -33,6 +36,14 @@ const BILLING_EXTENSION_PANELS: ReadonlyMap<
             key: ACCOUNT_10149_EXTENSION_KEY,
             label: "Account 10149",
             Panel: Account10149Panel,
+        },
+    ],
+    [
+        ACCOUNT_10151_EXTENSION_KEY,
+        {
+            key: ACCOUNT_10151_EXTENSION_KEY,
+            label: "Account 10151",
+            Panel: Account10151Panel,
         },
     ],
 ]);
