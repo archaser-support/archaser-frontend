@@ -112,6 +112,7 @@
         "set_as_default_success": "Report set as default successfully",
         "set_as_default_error": "Failed to set report as default",
         "cannot_delete_system_report": "System reports cannot be deleted",
+        "delete_system_report_confirmation": "Are you sure you want to delete the system report \"{{name}}\"? This will remove it from all accounts and cannot be undone.",
         "cannot_edit_system_report": "System reports cannot be modified",
         "duplicate_report_name": "A report with this name already exists. Please choose a different name.",
         "no_reports_available": "No reports available",
