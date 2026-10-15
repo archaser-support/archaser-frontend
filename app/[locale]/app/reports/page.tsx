@@ -128,10 +128,12 @@ const ReportsPage: React.FC = () => {
         isOpen: boolean;
         reportId: number | null;
         reportName: string | null;
+        isSystem: boolean;
     }>({
         isOpen: false,
         reportId: null,
         reportName: null,
+        isSystem: false,
     });
 
     // Sync confirmation state
@@ -251,12 +253,14 @@ const ReportsPage: React.FC = () => {
                 isOpen: false,
                 reportId: null,
                 reportName: null,
+                isSystem: false,
             });
             success(t("messages.delete_success", { ns: "reports" }));
         },
         onError: (error: any) => {
             showError(
                 error.response?.data?.error ||
+                    error.response?.data?.message ||
                     t("messages.error_deleting", { ns: "reports" })
             );
         },
@@ -264,11 +268,12 @@ const ReportsPage: React.FC = () => {
 
     // Handle delete click
     const handleDeleteClick = useCallback(
-        (reportId: number, reportName: string) => {
+        (reportId: number, reportName: string, isSystem = false) => {
             setDeleteConfirmation({
                 isOpen: true,
                 reportId,
                 reportName,
+                isSystem,
             });
         },
         []
@@ -778,7 +783,8 @@ const ReportsPage: React.FC = () => {
                                                           e.stopPropagation();
                                                           handleDeleteClick(
                                                               params.row.id,
-                                                              params.row.name
+                                                              params.row.name,
+                                                              isSystemReport
                                                           );
                                                       }}
                                                       className="toolbar-button"
@@ -1051,12 +1057,22 @@ const ReportsPage: React.FC = () => {
                             isOpen: false,
                             reportId: null,
                             reportName: null,
+                            isSystem: false,
                         })
                     }
                     onConfirm={confirmDelete}
                     title={t("messages.delete_confirm_title", { ns: "reports" })}
                     description={
-                        deleteConfirmation.reportName ? (
+                        deleteConfirmation.isSystem ? (
+                            t("messages.delete_system_report_confirmation", {
+                                ns: "reports",
+                                name:
+                                    deleteConfirmation.reportName ||
+                                    t("values.none", { ns: "reports" }),
+                                defaultValue:
+                                    'Are you sure you want to delete the system report "{{name}}"? This will remove it from all accounts and cannot be undone.',
+                            })
+                        ) : deleteConfirmation.reportName ? (
                             <>
                                 {t("messages.delete_confirm_description_prefix", {
                                     ns: "reports",
