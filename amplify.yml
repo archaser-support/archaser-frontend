@@ -16,6 +16,8 @@
 #   JWT_SECRET=<optional; same secret Nest uses. If unset/mismatched, Amplify
 #     verifies the Nest token via GET /auth/me instead>
 #   NEXT_PUBLIC_ENABLE_WS=true
+#   NEXT_PUBLIC_DEPLOY_STATUS_BASE_URL=https://<public-bucket-or-cdn>/deploy-status
+#     (no trailing slash; UI polls {base}/staging.json|production.json from GHA)
 #
 # Nest staging `.env` on the API EC2 must include:
 #   NEST_PUBLIC_URL=https://api.staging.archaser.com

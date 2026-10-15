@@ -1,4 +1,3 @@
-import { noteUpstreamUnavailable } from "@/utils/apiAvailability";
 import {
     getAxiosBaseUrl,
     resolveAuthorizationHeader,
@@ -110,28 +109,13 @@ export async function apiFetch(
         }
     }
 
-    let response: Response;
-    try {
-        response = await fetch(url, {
-            ...init,
-            headers,
-            credentials: shouldAttachNestBearer()
-                ? (init.credentials ?? "omit")
-                : (init.credentials ?? "include"),
-        });
-    } catch (error) {
-        if (!(error instanceof Error && error.name === "AbortError")) {
-            noteUpstreamUnavailable(url);
-        }
-        throw error;
-    }
-    if (
-        response.status === 502 ||
-        response.status === 503 ||
-        response.status === 504
-    ) {
-        noteUpstreamUnavailable(url, response.status);
-    }
+    const response = await fetch(url, {
+        ...init,
+        headers,
+        credentials: shouldAttachNestBearer()
+            ? (init.credentials ?? "omit")
+            : (init.credentials ?? "include"),
+    });
     if (!publicPortal && shouldAttachNestBearer() && response.status === 401) {
         await handleExpiredNestSession();
     }

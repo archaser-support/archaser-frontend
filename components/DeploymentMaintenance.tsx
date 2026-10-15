@@ -6,15 +6,12 @@ import { useTranslation } from "react-i18next";
 
 import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import {
-    isDeploymentMaintenanceEnabled,
-    markApiAvailable,
-    noteConfirmedOutage,
-    probeApiHealth,
-    subscribeApiAvailability,
-} from "@/utils/apiAvailability";
+    isDeployStatusPollingEnabled,
+    subscribeDeployStatus,
+    syncDeployOverlayFromStatus,
+} from "@/utils/deployStatus";
 
-const RECHECK_MS = 5000;
-const PROACTIVE_POLL_MS = 5000;
+const POLL_MS = 5000;
 
 function isPreviewMaintenance(): boolean {
     if (typeof window === "undefined") {
@@ -31,79 +28,37 @@ const subscribeNoop = () => () => {};
 
 export default function DeploymentMaintenance() {
     const { t } = useTranslation("common");
-    const [down, setDown] = useState(false);
+    const [deploying, setDeploying] = useState(false);
     const preview = useSyncExternalStore(
         subscribeNoop,
         isPreviewMaintenance,
         () => false
     );
-    const enabled = useSyncExternalStore(
+    const pollingEnabled = useSyncExternalStore(
         subscribeNoop,
-        isDeploymentMaintenanceEnabled,
-        () => true
+        isDeployStatusPollingEnabled,
+        () => false
     );
 
     useEffect(() => {
-        if (!enabled && !preview) {
+        if (preview || !pollingEnabled) {
             return;
         }
 
-        const unsubscribe = subscribeApiAvailability(setDown);
+        const unsubscribe = subscribeDeployStatus(setDeploying);
 
-        if (preview) {
-            return unsubscribe;
-        }
-
-        const check = async () => {
-            const probe = await probeApiHealth();
-            if (probe === "down") {
-                noteConfirmedOutage();
-            } else if (probe === "up") {
-                // Always clear the consecutive-failure streak; reload only if
-                // the overlay was already up for a sustained outage.
-                markApiAvailable();
-            }
-        };
-
-        void check();
+        void syncDeployOverlayFromStatus();
         const pollId = window.setInterval(() => {
-            void check();
-        }, PROACTIVE_POLL_MS);
+            void syncDeployOverlayFromStatus();
+        }, POLL_MS);
 
         return () => {
             unsubscribe();
             window.clearInterval(pollId);
         };
-    }, [preview, enabled]);
+    }, [preview, pollingEnabled]);
 
-    useEffect(() => {
-        if (!enabled || !down || preview) {
-            return;
-        }
-        let cancelled = false;
-        const recheck = async () => {
-            const probe = await probeApiHealth();
-            if (!cancelled && probe === "up") {
-                markApiAvailable();
-            }
-        };
-        // Run immediately — do not wait for the first interval tick.
-        void recheck();
-        const id = window.setInterval(() => {
-            void recheck();
-        }, RECHECK_MS);
-        return () => {
-            cancelled = true;
-            window.clearInterval(id);
-        };
-    }, [down, preview, enabled]);
-
-    // Staging: no overlay (unless ?previewMaintenance=1 for local QA).
-    if (!enabled && !preview) {
-        return null;
-    }
-
-    if (!down && !preview) {
+    if (!deploying && !preview) {
         return null;
     }
 
