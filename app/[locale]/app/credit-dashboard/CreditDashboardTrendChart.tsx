@@ -67,7 +67,7 @@ function fmtSigned(
     }
     const rounded = Math.round(value);
     const abs = formatMoney(Math.abs(rounded), currency, {
-        style: "iso",
+        style: "symbol",
         locale: numberLocale(language),
         language: language.startsWith("he") ? "he" : language,
         wholeNumbers: true,
