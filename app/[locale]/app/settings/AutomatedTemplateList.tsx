@@ -652,7 +652,7 @@ const AutomatedTemplateList: React.FC<{ accountId?: number }> = ({ accountId: _a
                     height: theme.spacing(50),
                 }}
             >
-                <AppSpinner size={40} />
+                <AppSpinner />
             </Box>
         );
     }

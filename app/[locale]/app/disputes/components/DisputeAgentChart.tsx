@@ -180,7 +180,7 @@ const DisputeAgentChart: React.FC<DisputeAgentChartProps> = React.memo(
                             minHeight: 180,
                         }}
                     >
-                        <AppSpinner color="primary" size={40} />
+                        <AppSpinner color="primary" />
                     </Box>
                 ) : !hasData ? (
                     <Typography

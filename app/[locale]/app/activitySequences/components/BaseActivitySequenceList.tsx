@@ -650,7 +650,7 @@ export default function BaseActivitySequenceList({
                     width: "100%",
                 }}
             >
-                <AppSpinner color="primary" size={40} />
+                <AppSpinner color="primary" />
             </Box>
         );
     }

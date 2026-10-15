@@ -1049,7 +1049,6 @@ const EndlessScrollDataGrid: React.FC<EndlessScrollDataGridProps> = ({
                     >
                         <AppSpinner
                             color="primary"
-                            size={40}
                         />
                     </Box>
                 </Box>

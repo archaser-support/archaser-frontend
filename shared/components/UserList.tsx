@@ -721,7 +721,7 @@ export default function UserList({
                     height: variant === "embedded" ? 150 : 200,
                 }}
             >
-                <AppSpinner color="primary" size={40} />
+                <AppSpinner color="primary" />
             </Box>
         );
     }

@@ -637,7 +637,7 @@ const CustomerWithInvalidContactList: React.FC = () => {
         <StyledContainer>
             {isLoading && contacts.length === 0 ? (
                 <StyledLoadingContainer>
-                    <AppSpinner size={40} />
+                    <AppSpinner />
                 </StyledLoadingContainer>
             ) : (
                 <Box

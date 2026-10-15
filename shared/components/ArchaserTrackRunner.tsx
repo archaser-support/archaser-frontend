@@ -9,6 +9,9 @@ import React from "react";
 // Cropped to the runner + track (source canvas is 160² with empty padding).
 const VIEW = { minX: 28, minY: 10, width: 108, height: 142 };
 
+/** Canonical rendered height (px) for the loading track-runner mark. */
+export const ARCHASER_TRACK_RUNNER_HEIGHT_PX = 48;
+
 type ArchaserTrackRunnerProps = {
     /** Rendered height in px; width follows the cropped artwork aspect ratio. */
     height?: number;
@@ -22,7 +25,7 @@ type ArchaserTrackRunnerProps = {
  * Inherits CSS `color`. Brand/navigation logos use `ArchaserLogo`.
  */
 const ArchaserTrackRunner = ({
-    height = 40,
+    height = ARCHASER_TRACK_RUNNER_HEIGHT_PX,
     title,
     sx,
 }: ArchaserTrackRunnerProps) => {

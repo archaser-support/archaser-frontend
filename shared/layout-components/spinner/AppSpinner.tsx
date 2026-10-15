@@ -4,7 +4,9 @@ import { Box, Typography, type TypographyProps } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import React from "react";
 
-import ArchaserTrackRunner from "@/shared/components/ArchaserTrackRunner";
+import ArchaserTrackRunner, {
+    ARCHASER_TRACK_RUNNER_HEIGHT_PX,
+} from "@/shared/components/ArchaserTrackRunner";
 
 type AppSpinnerColor =
     | "primary"
@@ -32,7 +34,7 @@ type AppSpinnerProps = {
  * section loading; page-level loading uses `PageLoader` (shared overlay).
  */
 const AppSpinner = ({
-    size = 48,
+    size = ARCHASER_TRACK_RUNNER_HEIGHT_PX,
     color = "primary",
     label,
     labelVariant,
