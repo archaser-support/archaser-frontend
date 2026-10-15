@@ -44,6 +44,7 @@ import EndlessScrollDataGrid, {
 import { CurrencyColumnsConfig, ExportFormat } from "@/shared/utility/exportToExcel";
 import { getNestedValue } from "@/shared/utility/helpers";
 import AppUrls from "@/utils/appUrls";
+import { isArchaserAdminAccount } from "@/shared/utils/navigation";
 
 const AccountList: React.FC = () => {
     const { t, i18n } = useTranslation(["accounts", "common"]);
@@ -154,10 +155,14 @@ const AccountList: React.FC = () => {
     usePageWheelScrollsTable(tableContainerRef);
 
     // Check if user is Archaser Admin
-    const isArchaserAdmin = session?.user?.account_id === 10013;
+    const isArchaserAdmin = isArchaserAdminAccount(session?.user?.account_id);
 
     // Deletion handlers
     const handleDeleteClick = (account: any) => {
+        // Master ARchaser admin account cannot be deleted.
+        if (isArchaserAdminAccount(account?.id)) {
+            return;
+        }
         setSelectedAccount(account);
         setConfirmationText("");
         setDeleteDialogOpen(true);
@@ -169,7 +174,11 @@ const AccountList: React.FC = () => {
     };
 
     const handleConfirmDelete = async () => {
-        if (!selectedAccount || confirmationText !== selectedAccount.name) {
+        if (
+            !selectedAccount ||
+            confirmationText !== selectedAccount.name ||
+            isArchaserAdminAccount(selectedAccount.id)
+        ) {
             return;
         }
 
@@ -541,18 +550,41 @@ const AccountList: React.FC = () => {
                             </>
                         ) : (
                             <Tooltip
-                                title={t("actions.delete", { ns: "common" })}
+                                title={
+                                    isArchaserAdminAccount(params.row.id)
+                                        ? t(
+                                              "messages.cannot_delete_master_account",
+                                              {
+                                                  ns: "accounts",
+                                                  defaultValue:
+                                                      "The master ARchaser admin account cannot be deleted",
+                                              }
+                                          )
+                                        : t("actions.delete", { ns: "common" })
+                                }
+                                arrow
+                                placement="bottom"
                             >
-                                <IconButton
-                                    size="small"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteClick(params.row.raw);
-                                    }}
-                                    color="primary"
-                                >
-                                    <DeleteIcon />
-                                </IconButton>
+                                <span>
+                                    <IconButton
+                                        size="small"
+                                        disabled={isArchaserAdminAccount(
+                                            params.row.id
+                                        )}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteClick(params.row.raw);
+                                        }}
+                                        color="primary"
+                                        sx={{
+                                            "&.Mui-disabled": {
+                                                color: "text.disabled",
+                                            },
+                                        }}
+                                    >
+                                        <DeleteIcon />
+                                    </IconButton>
+                                </span>
                             </Tooltip>
                         )}
                     </Box>

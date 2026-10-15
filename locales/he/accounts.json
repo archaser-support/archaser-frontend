@@ -140,6 +140,7 @@
         "no_accounts_found": "לא נמצאו חשבונות",
         "no_accounts_description": "נסה להתאים את המסננים שלך",
         "error_loading_accounts": "שגיאה בטעינת חשבונות",
+        "cannot_delete_master_account": "לא ניתן למחוק את חשבון מנהל המערכת הראשי של ARchaser",
         "confirm_delete_account": "האם אתה בטוח שברצונך למחוק את {{accountName}}?",
         "this_action_will": "פעולה זו תבצע",
         "deactivate_all_users": "השבת את כל המשתמשים",

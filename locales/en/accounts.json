@@ -140,6 +140,7 @@
         "subdomain_update_error": "Error updating subdomain",
         "sub_domain_help": "The subdomain will be used for the customer portal URL",
         "language_strategy_help": "Configure language settings for customer communications",
+        "cannot_delete_master_account": "The master ARchaser admin account cannot be deleted",
         "confirm_delete_account": "Are you sure you want to delete {{accountName}}?",
         "this_action_will": "This action will",
         "deactivate_all_users": "Deactivate all users",
