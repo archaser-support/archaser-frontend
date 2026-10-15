@@ -17,6 +17,8 @@ import {
 import {
     formatPortfolioAxisMoney,
     formatPortfolioMoney,
+    portfolioMoneyHtmlStyle,
+    portfolioMoneySvgTextProps,
 } from "@/app/[locale]/app/credit-portfolio-health/formatPortfolioMoney";
 import { TruncatedChartLabel } from "@/shared/components/TruncatedChartLabel";
 
@@ -114,7 +116,7 @@ function AmountEndLabel(props: {
             fontWeight={600}
             textAnchor={props.horizontal ? "start" : "middle"}
             dominantBaseline={props.horizontal ? "middle" : "auto"}
-            style={{ fontVariantNumeric: "tabular-nums" }}
+            {...portfolioMoneySvgTextProps}
         >
             {text}
         </text>
@@ -163,7 +165,12 @@ function AmountTooltip({
             >
                 {row.name}
             </div>
-            <div style={{ color: theme.palette.text.secondary }}>
+            <div
+                style={{
+                    color: theme.palette.text.secondary,
+                    ...portfolioMoneyHtmlStyle,
+                }}
+            >
                 {formatPortfolioMoney(row.amount, currency, language)}
                 {row.percentage != null
                     ? ` (${row.percentage.toFixed(1)}%)`

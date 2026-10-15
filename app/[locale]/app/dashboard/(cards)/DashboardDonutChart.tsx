@@ -11,6 +11,8 @@ import {
     Tooltip,
 } from "recharts";
 
+import { portfolioMoneyHtmlStyle } from "@/app/[locale]/app/credit-portfolio-health/formatPortfolioMoney";
+
 export type DashboardDonutSlice = {
     name: string;
     value: number;
@@ -79,7 +81,7 @@ function SliceTooltip({
             <div style={{ fontWeight: 700, color: "#2F3B52", marginBottom: 4 }}>
                 {row.name}
             </div>
-            <div style={{ color: "#7C8DA1" }}>
+            <div style={{ color: "#7C8DA1", ...portfolioMoneyHtmlStyle }}>
                 {formatValue(row.value, row)} ({pct}%)
             </div>
         </div>
@@ -136,7 +138,7 @@ export function DashboardDonutChart({
     language,
     height = 280,
     formatValue,
-    showLegend = true,
+    showLegend = false,
     showCenterTotal = false,
     centerLabel,
     centerValue,

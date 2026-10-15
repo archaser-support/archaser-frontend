@@ -1,6 +1,5 @@
 import { FinancialDashboardNavIcon } from "@/shared/components/sidebar-icons";
 import { Box, Typography, useTheme } from "@mui/material";
-import { alpha } from "@mui/material/styles";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -9,6 +8,7 @@ import { formatPortfolioMoney } from "@/app/[locale]/app/credit-portfolio-health
 import { DashboardDonutChart } from "./DashboardDonutChart";
 import { EntityAmountBarChart } from "./EntityAmountBarChart";
 import { FinancialDashboardChartCard } from "./FinancialDashboardChartCard";
+import { getEntityChartColors } from "./entityChartColors";
 
 type EntityData = {
     customer: string; // Can represent customer, business unit, or any entity name
@@ -39,23 +39,10 @@ const AmountByEntityChart = ({
     const { t, i18n } = useTranslation(["dashboard", "common"]);
     const theme = useTheme();
 
-    // Generate theme-based colors for donut/bar - variations of chart palette
-    const getThemeColors = () => [
-        theme.palette.chartPalette.dark,
-        theme.palette.chartPalette.main,
-        theme.palette.chartPalette.light,
-        alpha(theme.palette.chartPalette.main, 0.8),
-        alpha(theme.palette.chartPalette.main, 0.6),
-        alpha(theme.palette.chartPalette.main, 0.4),
-        alpha(theme.palette.chartPalette.dark, 0.8),
-        alpha(theme.palette.chartPalette.light, 0.8),
-        alpha(theme.palette.chartPalette.main, 0.7),
-    ];
-
-    // Override API colors with theme-based colors for per-account theming
+    // Override API colors with distinct categorical colors for per-account theming
     const chartData = useMemo(() => {
         const rawData = data && data.length > 0 ? data : [];
-        const colors = getThemeColors();
+        const colors = getEntityChartColors(theme);
         return rawData.map((item, index) => ({
             ...item,
             color: colors[index % colors.length],
@@ -141,11 +128,14 @@ const AmountByEntityChart = ({
                 <DashboardDonutChart
                     data={donutRows}
                     language={i18n.language}
-                    height={280}
+                    height={300}
+                    innerRadius={92}
+                    outerRadius={138}
+                    cyPercent={50}
                     formatValue={(value) =>
                         formatPortfolioMoney(value, currency, i18n.language)
                     }
-                    showLegend
+                    showLegend={false}
                     showPercentLabels
                 />
             </Box>

@@ -19,6 +19,8 @@ import {
 import {
     formatPortfolioAxisMoney,
     formatPortfolioMoney,
+    portfolioMoneyHtmlStyle,
+    portfolioMoneySvgTextProps,
 } from "@/app/[locale]/app/credit-portfolio-health/formatPortfolioMoney";
 import { PromiseToPayNavIcon } from "@/shared/components/sidebar-icons";
 
@@ -192,8 +194,7 @@ function AmountTooltip({
                         style={{
                             color: item.color,
                             fontWeight: 500,
-                            direction: "ltr",
-                            fontVariantNumeric: "tabular-nums",
+                            ...portfolioMoneyHtmlStyle,
                         }}
                     >
                         {item.value}
@@ -227,7 +228,7 @@ function MoneyTopLabel(props: {
             fontSize={11}
             fontWeight={600}
             textAnchor="middle"
-            style={{ fontVariantNumeric: "tabular-nums" }}
+            {...portfolioMoneySvgTextProps}
         >
             {formatPortfolioMoney(amount, props.currency, props.language)}
         </text>
@@ -378,7 +379,7 @@ const CollectedVsPromiseChart = ({
                                 fill={collectedColor}
                                 fillOpacity={0.8}
                                 radius={[4, 4, 0, 0]}
-                                maxBarSize={28}
+                                maxBarSize={48}
                                 isAnimationActive={false}
                             >
                                 <LabelList
