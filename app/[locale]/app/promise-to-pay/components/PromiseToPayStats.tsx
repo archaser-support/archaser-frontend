@@ -2,9 +2,7 @@
 
 import {
     AttachMoney as MoneyIcon,
-    People as PeopleIcon,
     Receipt as ReceiptIcon,
-    Schedule as ScheduleIcon,
 } from "@mui/icons-material";
 import { Box, Skeleton } from "@mui/material";
 import React, { useMemo } from "react";
@@ -12,6 +10,10 @@ import { useTranslation } from "react-i18next";
 
 import { CreditMetricCard } from "@/app/[locale]/app/credit-dashboard/CreditMetricCard";
 import type { MetricStatCardIconAccent } from "@/app/theme";
+import {
+    CustomersNavIcon,
+    PromiseToPayNavIcon,
+} from "@/shared/components/sidebar-icons";
 import { formatMoney } from "@/utils/stringFormatters";
 
 import { PromiseToPayRow } from "../PromiseToPayList";
@@ -57,7 +59,7 @@ const PromiseToPayStats: React.FC<PromiseToPayStatsProps> = ({
         () => [
             {
                 key: "total_promises",
-                icon: <ScheduleIcon />,
+                icon: <PromiseToPayNavIcon />,
                 iconAccent: "default",
                 label: t("fields.total_promises"),
                 getValue: () =>
@@ -67,7 +69,7 @@ const PromiseToPayStats: React.FC<PromiseToPayStatsProps> = ({
             },
             {
                 key: "total_customers",
-                icon: <PeopleIcon />,
+                icon: <CustomersNavIcon />,
                 iconAccent: "compliant",
                 label: t("sections.total_customers", { ns: "common" }),
                 getValue: () =>

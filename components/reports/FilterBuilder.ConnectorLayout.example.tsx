@@ -3,6 +3,7 @@
  * This shows filter relationships with "AND" connectors between filters
  */
 
+import { DeleteIcon as Delete } from "@/shared/components/report-icons";
 import React from "react";
 import {
     Autocomplete,
@@ -13,7 +14,7 @@ import {
     Typography,
 } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
-import { Delete } from "@mui/icons-material";
+
 import { useTranslation } from "react-i18next";
 
 // This would replace the filter rendering section in FilterBuilder.tsx

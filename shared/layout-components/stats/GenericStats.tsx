@@ -1,15 +1,17 @@
 import {
-    AccountBalance as AccountBalanceIcon,
     Assignment as AssignmentIcon,
-    Gavel as GavelIcon,
     AttachMoney as MoneyIcon,
-    People as PeopleIcon,
     Receipt as ReceiptIcon,
     Schedule as ScheduleIcon,
     TrendingUp as TrendingUpIcon,
 } from "@mui/icons-material";
 import React from "react";
 
+import {
+    CustomersNavIcon,
+    DisputesNavIcon,
+    LegalNavIcon,
+} from "@/shared/components/sidebar-icons";
 import { formatMoney } from "@/utils/stringFormatters";
 
 import StatCard, { StatCardGrid } from "./StatCard";
@@ -75,13 +77,13 @@ const GenericStats: React.FC<GenericStatsProps> = ({
 
 // Predefined icon mappings for common use cases
 export const STAT_ICONS = {
-    PEOPLE: PeopleIcon,
+    PEOPLE: CustomersNavIcon,
     RECEIPT: ReceiptIcon,
     MONEY: MoneyIcon,
     TRENDING_UP: TrendingUpIcon,
-    GAVEL: GavelIcon,
+    GAVEL: DisputesNavIcon,
     SCHEDULE: ScheduleIcon,
-    ACCOUNT_BALANCE: AccountBalanceIcon,
+    ACCOUNT_BALANCE: LegalNavIcon,
     ASSIGNMENT: AssignmentIcon,
 };
 

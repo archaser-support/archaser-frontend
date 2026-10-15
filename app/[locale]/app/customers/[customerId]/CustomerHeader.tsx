@@ -1,18 +1,19 @@
 "use client";
 
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
-import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import BlockIcon from "@mui/icons-material/Block";
-import GavelIcon from "@mui/icons-material/Gavel";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import PublicIcon from "@mui/icons-material/Public";
-import ReceiptIcon from "@mui/icons-material/Receipt";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
-import SecurityIcon from "@mui/icons-material/Security";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import WarningIcon from "@mui/icons-material/Warning";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import {
+    ClaimsNavIcon,
+    CreditDashboardNavIcon,
+    FinancialDashboardNavIcon,
+    PortfolioHealthNavIcon,
+    ReportsNavIcon,
+} from "@/shared/components/sidebar-icons";
 import {
     alpha,
     Box,
@@ -1491,7 +1492,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                                         sx={{ fontSize: 14 }}
                                                     />
                                                 ) : (
-                                                    <SecurityIcon
+                                                    <CreditDashboardNavIcon
                                                         sx={{ fontSize: 14 }}
                                                     />
                                                 )
@@ -1785,7 +1786,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                             <>
                                 <CreditMetricCard
                                     compact
-                                    icon={<ReceiptIcon />}
+                                    icon={<ReportsNavIcon />}
                                     iconAccent="overdue"
                                     label={t("fields.total_outstanding_amount")}
                                     value={formatHeaderAmount(
@@ -1801,7 +1802,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                 />
                                 <CreditMetricCard
                                     compact
-                                    icon={<TrendingUpIcon />}
+                                    icon={<FinancialDashboardNavIcon />}
                                     iconAccent="receivables"
                                     label={t("fields.total_due_amount")}
                                     value={formatHeaderAmount(
@@ -1817,7 +1818,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                 />
                                 <CreditMetricCard
                                     compact
-                                    icon={<AttachMoneyIcon />}
+                                    icon={<FinancialDashboardNavIcon />}
                                     iconAccent="receivables"
                                     label={t("credit_insurance.total_ar", {
                                         ns: "customers",
@@ -1848,7 +1849,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                             <>
                                 <CreditMetricCard
                                     compact
-                                    icon={<WarningAmberIcon />}
+                                    icon={<PortfolioHealthNavIcon />}
                                     iconAccent="capacity"
                                     label={t("credit_insurance.capacity_gap", {
                                         ns: "customers",
@@ -1890,7 +1891,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                                 />
                                 <CreditMetricCard
                                     compact
-                                    icon={<GavelIcon />}
+                                    icon={<ClaimsNavIcon />}
                                     iconAccent="terms"
                                     label={t("credit_insurance_dashboard.terms_breach", {
                                         ns: "dashboard",
@@ -1991,7 +1992,7 @@ const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                         variant="warning"
                         borderRadius={notificationBannerBorderRadius}
                         icon={
-                            <GavelIcon
+                            <ClaimsNavIcon
                                 sx={{ fontSize: 18, color: "warning.main" }}
                             />
                         }

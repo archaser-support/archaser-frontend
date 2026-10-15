@@ -56,6 +56,7 @@
         "status": "סטטוס מחלוקת",
         "dispute_reason_language": "שפת סיבת המחלוקת",
         "dispute_trend_chart_title": "מגמת מחלוקות",
+        "dispute_trend_chart_description": "מחלוקות שנפתחו מול מחלוקות שנסגרו בטווח התאריכים שנבחר. כשיש נתוני מגמה יומיים, שתי הסדרות מוצגות כקווים; אחרת מוצגים סה״כ התקופה כעמודות.",
         "disputes_closed": "מחלוקות שנסגרו",
         "disputes_created": "מחלוקות שנוצרו",
         "language_name": "שם השפה",

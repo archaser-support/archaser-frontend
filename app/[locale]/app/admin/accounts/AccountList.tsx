@@ -1,14 +1,9 @@
 "use client";
+import { DeleteIcon } from "@/shared/components/report-icons";
 import { usePageWheelScrollsTable } from "@/shared/hooks/usePageWheelScrollsTable";
 import PageHeader from "@/components/PageHeader";
 import DeleteDialog from "@/shared/layout-components/modal/DeleteDialog";
-import {
-    AddBusiness,
-    Delete as DeleteIcon,
-    PictureAsPdf as PdfIcon,
-    People,
-    Restore as RestoreIcon,
-} from "@mui/icons-material";
+import {AddBusiness, PictureAsPdf as PdfIcon, People, Restore as RestoreIcon} from "@mui/icons-material";
 import {
     alpha,
     Box,

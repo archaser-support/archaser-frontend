@@ -1,16 +1,16 @@
 "use client";
 
-import {
-    AttachMoney as MoneyIcon,
-    People as PeopleIcon,
-    Receipt as ReceiptIcon,
-} from "@mui/icons-material";
 import { Box, Skeleton } from "@mui/material";
 import React from "react";
 import { useTranslation } from "react-i18next";
 
 import { CreditMetricCard } from "@/app/[locale]/app/credit-dashboard/CreditMetricCard";
 import type { MetricStatCardIconAccent } from "@/app/theme";
+import {
+    CustomersNavIcon,
+    FinancialDashboardNavIcon,
+    ReportsNavIcon,
+} from "@/shared/components/sidebar-icons";
 import type { CustomerStats } from "@/types/Customer";
 import {
     formatMoney,
@@ -50,7 +50,7 @@ const AccountStats: React.FC<AccountStatsProps> = ({
     const statCards: StatCardConfig[] = [
         {
             key: "total_customers",
-            icon: <PeopleIcon />,
+            icon: <CustomersNavIcon />,
             iconAccent: "default",
             label: t("sections.total_customers", { ns: "common" }),
             getValue: (s) =>
@@ -60,7 +60,7 @@ const AccountStats: React.FC<AccountStatsProps> = ({
         },
         {
             key: "open_invoice_count",
-            icon: <ReceiptIcon />,
+            icon: <ReportsNavIcon />,
             iconAccent: "receivables",
             label: t("sections.overdue_and_due_invoices"),
             getValue: (s) =>
@@ -72,7 +72,7 @@ const AccountStats: React.FC<AccountStatsProps> = ({
         },
         {
             key: "total_overdue_amount",
-            icon: <ReceiptIcon />,
+            icon: <ReportsNavIcon />,
             iconAccent: "overdue",
             label: t("fields.total_outstanding_amount"),
             getValue: (s) =>
@@ -91,7 +91,7 @@ const AccountStats: React.FC<AccountStatsProps> = ({
         },
         {
             key: "total_due_amount",
-            icon: <MoneyIcon />,
+            icon: <FinancialDashboardNavIcon />,
             iconAccent: "receivables",
             label: t("fields.total_due_amount"),
             getValue: (s) =>

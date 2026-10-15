@@ -1,20 +1,8 @@
 "use client";
+import { DeleteIcon } from "@/shared/components/report-icons";
 import { apiFetch } from "@/utils/apiFetch";
 
-import {
-    Bolt as BoltIcon,
-    Close as CloseIcon,
-    Delete as DeleteIcon,
-    Description as DescriptionIcon,
-    DoneAll as DoneAllIcon,
-    Gavel as GavelIcon,
-    Notifications as NotificationsIcon,
-    Payment as PaymentIcon,
-    Person as PersonIcon,
-    Schedule as ScheduleIcon,
-    Settings as SettingsIcon,
-    Timeline as TimelineIcon,
-} from "@mui/icons-material";
+import {Bolt as BoltIcon, Close as CloseIcon, Description as DescriptionIcon, DoneAll as DoneAllIcon, Gavel as GavelIcon, Notifications as NotificationsIcon, Payment as PaymentIcon, Person as PersonIcon, Schedule as ScheduleIcon, Settings as SettingsIcon, Timeline as TimelineIcon} from "@mui/icons-material";
 import {
     Badge,
     Box,

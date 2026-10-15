@@ -18,7 +18,6 @@ import {
     Typography,
 } from "@mui/material";
 import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
-import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { useTheme } from "@mui/material/styles";
 import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -729,7 +728,7 @@ const LegalList: React.FC<LegalListProps> = ({
                     minHeight: "400px",
                 }}
             >
-                <PageLoader />
+                <AppSpinner />
             </Box>
         );
     }

@@ -1,6 +1,7 @@
 "use client";
 
-import { Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon, Group as GroupIcon, Person as PersonIcon, Share as ShareIcon, Visibility as ViewIcon } from "@mui/icons-material";
+import { DeleteIcon, EditIcon } from "@/shared/components/report-icons";
+import {Add as AddIcon, Group as GroupIcon, Person as PersonIcon, Share as ShareIcon, Visibility as ViewIcon} from "@mui/icons-material";
 import {
     Autocomplete,
     Box,
@@ -84,7 +85,6 @@ const ShareReportModal: React.FC<ShareReportModalProps> = ({
     const { data: session } = useSession();
     const queryClient = useQueryClient();
     const isRTL = i18n.language === "he";
-
 
     // Form state
     const [shareType, setShareType] = useState<"user" | "role">("user");

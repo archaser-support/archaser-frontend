@@ -1,6 +1,6 @@
 "use client";
 
-import { Description as DescriptionIcon } from "@mui/icons-material";
+import { ReportsNavIcon } from "@/shared/components/sidebar-icons";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -42,7 +42,7 @@ const OverdueInvoicesCard = ({ count = 0 }: OverdueInvoicesCardProps) => {
 
     return (
         <CreditMetricCard
-            icon={<DescriptionIcon />}
+            icon={<ReportsNavIcon />}
             iconAccent="overdue"
             label={t("fields.stats_overdue_invoices")}
             value={count.toLocaleString(locale)}

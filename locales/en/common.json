@@ -61,6 +61,7 @@
         "missing_contacts": "Missing Contacts",
         "automation_stuck": "Automation Stuck",
         "agent_stats": "Agent Performance",
+        "agent_stats_description": "Per-agent activity, dispute, call, and promise metrics for the selected date range. Highest and lowest values in each column are highlighted.",
         "agent_name": "Agent Name",
         "no_agents": "No collection agents found",
         "id": "ID",

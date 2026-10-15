@@ -1,6 +1,6 @@
 "use client";
 
-import { MonetizationOn as MonetizationOnIcon } from "@mui/icons-material";
+import { FinancialDashboardNavIcon } from "@/shared/components/sidebar-icons";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -48,7 +48,7 @@ const TotalCollectedCard = ({
 
     return (
         <CreditMetricCard
-            icon={<MonetizationOnIcon />}
+            icon={<FinancialDashboardNavIcon />}
             iconAccent="compliant"
             label={t("fields.stats_total_collected_m_t_d")}
             value={formatMoney(

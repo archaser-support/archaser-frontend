@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit as EditIcon } from "@mui/icons-material";
+import { EditIcon } from "@/shared/components/report-icons";
 import {
     Box,
     IconButton,

@@ -30,7 +30,7 @@ import {
     Tooltip,
     Typography,
 } from "@mui/material";
-import PageLoader from "@/shared/layout-components/spinner/PageLoader";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { alpha, useTheme } from "@mui/material/styles";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -1851,7 +1851,7 @@ const ReportBuilderPage: React.FC = () => {
                         minHeight: { xs: "300px", sm: "400px" },
                     }}
                 >
-                    <PageLoader />
+                    <AppSpinner />
                 </Box>
             </Box>
         );

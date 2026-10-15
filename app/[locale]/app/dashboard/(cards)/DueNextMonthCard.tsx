@@ -1,6 +1,6 @@
 "use client";
 
-import { AttachMoney as MoneyIcon } from "@mui/icons-material";
+import { FinancialDashboardNavIcon } from "@/shared/components/sidebar-icons";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -49,7 +49,7 @@ const DueNextMonthCard = ({
 
     return (
         <CreditMetricCard
-            icon={<MoneyIcon />}
+            icon={<FinancialDashboardNavIcon />}
             iconAccent="capacity"
             label={t("fields.stats_due_next_month")}
             value={formatMoney(

@@ -1,12 +1,7 @@
 "use client";
 
-import {
-    Add as AddIcon,
-    ContentCopy as CloneIcon,
-    Delete as DeleteIcon,
-    Edit as EditIcon,
-    Star as StarIcon,
-} from "@mui/icons-material";
+import { DeleteIcon, CloneIcon, EditIcon } from "@/shared/components/report-icons";
+import {Add as AddIcon, Star as StarIcon} from "@mui/icons-material";
 import {
     Box,
     Button,

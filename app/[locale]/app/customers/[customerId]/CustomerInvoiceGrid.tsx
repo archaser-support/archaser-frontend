@@ -1,13 +1,8 @@
 "use client";
+import { EditIcon as EditNoteIcon } from "@/shared/components/report-icons";
 import { usePageWheelScrollsTable } from "@/shared/hooks/usePageWheelScrollsTable";
-import {
-    EditNote as EditNoteIcon,
-    Gavel as GavelIcon,
-    NotificationsNone as NotificationsNoneIcon,
-    NotificationsOff as NotificationsOffIcon,
-    Payments as PaymentsIcon,
-    Receipt as ReceiptIcon,
-} from "@mui/icons-material";
+import {NotificationsNone as NotificationsNoneIcon, NotificationsOff as NotificationsOffIcon, Payments as PaymentsIcon, Receipt as ReceiptIcon} from "@mui/icons-material";
+import { ClaimsNavIcon } from "@/shared/components/sidebar-icons";
 import { Box, IconButton, Tooltip, Typography } from "@mui/material";
 import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
@@ -956,7 +951,7 @@ const CustomerInvoiceGrid: React.FC<CustomerProp> = ({
                                     {isIssuingThis ? (
                                         <AppSpinner size={16} />
                                     ) : (
-                                        <GavelIcon fontSize="small" />
+                                        <ClaimsNavIcon fontSize="small" />
                                     )}
                                 </IconButton>
                             </span>

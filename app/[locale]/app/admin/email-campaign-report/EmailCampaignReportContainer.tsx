@@ -15,7 +15,6 @@ import {
     useTheme,
 } from "@mui/material";
 import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
-import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/app/api";
 import moment from "moment";
@@ -195,7 +194,7 @@ const EmailCampaignReportContainer = () => {
                     minHeight: "400px",
                 }}
             >
-                <PageLoader />
+                <AppSpinner />
             </Box>
         );
     }

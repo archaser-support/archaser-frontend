@@ -1,8 +1,9 @@
 "use client";
 
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ShieldIcon from "@mui/icons-material/Shield";
-import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
+import {
+    CreditDashboardNavIcon,
+} from "@/shared/components/sidebar-icons";
 import {
     Accordion,
     AccordionDetails,
@@ -1057,7 +1058,7 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                     t={t}
                     editedCustomer={customer}
                     label={creditInsuranceLabels.insurancePolicy}
-                    icon={<ShieldIcon />}
+                    icon={<CreditDashboardNavIcon />}
                 />
             </Box>
 
@@ -1986,7 +1987,7 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
         >
             <Box sx={customerSectionHeaderSx}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <ShieldOutlinedIcon
+                    <CreditDashboardNavIcon
                         sx={{
                             color: "primary.main",
                             fontSize: { xs: 18, sm: 20 },
@@ -2258,7 +2259,7 @@ const CustomerCreditInsuranceInfo: React.FC<CustomerCreditInsuranceInfoProps> = 
                                                 },
                                             }}
                                         >
-                                            <ShieldIcon
+                                            <CreditDashboardNavIcon
                                                 sx={{
                                                     color: "text.secondary",
                                                     fontSize: 18,

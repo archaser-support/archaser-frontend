@@ -1,6 +1,6 @@
 "use client";
 
-import { PersonOff as PersonOffIcon } from "@mui/icons-material";
+import { CustomersNavIcon } from "@/shared/components/sidebar-icons";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -28,7 +28,7 @@ const MissingContactsCard = ({
 
     return (
         <CreditMetricCard
-            icon={<PersonOffIcon />}
+            icon={<CustomersNavIcon />}
             iconAccent="noPolicy"
             label={t("fields.missing_contacts", { ns: "common" })}
             value={count.toLocaleString()}

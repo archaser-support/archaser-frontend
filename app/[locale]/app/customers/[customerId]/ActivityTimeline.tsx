@@ -35,7 +35,6 @@
 
 "use client";
 import { apiFetch } from "@/utils/apiFetch";
-import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import ArticleIcon from "@mui/icons-material/Article";
 import AttachFile from "@mui/icons-material/AttachFile";
 import CallMadeIcon from "@mui/icons-material/CallMade";
@@ -43,14 +42,17 @@ import CallReceivedIcon from "@mui/icons-material/CallReceived";
 import CommentIcon from "@mui/icons-material/Comment";
 import EmailIcon from "@mui/icons-material/Email";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import GavelIcon from "@mui/icons-material/Gavel";
 import InfoIcon from "@mui/icons-material/Info";
-import PaymentIcon from "@mui/icons-material/Payment";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import PhoneIcon from "@mui/icons-material/Phone";
 import PublicIcon from "@mui/icons-material/Public";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import SmsIcon from "@mui/icons-material/Sms";
+import {
+    DisputesNavIcon,
+    LegalNavIcon,
+    PromiseToPayNavIcon,
+} from "@/shared/components/sidebar-icons";
 import {
     Box,
     Chip,
@@ -523,12 +525,12 @@ const getBadgeIcon = (type?: string) => {
         "Outgoing Call": <CallMadeIcon fontSize="small" />,
         "Incoming Call": <CallReceivedIcon fontSize="small" />,
         Internal: <ArticleIcon fontSize="small" />,
-        Dispute: <GavelIcon fontSize="small" />,
-        Promise_to_pay: <PaymentIcon fontSize="small" />,
+        Dispute: <DisputesNavIcon fontSize="small" />,
+        Promise_to_pay: <PromiseToPayNavIcon fontSize="small" />,
         "Schedule follow-up call": <ScheduleIcon fontSize="small" />,
         "Add new contact": <PersonAddIcon fontSize="small" />,
         General: <CommentIcon fontSize="small" />,
-        "Move to legal": <AccountBalanceIcon fontSize="small" />,
+        "Move to legal": <LegalNavIcon fontSize="small" />,
     };
 
     return iconMap[type] || null;

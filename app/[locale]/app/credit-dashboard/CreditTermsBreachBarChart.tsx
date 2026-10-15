@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { Gavel as GavelIcon } from "@mui/icons-material";
+import { ClaimsNavIcon } from "@/shared/components/sidebar-icons";
 import { alpha, Box, Card, CardContent, Typography, useTheme } from "@mui/material";
 import type { ApexOptions } from "apexcharts";
 import { useMemo } from "react";
@@ -232,7 +232,7 @@ export function CreditTermsBreachBarChart({
                     aria-hidden
                     sx={c.headerIconLeading(theme, isRtl, "terms")}
                 >
-                    <GavelIcon />
+                    <ClaimsNavIcon />
                 </Box>
                 <Box sx={c.headerColumn(theme, isRtl)}>
                     <Box

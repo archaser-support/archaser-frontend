@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarToday as CalendarTodayIcon } from "@mui/icons-material";
+import { PromiseToPayNavIcon } from "@/shared/components/sidebar-icons";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -30,7 +30,7 @@ const PromisesToPayCard = ({
 
     return (
         <CreditMetricCard
-            icon={<CalendarTodayIcon />}
+            icon={<PromiseToPayNavIcon />}
             iconAccent="compliant"
             label={t("fields.promises_to_pay", { ns: "dashboard" })}
             value={total.toLocaleString()}

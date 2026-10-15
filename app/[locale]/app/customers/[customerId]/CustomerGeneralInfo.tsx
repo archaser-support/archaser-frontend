@@ -1,11 +1,13 @@
 "use client";
 
-import BusinessIcon from "@mui/icons-material/Business";
 import InfoIcon from "@mui/icons-material/Info";
 import LanguageIcon from "@mui/icons-material/Language";
-import PersonIcon from "@mui/icons-material/Person";
 import PhoneIcon from "@mui/icons-material/Phone";
-import ShieldIcon from "@mui/icons-material/Shield";
+import {
+    AgentsNavIcon,
+    CreditDashboardNavIcon,
+    CustomersNavIcon,
+} from "@/shared/components/sidebar-icons";
 import {
     Autocomplete,
     Box,
@@ -407,7 +409,7 @@ const CustomerGeneralInfo: React.FC<CustomerGeneralInfoProps> = ({
                             t={t}
                             editedCustomer={customer}
                             label={t("fields.name")}
-                            icon={<BusinessIcon />}
+                            icon={<CustomersNavIcon />}
                         />
                     </Box>
 
@@ -432,7 +434,7 @@ const CustomerGeneralInfo: React.FC<CustomerGeneralInfoProps> = ({
                             t={t}
                             editedCustomer={customer}
                             label={t("fields.customer_code")}
-                            icon={<BusinessIcon />}
+                            icon={<CustomersNavIcon />}
                         />
                     </Box>
 
@@ -457,7 +459,7 @@ const CustomerGeneralInfo: React.FC<CustomerGeneralInfoProps> = ({
                             t={t}
                             editedCustomer={customer}
                             label={t("fields.crn")}
-                            icon={<BusinessIcon />}
+                            icon={<CustomersNavIcon />}
                         />
                     </Box>
 
@@ -518,7 +520,7 @@ const CustomerGeneralInfo: React.FC<CustomerGeneralInfoProps> = ({
                             t={t}
                             editedCustomer={customer}
                             label={t("fields.business_unit")}
-                            icon={<BusinessIcon />}
+                            icon={<CustomersNavIcon />}
                         />
                     </Box>
 
@@ -547,7 +549,7 @@ const CustomerGeneralInfo: React.FC<CustomerGeneralInfoProps> = ({
                             t={t}
                             editedCustomer={customer}
                             label={t("fields.parent_customer")}
-                            icon={<BusinessIcon />}
+                            icon={<CustomersNavIcon />}
                         />
                     </Box>
 
@@ -572,7 +574,7 @@ const CustomerGeneralInfo: React.FC<CustomerGeneralInfoProps> = ({
                             t={t}
                             editedCustomer={customer}
                             label={t("fields.owner")}
-                            icon={<PersonIcon />}
+                            icon={<AgentsNavIcon />}
                         />
                     </Box>
 
@@ -671,7 +673,7 @@ const CustomerGeneralInfo: React.FC<CustomerGeneralInfoProps> = ({
                                 t={t}
                                 editedCustomer={customer}
                                 label={t("fields.sequence_container")}
-                                icon={<BusinessIcon />}
+                                icon={<CustomersNavIcon />}
                             />
                         </Box>
                     )}
@@ -700,7 +702,7 @@ const CustomerGeneralInfo: React.FC<CustomerGeneralInfoProps> = ({
                                 t={t}
                                 editedCustomer={customer}
                                 label={t("fields.first_activity_delay_days")}
-                                icon={<BusinessIcon />}
+                                icon={<CustomersNavIcon />}
                             />
                         </Box>
                     )}
@@ -734,7 +736,7 @@ const CustomerGeneralInfo: React.FC<CustomerGeneralInfoProps> = ({
                                     t={t}
                                     editedCustomer={customer}
                                     label={creditInsuranceLabels.insurancePolicy}
-                                    icon={<ShieldIcon />}
+                                    icon={<CreditDashboardNavIcon />}
                                 />
                             </Box>
                             <Box sx={fieldCellSx}>

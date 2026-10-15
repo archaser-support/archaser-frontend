@@ -1,6 +1,6 @@
 "use client";
 
-import { Phone as PhoneIcon } from "@mui/icons-material";
+import { AgentsNavIcon } from "@/shared/components/sidebar-icons";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -30,7 +30,7 @@ const TotalCallsCard = ({
 
     return (
         <CreditMetricCard
-            icon={<PhoneIcon />}
+            icon={<AgentsNavIcon />}
             iconAccent="reporting"
             label={t("fields.total_calls", { ns: "activities" })}
             value={total.toLocaleString()}

@@ -1,14 +1,6 @@
 "use client";
 
 import {
-    Dashboard as DashboardIcon,
-    History as HistoryIcon,
-    InfoOutlined as InfoOutlinedIcon,
-    Receipt as ReceiptIcon,
-    ShieldOutlined as ShieldOutlinedIcon,
-    TrendingUp as TrendingUpIcon,
-} from "@mui/icons-material";
-import {
     Badge,
     Box,
     Button,
@@ -37,6 +29,14 @@ import { useTranslation } from "react-i18next";
 
 import AccessDenied from "@/components/AccessDenied";
 import { CreditHistoryRefreshProgressDialog } from "@/shared/components/CreditHistoryRefreshProgressDialog";
+import {
+    ActivitySequencesNavIcon,
+    CreditDashboardNavIcon,
+    CustomersNavIcon,
+    FinancialDashboardNavIcon,
+    PortfolioHealthNavIcon,
+    ReportsNavIcon,
+} from "@/shared/components/sidebar-icons";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import type { CreditAsOfBackfillJobView } from "@/types/creditInsurance";
 import {
@@ -2458,23 +2458,23 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                 >
                     <Tab
                         label={t("sections.dashboard").toUpperCase()}
-                        icon={<DashboardIcon sx={{ mb: 0.5 }} />}
+                        icon={<FinancialDashboardNavIcon sx={{ mb: 0.5 }} />}
                         iconPosition={tabIconPosition}
                     />
                     <Tab
                         label={t("sections.activities").toUpperCase()}
-                        icon={<HistoryIcon sx={{ mb: 0.5 }} />}
+                        icon={<ActivitySequencesNavIcon sx={{ mb: 0.5 }} />}
                         iconPosition={tabIconPosition}
                     />
                     <Tab
                         label={t("sections.general").toUpperCase()}
-                        icon={<InfoOutlinedIcon sx={{ mb: 0.5 }} />}
+                        icon={<CustomersNavIcon sx={{ mb: 0.5 }} />}
                         iconPosition={tabIconPosition}
                     />
                     {!hasChildren && (
                         <Tab
                             label={t("sections.invoices").toUpperCase()}
-                            icon={<ReceiptIcon sx={{ mb: 0.5 }} />}
+                            icon={<ReportsNavIcon sx={{ mb: 0.5 }} />}
                             iconPosition={tabIconPosition}
                         />
                     )}
@@ -2493,7 +2493,7 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                                         )
                                     }
                                 >
-                                    <ShieldOutlinedIcon sx={{ mb: 0.5 }} />
+                                    <CreditDashboardNavIcon sx={{ mb: 0.5 }} />
                                 </Badge>
                             }
                             iconPosition={tabIconPosition}
@@ -2504,7 +2504,7 @@ const CustomerDetailsCombined: React.FC<CustomerDetailsWrapperProps> = (
                             label={t("sections.aggregated_data", {
                                 ns: "customers",
                             }).toUpperCase()}
-                            icon={<TrendingUpIcon sx={{ mb: 0.5 }} />}
+                            icon={<PortfolioHealthNavIcon sx={{ mb: 0.5 }} />}
                             iconPosition={tabIconPosition}
                         />
                     )}

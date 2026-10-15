@@ -35,6 +35,7 @@ import {
 import {
     formatPortfolioAxisMoney,
     formatPortfolioMoney,
+    portfolioMoneyHtmlStyle,
 } from "./formatPortfolioMoney";
 import layout from "./islandLayout.module.css";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
@@ -344,7 +345,7 @@ function DrawTooltip({
                         <span
                             style={{
                                 fontWeight: 500,
-                                fontVariantNumeric: "tabular-nums",
+                                ...portfolioMoneyHtmlStyle,
                             }}
                         >
                             {item.display}

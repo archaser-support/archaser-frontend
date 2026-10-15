@@ -1,10 +1,7 @@
 "use client";
 
-import {
-    Edit as EditIcon,
-    Save as SaveIcon,
-    Cancel as CancelIcon,
-} from "@mui/icons-material";
+import { EditIcon } from "@/shared/components/report-icons";
+import {Save as SaveIcon, Cancel as CancelIcon} from "@mui/icons-material";
 import {
     Box,
     Paper,

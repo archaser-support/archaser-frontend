@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle as CheckCircleIcon } from "@mui/icons-material";
+import { DisputesNavIcon } from "@/shared/components/sidebar-icons";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -28,7 +28,7 @@ const DisputesClosedCard = ({
 
     return (
         <CreditMetricCard
-            icon={<CheckCircleIcon />}
+            icon={<DisputesNavIcon />}
             iconAccent="compliant"
             label={t("fields.disputes_closed", { ns: "disputes" })}
             value={count.toLocaleString()}

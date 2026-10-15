@@ -1,14 +1,13 @@
 "use client";
 
+import { Sync as SyncIcon } from "@mui/icons-material";
 import {
-    Assessment,
-    Delete as DeleteIcon,
-    PostAdd,
-    Edit as EditIcon,
-    ContentCopy as CloneIcon,
-    Share as ShareIcon,
-    Sync as SyncIcon,
-} from "@mui/icons-material";
+    CloneIcon,
+    CreateReportIcon,
+    DeleteReportIcon,
+    EditIcon,
+    ShareReportIcon,
+} from "@/shared/components/report-icons";
 import {
     Box,
     Button,
@@ -442,7 +441,7 @@ const ReportsPage: React.FC = () => {
                                     arrow
                                     placement="bottom"
                                 >
-                                    <ShareIcon
+                                    <ShareReportIcon
                                         fontSize="small"
                                         sx={{
                                             color: theme.palette.primary.main,
@@ -808,7 +807,7 @@ const ReportsPage: React.FC = () => {
                                                       }}
                                                       className="toolbar-button"
                                                   >
-                                                      <DeleteIcon fontSize="small" />
+                                                      <DeleteReportIcon fontSize="small" />
                                                   </IconButton>
                                               </span>
                                           </Tooltip>
@@ -1035,7 +1034,7 @@ const ReportsPage: React.FC = () => {
                                             }}
                                             className="toolbar-button"
                                         >
-                                            <PostAdd />
+                                            <CreateReportIcon />
                                         </IconButton>
                                     </Tooltip>
                                 )}

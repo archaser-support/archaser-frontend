@@ -20,11 +20,11 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
-import DeleteIcon from "@mui/icons-material/Delete";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
-import EditIcon from "@mui/icons-material/Edit";
 import HelpIcon from "@mui/icons-material/Help";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import { DeleteIcon, EditIcon } from "@/shared/components/report-icons";
+
 import { Box, Chip, IconButton, Switch, Tooltip, useMediaQuery } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
 import React, { useCallback, useMemo, useState } from "react";

@@ -1,9 +1,7 @@
 "use client";
 
-import {
-    ContentCopy as ContentCopyIcon,
-    HelpOutline as HelpOutlineIcon,
-} from "@mui/icons-material";
+import { CloneIcon as ContentCopyIcon } from "@/shared/components/report-icons";
+import {HelpOutline as HelpOutlineIcon} from "@mui/icons-material";
 import {
     Box,
     Button,

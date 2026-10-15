@@ -1,7 +1,7 @@
 "use client";
 
-import FilterListIcon from "@mui/icons-material/FilterList";
 import { Box, Button, useTheme } from "@mui/material";
+import { EditFiltersReportIcon } from "@/shared/components/report-icons";
 import { alpha } from "@mui/material/styles";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -139,7 +139,7 @@ const ReportViewerFiltersModal: React.FC<ReportViewerFiltersModalProps> = ({
                 minHeight: 320,
             }}
             title={t("sections.tab_filters", { defaultValue: "Filters" })}
-            titleIcon={<FilterListIcon aria-hidden="true" />}
+            titleIcon={<EditFiltersReportIcon aria-hidden="true" />}
             ariaLabelledBy="report-viewer-filters-dialog-title"
             ariaDescribedBy="report-viewer-filters-dialog-description"
             paperSx={{

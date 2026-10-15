@@ -1,8 +1,9 @@
 "use client";
 
-import EditIcon from "@mui/icons-material/Edit";
 import PersonAdd from "@mui/icons-material/PersonAdd";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import { EditIcon } from "@/shared/components/report-icons";
+
 import { Link as MuiLink } from "@mui/material";
 import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import Box from "@mui/material/Box";

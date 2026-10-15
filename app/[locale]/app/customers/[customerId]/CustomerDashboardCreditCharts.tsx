@@ -1,6 +1,5 @@
 "use client";
 
-import { Gavel as GavelIcon, ShowChart as ShowChartIcon } from "@mui/icons-material";
 import { alpha, Box, Card, CardContent, Stack, Typography, useTheme } from "@mui/material";
 import type { ApexOptions } from "apexcharts";
 import { useSession } from "next-auth/react";
@@ -8,6 +7,10 @@ import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { CreditDashboardTitleInfoIcon } from "@/app/[locale]/app/credit-dashboard/creditDashboardTitleTooltip";
+import {
+    ClaimsNavIcon,
+    CreditDashboardNavIcon,
+} from "@/shared/components/sidebar-icons";
 import { formatDateOnlyYmdForSession } from "@/utils/datetimeOperations";
 
 import type {
@@ -488,7 +491,7 @@ export function CustomerDashboardCreditCharts({
                             "atRisk"
                         )}
                     >
-                        <ShowChartIcon />
+                        <CreditDashboardNavIcon />
                     </Box>
                     <Box sx={chartCard.headerColumn(theme, isRtl)}>
                         <Box
@@ -548,7 +551,7 @@ export function CustomerDashboardCreditCharts({
                         aria-hidden
                         sx={chartCard.headerIconLeading(theme, isRtl, "terms")}
                     >
-                        <GavelIcon />
+                        <ClaimsNavIcon />
                     </Box>
                     <Box sx={chartCard.headerColumn(theme, isRtl)}>
                         <Box

@@ -1,8 +1,6 @@
 ﻿"use client";
 
 import {
-    AccountBalance as AccountBalanceIcon,
-    Group as GroupIcon,
     Receipt as ReceiptIcon,
     ShieldOutlined as ShieldOutlinedIcon,
 } from "@mui/icons-material";
@@ -10,6 +8,10 @@ import { Box, Card, CardContent, Typography, alpha, useTheme } from "@mui/materi
 import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
+import {
+    CreditDashboardNavIcon,
+    CustomersNavIcon,
+} from "@/shared/components/sidebar-icons";
 import type { CreditDashboardSummary } from "@/types/creditInsurance";
 import { formatMoney } from "@/utils/stringFormatters";
 
@@ -139,7 +141,7 @@ export function CreditReportSummaryCards({
                 >
                     <Card sx={cardStyle}>
                         <Box className="card-icon" sx={iconAtStart("secondary")}>
-                            <GroupIcon
+                            <CustomersNavIcon
                                 sx={{
                                     fontSize: { xs: 20, sm: 24 },
                                     color: theme.palette.secondary.main,
@@ -177,7 +179,7 @@ export function CreditReportSummaryCards({
                 >
                     <Card sx={cardStyle}>
                         <Box className="card-icon" sx={iconAtStart("success")}>
-                            <AccountBalanceIcon
+                            <CreditDashboardNavIcon
                                 sx={{
                                     fontSize: { xs: 20, sm: 24 },
                                     color: theme.palette.success.main,
@@ -227,7 +229,7 @@ export function CreditReportSummaryCards({
                 >
                     <Card sx={cardStyle}>
                         <Box className="card-icon" sx={iconAtStart("secondary")}>
-                            <GroupIcon
+                            <CustomersNavIcon
                                 sx={{
                                     fontSize: { xs: 20, sm: 24 },
                                     color: theme.palette.secondary.main,
@@ -264,7 +266,7 @@ export function CreditReportSummaryCards({
                 >
                     <Card sx={cardStyle}>
                         <Box className="card-icon" sx={iconAtStart("success")}>
-                            <AccountBalanceIcon
+                            <CreditDashboardNavIcon
                                 sx={{
                                     fontSize: { xs: 20, sm: 24 },
                                     color: theme.palette.success.main,
@@ -351,7 +353,7 @@ export function CreditReportSummaryCards({
                 >
                     <Card sx={cardStyle}>
                         <Box className="card-icon" sx={iconAtStart("success")}>
-                            <AccountBalanceIcon
+                            <CreditDashboardNavIcon
                                 sx={{
                                     fontSize: { xs: 20, sm: 24 },
                                     color: theme.palette.success.main,
@@ -412,7 +414,7 @@ export function CreditReportSummaryCards({
                 >
                     <Card sx={cardStyle}>
                         <Box className="card-icon" sx={iconAtStart("secondary")}>
-                            <GroupIcon
+                            <CustomersNavIcon
                                 sx={{
                                     fontSize: { xs: 20, sm: 24 },
                                     color: theme.palette.secondary.main,
@@ -464,7 +466,7 @@ export function CreditReportSummaryCards({
                 >
                     <Card sx={cardStyle}>
                         <Box className="card-icon" sx={iconAtStart("secondary")}>
-                            <GroupIcon
+                            <CustomersNavIcon
                                 sx={{
                                     fontSize: { xs: 20, sm: 24 },
                                     color: theme.palette.secondary.main,
@@ -501,7 +503,7 @@ export function CreditReportSummaryCards({
                 >
                     <Card sx={cardStyle}>
                         <Box className="card-icon" sx={iconAtStart("success")}>
-                            <AccountBalanceIcon
+                            <CreditDashboardNavIcon
                                 sx={{
                                     fontSize: { xs: 20, sm: 24 },
                                     color: theme.palette.success.main,
@@ -551,7 +553,7 @@ export function CreditReportSummaryCards({
                 >
                     <Card sx={cardStyle}>
                         <Box className="card-icon" sx={iconAtStart("secondary")}>
-                            <GroupIcon
+                            <CustomersNavIcon
                                 sx={{
                                     fontSize: { xs: 20, sm: 24 },
                                     color: theme.palette.secondary.main,
@@ -633,7 +635,7 @@ export function CreditReportSummaryCards({
                 <Box sx={{ flex: { xs: "1 1 auto", sm: "1 1 300px" }, minWidth: 0 }}>
                     <Card sx={cardStyle}>
                         <Box className="card-icon" sx={iconAtStart("secondary")}>
-                            <GroupIcon
+                            <CustomersNavIcon
                                 sx={{
                                     fontSize: { xs: 20, sm: 24 },
                                     color: theme.palette.secondary.main,
@@ -655,7 +657,7 @@ export function CreditReportSummaryCards({
                 <Box sx={{ flex: { xs: "1 1 auto", sm: "1 1 300px" }, minWidth: 0 }}>
                     <Card sx={cardStyle}>
                         <Box className="card-icon" sx={iconAtStart("success")}>
-                            <AccountBalanceIcon
+                            <CreditDashboardNavIcon
                                 sx={{
                                     fontSize: { xs: 20, sm: 24 },
                                     color: theme.palette.success.main,
@@ -690,7 +692,7 @@ export function CreditReportSummaryCards({
                 <Box sx={{ flex: { xs: "1 1 auto", sm: "1 1 300px" }, minWidth: 0 }}>
                     <Card sx={cardStyle}>
                         <Box className="card-icon" sx={iconAtStart("secondary")}>
-                            <GroupIcon
+                            <CustomersNavIcon
                                 sx={{
                                     fontSize: { xs: 20, sm: 24 },
                                     color: theme.palette.secondary.main,
@@ -714,7 +716,7 @@ export function CreditReportSummaryCards({
                 <Box sx={{ flex: { xs: "1 1 auto", sm: "1 1 300px" }, minWidth: 0 }}>
                     <Card sx={cardStyle}>
                         <Box className="card-icon" sx={iconAtStart("success")}>
-                            <AccountBalanceIcon
+                            <CreditDashboardNavIcon
                                 sx={{
                                     fontSize: { xs: 20, sm: 24 },
                                     color: theme.palette.success.main,
@@ -751,7 +753,7 @@ export function CreditReportSummaryCards({
                 <Box sx={{ flex: { xs: "1 1 auto", sm: "1 1 300px" }, minWidth: 0 }}>
                     <Card sx={cardStyle}>
                         <Box className="card-icon" sx={iconAtStart("secondary")}>
-                            <GroupIcon
+                            <CustomersNavIcon
                                 sx={{
                                     fontSize: { xs: 20, sm: 24 },
                                     color: theme.palette.secondary.main,
@@ -776,7 +778,7 @@ export function CreditReportSummaryCards({
                 <Box sx={{ flex: { xs: "1 1 auto", sm: "1 1 300px" }, minWidth: 0 }}>
                     <Card sx={cardStyle}>
                         <Box className="card-icon" sx={iconAtStart("success")}>
-                            <AccountBalanceIcon
+                            <CreditDashboardNavIcon
                                 sx={{
                                     fontSize: { xs: 20, sm: 24 },
                                     color: theme.palette.success.main,
@@ -858,7 +860,7 @@ export function CreditReportSummaryCards({
             >
                 <Card sx={cardStyle}>
                     <Box className="card-icon" sx={iconAtStart("success")}>
-                        <AccountBalanceIcon
+                        <CreditDashboardNavIcon
                             sx={{
                                 fontSize: { xs: 20, sm: 24 },
                                 color: theme.palette.success.main,

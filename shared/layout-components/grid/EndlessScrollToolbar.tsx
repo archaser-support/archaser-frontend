@@ -1,18 +1,21 @@
 // eslint-disable-next-line import/order
 import {
-    Add as AddIcon,
-    Clear as ClearIcon,
-    ContentCopy as ContentCopyIcon,
-    Delete as DeleteIcon,
-    Edit as EditIcon,
-    FileDownload as FileDownloadIcon,
-    Refresh as RefreshIcon,
-    Search as SearchIcon,
-    Settings as SettingsIcon,
-    Share as ShareIcon,
     StarBorder as StarBorderIcon,
     Star as StarIcon,
 } from "@mui/icons-material";
+import {
+    ChevronDownReportIcon,
+    CloneIcon,
+    CloseReportIcon,
+    CreateViewReportIcon,
+    DeleteReportIcon,
+    EditIcon,
+    ExportReportIcon,
+    MoreActionsReportIcon,
+    RefreshReportIcon,
+    SearchReportIcon,
+    ShareReportIcon,
+} from "@/shared/components/report-icons";
 import {
     Autocomplete,
     Box,
@@ -531,7 +534,7 @@ const EndlessScrollToolbarComponent: React.FC<EndlessScrollToolbarProps> = ({
                         justifyContent: "center",
                     }}
                 >
-                    <SearchIcon fontSize="small" />
+                    <SearchReportIcon fontSize="small" />
                 </Box>
             </InputAdornment>
         ),
@@ -767,6 +770,8 @@ const EndlessScrollToolbarComponent: React.FC<EndlessScrollToolbarProps> = ({
                             }}
                             loading={reportsLoading}
                             size="small"
+                            popupIcon={<ChevronDownReportIcon fontSize="small" />}
+                            clearIcon={<CloseReportIcon fontSize="small" />}
                             slotProps={{
                                 listbox: {
                                     className: "grid-style-scrollbar",
@@ -1082,7 +1087,7 @@ const EndlessScrollToolbarComponent: React.FC<EndlessScrollToolbarProps> = ({
                                                     arrow
                                                     placement="bottom"
                                                 >
-                                                    <ShareIcon
+                                                    <ShareReportIcon
                                                         fontSize="small"
                                                         sx={{
                                                             color: theme.palette.primary.main,
@@ -1134,7 +1139,7 @@ const EndlessScrollToolbarComponent: React.FC<EndlessScrollToolbarProps> = ({
                         }}
                     >
                         <ListItemIcon sx={{ color: "primary.main" }}>
-                            <AddIcon
+                            <CreateViewReportIcon
                                 fontSize="small"
                                 sx={{
                                     mr: i18n.language === "he" ? 0 : 2,
@@ -1201,7 +1206,7 @@ const EndlessScrollToolbarComponent: React.FC<EndlessScrollToolbarProps> = ({
                             }}
                         >
                             <ListItemIcon sx={{ color: "primary.main" }}>
-                                <ContentCopyIcon
+                                <CloneIcon
                                     fontSize="small"
                                     sx={{
                                         mr: i18n.language === "he" ? 0 : 2,
@@ -1232,7 +1237,7 @@ const EndlessScrollToolbarComponent: React.FC<EndlessScrollToolbarProps> = ({
                             }}
                         >
                             <ListItemIcon sx={{ color: "primary.main" }}>
-                                <ShareIcon
+                                <ShareReportIcon
                                     fontSize="small"
                                     sx={{
                                         mr: i18n.language === "he" ? 0 : 2,
@@ -1300,7 +1305,7 @@ const EndlessScrollToolbarComponent: React.FC<EndlessScrollToolbarProps> = ({
                             }}
                         >
                             <ListItemIcon sx={{ color: "primary.main" }}>
-                                <DeleteIcon
+                                <DeleteReportIcon
                                     fontSize="small"
                                     sx={{
                                         mr: i18n.language === "he" ? 0 : 2,
@@ -1362,7 +1367,7 @@ const EndlessScrollToolbarComponent: React.FC<EndlessScrollToolbarProps> = ({
                                     justifyContent: "center",
                                 }}
                             >
-                                <FileDownloadIcon fontSize="small" />
+                                <ExportReportIcon fontSize="small" />
                             </Button>
                         </span>
                     </Tooltip>
@@ -1381,7 +1386,7 @@ const EndlessScrollToolbarComponent: React.FC<EndlessScrollToolbarProps> = ({
                                 className="toolbar-button"
                                 onClick={onRefresh}
                             >
-                                <RefreshIcon fontSize="small" />
+                                <RefreshReportIcon fontSize="small" />
                             </IconButton>
                         </span>
                     </Tooltip>
@@ -1403,7 +1408,7 @@ const EndlessScrollToolbarComponent: React.FC<EndlessScrollToolbarProps> = ({
                                 }
                                 disabled={!hasSettingsMenuItems}
                             >
-                                <SettingsIcon fontSize="small" />
+                                <MoreActionsReportIcon fontSize="small" />
                             </IconButton>
                         </span>
                     </Tooltip>
@@ -1484,7 +1489,7 @@ const EndlessScrollToolbarComponent: React.FC<EndlessScrollToolbarProps> = ({
                                                     },
                                                 }}
                                             >
-                                                <ClearIcon fontSize="small" />
+                                                <CloseReportIcon fontSize="small" />
                                             </IconButton>
                                         </InputAdornment>
                                     ) : undefined,

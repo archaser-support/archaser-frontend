@@ -1,4 +1,4 @@
-import { Schedule as ScheduleIcon } from "@mui/icons-material";
+import { PortfolioHealthNavIcon } from "@/shared/components/sidebar-icons";
 import {
     Box,
     Table,
@@ -145,10 +145,10 @@ const AgingOverduePortfolio = ({
 
     return (
         <FinancialDashboardChartCard
-            icon={<ScheduleIcon />}
+            icon={<PortfolioHealthNavIcon />}
             iconAccent="overdue"
             title={t("fields.stats_aging_overdue_portfolio")}
-            subtitle={t("fields.charts_aging_overdue_portfolio_description")}
+            titleTooltip={t("fields.charts_aging_overdue_portfolio_description")}
             minHeight={400}
         >
             <Box sx={{ pt: 0.5, flex: 1, overflow: "hidden" }}>

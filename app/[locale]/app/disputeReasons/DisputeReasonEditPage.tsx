@@ -10,7 +10,7 @@ import {
     Link,
     Stack,
 } from "@mui/material";
-import PageLoader from "@/shared/layout-components/spinner/PageLoader";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import { useTheme } from "@mui/material/styles";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -207,7 +207,7 @@ export default function DisputeReasonEditPage({
     if (isLoadingData) {
         return (
             <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
-                <PageLoader />
+                <AppSpinner />
             </Box>
         );
     }

@@ -10,7 +10,7 @@ import {
     Tabs,
     Tab,
 } from "@mui/material";
-import PageLoader from "@/shared/layout-components/spinner/PageLoader";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import React, { useState, useEffect } from "react";
@@ -111,7 +111,7 @@ const SMSManagementPage = () => {
                     minHeight: "400px",
                 }}
             >
-                <PageLoader />
+                <AppSpinner />
             </Box>
         );
     }

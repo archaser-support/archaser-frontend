@@ -1,12 +1,8 @@
 "use client";
+import { DeleteIcon, EditIcon } from "@/shared/components/report-icons";
 import { usePageWheelScrollsTable } from "@/shared/hooks/usePageWheelScrollsTable";
 import DeleteDialog from "@/shared/layout-components/modal/DeleteDialog";
-import {
-    Add as AddIcon,
-    Business as BusinessIcon,
-    Delete as DeleteIcon,
-    Edit as EditIcon,
-} from "@mui/icons-material";
+import {Add as AddIcon, Business as BusinessIcon} from "@mui/icons-material";
 import {
     Alert,
     Box,

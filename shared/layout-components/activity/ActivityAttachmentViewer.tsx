@@ -1,11 +1,5 @@
-import {
-    Audiotrack,
-    Delete,
-    Description,
-    Download,
-    Image as ImageIcon,
-    Visibility
-} from "@mui/icons-material";
+import { DeleteIcon as Delete } from "@/shared/components/report-icons";
+import {Audiotrack, Description, Download, Image as ImageIcon, Visibility} from "@mui/icons-material";
 import {
     Box,
     Button,

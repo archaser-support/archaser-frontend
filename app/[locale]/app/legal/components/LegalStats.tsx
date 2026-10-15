@@ -1,16 +1,16 @@
 "use client";
 
-import {
-    AccountBalance as AccountBalanceIcon,
-    AttachMoney as MoneyIcon,
-    People as PeopleIcon,
-} from "@mui/icons-material";
+import { AttachMoney as MoneyIcon } from "@mui/icons-material";
 import { Box, Skeleton } from "@mui/material";
 import React from "react";
 import { useTranslation } from "react-i18next";
 
 import { CreditMetricCard } from "@/app/[locale]/app/credit-dashboard/CreditMetricCard";
 import type { MetricStatCardIconAccent } from "@/app/theme";
+import {
+    CustomersNavIcon,
+    LegalNavIcon,
+} from "@/shared/components/sidebar-icons";
 import type { LegalCasesResponse } from "@/shared/services/legalService";
 import {
     formatMoney,
@@ -43,7 +43,7 @@ const LegalStats: React.FC<LegalStatsProps> = ({ statsData, statsLoading }) => {
     const statCards: StatCardConfig[] = [
         {
             key: "total_cases",
-            icon: <AccountBalanceIcon />,
+            icon: <LegalNavIcon />,
             iconAccent: "default",
             label: t("sections.total_cases"),
             getValue: () =>
@@ -53,7 +53,7 @@ const LegalStats: React.FC<LegalStatsProps> = ({ statsData, statsLoading }) => {
         },
         {
             key: "total_customers",
-            icon: <PeopleIcon />,
+            icon: <CustomersNavIcon />,
             iconAccent: "compliant",
             label: t("sections.total_customers", { ns: "common" }),
             getValue: () =>

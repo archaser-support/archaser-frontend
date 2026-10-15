@@ -1,16 +1,16 @@
 "use client";
 
-import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import FavoriteIcon from "@mui/icons-material/Favorite";
-import GavelIcon from "@mui/icons-material/Gavel";
-import PolicyIcon from "@mui/icons-material/Policy";
-import SecurityIcon from "@mui/icons-material/Security";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
-import ShowChartIcon from "@mui/icons-material/ShowChart";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import TrendingFlatIcon from "@mui/icons-material/TrendingFlat";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import {
+    ClaimsNavIcon,
+    CreditDashboardNavIcon,
+    PortfolioHealthNavIcon,
+} from "@/shared/components/sidebar-icons";
 import {
     Alert,
     Box,
@@ -827,7 +827,7 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                         justifyContent: "center",
                     }}
                 >
-                    <PolicyIcon sx={{ fontSize: { xs: 32, sm: 40, md: 60 } }} />
+                    <CreditDashboardNavIcon sx={{ fontSize: { xs: 32, sm: 40, md: 60 } }} />
                 </Box>
                 <Typography
                     variant={isRtl ? "hebrewTitle" : "h6"}
@@ -1060,7 +1060,7 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                             )}
                         />
                         <CreditMetricCard
-                            icon={<PolicyIcon />}
+                            icon={<CreditDashboardNavIcon />}
                             iconAccent="compliant"
                             label={creditInsuranceLabels.activePolicies}
                             value={
@@ -1074,7 +1074,7 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                             )}
                         />
                         <CreditMetricCard
-                            icon={<GavelIcon />}
+                            icon={<ClaimsNavIcon />}
                             iconAccent="terms"
                             label={creditInsuranceLabels.termsBreach}
                             value={
@@ -1093,7 +1093,7 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                             forceSecondaryLineBelow
                         />
                         <CreditMetricCard
-                            icon={<AttachMoneyIcon />}
+                            icon={<CreditDashboardNavIcon />}
                             iconAccent="capacity"
                             label={creditInsuranceLabels.capacityGap}
                             value={
@@ -1121,7 +1121,7 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                             )}
                         />
                         <CreditMetricCard
-                            icon={<ShowChartIcon />}
+                            icon={<PortfolioHealthNavIcon />}
                             iconAccent="atRisk"
                             label={t(
                                 "credit_insurance_dashboard.ar_volatility",
@@ -1289,7 +1289,7 @@ const CustomerDashboardCards: React.FC<CustomerDashboardCardsProps> = ({
                         {showTopUpMetrics && (
                             <>
                                 <CreditMetricCard
-                                    icon={<SecurityIcon />}
+                                    icon={<CreditDashboardNavIcon />}
                                     iconAccent="limitWarnings"
                                     label={creditInsuranceLabels.topUpValue}
                                     value={
