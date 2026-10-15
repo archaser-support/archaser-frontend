@@ -138,6 +138,7 @@
         "set_as_default_success": "הדוח הוגדר כברירת מחדל בהצלחה",
         "set_as_default_error": "נכשל בהגדרת הדוח כברירת מחדל",
         "cannot_delete_system_report": "לא ניתן למחוק דוחות מערכת",
+        "delete_system_report_confirmation": "האם אתה בטוח שברצונך למחוק את דוח המערכת \"{{name}}\"? פעולה זו תמחק אותו מכל החשבונות ולא ניתן לבטל אותה.",
         "cannot_edit_system_report": "לא ניתן לערוך דוחות מערכת",
         "duplicate_report_name": "דוח עם שם זה כבר קיים. אנא בחר שם אחר."
     },
