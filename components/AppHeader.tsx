@@ -31,6 +31,7 @@ import { formatDateForDisplay, getUserDateLocale, getUserTimezone } from "@/util
 
 import { accountProductsFromSessionAccount } from "@/shared/services/sessionAccountQuery";
 import { hasCollectionProduct } from "@/shared/utils/accountProducts";
+import { isArchaserAdminAccount } from "@/shared/utils/navigation";
 
 import GlobalSearch from "./GlobalSearch";
 import NotificationCenter from "./NotificationCenter";
@@ -585,8 +586,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                         direction: isHebrewUser ? "rtl" : "ltr",
                     }}
                 >
-                    {/* Last Sync Status - Compact Indicator */}
-                    {!lastSyncLoading && (
+                    {/* Last Sync Status - Compact Indicator (hidden for Archaser admin) */}
+                    {!lastSyncLoading &&
+                        !isArchaserAdminAccount(session?.user?.account_id) && (
                         <Tooltip
                             title={`${lastSyncDate ? formatDateForDisplay(lastSyncDate, "datetime", getUserDateLocale(session), getUserTimezone(session)) : tCommon("messages.sync_status_never_synced", "Never synced")} — ${tCommon("messages.sync_status_erp_scheduled_only", "Reflects completed ERP billing sync, scheduled or manual; file import is excluded")}. ${tCommon("messages.sync_status_click_to_refresh")}`}
                             arrow
