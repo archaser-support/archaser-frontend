@@ -4,7 +4,7 @@ import { Box, Typography, type TypographyProps } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import React from "react";
 
-import ArchaserLogo from "@/shared/components/ArchaserLogo";
+import ArchaserTrackRunner from "@/shared/components/ArchaserTrackRunner";
 
 type AppSpinnerColor =
     | "primary"
@@ -28,11 +28,11 @@ type AppSpinnerProps = {
 };
 
 /**
- * The app's only loading indicator (motion-trail logo). Use for inline, button and
+ * The app's only loading indicator (track-runner mark). Use for inline, button and
  * section loading; page-level loading uses `PageLoader` (shared overlay).
  */
 const AppSpinner = ({
-    size = 40,
+    size = 48,
     color = "primary",
     label,
     labelVariant,
@@ -59,7 +59,7 @@ const AppSpinner = ({
                     ...sxList,
                 ]}
             >
-                <ArchaserLogo variant="mark" animated height={size} />
+                <ArchaserTrackRunner height={size} />
             </Box>
         );
     }
@@ -83,7 +83,7 @@ const AppSpinner = ({
                 component="span"
                 sx={{ display: "inline-flex", lineHeight: 0, color: logoColor }}
             >
-                <ArchaserLogo variant="mark" animated height={size} />
+                <ArchaserTrackRunner height={size} />
             </Box>
             <Typography
                 component="span"
