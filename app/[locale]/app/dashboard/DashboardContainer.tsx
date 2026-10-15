@@ -9,7 +9,7 @@ import {
     Typography,
     useTheme,
 } from "@mui/material";
-import PageLoader from "@/shared/layout-components/spinner/PageLoader";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import React, { Fragment, useEffect, useRef, useState } from "react";
@@ -216,7 +216,7 @@ const DashboardContainer = () => {
                     px: { xs: 2, sm: 3 },
                 }}
             >
-                <PageLoader />
+                <AppSpinner />
             </Box>
         );
     }
@@ -303,7 +303,7 @@ const DashboardContainer = () => {
                     px: { xs: 2, sm: 3 },
                 }}
             >
-                <PageLoader />
+                <AppSpinner />
             </Box>
         );
     }

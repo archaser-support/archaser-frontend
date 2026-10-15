@@ -9,7 +9,7 @@ import {
     Stack,
     Typography,
 } from "@mui/material";
-import PageLoader from "@/shared/layout-components/spinner/PageLoader";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api, { apiFetch } from "@/app/api";
@@ -470,7 +470,7 @@ export default function ActivityTemplateEditPage({
                     height: "50vh",
                 }}
             >
-                <PageLoader />
+                <AppSpinner />
             </Box>
         );
     }
