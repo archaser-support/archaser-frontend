@@ -5,11 +5,11 @@ import { alpha } from "@mui/material/styles";
 import React from "react";
 import { useTranslation } from "react-i18next";
 
-import ArchaserLogo from "@/shared/components/ArchaserLogo";
+import ArchaserTrackRunner from "@/shared/components/ArchaserTrackRunner";
 
 import { useSpinner } from "./SpinnerProvider";
 
-const MARK_HEIGHT_PX = 56;
+const MARK_HEIGHT_PX = 64;
 const LABEL_GAP_PX = 16;
 
 type PageLoadingOverlayProps = {
@@ -60,11 +60,7 @@ export const PageLoadingOverlay = ({ open, label }: PageLoadingOverlayProps) => 
                     outline: 0,
                 }}
             >
-                <ArchaserLogo
-                    variant="mark"
-                    animated
-                    height={MARK_HEIGHT_PX}
-                />
+                <ArchaserTrackRunner height={MARK_HEIGHT_PX} />
                 <Typography
                     variant="body2"
                     dir={i18n.dir()}

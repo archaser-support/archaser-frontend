@@ -2,16 +2,12 @@
 
 import { Box } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
-import { keyframes } from "@mui/system";
 import React from "react";
 
 // Artwork source: archaser-logo-refined.svg. All shapes paint with currentColor.
 const FULL_VIEWBOX = { minX: 0, minY: 0, width: 643.4, height: 152 };
 // Exact bounds of the stroked runner + trails (round caps and joins included).
 const MARK_VIEWBOX = { minX: 8, minY: 14, width: 124, height: 119 };
-
-const TRAIL_CYCLE_MS = 1200;
-const TRAIL_PHASE_MS = 400;
 
 const TRAILS = ["M19 33H47", "M12 49H37", "M19 65H41"];
 
@@ -50,38 +46,11 @@ const WORDMARK_GLYPHS = [
     },
 ];
 
-const trailPulse = keyframes`
-    0%, 100% { opacity: 0.25; }
-    50% { opacity: 1; }
-`;
-
-const animatedTrailsSx = {
-    "& .archaser-logo-trail": {
-        animation: `${trailPulse} ${TRAIL_CYCLE_MS}ms ease-in-out infinite`,
-        "@media (prefers-reduced-motion: reduce)": {
-            animation: "none",
-        },
-    },
-    // Negative delays start every trail mid-cycle, each lagging the one above by one phase.
-    ...Object.fromEntries(
-        TRAILS.map((_, index) => [
-            `& .archaser-logo-trail-${index + 1}`,
-            {
-                animationDelay: `${
-                    -((TRAIL_CYCLE_MS - index * TRAIL_PHASE_MS) % TRAIL_CYCLE_MS)
-                }ms`,
-            },
-        ])
-    ),
-};
-
 type ArchaserLogoProps = {
     /** `full` = runner + wordmark; `mark` = runner + trails only, for compact placements. */
     variant?: "full" | "mark";
     /** Rendered height in px; width follows the artwork's aspect ratio. */
     height?: number;
-    /** Pulse the motion trails (loading indicators only; keep static in navigation). */
-    animated?: boolean;
     /** Accessible name. Omit when the logo is decorative (e.g. a separate loading status exists). */
     title?: string;
     sx?: SxProps<Theme>;
@@ -90,11 +59,11 @@ type ArchaserLogoProps = {
 /**
  * ARChaser application logo. Inherits CSS `color`, so set it on the logo (or a parent)
  * to match the surface. Never use for tenant-uploaded account logos.
+ * Loading indicators use `ArchaserTrackRunner` / `AppSpinner`, not this mark.
  */
 const ArchaserLogo = ({
     variant = "full",
     height = 32,
-    animated = false,
     title,
     sx,
 }: ArchaserLogoProps) => {
@@ -120,7 +89,6 @@ const ArchaserLogo = ({
                     flexShrink: 0,
                     overflow: "visible",
                 },
-                animated ? animatedTrailsSx : {},
                 ...(Array.isArray(sx) ? sx : [sx]),
             ]}
         >
@@ -130,12 +98,8 @@ const ArchaserLogo = ({
                 strokeLinejoin="round"
             >
                 <g strokeWidth={8}>
-                    {TRAILS.map((d, index) => (
-                        <path
-                            key={d}
-                            className={`archaser-logo-trail archaser-logo-trail-${index + 1}`}
-                            d={d}
-                        />
+                    {TRAILS.map((d) => (
+                        <path key={d} d={d} />
                     ))}
                 </g>
                 <circle cx={106} cy={26} r={12} fill="currentColor" stroke="none" />
