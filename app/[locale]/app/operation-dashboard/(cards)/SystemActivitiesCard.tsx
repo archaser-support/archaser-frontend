@@ -1,6 +1,6 @@
 "use client";
 
-import { Storage as StorageIcon } from "@mui/icons-material";
+import { ActivitySequencesNavIcon } from "@/shared/components/sidebar-icons";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -28,7 +28,7 @@ const SystemActivitiesCard = ({
 
     return (
         <CreditMetricCard
-            icon={<StorageIcon />}
+            icon={<ActivitySequencesNavIcon />}
             iconAccent="default"
             label={t("fields.system_activities", { ns: "activities" })}
             value={count.toLocaleString()}

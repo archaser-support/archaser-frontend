@@ -1,6 +1,6 @@
 "use client";
 
-import { HealthAndSafety as HealthIcon } from "@mui/icons-material";
+import { PortfolioHealthNavIcon } from "@/shared/components/sidebar-icons";
 import { Box, Card, CardContent, Typography, useTheme } from "@mui/material";
 import dynamic from "next/dynamic";
 import { useTranslation } from "react-i18next";
@@ -107,7 +107,7 @@ export function CreditHealthIndexGauge({
                     aria-hidden
                     sx={c.headerIconLeading(theme, isRtl, "healthIndex")}
                 >
-                    <HealthIcon />
+                    <PortfolioHealthNavIcon />
                 </Box>
                 <Box
                     sx={{

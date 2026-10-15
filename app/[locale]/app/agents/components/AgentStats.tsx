@@ -1,16 +1,16 @@
 "use client";
 
-import {
-    AttachMoney as MoneyIcon,
-    People as PeopleIcon,
-    Receipt as ReceiptIcon,
-} from "@mui/icons-material";
+import { AttachMoney as MoneyIcon } from "@mui/icons-material";
 import { Box, Skeleton } from "@mui/material";
 import React from "react";
 import { useTranslation } from "react-i18next";
 
 import { CreditMetricCard } from "@/app/[locale]/app/credit-dashboard/CreditMetricCard";
 import type { MetricStatCardIconAccent } from "@/app/theme";
+import {
+    AgentsNavIcon,
+    CustomersNavIcon,
+} from "@/shared/components/sidebar-icons";
 import { formatMoney } from "@/utils/stringFormatters";
 
 interface AgentStatsProps {
@@ -46,7 +46,7 @@ const AgentStats: React.FC<AgentStatsProps> = ({ statsData, statsLoading }) => {
     const statCards: StatCardConfig[] = [
         {
             key: "total_customers",
-            icon: <PeopleIcon />,
+            icon: <CustomersNavIcon />,
             iconAccent: "default",
             label: t("sections.total_customers", { ns: "common" }),
             getValue: () =>
@@ -56,7 +56,7 @@ const AgentStats: React.FC<AgentStatsProps> = ({ statsData, statsLoading }) => {
         },
         {
             key: "total_invoices",
-            icon: <ReceiptIcon />,
+            icon: <AgentsNavIcon />,
             iconAccent: "compliant",
             label: t("sections.total_invoices"),
             getValue: () =>

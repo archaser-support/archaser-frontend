@@ -1,11 +1,8 @@
 "use client";
+import { DeleteIcon } from "@/shared/components/report-icons";
 import { apiFetch } from "@/utils/apiFetch";
 
-import {
-    Delete as DeleteIcon,
-    Gavel as GavelIcon,
-    Add as AddIcon,
-} from "@mui/icons-material";
+import {Gavel as GavelIcon, Add as AddIcon} from "@mui/icons-material";
 import {
     Box,
     IconButton,
@@ -376,7 +373,6 @@ export const DisputeReasonsList: React.FC<DisputeReasonsListProps> = ({
             `/${locale}/app/settings/dispute-reasons/create?backUrl=${encodeURIComponent("/app/settings?tab=dispute-reason")}`
         );
     }, [router, i18n.language]);
-
 
     const columns: GridColDef[] = useMemo(
         () => [

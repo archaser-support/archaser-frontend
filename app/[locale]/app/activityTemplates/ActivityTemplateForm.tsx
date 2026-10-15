@@ -1,16 +1,8 @@
 "use client";
 
+import { DeleteIcon } from "@/shared/components/report-icons";
 import AppDialog from "@/shared/layout-components/modal/AppDialog";
-import {
-    CheckCircle as CheckCircleIcon,
-    Code as CodeIcon,
-    Delete as DeleteIcon,
-    Email as EmailIcon,
-    HelpOutline as HelpOutlineIcon,
-    Sms as SmsIcon,
-    Warning as WarningIcon,
-    WhatsApp as WhatsAppIcon,
-} from "@mui/icons-material";
+import {CheckCircle as CheckCircleIcon, Code as CodeIcon, Email as EmailIcon, HelpOutline as HelpOutlineIcon, Sms as SmsIcon, Warning as WarningIcon, WhatsApp as WhatsAppIcon} from "@mui/icons-material";
 import {
     Box,
     Button,
@@ -94,7 +86,6 @@ const SUPPORTED_LANGUAGES = [
     { code: "Japanese", label: "fields.languages_japanese", flag: "🇯🇵" },
     { code: "Korean", label: "fields.languages_korean", flag: "🇰🇷" },
 ];
-
 
 export default function ActivityTemplateForm({
     formData,

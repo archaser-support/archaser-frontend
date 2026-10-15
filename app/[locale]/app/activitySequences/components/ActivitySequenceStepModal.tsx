@@ -1,6 +1,7 @@
 "use client";
 
-import { Add as AddIcon, Edit as EditIcon } from "@mui/icons-material";
+import { EditIcon } from "@/shared/components/report-icons";
+import {Add as AddIcon} from "@mui/icons-material";
 import {
     Autocomplete,
     Box,
@@ -1636,7 +1637,6 @@ export default function ActivitySequenceStepModal({
                                                 }}
                                                 color="primary"
                                                 disabled={false
-
 
                                                 }
                                                 {...(i18n.language ===

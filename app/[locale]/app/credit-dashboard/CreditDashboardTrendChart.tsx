@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { ShowChart as ShowChartIcon } from "@mui/icons-material";
+import { CreditDashboardNavIcon } from "@/shared/components/sidebar-icons";
 import {
     Box,
     Card,
@@ -270,7 +270,7 @@ function CreditDashboardTrendChartInner({
                         ...(compact ? { zIndex: 0 } : {}),
                     }}
                 >
-                    <ShowChartIcon />
+                    <CreditDashboardNavIcon />
                 </Box>
                 <Box
                     sx={{

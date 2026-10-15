@@ -1,8 +1,9 @@
 "use client";
 
-import { Delete as DeleteIcon } from "@mui/icons-material";
 import BusinessIcon from "@mui/icons-material/Business";
 import InfoIcon from "@mui/icons-material/Info";
+import { DeleteIcon } from "@/shared/components/report-icons";
+
 import {
     Autocomplete,
     Box,
@@ -22,7 +23,6 @@ import { useTranslation } from "react-i18next";
 import AppDialog from "@/shared/layout-components/modal/AppDialog";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import { apiFetch } from "@/utils/apiFetch";
-
 
 interface BusinessUnit {
     id: number;

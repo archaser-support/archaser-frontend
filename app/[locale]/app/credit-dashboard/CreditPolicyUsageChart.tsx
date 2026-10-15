@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart as BarChartIcon } from "@mui/icons-material";
+import { CreditDashboardNavIcon } from "@/shared/components/sidebar-icons";
 import { alpha, Box, Card, CardContent, Typography, useTheme } from "@mui/material";
 import { lighten } from "@mui/material/styles";
 import type { ApexOptions } from "apexcharts";
@@ -502,7 +502,7 @@ export function CreditPolicyUsageChart(props: {
                     aria-hidden
                     sx={c.headerIconLeading(theme, isRtl, "receivables")}
                 >
-                    <BarChartIcon />
+                    <CreditDashboardNavIcon />
                 </Box>
                 <Box sx={c.headerColumn(theme, isRtl)}>
                     <Box

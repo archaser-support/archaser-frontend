@@ -1,10 +1,10 @@
 "use client";
 
-import { Group as GroupIcon } from "@mui/icons-material";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
 import { CreditMetricCard } from "@/app/[locale]/app/credit-dashboard/CreditMetricCard";
+import { CustomersNavIcon } from "@/shared/components/sidebar-icons";
 import { useDashboardBusinessUnitId } from "@/shared/dashboard/DashboardBusinessUnitContext";
 import { appendDashboardBusinessUnitId } from "@/shared/dashboard/dashboardBusinessUnitParams";
 import AppUrls from "@/utils/appUrls";
@@ -47,7 +47,7 @@ const OverdueCustomersCard = ({
 
     return (
         <CreditMetricCard
-            icon={<GroupIcon />}
+            icon={<CustomersNavIcon />}
             iconAccent="overdue"
             label={t("fields.stats_overdue_customers")}
             value={count.toLocaleString(locale)}

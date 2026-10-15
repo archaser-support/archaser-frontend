@@ -1,13 +1,7 @@
 "use client";
 
-import {
-    Add,
-    Clear as ClearIcon,
-    Delete,
-    ExpandMore,
-    Person,
-    Search as SearchIcon,
-} from "@mui/icons-material";
+import { DeleteIcon as Delete } from "@/shared/components/report-icons";
+import {Add, Clear as ClearIcon, ExpandMore, Person, Search as SearchIcon} from "@mui/icons-material";
 import {
     Autocomplete,
     Box,
@@ -2272,7 +2266,6 @@ const FilterBuilder: React.FC<FilterBuilderProps> = ({
         if (isEmptyOperator) {
             return null;
         }
-
 
         // Handle Country.name field with Autocomplete (single) or Select + chips (in)
         if (normalizedField === "Country.name") {

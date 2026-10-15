@@ -1,5 +1,6 @@
 "use client";
 
+import { DeleteIcon as Delete } from "@/shared/components/report-icons";
 import {
     Box,
     Typography,
@@ -12,7 +13,7 @@ import {
     Switch,
     Tooltip,
 } from "@mui/material";
-import { Add, Delete } from "@mui/icons-material";
+import {Add} from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import React from "react";
 import { useTranslation } from "react-i18next";

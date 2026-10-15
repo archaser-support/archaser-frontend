@@ -1,6 +1,6 @@
 "use client";
 
-import { Error as ErrorIcon } from "@mui/icons-material";
+import { ActivitySequencesNavIcon } from "@/shared/components/sidebar-icons";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -28,7 +28,7 @@ const UndeliveredActivitiesCard = ({
 
     return (
         <CreditMetricCard
-            icon={<ErrorIcon />}
+            icon={<ActivitySequencesNavIcon />}
             iconAccent="overdue"
             label={t("fields.undelivered_activities", { ns: "activities" })}
             value={count.toLocaleString()}

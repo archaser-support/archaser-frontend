@@ -1,11 +1,7 @@
 "use client";
 
-import {
-    AccountBalance as AccountIcon,
-    Business as BusinessIcon,
-    CloudUpload as CloudUploadIcon,
-    Delete as DeleteIcon,
-} from "@mui/icons-material";
+import { DeleteIcon } from "@/shared/components/report-icons";
+import {AccountBalance as AccountIcon, Business as BusinessIcon, CloudUpload as CloudUploadIcon} from "@mui/icons-material";
 import {
     Avatar,
     Box,

@@ -1,11 +1,7 @@
 "use client";
 
-import {
-    Add as AddIcon,
-    Business as BusinessIcon,
-    Check as CheckIcon,
-    Delete as DeleteIcon,
-} from "@mui/icons-material";
+import { DeleteIcon } from "@/shared/components/report-icons";
+import {Add as AddIcon, Business as BusinessIcon, Check as CheckIcon} from "@mui/icons-material";
 import {
     Box,
     Chip,

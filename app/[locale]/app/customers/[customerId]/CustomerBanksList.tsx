@@ -1,8 +1,5 @@
-import {
-    AccountBalance as AccountBalanceIcon,
-    Add as AddIcon,
-    Delete as DeleteIcon,
-} from "@mui/icons-material";
+import { DeleteIcon } from "@/shared/components/report-icons";
+import {AccountBalance as AccountBalanceIcon, Add as AddIcon} from "@mui/icons-material";
 import {
     Box,
     IconButton,

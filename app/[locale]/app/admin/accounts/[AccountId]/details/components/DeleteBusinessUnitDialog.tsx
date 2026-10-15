@@ -1,8 +1,9 @@
 "use client";
+import { DeleteIcon } from "@/shared/components/report-icons";
 import { apiFetch } from "@/utils/apiFetch";
 
 import AppDialog from "@/shared/layout-components/modal/AppDialog";
-import { Delete as DeleteIcon } from "@mui/icons-material";
+
 import {
     Autocomplete,
     Box,

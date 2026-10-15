@@ -1,6 +1,6 @@
 "use client";
 
-import { Public as PublicIcon } from "@mui/icons-material";
+import { ActivitySequencesNavIcon } from "@/shared/components/sidebar-icons";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -28,7 +28,7 @@ const PortalActivitiesCard = ({
 
     return (
         <CreditMetricCard
-            icon={<PublicIcon />}
+            icon={<ActivitySequencesNavIcon />}
             iconAccent="default"
             label={t("fields.portal_activities", { ns: "activities" })}
             value={count.toLocaleString()}

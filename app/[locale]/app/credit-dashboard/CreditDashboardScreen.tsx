@@ -1,24 +1,22 @@
 ﻿"use client";
 
 import {
-    AccountBalance as AccountBalanceIcon,
-    Event as EventIcon,
-    Flag as FlagIcon,
-    Gavel as GavelIcon,
     Policy as PolicyOffIcon,
-    Schedule as ScheduleIcon,
-    Security as SecurityIcon,
-    TrendingUp as TrendingUpIcon,
-    VerifiedUser as VerifiedUserIcon,
     Warning as WarningIcon,
 } from "@mui/icons-material";
+import {
+    ClaimsNavIcon,
+    CreditDashboardNavIcon,
+    PortfolioHealthNavIcon,
+    ReportsNavIcon,
+} from "@/shared/components/sidebar-icons";
 import {
     Box,
     Link,
     Typography,
     useTheme,
 } from "@mui/material";
-import PageLoader from "@/shared/layout-components/spinner/PageLoader";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useMemo, useRef } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
@@ -210,7 +208,7 @@ export function CreditDashboardScreen({
                                 minHeight: { xs: "300px", sm: "400px" },
                             }}
                         >
-                            <PageLoader />
+                            <AppSpinner />
                         </Box>
                     </Box>
                 </Box>
@@ -524,7 +522,7 @@ export function CreditDashboardScreen({
                                 }}
                             >
                                 <CreditMetricCard
-                                    icon={<AccountBalanceIcon />}
+                                    icon={<CreditDashboardNavIcon />}
                                     iconAccent="receivables"
                                     label={t(
                                         "credit_insurance_dashboard.total_receivables",
@@ -543,7 +541,7 @@ export function CreditDashboardScreen({
                                     changePolarity="up-is-good"
                                 />
                                 <CreditMetricCard
-                                    icon={<VerifiedUserIcon />}
+                                    icon={<CreditDashboardNavIcon />}
                                     iconAccent="compliant"
                                     label={t(
                                         "credit_insurance_dashboard.compliant_exposure",
@@ -660,7 +658,7 @@ export function CreditDashboardScreen({
                                 }}
                             >
                                 <CreditMetricCard
-                                    icon={<EventIcon />}
+                                    icon={<ReportsNavIcon />}
                                     iconAccent="reporting"
                                     label={t(
                                         "credit_insurance_dashboard.reporting_countdown",
@@ -689,7 +687,7 @@ export function CreditDashboardScreen({
                                     }
                                 />
                                 <CreditMetricCard
-                                    icon={<FlagIcon />}
+                                    icon={<CreditDashboardNavIcon />}
                                     iconAccent="limitWarnings"
                                     label={t(
                                         "credit_insurance_dashboard.limit_warnings",
@@ -724,7 +722,7 @@ export function CreditDashboardScreen({
                                 {showTopUpMetrics && s.topUp ? (
                                     <>
                                         <CreditMetricCard
-                                            icon={<SecurityIcon />}
+                                            icon={<CreditDashboardNavIcon />}
                                             iconAccent="limitWarnings"
                                             label={t(
                                                 "credit_insurance_dashboard.active_top_up_cover",
@@ -847,7 +845,7 @@ export function CreditDashboardScreen({
                                     }}
                                 >
                                     <CreditMetricCard
-                                        icon={<TrendingUpIcon />}
+                                        icon={<PortfolioHealthNavIcon />}
                                         iconAccent="capacity"
                                         label={t(
                                             "credit_insurance_dashboard.capacity_gap",
@@ -877,7 +875,7 @@ export function CreditDashboardScreen({
                                         }
                                     />
                                     <CreditMetricCard
-                                        icon={<ScheduleIcon />}
+                                        icon={<PortfolioHealthNavIcon />}
                                         iconAccent="overdue"
                                         label={t(
                                             "credit_insurance_dashboard.overdue_block",
@@ -903,7 +901,7 @@ export function CreditDashboardScreen({
                                         }
                                     />
                                     <CreditMetricCard
-                                        icon={<GavelIcon />}
+                                        icon={<ClaimsNavIcon />}
                                         iconAccent="terms"
                                         label={t(
                                             "credit_insurance_dashboard.terms_breach",

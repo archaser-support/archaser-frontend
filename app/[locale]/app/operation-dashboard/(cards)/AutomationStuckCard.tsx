@@ -1,6 +1,6 @@
 "use client";
 
-import { Block as BlockIcon } from "@mui/icons-material";
+import { ActivitySequencesNavIcon } from "@/shared/components/sidebar-icons";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -28,7 +28,7 @@ const AutomationStuckCard = ({
 
     return (
         <CreditMetricCard
-            icon={<BlockIcon />}
+            icon={<ActivitySequencesNavIcon />}
             iconAccent="atRisk"
             label={t("fields.automation_stuck", { ns: "common" })}
             value={count.toLocaleString()}

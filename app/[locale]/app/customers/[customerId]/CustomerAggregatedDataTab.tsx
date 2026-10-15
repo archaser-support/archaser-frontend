@@ -1,14 +1,11 @@
 "use client";
 
 import {
-    BarChart as BarChartIcon,
-    AttachMoney as MoneyIcon,
-    Payment as PaymentIcon,
-    People as PeopleIcon,
-    PieChart as PieChartIcon,
-    Receipt as ReceiptIcon,
-    Schedule as ScheduleIcon,
-} from "@mui/icons-material";
+    CustomersNavIcon,
+    FinancialDashboardNavIcon,
+    PromiseToPayNavIcon,
+    ReportsNavIcon,
+} from "@/shared/components/sidebar-icons";
 import {
     Box,
     Card,
@@ -596,7 +593,7 @@ const CustomerAggregatedDataTab: React.FC<CustomerAggregatedDataTabProps> = ({
                                     mb: 1,
                                 }}
                             >
-                                <PeopleIcon
+                                <CustomersNavIcon
                                     sx={{
                                         color: theme.palette.secondary.main,
                                         fontSize: 20,
@@ -639,7 +636,7 @@ const CustomerAggregatedDataTab: React.FC<CustomerAggregatedDataTabProps> = ({
                                     mb: 1,
                                 }}
                             >
-                                <MoneyIcon
+                                <FinancialDashboardNavIcon
                                     sx={{
                                         color: theme.palette.warning.main,
                                         fontSize: 20,
@@ -727,7 +724,7 @@ const CustomerAggregatedDataTab: React.FC<CustomerAggregatedDataTabProps> = ({
                                     mb: 1,
                                 }}
                             >
-                                <ReceiptIcon
+                                <ReportsNavIcon
                                     sx={{
                                         color: theme.palette.error.main,
                                         fontSize: 20,
@@ -770,7 +767,7 @@ const CustomerAggregatedDataTab: React.FC<CustomerAggregatedDataTabProps> = ({
                                     mb: 1,
                                 }}
                             >
-                                <PaymentIcon
+                                <PromiseToPayNavIcon
                                     sx={{
                                         color: theme.palette.success.main,
                                         fontSize: 20,
@@ -857,7 +854,7 @@ const CustomerAggregatedDataTab: React.FC<CustomerAggregatedDataTabProps> = ({
                                     mb: 1,
                                 }}
                             >
-                                <ScheduleIcon
+                                <PromiseToPayNavIcon
                                     sx={{
                                         color: theme.palette.info.main,
                                         fontSize: 20,
@@ -942,7 +939,7 @@ const CustomerAggregatedDataTab: React.FC<CustomerAggregatedDataTabProps> = ({
                                     mb: 1,
                                 }}
                             >
-                                <ReceiptIcon
+                                <ReportsNavIcon
                                     sx={{
                                         color: theme.palette.info.main,
                                         fontSize: 20,
@@ -1001,7 +998,7 @@ const CustomerAggregatedDataTab: React.FC<CustomerAggregatedDataTabProps> = ({
                                         i18n.language === "he" ? "rtl" : "ltr",
                                 }}
                             >
-                                <PieChartIcon
+                                <FinancialDashboardNavIcon
                                     sx={{
                                         color: theme.palette.secondary.main,
                                         fontSize: 24,
@@ -1085,7 +1082,7 @@ const CustomerAggregatedDataTab: React.FC<CustomerAggregatedDataTabProps> = ({
                                         i18n.language === "he" ? "rtl" : "ltr",
                                 }}
                             >
-                                <BarChartIcon
+                                <FinancialDashboardNavIcon
                                     sx={{
                                         color: theme.palette.secondary.main,
                                         fontSize: 24,

@@ -1,6 +1,6 @@
 "use client";
 
-import { Gavel as GavelIcon } from "@mui/icons-material";
+import { DisputesNavIcon } from "@/shared/components/sidebar-icons";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -28,7 +28,7 @@ const OpenDisputesCard = ({
 
     return (
         <CreditMetricCard
-            icon={<GavelIcon />}
+            icon={<DisputesNavIcon />}
             iconAccent="atRisk"
             label={t("fields.open_disputes", { ns: "disputes" })}
             value={count.toLocaleString()}

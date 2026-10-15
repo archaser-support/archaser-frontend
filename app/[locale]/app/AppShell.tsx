@@ -1,24 +1,11 @@
 "use client";
 import {
-    AccountBalance as AccountBalanceIcon,
     Assessment as AssessmentIcon,
-    BarChart as BarChartIcon,
     Business as BusinessIcon,
-    CalendarToday as CalendarTodayIcon,
-    CloudUpload as CloudUploadIcon,
-    Dashboard as DashboardIcon,
-    Description as DescriptionIcon,
     Mail as EmailIcon,
-    Gavel as GavelIcon,
     MenuOpen as MenuOpenIcon,
     Message as MessageIcon,
-    MonitorHeart as MonitorHeartIcon,
-    People as PeopleIcon,
-    Person as PersonIcon,
     Schedule as ScheduleIcon,
-    Settings as SettingsIcon,
-    ShowChart as ShowChartIcon,
-    ViewList as ViewListIcon
 } from "@mui/icons-material";
 import {
     Box,
@@ -56,7 +43,23 @@ import { SessionInitializer } from "@/components/SessionInitializer";
 import ViewAsBanner from "@/components/ViewAsBanner";
 import { useSessionState } from "@/hooks/useSessionState";
 import ArchaserLogo from "@/shared/components/ArchaserLogo";
-import { CreditInsuranceNavIcon } from "@/shared/components/CreditInsuranceNavIcon";
+import {
+    ActivitySequencesNavIcon,
+    AgentsNavIcon,
+    ClaimsNavIcon,
+    ControlCenterNavIcon,
+    CreditDashboardNavIcon,
+    CustomersNavIcon,
+    DisputesNavIcon,
+    FinancialDashboardNavIcon,
+    ImportNavIcon,
+    LegalNavIcon,
+    OperationDashboardNavIcon,
+    PortfolioHealthNavIcon,
+    PromiseToPayNavIcon,
+    ReportsNavIcon,
+    SettingsNavIcon,
+} from "@/shared/components/sidebar-icons/SidebarNavIcons";
 import SpinnerOverlay from "@/shared/layout-components/spinner/SpinnerOverlay";
 import {
     SpinnerProvider,
@@ -1011,7 +1014,7 @@ const AppLayout = ({ children }: any) => {
                                         label: t(
                                             "actions.navigation_dashboard"
                                         ),
-                                        icon: <DashboardIcon />,
+                                        icon: <FinancialDashboardNavIcon />,
                                         href:
                                             AppUrls.DASHBOARD ||
                                             "/app/dashboard",
@@ -1025,7 +1028,7 @@ const AppLayout = ({ children }: any) => {
                                         label: t(
                                             "actions.navigation_operation_dashboard"
                                         ),
-                                        icon: <BarChartIcon />,
+                                        icon: <OperationDashboardNavIcon />,
                                         href:
                                             AppUrls.OPERATION_DASHBOARD ||
                                             "/app/operation-dashboard",
@@ -1039,7 +1042,7 @@ const AppLayout = ({ children }: any) => {
                                         label: t(
                                             "actions.navigation_credit_dashboard"
                                         ),
-                                        icon: <CreditInsuranceNavIcon />,
+                                        icon: <CreditDashboardNavIcon />,
                                         href:
                                             AppUrls.CREDIT_DASHBOARD ||
                                             "/app/credit-dashboard",
@@ -1052,7 +1055,7 @@ const AppLayout = ({ children }: any) => {
                                                     "Portfolio Health",
                                             }
                                         ),
-                                        icon: <ShowChartIcon />,
+                                        icon: <PortfolioHealthNavIcon />,
                                         href:
                                             AppUrls.CREDIT_PORTFOLIO_HEALTH ||
                                             "/app/credit-portfolio-health",
@@ -1063,7 +1066,7 @@ const AppLayout = ({ children }: any) => {
                                 ? [
                                     {
                                         label: t("actions.navigation_control_center"),
-                                        icon: <MonitorHeartIcon />,
+                                        icon: <ControlCenterNavIcon />,
                                         href:
                                             AppUrls.CONTROL_CENTER ||
                                             "/app/control-center",
@@ -1077,7 +1080,7 @@ const AppLayout = ({ children }: any) => {
                                         label: t(
                                             "actions.navigation_reports"
                                         ),
-                                        icon: <AssessmentIcon />,
+                                        icon: <ReportsNavIcon />,
                                         href:
                                             AppUrls.REPORTS ||
                                             "/app/reports",
@@ -1086,7 +1089,7 @@ const AppLayout = ({ children }: any) => {
                                 : []),
                             {
                                 label: t("actions.navigation_customers"),
-                                icon: <PeopleIcon />,
+                                icon: <CustomersNavIcon />,
                                 href: AppUrls.CUSTOMERS || "/app/customers",
                             },
                             ...(hasCreditInsuranceProduct
@@ -1095,7 +1098,7 @@ const AppLayout = ({ children }: any) => {
                                         label: t("actions.navigation_claims", {
                                             defaultValue: "Claims",
                                         }),
-                                        icon: <DescriptionIcon />,
+                                        icon: <ClaimsNavIcon />,
                                         href: AppUrls.CLAIMS || "/app/claims",
                                     },
                                 ]
@@ -1112,22 +1115,22 @@ const AppLayout = ({ children }: any) => {
                         items: [
                             {
                                 label: t("actions.navigation_disputes"),
-                                icon: <GavelIcon />,
+                                icon: <DisputesNavIcon />,
                                 href: AppUrls.DISPUTES || "/app/disputes",
                             },
                             {
                                 label: t("actions.navigation_agents"),
-                                icon: <PersonIcon />,
+                                icon: <AgentsNavIcon />,
                                 href: AppUrls.AGENTS || "/app/agents",
                             },
                             {
                                 label: t("actions.navigation_legal"),
-                                icon: <AccountBalanceIcon />,
+                                icon: <LegalNavIcon />,
                                 href: "/app/legal",
                             },
                             {
                                 label: t("actions.navigation_promise_to_pay"),
-                                icon: <CalendarTodayIcon />,
+                                icon: <PromiseToPayNavIcon />,
                                 href:
                                     AppUrls.PROMISE_TO_PAY_INTERNAL ||
                                     "/app/promise-to-pay",
@@ -1157,7 +1160,7 @@ const AppLayout = ({ children }: any) => {
                                         label: t(
                                             "actions.navigation_settings"
                                         ),
-                                        icon: <SettingsIcon />,
+                                        icon: <SettingsNavIcon />,
                                         href: "/app/settings",
                                     },
                                 ]
@@ -1170,7 +1173,7 @@ const AppLayout = ({ children }: any) => {
                                         label: t(
                                             "actions.navigation_activity_sequences"
                                         ),
-                                        icon: <ViewListIcon />,
+                                        icon: <ActivitySequencesNavIcon />,
                                         href:
                                             AppUrls.ACTIVITY_SEQUENCE ||
                                             "/app/activitySequences",
@@ -1181,7 +1184,7 @@ const AppLayout = ({ children }: any) => {
                                 ? [
                                     {
                                         label: t("actions.navigation_import"),
-                                        icon: <CloudUploadIcon />,
+                                        icon: <ImportNavIcon />,
                                         href: AppUrls.IMPORT || "/app/import",
                                     },
                                 ]
@@ -1606,6 +1609,8 @@ const AppLayout = ({ children }: any) => {
                                                                 color: isActive
                                                                     ? "white"
                                                                     : "rgba(255, 255, 255, 0.8)",
+                                                                overflow:
+                                                                    "visible",
                                                             },
                                                         }}
                                                     >
@@ -1618,6 +1623,8 @@ const AppLayout = ({ children }: any) => {
                                                                     "center",
                                                                 justifyContent:
                                                                     "center",
+                                                                overflow:
+                                                                    "visible",
                                                                 transition:
                                                                     "all 0.3s ease",
                                                             }}
@@ -1927,6 +1934,8 @@ const AppLayout = ({ children }: any) => {
                                                             color: isActive
                                                                 ? "white"
                                                                 : "rgba(255, 255, 255, 0.8)",
+                                                            overflow:
+                                                                "visible",
                                                         },
                                                     }}
                                                 >
@@ -1939,6 +1948,8 @@ const AppLayout = ({ children }: any) => {
                                                                 "center",
                                                             justifyContent:
                                                                 "center",
+                                                            overflow:
+                                                                "visible",
                                                             transition:
                                                                 "all 0.3s ease",
                                                         }}

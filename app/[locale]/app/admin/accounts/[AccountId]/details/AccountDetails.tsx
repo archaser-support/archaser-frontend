@@ -1,22 +1,7 @@
 "use client";
 
-import {
-    Add as AddIcon,
-    Business as BusinessIcon,
-    Delete as DeleteIcon,
-    Edit as EditIcon,
-    Email as EmailIcon,
-    Info as InfoIcon,
-    LocationOn as LocationIcon,
-    People as PeopleIcon,
-    Public as PortalIcon,
-    Shield as CreditInsuranceIcon,
-    Psychology as PsychologyIcon,
-    Security as SecurityIcon,
-    Settings as SettingsIcon,
-    Key as KeyIcon,
-    CloudSync as BillingIcon,
-} from "@mui/icons-material";
+import { DeleteIcon, EditIcon } from "@/shared/components/report-icons";
+import {Add as AddIcon, Business as BusinessIcon, Email as EmailIcon, Info as InfoIcon, LocationOn as LocationIcon, People as PeopleIcon, Public as PortalIcon, Shield as CreditInsuranceIcon, Psychology as PsychologyIcon, Security as SecurityIcon, Settings as SettingsIcon, Key as KeyIcon, CloudSync as BillingIcon} from "@mui/icons-material";
 import {
     Alert,
     Autocomplete,
@@ -37,7 +22,6 @@ import {
     useTheme,
 } from "@mui/material";
 import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
-import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { GridColDef, GridRenderCellParams } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -2045,7 +2029,7 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
                 }}
             >
                 <Box textAlign="center">
-                    <PageLoader />
+                    <AppSpinner />
                 </Box>
             </Box>
         );
@@ -2065,7 +2049,7 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
                 }}
             >
                 <Box textAlign="center">
-                    <PageLoader />
+                    <AppSpinner />
                 </Box>
             </Box>
         );
@@ -2085,7 +2069,7 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
                 }}
             >
                 <Box textAlign="center">
-                    <PageLoader />
+                    <AppSpinner />
                 </Box>
             </Box>
         );
