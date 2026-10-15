@@ -11,6 +11,7 @@ import {
     getCookieNameCandidates,
     sessionSecret,
 } from "./utils/authUtils";
+import { sanitizeReturnTo } from "./utils/loginReturnTo";
 import { isSuspiciousPayload } from "./utils/payloadScanner";
 import { getSecurityHeaders } from "./utils/securityHeaders";
 
@@ -234,7 +235,15 @@ export async function proxy(request: NextRequest) {
         !isPublicPage && protectedPaths.some((path) => pathname.includes(path));
 
     if (requiresAuth && !token) {
-        const signInUrl = new URL("/login", request.url);
+        const localeSegment = pathname.split("/")[1];
+        const locale = localeSegment === "he" ? "he" : "en";
+        const signInUrl = new URL(`/${locale}/login`, request.url);
+        const returnTo = sanitizeReturnTo(
+            `${pathname}${request.nextUrl.search}`
+        );
+        if (returnTo) {
+            signInUrl.searchParams.set("returnTo", returnTo);
+        }
         return NextResponse.redirect(signInUrl);
     }
     response.headers.set(

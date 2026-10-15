@@ -58,6 +58,12 @@ import {
 import { apiFetch } from "@/utils/apiFetch";
 import { getTenantSubdomain } from "@/utils/domainUtils";
 import {
+    LOGIN_RETURN_TO_KEY,
+    readLoginReturnTo,
+    rememberLoginReturnTo,
+    resolvePostLoginPath,
+} from "@/utils/loginReturnTo";
+import {
     clearNestAccessToken,
     getNestAccessToken,
     getNestAzureStartUrl,
@@ -314,6 +320,7 @@ function LoginPageContent() {
                 PENDING_LOGIN_REDIRECT_KEY,
                 LOGIN_SHELL_PREFETCH_KEY,
                 CREDIT_DASHBOARD_SUMMARY_PREFETCH_KEY,
+                LOGIN_RETURN_TO_KEY,
                 "archaser_nest_access_token",
             ]);
             const sessionKeysToRemove: string[] = [];
@@ -500,7 +507,20 @@ function LoginPageContent() {
 
             const session = await getSession();
             const homePath = session?.user?.homePath || redirectUrl;
-            const navigateTo = `/${language}${homePath}`;
+            const fallbackPath = `/${language}${homePath}`;
+            const navigateTo = resolvePostLoginPath(
+                readLoginReturnTo(
+                    typeof window !== "undefined"
+                        ? new URLSearchParams(window.location.search).get(
+                              "returnTo"
+                          )
+                        : null
+                ),
+                fallbackPath
+            );
+            if (typeof window !== "undefined") {
+                sessionStorage.setItem(PENDING_LOGIN_REDIRECT_KEY, navigateTo);
+            }
             // Hard-navigate so a post-signIn session/RSC remount cannot
             // re-paint /login (Fade-in flash) before the dashboard loads.
             // PENDING stays until SessionLanguageMonitor clears handoff on /app.
@@ -551,6 +571,19 @@ function LoginPageContent() {
         },
         [validateUsername, updateFormState]
     );
+
+    // Keep the pre-timeout page across SSO, which returns without returnTo.
+    useEffect(() => {
+        const nestToken = searchParams?.get("nest_token");
+        const returnTo = searchParams?.get("returnTo");
+        if (returnTo) {
+            rememberLoginReturnTo(returnTo);
+            return;
+        }
+        if (!nestToken) {
+            rememberLoginReturnTo(null);
+        }
+    }, [searchParams]);
 
     // Handle SSO Init from Subdomain (Centralized Auth) - Defined here to access updateFormState
     useEffect(() => {
