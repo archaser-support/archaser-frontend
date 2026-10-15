@@ -6,11 +6,13 @@ This project uses [Husky](https://typicode.github.io/husky/) to enforce code qua
 
 The pre-commit hook automatically runs before each commit and performs:
 
-1. **Lint / format** (`npx lint-staged`)
-2. **Bare amount display guard** (`npm run check:bare-amount-display`)
-3. **Nest API parity** (`npm run check:api-parity`)
+1. **Malware / supply-chain guard** (`npm run check:malware`)
+   - Blocks root `api.js`, npm script hooks to `api.js`, and obfuscated config payloads
+2. **Lint / format** (`npx lint-staged`)
+3. **Bare amount display guard** (`npm run check:bare-amount-display`)
+4. **Nest API parity** (`npm run check:api-parity`)
    - Ensures FE `apiFetch` paths exist in vendored `openapi/openapi.json`
-4. **TypeScript type checking** (`npm run type-check`)
+5. **TypeScript type checking** (`npm run type-check`)
    - Ensures no TypeScript errors exist
    - Uses increased memory allocation for large codebase
 
@@ -42,6 +44,8 @@ You can run the same checks manually at any time:
 npm run pre-commit
 
 # Run individual checks
+npm run check:malware
+npm run check:malware:staged
 npm run check:api-parity
 npm run type-check
 npm run test:unit
