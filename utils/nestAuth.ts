@@ -9,6 +9,7 @@ import {
 } from "@/shared/utils/sessionLanguageKeys";
 import { clearLoginShellPrefetch } from "@/shared/services/loginShellPrefetch";
 import { isNestUiMode } from "@/utils/amplifyMode";
+import { loginUrlWithReturnTo } from "@/utils/loginReturnTo";
 import { applyViewAsHeaders } from "@/utils/viewAsTransport";
 
 const NEST_TOKEN_KEY = "archaser_nest_access_token";
@@ -77,14 +78,18 @@ export function beginHardLogout(loginPath?: string): void {
     handlingExpiredSession = true;
     clearLoginShellPrefetch();
     clearNestAccessToken();
+    const pathname = window.location.pathname || "/";
+    const localeMatch = pathname.match(/^\/([a-z]{2})(?:\/|$)/i);
+    const locale = localeMatch?.[1] || "en";
+    const returnPath = `${pathname}${window.location.search}${window.location.hash}`;
     const target =
-        loginPath || resolveLoginPathname(window.location.pathname || "/");
+        loginPath || loginUrlWithReturnTo(locale, returnPath);
     void import("next-auth/react")
         .then(({ signOut }) => signOut({ redirect: false }))
         .catch(() => {
             // NextAuth may be unavailable depending on deploy mode.
         });
-    if (window.location.pathname !== target) {
+    if (window.location.pathname !== resolveLoginPathname(pathname)) {
         window.location.assign(target);
     }
 }
