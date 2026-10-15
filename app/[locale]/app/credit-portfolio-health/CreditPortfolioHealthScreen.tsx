@@ -900,7 +900,6 @@ export function CreditPortfolioHealthScreen({
                                         >
                                             <AppSpinner
                                                 color="primary"
-                                                size={48}
                                             />
                                         </Box>
                                     ) : null}

@@ -623,7 +623,7 @@ const CustomersWithoutContactList: React.FC = () => {
                         height: "400px",
                     }}
                 >
-                    <AppSpinner size={40} />
+                    <AppSpinner />
                 </Box>
             ) : (
                 <Box

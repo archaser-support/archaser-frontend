@@ -527,7 +527,7 @@ const OrphanCreditInvoicesList: React.FC = () => {
                     alignItems="center"
                     height={400}
                 >
-                    <AppSpinner size={40} />
+                    <AppSpinner />
                 </Box>
             ) : (
                 <Box

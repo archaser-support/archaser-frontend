@@ -115,7 +115,6 @@ export default function Page() {
                     }}
                 >
                     <AppSpinner
-                        size={60}
                         sx={{
                             color: (theme) => theme.palette.primary.main,
                         }}

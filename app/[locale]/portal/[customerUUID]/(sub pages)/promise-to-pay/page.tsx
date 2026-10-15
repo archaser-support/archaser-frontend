@@ -108,7 +108,6 @@ export default function PromiseToPayPage() {
                         }}
                     >
                         <AppSpinner
-                            size={60}
                             sx={{
                                 color: (theme) => theme.palette.primary.main,
                             }}

@@ -71,7 +71,7 @@ const InternalEmailTemplateList: React.FC<{ accountId: number }> = () => {
                     height: 400,
                 }}
             >
-                <AppSpinner color="primary" size={40} />
+                <AppSpinner color="primary" />
             </Box>
         );
     }

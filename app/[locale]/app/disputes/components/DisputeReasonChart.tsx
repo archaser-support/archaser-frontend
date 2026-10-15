@@ -190,7 +190,7 @@ const DisputeReasonChart: React.FC<DisputeReasonChartProps> = ({
                         minHeight: 180,
                     }}
                 >
-                    <AppSpinner color="primary" size={40} />
+                    <AppSpinner color="primary" />
                 </Box>
             ) : !hasData ? (
                 <Typography

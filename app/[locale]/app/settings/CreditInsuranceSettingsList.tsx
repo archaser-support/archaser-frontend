@@ -565,7 +565,7 @@ export function CreditInsuranceSettingsList({
                     minHeight: theme.spacing(50),
                 }}
             >
-                <AppSpinner size={40} />
+                <AppSpinner />
             </Box>
         );
     }

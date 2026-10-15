@@ -719,7 +719,7 @@ const PromiseToPayTemplateList: React.FC<{ accountId?: number }> = ({
                     height: 400,
                 }}
             >
-                <AppSpinner size={40} />
+                <AppSpinner />
             </Box>
         );
     }
