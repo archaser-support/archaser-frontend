@@ -235,12 +235,8 @@ const BillingIntegrationSettings = forwardRef<
         null
     );
     const [historyExpanded, setHistoryExpanded] = useState(false);
-    const [enabledEntities, setEnabledEntities] = useState<ImportType[]>([
-        "Customer",
-        "Contact",
-        "Invoice",
-        "Payment",
-    ]);
+    // Empty until config hydrates — avoids flashing all-on then snapping to server.
+    const [enabledEntities, setEnabledEntities] = useState<ImportType[]>([]);
     const [mappingComplete, setMappingComplete] = useState<
         Partial<Record<ImportType, boolean>>
     >({});
@@ -362,6 +358,11 @@ const BillingIntegrationSettings = forwardRef<
             readBackfillProgressSession(accountId)
         );
     const cutoverDirtyRef = useRef(false);
+    /**
+     * While an entity-toggle persist is in flight, skip rehydrating enabledEntities
+     * from config so a stale poll/refetch cannot flip switches off before Save.
+     */
+    const enabledEntitiesPersistPendingRef = useRef(false);
     /** Prevents config reload from clearing preview stale after local mapping/filter edits. */
     const previewStaleRef = useRef(false);
     const mapperRefs = useRef<
@@ -414,6 +415,8 @@ const BillingIntegrationSettings = forwardRef<
         previewStaleRef.current = false;
         setPreviewUpToDate(false);
         entityTabFocusPendingRef.current = true;
+        enabledEntitiesPersistPendingRef.current = false;
+        setEnabledEntities([]);
     }, [accountId]);
 
     useEffect(() => {
@@ -429,9 +432,6 @@ const BillingIntegrationSettings = forwardRef<
         setDailyTimeUtc(config.daily_time_utc ?? "03:00");
         setWeeklyDay(config.weekly_day ?? 1);
         setSyncCron(config.sync_cron_expression);
-        setEnabledEntities(
-            normalizeConnectorEnabledEntities(config.enabled_entities)
-        );
         if (!cutoverDirtyRef.current) {
             const nextBackfillStartDate = toDateInputValue(
                 config.backfill_start_date
@@ -459,8 +459,9 @@ const BillingIntegrationSettings = forwardRef<
                 ? { ...config.extension_config }
                 : {}
         );
-        // Do not depend on modified_at / sync_states — busy polls rewrite those
-        // and would rehydrate the whole form every few seconds.
+        // Do not depend on modified_at / sync_states / enabled_entities —
+        // busy polls and entity-toggle persists must not rehydrate connection
+        // fields or wipe Sync Enabled / other unsaved local edits.
     }, [
         config?.id,
         config?.provider,
@@ -471,7 +472,6 @@ const BillingIntegrationSettings = forwardRef<
         config?.daily_time_utc,
         config?.weekly_day,
         config?.sync_cron_expression,
-        config?.enabled_entities,
         config?.backfill_start_date,
         config?.mep_breach_start_date,
         config?.reporting_breach_start_date,
@@ -480,6 +480,20 @@ const BillingIntegrationSettings = forwardRef<
         config?.extension_key,
         config?.extension_config,
     ]);
+
+    // Entity enablement is owned by toggle+persist; hydrate separately so a
+    // stale config refetch cannot flip switches off while a save is in flight.
+    useEffect(() => {
+        if (!config) {
+            return;
+        }
+        if (enabledEntitiesPersistPendingRef.current) {
+            return;
+        }
+        setEnabledEntities(
+            normalizeConnectorEnabledEntities(config.enabled_entities)
+        );
+    }, [config?.id, config?.enabled_entities]);
 
     useEffect(() => {
         if (!config || previewStaleRef.current) {
@@ -542,7 +556,8 @@ const BillingIntegrationSettings = forwardRef<
                 base_url: baseUrl.trim() || null,
                 auth_type: authType,
                 sync_enabled: syncEnabled,
-                enabled_entities: enabledEntities,
+                // enabled_entities: owned by entity-toggle persist only — including
+                // them here races with optimistic toggles and can wipe Customers/Invoices.
                 backfill_start_date: backfillStartDate.trim() || null,
                 mep_breach_start_date: mepBreachStartDate.trim() || null,
                 reporting_breach_start_date:
@@ -2246,13 +2261,21 @@ const BillingIntegrationSettings = forwardRef<
     );
 
     const persistEnabledEntitiesMutation = useMutation({
-        mutationFn: (entities: ImportType[]) =>
-            saveBillingConnectorConfig(accountId, {
+        mutationFn: async (entities: ImportType[]) => {
+            // Drop in-flight config GETs so a busy-poll response cannot overwrite
+            // this persist with a pre-toggle enabled_entities snapshot.
+            await queryClient.cancelQueries({
+                queryKey: billingConnectorQueryKey(accountId),
+            });
+            const result = await saveBillingConnectorConfig(accountId, {
                 enabled_entities: entities,
-            }).then((result) => result.config),
+            });
+            return result.config;
+        },
         onSuccess: (saved) => {
-            // Update enabled_entities in cache without bumping modified_at so
-            // the form sync effect does not reset unsaved connection fields.
+            // Clear before setQueryData so the enabled-entities hydrate effect
+            // can accept the persisted snapshot (it no-ops while pending).
+            enabledEntitiesPersistPendingRef.current = false;
             queryClient.setQueryData<BillingConnectorConfig | null>(
                 billingConnectorQueryKey(accountId),
                 (prev) => {
@@ -2267,6 +2290,9 @@ const BillingIntegrationSettings = forwardRef<
                 }
             );
         },
+        onError: () => {
+            enabledEntitiesPersistPendingRef.current = false;
+        },
     });
 
     const toggleEntity = useCallback(
@@ -2278,8 +2304,16 @@ const BillingIntegrationSettings = forwardRef<
             const next = previous.includes(entity)
                 ? previous.filter((e) => e !== entity)
                 : [...previous, entity];
+            enabledEntitiesPersistPendingRef.current = true;
             setEnabledEntities(next);
             persistEnabledEntitiesMutation.mutate(next, {
+                onSuccess: (saved) => {
+                    setEnabledEntities(
+                        normalizeConnectorEnabledEntities(
+                            saved.enabled_entities
+                        )
+                    );
+                },
                 onError: (err: unknown) => {
                     setEnabledEntities(previous);
                     showError(
