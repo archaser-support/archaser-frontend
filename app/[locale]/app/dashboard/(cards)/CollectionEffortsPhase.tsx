@@ -13,6 +13,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { ApexOptions } from "apexcharts";
+
 import {
     ActivitySequencesNavIcon,
     AgentsNavIcon,
@@ -36,7 +38,7 @@ type PhaseStat = {
 
 type CollectionEffortsPhaseProps = {
     options?: unknown;
-    series?: Array<number | { data?: number[] } | null> | number[];
+    series?: ApexOptions["series"];
     phaseStats: PhaseStat[];
 };
 

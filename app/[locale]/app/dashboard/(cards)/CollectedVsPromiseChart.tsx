@@ -1,6 +1,7 @@
 "use client";
 
 import { Box, useTheme } from "@mui/material";
+import type { ApexOptions } from "apexcharts";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -26,13 +27,25 @@ import { PromiseToPayNavIcon } from "@/shared/components/sidebar-icons";
 
 import { FinancialDashboardChartCard } from "./FinancialDashboardChartCard";
 
+type AxisSeriesPoint = { name?: string; data?: number[] };
+
 type CollectedVsPromiseChartProps = {
     options: {
         xaxis?: { categories?: string[] };
     };
-    series: Array<{ name?: string; data?: number[] }>;
+    series: ApexOptions["series"];
     currency?: string;
 };
+
+function asAxisSeries(series: ApexOptions["series"]): AxisSeriesPoint[] {
+    if (!Array.isArray(series) || series.length === 0) {
+        return [];
+    }
+    if (typeof series[0] === "number") {
+        return [];
+    }
+    return series as AxisSeriesPoint[];
+}
 
 type ChartRow = {
     label: string;
@@ -256,8 +269,9 @@ const CollectedVsPromiseChart = ({
 
     const chartData = useMemo((): ChartRow[] => {
         const categories = options.xaxis?.categories ?? [];
-        const collected = series[0]?.data ?? [];
-        const promiseToPay = series[1]?.data ?? [];
+        const axisSeries = asAxisSeries(series);
+        const collected = axisSeries[0]?.data ?? [];
+        const promiseToPay = axisSeries[1]?.data ?? [];
         const len = Math.max(
             categories.length,
             collected.length,
@@ -386,7 +400,17 @@ const CollectedVsPromiseChart = ({
                                     dataKey="collected"
                                     content={(labelProps) => (
                                         <MoneyTopLabel
-                                            {...labelProps}
+                                            x={labelProps.x}
+                                            y={labelProps.y}
+                                            width={labelProps.width}
+                                            value={
+                                                typeof labelProps.value ===
+                                                    "string" ||
+                                                typeof labelProps.value ===
+                                                    "number"
+                                                    ? labelProps.value
+                                                    : undefined
+                                            }
                                             currency={currency}
                                             language={i18n.language}
                                         />
