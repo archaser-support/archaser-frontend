@@ -1,7 +1,7 @@
 {
     "fields": {
         "all_agents": "כל המשתמשים",
-        "all_business_units": "כל יחידות העסקים",
+        "all_business_units": "כל היחידות העסקיות",
         "analytics_filters_end_date": "תאריך סיום",
         "analytics_filters_start_date": "תאריך התחלה",
         "categories__agent": "סוכן",
