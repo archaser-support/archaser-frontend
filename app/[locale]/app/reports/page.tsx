@@ -607,12 +607,11 @@ const ReportsPage: React.FC = () => {
                           resizable: false,
                           flex: 0, // Always fixed width - never expand
                           renderCell: (params: GridRenderCellParams) => {
-                              // Disable edit/delete for system reports if current user's account is not 10013
+                              // Edit: only master account 10013. Delete: never for system reports.
                               const isSystemReport =
                                   params.row.is_system === true;
                               const isEditDisabled = isSystemReport && !isAdmin;
-                              const isDeleteDisabled =
-                                  isSystemReport && !isAdmin;
+                              const isDeleteDisabled = isSystemReport;
 
                               return (
                                   <Box
