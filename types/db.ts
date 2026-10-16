@@ -391,6 +391,7 @@ export type Account = {
     sso_providers: string | null;
     has_collection: boolean;
     has_credit_insurance: boolean;
+    hide_portfolio_health: boolean;
     is_demo: boolean;
     enable_customer_checkpoints: boolean;
     amounts_include_vat: boolean;

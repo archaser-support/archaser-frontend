@@ -39,6 +39,7 @@ import AppDialog from "@/shared/layout-components/modal/AppDialog";
 import DeleteDialog from "@/shared/layout-components/modal/DeleteDialog";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import { fetchAccountById } from "@/shared/services/accountService";
+import { sessionAccountQueryKey } from "@/shared/services/sessionAccountQuery";
 import { createLogRecord } from "@/shared/utility/LogCreator";
 import { Account } from "@/types/Account";
 import AppUrls from "@/utils/appUrls";
@@ -192,6 +193,7 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
         ...(accountId === "new" && {
             has_collection: true,
             has_credit_insurance: false,
+            hide_portfolio_health: false,
             is_demo: false,
             amounts_include_vat: true,
             promise_to_pay: 1,
@@ -528,6 +530,8 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
                 (account as any).has_credit_insurance === undefined
                     ? false
                     : (account as any).has_credit_insurance,
+            hide_portfolio_health:
+                (account as any).hide_portfolio_health === true,
             is_demo: (account as any).is_demo === true,
             enable_customer_checkpoints:
                 (account as any).enable_customer_checkpoints === true,
@@ -926,6 +930,9 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
                 await queryClient.invalidateQueries({
                     queryKey: ["account", account?.id],
                     refetchType: "active",
+                });
+                await queryClient.invalidateQueries({
+                    queryKey: sessionAccountQueryKey(accountId),
                 });
                 success(
                     t("messages.account_updated_successfully", {

@@ -424,9 +424,6 @@ export default function RolePermissions({
             if (permissionKey === "view_follow_up_reminders") {
                 return "View Subordinate Follow-up Reminders";
             }
-            if (permissionKey === "view_credit_dashboard") {
-                return "View Credit Insurance Dashboard";
-            }
             if (permissionKey === "update_insurance_policy") {
                 return "Update insurance policy";
             }

@@ -20,6 +20,7 @@ function sessionAccountFromMe(me: Record<string, unknown>) {
         has_collection:
             me.has_collection !== undefined ? me.has_collection : true,
         has_credit_insurance: me.has_credit_insurance === true,
+        hide_portfolio_health: me.hide_portfolio_health === true,
         is_demo: me.is_demo === true,
         last_sync_date: me.last_sync_date ?? null,
         primary_color: me.primary_color ?? null,
@@ -70,12 +71,14 @@ export async function fetchSessionAccountById(
 export function accountProductsFromSessionAccount(account: any | undefined): {
     has_collection?: boolean;
     has_credit_insurance?: boolean;
+    hide_portfolio_health?: boolean;
     is_demo?: boolean;
 } {
     if (!account) {
         return {
             has_collection: true,
             has_credit_insurance: false,
+            hide_portfolio_health: false,
             is_demo: false,
         };
     }
@@ -85,6 +88,7 @@ export function accountProductsFromSessionAccount(account: any | undefined): {
                 ? account.has_collection
                 : true,
         has_credit_insurance: account.has_credit_insurance === true,
+        hide_portfolio_health: account.hide_portfolio_health === true,
         is_demo: account.is_demo === true,
     };
 }

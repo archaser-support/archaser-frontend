@@ -5,10 +5,15 @@ import {
     hasCollectionProduct,
     isCreditOnlyAccount,
     isFileImportVisible,
+    isPortfolioHealthVisible,
 } from "./accountProducts";
 
 export type { AccountProducts };
-export { hasCollectionProduct, isFileImportVisible };
+export {
+    hasCollectionProduct,
+    isFileImportVisible,
+    isPortfolioHealthVisible,
+};
 
 export const ARCHASER_ADMIN_ACCOUNT_ID = 10013;
 
@@ -109,9 +114,9 @@ export const sidebarStructure: NavSection[] = [
                 href:
                     AppUrls.CREDIT_PORTFOLIO_HEALTH ||
                     "/app/credit-portfolio-health",
-                permission: "view_credit_dashboard",
+                permission: "view_portfolio_dashboard",
                 show: (_permissions, _accountId, accountProducts) =>
-                    accountProducts?.has_credit_insurance === true,
+                    isPortfolioHealthVisible(accountProducts),
             },
             {
                 label: "actions.navigation_control_center",

@@ -545,6 +545,27 @@ const GeneralInformation: React.FC<GeneralInformationProps> = ({
                                     defaultValue: "Credit Insurance",
                                 })}
                             />
+                            {customer.has_credit_insurance ? (
+                                <FormControlLabel
+                                    control={
+                                        <Switch
+                                            checked={
+                                                !!customer.hide_portfolio_health
+                                            }
+                                            onChange={(e) =>
+                                                onFieldChange(
+                                                    "hide_portfolio_health",
+                                                    e.target.checked
+                                                )
+                                            }
+                                        />
+                                    }
+                                    label={t("fields.hide_portfolio_health", {
+                                        ns: "accounts",
+                                        defaultValue: "Hide Portfolio Health",
+                                    })}
+                                />
+                            ) : null}
                             {showDemoToggle ? (
                                 <FormControlLabel
                                     control={
