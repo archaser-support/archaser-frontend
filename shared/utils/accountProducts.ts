@@ -3,6 +3,8 @@ import { isStagingDeployClient } from "@/utils/domainUtils";
 export type AccountProducts = {
     has_collection?: boolean;
     has_credit_insurance?: boolean;
+    /** When true, Portfolio Health is off for the whole account. */
+    hide_portfolio_health?: boolean;
     /** Staging Demo ON unlocks File Import nav and import_* role catalog. */
     is_demo?: boolean;
 };
@@ -24,6 +26,19 @@ export function hasCollectionProduct(
 }
 
 /**
+ * Portfolio Health nav/route surface: Credit Insurance on and account not hiding it.
+ * Pair with `view_portfolio_dashboard` for permission checks.
+ */
+export function isPortfolioHealthVisible(
+    accountProducts?: AccountProducts | null
+): boolean {
+    return (
+        accountProducts?.has_credit_insurance === true &&
+        accountProducts?.hide_portfolio_health !== true
+    );
+}
+
+/**
  * File Import nav/page surfaces: staging deploy and account Demo ON only.
  * Roles catalog filtering is enforced on the API; this gates client nav/UI.
  */
@@ -39,6 +54,7 @@ export function accountProductsFromRecord(
     record?: {
         has_collection?: boolean;
         has_credit_insurance?: boolean;
+        hide_portfolio_health?: boolean;
         is_demo?: boolean;
     } | null
 ): AccountProducts | undefined {
@@ -49,6 +65,7 @@ export function accountProductsFromRecord(
     return {
         has_collection: record.has_collection,
         has_credit_insurance: record.has_credit_insurance,
+        hide_portfolio_health: record.hide_portfolio_health === true,
         is_demo: record.is_demo === true,
     };
 }

@@ -413,6 +413,8 @@ function LoginPageContent() {
                                               : true,
                                       has_credit_insurance:
                                           meData.has_credit_insurance === true,
+                                      hide_portfolio_health:
+                                          meData.hide_portfolio_health === true,
                                       is_demo: meData.is_demo === true,
                                       last_sync_date:
                                           meData.last_sync_date ?? null,
@@ -443,6 +445,9 @@ function LoginPageContent() {
                                               accountData.has_collection,
                                           has_credit_insurance:
                                               accountData.has_credit_insurance ===
+                                              true,
+                                          hide_portfolio_health:
+                                              accountData.hide_portfolio_health ===
                                               true,
                                           is_demo: accountData.is_demo === true,
                                       }

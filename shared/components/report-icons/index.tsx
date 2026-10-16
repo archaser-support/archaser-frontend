@@ -168,3 +168,8 @@ export function CloseReportIcon(props: SvgIconProps) {
         </ReportIcon>
     );
 }
+
+/** Short aliases used outside the reports UI (toolbar/dialogs/lists). */
+export const CloneIcon = CloneReportIcon;
+export const DeleteIcon = DeleteReportIcon;
+export const EditIcon = EditReportIcon;

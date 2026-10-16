@@ -50,6 +50,7 @@ export interface AccountFormData {
     sso_providers?: string | null;
     has_collection?: boolean | null;
     has_credit_insurance?: boolean | null;
+    hide_portfolio_health?: boolean | null;
     is_demo?: boolean | null;
     enable_customer_checkpoints?: boolean | null;
     amounts_include_vat?: boolean | null;

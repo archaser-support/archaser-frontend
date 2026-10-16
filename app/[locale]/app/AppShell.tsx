@@ -66,7 +66,10 @@ import {
     useSpinner,
 } from "@/shared/layout-components/spinner/SpinnerProvider";
 import { ToastProvider, useToast } from "@/shared/layout-components/toast/ToastProvider";
-import { isFileImportVisible } from "@/shared/utils/accountProducts";
+import {
+    isFileImportVisible,
+    isPortfolioHealthVisible,
+} from "@/shared/utils/accountProducts";
 import {
     accountProductsFromSessionAccount,
     fetchSessionAccountById,
@@ -710,6 +713,12 @@ const AppLayout = ({ children }: any) => {
     const hasViewCreditDashboardPermission = userPermissions
         ? userPermissions.includes("view_credit_dashboard")
         : false;
+    const hasViewPortfolioDashboardPermission = userPermissions
+        ? userPermissions.includes("view_portfolio_dashboard")
+        : false;
+    const showPortfolioHealthNav =
+        isPortfolioHealthVisible(effectiveAccountProducts) &&
+        hasViewPortfolioDashboardPermission;
     const hasViewReportsPermission = userPermissions
         ? userPermissions.includes("view_reports")
         : false;
@@ -1047,13 +1056,13 @@ const AppLayout = ({ children }: any) => {
                                             AppUrls.CREDIT_DASHBOARD ||
                                             "/app/credit-dashboard",
                                     },
+                                ]
+                                : []),
+                            ...(showPortfolioHealthNav
+                                ? [
                                     {
                                         label: t(
-                                            "actions.navigation_credit_portfolio_health",
-                                            {
-                                                defaultValue:
-                                                    "Portfolio Health",
-                                            }
+                                            "actions.navigation_credit_portfolio_health"
                                         ),
                                         icon: <PortfolioHealthNavIcon />,
                                         href:
@@ -1216,6 +1225,9 @@ const AppLayout = ({ children }: any) => {
         hasImportCustomerPermission,
         hasImportContactPermission,
         hasViewReportsPermission,
+        hasViewCreditDashboardPermission,
+        showPortfolioHealthNav,
+        hasCreditInsuranceProduct,
         userPermissionsData,
         isCreditOnlyAccount,
         isLoadingAccountProducts,

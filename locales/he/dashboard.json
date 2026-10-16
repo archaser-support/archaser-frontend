@@ -210,7 +210,7 @@
         "chart_details_missing_parameters": "חסרים פרמטרים נדרשים",
         "charts_aging_overdue_portfolio_no_overdue_invoices": "לא נמצאו חשבוניות בפיגור",
         "charts_receivables_maturity_schedule_no_data": "אין נתונים זמינים",
-        "credit_dashboard_forbidden": "הדף אינו זמין. יש להפעיל ביטוח אשראי ונדרשת הרשאת צפייה בלוח ביטוח האשראי.",
+        "credit_dashboard_forbidden": "הדף אינו זמין. יש להפעיל ביטוח אשראי ונדרשת הרשאת צפייה בלוח מחוונים אשראי.",
         "credit_dashboard_load_failed": "טעינת לוח ביטוח האשראי נכשלה.",
         "error": "משהו השתבש!",
         "business_unit_access_denied": "אין לך גישה ליחידה העסקית שנבחרה.",

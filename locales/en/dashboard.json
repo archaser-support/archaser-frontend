@@ -210,7 +210,7 @@
         "chart_details_missing_parameters": "Missing required parameters",
         "charts_aging_overdue_portfolio_no_overdue_invoices": "No overdue invoices found",
         "charts_receivables_maturity_schedule_no_data": "No data available",
-        "credit_dashboard_forbidden": "This page is not available. Credit insurance must be enabled and you need the View Credit Insurance Dashboard permission.",
+        "credit_dashboard_forbidden": "This page is not available. Credit insurance must be enabled and you need the View Credit Dashboard permission.",
         "credit_dashboard_load_failed": "Failed to load Credit Insurance Dashboard.",
         "error": "Something went wrong!",
         "business_unit_access_denied": "You do not have access to the selected business unit.",

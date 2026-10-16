@@ -44,6 +44,8 @@
         "view_invoices": "View Invoices",
         "view_operation_dashboard": "View Operation Dashboard",
         "view_financial_dashboard": "View Financial Dashboard",
+        "view_credit_dashboard": "View Credit Dashboard",
+        "view_portfolio_dashboard": "View Portfolio Health",
         "view_reports": "View Reports",
         "create_report": "Create Report",
         "edit_report": "Edit Report",

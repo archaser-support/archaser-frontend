@@ -83,6 +83,7 @@
         "products": "Products",
         "has_collection": "Collection",
         "has_credit_insurance": "Credit Insurance",
+        "hide_portfolio_health": "Hide Portfolio Health",
         "is_demo": "Demo account",
         "enable_customer_checkpoints": "Customer checkpoints",
         "amounts_include_vat": "Amounts include VAT",
