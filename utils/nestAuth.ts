@@ -272,6 +272,7 @@ export type NestMeProfile = {
     sidebar_collapsed?: boolean | null;
     has_collection?: boolean;
     has_credit_insurance?: boolean;
+    hide_portfolio_health?: boolean;
     is_demo?: boolean;
     last_sync_date?: string | null;
     effective_user_id?: string | null;

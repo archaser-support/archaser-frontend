@@ -1,11 +1,12 @@
 "use client";
 
-import { ShowChart as ShowChartIcon } from "@mui/icons-material";
+import { CreditDashboardNavIcon } from "@/shared/components/sidebar-icons";
 import { Box, Card, CardContent, Typography, useTheme } from "@mui/material";
 import { useSession } from "next-auth/react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
+import { CoverageTopCustomersChart } from "@/app/[locale]/app/credit-portfolio-health/CoverageTopCustomersChart";
 import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import type { CustomerPolicyUsageTrendResponse } from "@/types/creditInsurance";
 import {
@@ -14,7 +15,6 @@ import {
 } from "@/utils/datetimeOperations";
 
 import { CreditDashboardTitleInfoIcon } from "./creditDashboardTitleTooltip";
-import { PolicyUsageTopCustomersBarChart } from "./PolicyUsageTopCustomersBarChart";
 
 function parseSnapshotDate(snapshotDate: string): Date {
     return new Date(`${snapshotDate}T12:00:00.000Z`);
@@ -154,7 +154,7 @@ export function CreditPolicyLimitUsageTrendChart({
                     aria-hidden
                     sx={c.headerIconLeading(theme, isRtl, "limitWarnings")}
                 >
-                    <ShowChartIcon />
+                    <CreditDashboardNavIcon />
                 </Box>
                 <Box sx={c.headerColumn(theme, isRtl)}>
                     <Box
@@ -236,7 +236,7 @@ export function CreditPolicyLimitUsageTrendChart({
                             )}
                         </Typography>
                     ) : (
-                        <PolicyUsageTopCustomersBarChart
+                        <CoverageTopCustomersChart
                             rows={topCustomers}
                             hasTopUpPolicies={showTopUpStack}
                             accountCurrency={accountCurrency}

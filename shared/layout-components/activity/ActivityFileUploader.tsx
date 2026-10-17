@@ -1,14 +1,5 @@
-import {
-    AttachFile,
-    Delete,
-    FilePresent,
-    Image as ImageIcon,
-    Audiotrack,
-    Description,
-    CloudUpload,
-    Add,
-    CheckCircle,
-} from "@mui/icons-material";
+import { DeleteIcon as Delete } from "@/shared/components/report-icons";
+import {AttachFile, FilePresent, Image as ImageIcon, Audiotrack, Description, CloudUpload, Add, CheckCircle} from "@mui/icons-material";
 import {
     Box,
     Typography,

@@ -1,15 +1,8 @@
 "use client";
+import { EditIcon } from "@/shared/components/report-icons";
 import { apiFetch } from "@/utils/apiFetch";
 
-import {
-    ArrowBack as ArrowBackIcon,
-    ArrowForward as ArrowForwardIcon,
-    CheckCircle as CheckCircleIcon,
-    Edit as EditIcon,
-    Receipt as ReceiptIcon,
-    Send as SendIcon,
-    Warning as WarningIcon,
-} from "@mui/icons-material";
+import {ArrowBack as ArrowBackIcon, ArrowForward as ArrowForwardIcon, CheckCircle as CheckCircleIcon, Receipt as ReceiptIcon, Send as SendIcon, Warning as WarningIcon} from "@mui/icons-material";
 import {
     Alert,
     AlertTitle,

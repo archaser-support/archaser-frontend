@@ -1,22 +1,7 @@
 "use client";
 
-import {
-    Add as AddIcon,
-    Business as BusinessIcon,
-    Delete as DeleteIcon,
-    Edit as EditIcon,
-    Email as EmailIcon,
-    Info as InfoIcon,
-    LocationOn as LocationIcon,
-    People as PeopleIcon,
-    Public as PortalIcon,
-    Shield as CreditInsuranceIcon,
-    Psychology as PsychologyIcon,
-    Security as SecurityIcon,
-    Settings as SettingsIcon,
-    Key as KeyIcon,
-    CloudSync as BillingIcon,
-} from "@mui/icons-material";
+import { DeleteIcon, EditIcon } from "@/shared/components/report-icons";
+import {Add as AddIcon, Business as BusinessIcon, Email as EmailIcon, Info as InfoIcon, LocationOn as LocationIcon, People as PeopleIcon, Public as PortalIcon, Shield as CreditInsuranceIcon, Psychology as PsychologyIcon, Security as SecurityIcon, Settings as SettingsIcon, Key as KeyIcon, CloudSync as BillingIcon} from "@mui/icons-material";
 import {
     Alert,
     Autocomplete,
@@ -37,7 +22,6 @@ import {
     useTheme,
 } from "@mui/material";
 import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
-import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { GridColDef, GridRenderCellParams } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -55,6 +39,7 @@ import AppDialog from "@/shared/layout-components/modal/AppDialog";
 import DeleteDialog from "@/shared/layout-components/modal/DeleteDialog";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 import { fetchAccountById } from "@/shared/services/accountService";
+import { sessionAccountQueryKey } from "@/shared/services/sessionAccountQuery";
 import { createLogRecord } from "@/shared/utility/LogCreator";
 import { Account } from "@/types/Account";
 import AppUrls from "@/utils/appUrls";
@@ -208,6 +193,7 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
         ...(accountId === "new" && {
             has_collection: true,
             has_credit_insurance: false,
+            hide_portfolio_health: false,
             is_demo: false,
             amounts_include_vat: true,
             promise_to_pay: 1,
@@ -544,6 +530,8 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
                 (account as any).has_credit_insurance === undefined
                     ? false
                     : (account as any).has_credit_insurance,
+            hide_portfolio_health:
+                (account as any).hide_portfolio_health === true,
             is_demo: (account as any).is_demo === true,
             enable_customer_checkpoints:
                 (account as any).enable_customer_checkpoints === true,
@@ -942,6 +930,9 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
                 await queryClient.invalidateQueries({
                     queryKey: ["account", account?.id],
                     refetchType: "active",
+                });
+                await queryClient.invalidateQueries({
+                    queryKey: sessionAccountQueryKey(accountId),
                 });
                 success(
                     t("messages.account_updated_successfully", {
@@ -2045,7 +2036,7 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
                 }}
             >
                 <Box textAlign="center">
-                    <PageLoader />
+                    <AppSpinner />
                 </Box>
             </Box>
         );
@@ -2065,7 +2056,7 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
                 }}
             >
                 <Box textAlign="center">
-                    <PageLoader />
+                    <AppSpinner />
                 </Box>
             </Box>
         );
@@ -2085,7 +2076,7 @@ const AccountDetails: React.FC<AccountDetailsProps> = ({ accountId }) => {
                 }}
             >
                 <Box textAlign="center">
-                    <PageLoader />
+                    <AppSpinner />
                 </Box>
             </Box>
         );

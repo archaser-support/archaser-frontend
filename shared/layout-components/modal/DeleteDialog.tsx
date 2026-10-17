@@ -1,11 +1,7 @@
 "use client";
 
-import {
-    CheckCircle as CheckCircleIcon,
-    Delete as DeleteIcon,
-    Info as InfoIcon,
-    Warning as WarningIcon,
-} from "@mui/icons-material";
+import { DeleteIcon } from "@/shared/components/report-icons";
+import {CheckCircle as CheckCircleIcon, Info as InfoIcon, Warning as WarningIcon} from "@mui/icons-material";
 import {
     Box,
     Button,

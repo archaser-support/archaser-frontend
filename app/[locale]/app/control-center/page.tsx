@@ -7,7 +7,7 @@ import {
     ReceiptOutlined as ReceiptOutlinedIcon,
 } from "@mui/icons-material";
 import { Box, Chip, Tooltip, useTheme } from "@mui/material";
-import PageLoader from "@/shared/layout-components/spinner/PageLoader";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/app/api";
 import { useParams, useRouter } from "next/navigation";
@@ -113,7 +113,7 @@ const ControlCenter = React.memo(({ params }: ControlCenterProps) => {
                 minHeight: "400px",
             }}
         >
-            <PageLoader />
+            <AppSpinner />
         </Box>
     ), []);
 

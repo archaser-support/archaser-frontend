@@ -3,11 +3,9 @@ import { Box, Chip, Typography } from "@mui/material";
 import Link from "next/link";
 import React from "react";
 
+import { formatPortfolioMoney } from "@/app/[locale]/app/credit-portfolio-health/formatPortfolioMoney";
 import AppUrls from "@/utils/appUrls";
-import {
-    formatCurrencyWithRTLSupport,
-    resolveCustomerFirstCurrency,
-} from "@/utils/stringFormatters";
+import { resolveCustomerFirstCurrency } from "@/utils/stringFormatters";
 
 // Types for column definitions
 export interface ColumnDefinition {
@@ -50,10 +48,9 @@ const createCurrencyCell = (
                 params.row?.customerCurrency || params.row?.currency,
             fallbackCurrency: chartDetails?.currency,
         });
-        const formattedAmount = formatCurrencyWithRTLSupport(
+        const formattedAmount = formatPortfolioMoney(
             params.value || 0,
             currencyCode,
-            "en-US",
             i18nLanguage
         );
         const isRTL = i18nLanguage === "he";
@@ -469,10 +466,9 @@ const createPromiseAmountCell = (
                 params.row?.customerCurrency || params.row?.currency,
             fallbackCurrency: chartDetails?.currency,
         });
-        const formattedAmount = formatCurrencyWithRTLSupport(
+        const formattedAmount = formatPortfolioMoney(
             params.value,
             currencyCode,
-            "en-US",
             i18nLanguage
         );
         const isRTL = i18nLanguage === "he";
@@ -563,10 +559,9 @@ const createPaymentAmountInCustomerCurrencyCell = (
         const customerCurrency = resolveCustomerFirstCurrency({
             customerCurrencyPrimary: params.row.customerCurrency,
         });
-        const formattedAmount = formatCurrencyWithRTLSupport(
+        const formattedAmount = formatPortfolioMoney(
             amount,
             customerCurrency,
-            "en-US",
             i18nLanguage
         );
         const isRTL = i18nLanguage === "he";

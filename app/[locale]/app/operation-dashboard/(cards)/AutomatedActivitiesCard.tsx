@@ -1,6 +1,6 @@
 "use client";
 
-import { AutoAwesome as AutoAwesomeIcon } from "@mui/icons-material";
+import { ActivitySequencesNavIcon } from "@/shared/components/sidebar-icons";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -28,7 +28,7 @@ const AutomatedActivitiesCard = ({
 
     return (
         <CreditMetricCard
-            icon={<AutoAwesomeIcon />}
+            icon={<ActivitySequencesNavIcon />}
             iconAccent="default"
             label={t("fields.automated_activities", { ns: "activities" })}
             value={count.toLocaleString()}

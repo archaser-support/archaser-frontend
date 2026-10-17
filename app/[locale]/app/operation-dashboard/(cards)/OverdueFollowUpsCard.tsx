@@ -1,6 +1,6 @@
 "use client";
 
-import { Schedule as ScheduleIcon } from "@mui/icons-material";
+import { AgentsNavIcon } from "@/shared/components/sidebar-icons";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -28,7 +28,7 @@ const OverdueFollowUpsCard = ({
 
     return (
         <CreditMetricCard
-            icon={<ScheduleIcon />}
+            icon={<AgentsNavIcon />}
             iconAccent="overdue"
             label={t("fields.overdue_follow_ups", { ns: "activities" })}
             value={count.toLocaleString()}

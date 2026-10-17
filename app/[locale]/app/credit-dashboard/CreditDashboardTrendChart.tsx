@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { ShowChart as ShowChartIcon } from "@mui/icons-material";
+import { CreditDashboardNavIcon } from "@/shared/components/sidebar-icons";
 import {
     Box,
     Card,
@@ -67,7 +67,7 @@ function fmtSigned(
     }
     const rounded = Math.round(value);
     const abs = formatMoney(Math.abs(rounded), currency, {
-        style: "iso",
+        style: "symbol",
         locale: numberLocale(language),
         language: language.startsWith("he") ? "he" : language,
         wholeNumbers: true,
@@ -270,7 +270,7 @@ function CreditDashboardTrendChartInner({
                         ...(compact ? { zIndex: 0 } : {}),
                     }}
                 >
-                    <ShowChartIcon />
+                    <CreditDashboardNavIcon />
                 </Box>
                 <Box
                     sx={{

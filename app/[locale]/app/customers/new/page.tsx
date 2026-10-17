@@ -101,7 +101,7 @@ import {
     Link,
     Typography,
 } from "@mui/material";
-import PageLoader from "@/shared/layout-components/spinner/PageLoader";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 
 export default function CreateCustomerPage() {
@@ -1487,7 +1487,17 @@ export default function CreateCustomerPage() {
                             </Box>
                         </form>
 
-                        {isLoading ? <PageLoader /> : null}
+                        {isLoading ? (
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    justifyContent: "center",
+                                    py: 2,
+                                }}
+                            >
+                                <AppSpinner />
+                            </Box>
+                        ) : null}
                     </Box>
                 </Fade>
             </Container>

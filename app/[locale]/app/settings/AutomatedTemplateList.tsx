@@ -1,8 +1,9 @@
 "use client";
 
 import AddIcon from "@mui/icons-material/Add";
-import DeleteIcon from "@mui/icons-material/Delete";
 import DescriptionIcon from "@mui/icons-material/Description";
+import { DeleteIcon } from "@/shared/components/report-icons";
+
 import {
     Box,
     Chip,

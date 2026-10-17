@@ -25,7 +25,7 @@ import {
     Typography,
     useTheme,
 } from "@mui/material";
-import PageLoader from "@/shared/layout-components/spinner/PageLoader";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { GridColDef } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -1403,7 +1403,7 @@ const SuccessPage: React.FC<SuccessPageProps> = ({ searchParams }) => {
                     direction: i18n.language === "he" ? "rtl" : "ltr",
                 }}
             >
-                <PageLoader />
+                <AppSpinner />
             </Box>
         );
     }

@@ -1,11 +1,4 @@
 import {
-    AutoAwesome as AutoAwesomeIcon,
-    CheckCircle as CheckCircleIcon,
-    Gavel as GavelIcon,
-    Person as PersonIcon,
-    Work as WorkIcon,
-} from "@mui/icons-material";
-import {
     Box,
     Stack,
     Typography,
@@ -14,6 +7,13 @@ import {
 } from "@mui/material";
 import { useTranslation } from "react-i18next";
 
+import {
+    ActivitySequencesNavIcon,
+    AgentsNavIcon,
+    DisputesNavIcon,
+    FinancialDashboardNavIcon,
+    PromiseToPayNavIcon,
+} from "@/shared/components/sidebar-icons";
 import { currencies } from "@/shared/data/common/currencies";
 import { CollectionStat } from "@/types/Dashboard";
 import { formatMoney } from "@/utils/stringFormatters";
@@ -58,7 +58,7 @@ const CollectionPhasesCard = ({
 
     return (
         <FinancialDashboardChartCard
-            icon={<WorkIcon />}
+            icon={<FinancialDashboardNavIcon />}
             iconAccent="terms"
             title={t("fields.charts_collection_stats_title")}
         >
@@ -75,10 +75,11 @@ const CollectionPhasesCard = ({
                                     i18n.language === "he" ? "rtl" : "ltr",
                             }}
                         >
-                            <AutoAwesomeIcon
+                            <ActivitySequencesNavIcon
                                 sx={{
                                     color: theme.palette.chartPalette.main,
-                                    fontSize: "1rem",
+                                    fontSize: 20,
+                                    overflow: "visible",
                                 }}
                             />
                             <Typography
@@ -204,10 +205,11 @@ const CollectionPhasesCard = ({
                                     i18n.language === "he" ? "rtl" : "ltr",
                             }}
                         >
-                            <PersonIcon
+                            <AgentsNavIcon
                                 sx={{
                                     color: theme.palette.chartPalette.main,
-                                    fontSize: "1rem",
+                                    fontSize: 20,
+                                    overflow: "visible",
                                 }}
                             />
                             <Typography
@@ -341,7 +343,7 @@ const DisputeAndPromiseCard = ({
 
     return (
         <FinancialDashboardChartCard
-            icon={<GavelIcon />}
+            icon={<DisputesNavIcon />}
             iconAccent="atRisk"
             title={t("fields.stats_dispute_and_promise")}
         >
@@ -358,10 +360,11 @@ const DisputeAndPromiseCard = ({
                                     i18n.language === "he" ? "rtl" : "ltr",
                             }}
                         >
-                            <GavelIcon
+                            <DisputesNavIcon
                                 sx={{
                                     color: theme.palette.chartPalette.main,
-                                    fontSize: "1rem",
+                                    fontSize: 20,
+                                    overflow: "visible",
                                 }}
                             />
                             <Typography
@@ -485,10 +488,11 @@ const DisputeAndPromiseCard = ({
                                     i18n.language === "he" ? "rtl" : "ltr",
                             }}
                         >
-                            <CheckCircleIcon
+                            <PromiseToPayNavIcon
                                 sx={{
                                     color: theme.palette.chartPalette.light,
-                                    fontSize: "1rem",
+                                    fontSize: 20,
+                                    overflow: "visible",
                                 }}
                             />
                             <Typography

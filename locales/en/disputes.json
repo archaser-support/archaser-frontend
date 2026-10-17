@@ -56,6 +56,7 @@
         "status": "Dispute Status",
         "dispute_reason_language": "Dispute Reason Language",
         "dispute_trend_chart_title": "Dispute Trend",
+        "dispute_trend_chart_description": "Disputes created vs closed over the selected date range. When daily trend data is available, both series are shown as lines; otherwise the period totals appear as bars.",
         "disputes_closed": "Disputes Closed",
         "disputes_created": "Disputes Created",
         "language_name": "Language Name",

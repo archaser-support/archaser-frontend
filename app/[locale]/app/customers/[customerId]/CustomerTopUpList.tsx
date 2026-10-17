@@ -2,8 +2,9 @@
 
 import AddIcon from "@mui/icons-material/Add";
 import AutoGraphIcon from "@mui/icons-material/AutoGraph";
-import DeleteIcon from "@mui/icons-material/Delete";
 import BlockIcon from "@mui/icons-material/Block";
+import { DeleteIcon } from "@/shared/components/report-icons";
+
 import {
     Box,
     Button,

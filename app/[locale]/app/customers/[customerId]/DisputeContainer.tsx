@@ -1,10 +1,7 @@
 "use client";
 
-import {
-    Edit as EditIcon,
-    ExpandMore as ExpandMoreIcon,
-    PersonAdd as PersonAddIcon,
-} from "@mui/icons-material";
+import { EditIcon } from "@/shared/components/report-icons";
+import {ExpandMore as ExpandMoreIcon, PersonAdd as PersonAddIcon} from "@mui/icons-material";
 import {
     Accordion,
     AccordionDetails,
@@ -188,7 +185,6 @@ const DisputeContainer: React.FC<DisputeContainerProps> = ({
     );
     const searchParams = useSearchParams();
     const processedDisputes = useRef<Set<number>>(new Set()); // Track which disputes have been processed for auto-status update
-
 
     // Get user's language for query key to ensure fresh data when language changes
     const userLanguage = session?.user?.language || "English";

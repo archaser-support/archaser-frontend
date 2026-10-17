@@ -1,5 +1,5 @@
 "use client";
-import { Groups as GroupsIcon } from "@mui/icons-material";
+import { AgentsNavIcon } from "@/shared/components/sidebar-icons";
 import {
     Avatar,
     Box,
@@ -76,22 +76,37 @@ const AgentStatsTable: React.FC<AgentStatsTableProps> = ({
                 aria-hidden
                 sx={c.headerIconLeading(theme, isRtl, "default")}
             >
-                <GroupsIcon />
+                <AgentsNavIcon />
             </Box>
             <Box sx={c.headerColumn(theme, isRtl)}>
-                <Typography
-                    variant="body2"
-                    component="span"
+                <Box
                     sx={{
-                        ...c.headerTitle(theme, isRtl),
-                        ml: 0,
-                        mr: 0,
+                        ...c.headerTitleRow(theme, isRtl),
                         mb: theme.spacing(1),
-                        display: "block",
                     }}
                 >
-                    {t("fields.agent_stats")}
-                </Typography>
+                    <Typography
+                        variant="body2"
+                        component="span"
+                        sx={{
+                            ...c.headerTitleInRow(theme, isRtl),
+                            ml: 0,
+                            mr: 0,
+                            mb: 0,
+                            minWidth: 0,
+                        }}
+                    >
+                        {t("fields.agent_stats")}
+                    </Typography>
+                    <CreditDashboardTitleInfoIcon
+                        isRtl={isRtl}
+                        title={t("fields.agent_stats_description")}
+                        ariaLabel={t(
+                            "credit_insurance_dashboard.chart_title_help_aria",
+                            { ns: "dashboard" }
+                        )}
+                    />
+                </Box>
             </Box>
         </>
     );

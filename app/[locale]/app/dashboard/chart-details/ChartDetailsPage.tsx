@@ -14,7 +14,7 @@ import {
     useMediaQuery,
     useTheme,
 } from "@mui/material";
-import PageLoader from "@/shared/layout-components/spinner/PageLoader";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useQuery } from "@tanstack/react-query";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -59,10 +59,8 @@ import {
     getUserDateLocale,
     getUserTimezone,
 } from "@/utils/datetimeOperations";
-import {
-    formatCurrencyWithRTLSupport,
-    resolveCustomerFirstCurrency,
-} from "@/utils/stringFormatters";
+import { formatPortfolioMoney } from "@/app/[locale]/app/credit-portfolio-health/formatPortfolioMoney";
+import { resolveCustomerFirstCurrency } from "@/utils/stringFormatters";
 
 import { createColumnDefinitions, getChartColumns } from "./columnDefinitions";
 import { DashboardCustomerChartDetailsGrid } from "./DashboardCustomerChartDetailsGrid";
@@ -850,13 +848,7 @@ export default function ChartDetailsPage({ params }: ChartDetailsProps) {
     };
 
     const formatCurrency = (amount: number, currency: string) => {
-        return formatCurrencyWithRTLSupport(
-            amount,
-            currency,
-            userLocale, // Use user locale for number formatting
-            i18n.language, // Use i18n language for RTL/LTR placement
-            { wholeNumbers: true }
-        );
+        return formatPortfolioMoney(amount, currency, i18n.language);
     };
 
     // Create a wrapper function that binds locale and timezone for column definitions
@@ -888,7 +880,7 @@ export default function ChartDetailsPage({ params }: ChartDetailsProps) {
                     height: "50vh",
                 }}
             >
-                <PageLoader />
+                <AppSpinner />
             </Box>
         );
     }

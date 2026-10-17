@@ -1,5 +1,6 @@
 "use client";
 
+import { DeleteIcon as DeleteOutlineIcon } from "@/shared/components/report-icons";
 import {
     Alert,
     Autocomplete,
@@ -14,7 +15,6 @@ import {
     Typography,
 } from "@mui/material";
 import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import type { ImportType } from "@/types/db";
 import React, { useEffect, useMemo, useState } from "react";
 

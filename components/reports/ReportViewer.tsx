@@ -1,7 +1,13 @@
 "use client";
 
 import { usePageWheelScrollsTable } from "@/shared/hooks/usePageWheelScrollsTable";
-import { Edit, FilterList, Refresh, Share, Sync } from "@mui/icons-material";
+import { Sync } from "@mui/icons-material";
+import {
+    EditFiltersReportIcon,
+    EditIcon,
+    RefreshReportIcon,
+    ShareReportIcon,
+} from "@/shared/components/report-icons";
 import {
     Alert,
     Box,
@@ -11,7 +17,6 @@ import {
     IconButton,
     Tooltip,
 } from "@mui/material";
-import { alpha } from "@mui/material/styles";
 import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApexOptions } from "apexcharts";
@@ -941,18 +946,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
 
     const isHebrewUser = i18n.language === "he";
 
-    const iconButtonSx = useMemo(
-        () => ({
-            width: 32,
-            height: 32,
-            borderRadius: 2,
-            "&:hover": {
-                backgroundColor: alpha(theme.palette.primary.main, 0.08),
-            },
-        }),
-        [theme]
-    );
-
     const ReportActionButtons = useMemo(() => {
         const ActionButton = ({
             title,
@@ -998,7 +991,8 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
                                     }
                                     onClick={onClick}
                                     disabled={disabled}
-                                    sx={iconButtonSx}
+                                    size="small"
+                                    className="toolbar-button"
                                 >
                                     <Icon fontSize="small" />
                                 </IconButton>
@@ -1010,7 +1004,8 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
                                 }
                                 onClick={onClick}
                                 disabled={disabled}
-                                sx={iconButtonSx}
+                                size="small"
+                                className="toolbar-button"
                             >
                                 <Icon fontSize="small" />
                             </IconButton>
@@ -1045,7 +1040,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
                         defaultValue: "Refresh report",
                     })}
                     onClick={handleRefresh}
-                    icon={Refresh}
+                    icon={RefreshReportIcon}
                 />
                 <ActionButton
                     title={
@@ -1059,7 +1054,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
                               })
                     }
                     onClick={() => setFilterModalOpen(true)}
-                    icon={FilterList}
+                    icon={EditFiltersReportIcon}
                     disabled={!hasReportFilters}
                     showOverrideHint={
                         hasReportFilters && sessionFilterOverrides !== null
@@ -1077,7 +1072,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
                                   })
                         }
                         onClick={onEditClick}
-                        icon={Edit}
+                        icon={EditIcon}
                         disabled={isEditDisabled}
                     />
                 )}
@@ -1085,7 +1080,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
                     <ActionButton
                         title={t("actions.share")}
                         onClick={onShareClick}
-                        icon={Share}
+                        icon={ShareReportIcon}
                     />
                 )}
                 {isAdmin && isSystemReport && (
@@ -1113,7 +1108,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
         isAdmin,
         syncReportsMutation.isPending,
         t,
-        iconButtonSx,
         isHebrewUser,
     ]);
 

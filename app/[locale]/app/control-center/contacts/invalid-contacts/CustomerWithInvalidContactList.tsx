@@ -1,6 +1,7 @@
 "use client";
-import EditIcon from "@mui/icons-material/Edit";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import { EditIcon } from "@/shared/components/report-icons";
+
 import { Button } from "@mui/material";
 import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import Box from "@mui/material/Box";

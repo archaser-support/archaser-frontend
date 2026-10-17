@@ -83,6 +83,7 @@
         "products": "מוצרים",
         "has_collection": "גבייה",
         "has_credit_insurance": "ביטוח אשראי",
+        "hide_portfolio_health": "הסתר בריאות תיק",
         "is_demo": "חשבון דמו",
         "enable_customer_checkpoints": "נקודות ביקורת ללקוח",
         "amounts_include_vat": "סכומים כוללים מע״מ",

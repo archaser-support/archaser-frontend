@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, Typography } from "@mui/material";
-import PageLoader from "@/shared/layout-components/spinner/PageLoader";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/app/api";
@@ -107,7 +107,7 @@ const ReportViewerPage: React.FC = () => {
                         px: { xs: 2, sm: 3 },
                     }}
                 >
-                    <PageLoader />
+                    <AppSpinner />
                 </Box>
             </InternalPageWrapper>
         );

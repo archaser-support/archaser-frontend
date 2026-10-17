@@ -106,7 +106,7 @@ function metricCardHorizontalRow(
         // Stable DOM order (title, then icon). In RTL, row-reverse + flex-start
         // packs from the right so the title sits on the right with the info icon to its left.
         flexDirection: isRtl ? "row-reverse" : "row",
-        alignItems: "center",
+        alignItems: "flex-start",
         justifyContent: "flex-start",
         gap: theme.spacing(0.5),
         minWidth: 0,
@@ -148,9 +148,10 @@ function buildMetricStatCardStyles(): MetricStatCardThemeStyles {
         display: "block",
         width: "100%",
         maxWidth: "100%",
-        wordWrap: "break-word",
+        // Wrap on word boundaries only — hyphenation made narrow cards look overlapped.
         overflowWrap: "break-word",
-        hyphens: "auto",
+        wordBreak: "normal",
+        hyphens: "manual",
         direction: isRtl ? "rtl" : "ltr",
         textAlign: metricCardTextAlign(isRtl),
     });
@@ -188,17 +189,20 @@ function buildMetricStatCardStyles(): MetricStatCardThemeStyles {
         },
         cardContent: (theme) => {
             const inset = theme.spacing(1.5);
+            const bottomInset = theme.spacing(1);
             return {
                 flex: 1,
                 width: "100%",
                 boxSizing: "border-box",
-                p: inset,
+                pt: inset,
+                px: inset,
+                pb: bottomInset,
                 minHeight: "76px",
                 display: "flex",
                 flexDirection: "column",
                 position: "relative",
                 "&:last-child": {
-                    paddingBottom: inset,
+                    paddingBottom: bottomInset,
                 },
             };
         },
@@ -213,18 +217,27 @@ function buildMetricStatCardStyles(): MetricStatCardThemeStyles {
                 height: METRIC_STAT_CARD_ICON_SIZE_PX,
                 background: bg,
                 borderRadius: "6px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
+                display: "grid",
+                placeItems: "center",
+                lineHeight: 0,
+                // Establish em for child SvgIcons (avoids fighting MuiSvgIcon-fontSizeMedium).
+                fontSize: "1.25rem",
                 boxShadow: "none",
                 position: "absolute",
                 top: 14,
                 left: isRtl ? 14 : "auto",
                 right: isRtl ? "auto" : 14,
                 transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+                // Stroke icons extend past the path bbox; clipping makes them look off-center.
+                overflow: "visible",
                 "& .MuiSvgIcon-root": {
                     color: "#FFFFFF",
-                    fontSize: "1.375rem",
+                    fontSize: "1em",
+                    width: "1em",
+                    height: "1em",
+                    display: "block",
+                    margin: 0,
+                    overflow: "visible",
                 },
             };
         },
@@ -262,7 +275,7 @@ function buildMetricStatCardStyles(): MetricStatCardThemeStyles {
         }),
         value: (theme, isRtl) => ({
             fontWeight: 700,
-            fontSize: "clamp(1rem, 1.4vw + 0.65rem, 1.75rem)",
+            fontSize: "clamp(0.9375rem, 1.1vw + 0.55rem, 1.75rem)",
             color: valueEmphasis(theme),
             lineHeight: 1.15,
             fontFamily: "inherit",
@@ -271,6 +284,8 @@ function buildMetricStatCardStyles(): MetricStatCardThemeStyles {
             textAlign: metricCardTextAlign(isRtl),
             maxWidth: "100%",
             whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
             overflowWrap: "normal",
             wordBreak: "normal",
         }),

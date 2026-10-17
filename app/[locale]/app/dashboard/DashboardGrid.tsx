@@ -59,8 +59,125 @@ const DashboardGrid = ({
         );
     }
 
+    const metricCardSlotSx = {
+        minWidth: 0,
+        height: "100%",
+    } as const;
+
+    const metricCardsGridSx = {
+        display: "grid",
+        gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, minmax(0, 1fr))",
+            md: isOverdueTab
+                ? "repeat(4, minmax(0, 1fr))"
+                : "repeat(5, minmax(0, 1fr))",
+        },
+        gap: 2,
+        // Stretch keeps a shared row height; content stays top-aligned so the
+        // value is not floated in mid-card empty space.
+        alignItems: "stretch",
+        width: "100%",
+        "& .MuiCard-root": {
+            height: "auto",
+            alignSelf: "start",
+        },
+    } as const;
+
     return (
         <>
+            {/* KPI strip full-width (credit-dashboard pattern) so values fit under titles */}
+            <Box sx={{ ...metricCardsGridSx, mb: 2 }}>
+                {isOverdueTab ? (
+                    <>
+                        <Box
+                            className="dashboard-metric-card-slot"
+                            sx={metricCardSlotSx}
+                        >
+                            <OverdueCustomersCard
+                                count={data.activeCustomers || 0}
+                                viewMode={viewMode}
+                            />
+                        </Box>
+                        <Box
+                            className="dashboard-metric-card-slot"
+                            sx={metricCardSlotSx}
+                        >
+                            <OverdueAmountCard
+                                count={data.overdueAmount || 0}
+                                currency={currency}
+                                viewMode={viewMode}
+                            />
+                        </Box>
+                        <Box
+                            className="dashboard-metric-card-slot"
+                            sx={metricCardSlotSx}
+                        >
+                            <OverdueInvoicesCard
+                                count={data.overdueInvoices || 0}
+                            />
+                        </Box>
+                        <Box
+                            className="dashboard-metric-card-slot"
+                            sx={metricCardSlotSx}
+                        >
+                            <TotalCollectedCard
+                                amount={totalCollectedAmount}
+                                currency={currency}
+                            />
+                        </Box>
+                    </>
+                ) : (
+                    <>
+                        <Box
+                            className="dashboard-metric-card-slot"
+                            sx={metricCardSlotSx}
+                        >
+                            <TotalDueCard
+                                count={data.totalDue || 0}
+                                currency={currency}
+                            />
+                        </Box>
+                        <Box
+                            className="dashboard-metric-card-slot"
+                            sx={metricCardSlotSx}
+                        >
+                            <DueTodayCard
+                                count={data.dueToday || 0}
+                                currency={currency}
+                            />
+                        </Box>
+                        <Box
+                            className="dashboard-metric-card-slot"
+                            sx={metricCardSlotSx}
+                        >
+                            <DueThisWeekCard
+                                count={data.dueThisWeek || 0}
+                                currency={currency}
+                            />
+                        </Box>
+                        <Box
+                            className="dashboard-metric-card-slot"
+                            sx={metricCardSlotSx}
+                        >
+                            <DueThisMonthCard
+                                count={data.dueThisMonth || 0}
+                                currency={currency}
+                            />
+                        </Box>
+                        <Box
+                            className="dashboard-metric-card-slot"
+                            sx={metricCardSlotSx}
+                        >
+                            <DueNextMonthCard
+                                count={data.dueNextMonth || 0}
+                                currency={currency}
+                            />
+                        </Box>
+                    </>
+                )}
+            </Box>
+
             <Box
                 sx={{
                     display: "grid",
@@ -76,120 +193,16 @@ const DashboardGrid = ({
                 <Box
                     sx={{
                         display: "grid",
-                        gridTemplateColumns: {
-                            xs: "1fr",
-                            sm: "repeat(2, minmax(0, 1fr))",
-                            md: isOverdueTab
-                                ? "repeat(4, minmax(0, 1fr))"
-                                : "repeat(5, minmax(0, 1fr))",
-                            lg: isOverdueTab
-                                ? "repeat(4, minmax(0, 1fr))"
-                                : "repeat(5, minmax(0, 1fr))",
-                        },
+                        gridTemplateColumns: "minmax(0, 1fr)",
                         gap: 2,
                         alignItems: "stretch",
-                        "& .MuiCardContent-root": {
-                            minHeight: 120,
-                        },
+                        minWidth: 0,
                     }}
                 >
-                    {/* Top Row Cards */}
-                    {isOverdueTab ? (
-                        // Overdue Tab
-                        <>
-                            <Box
-                                className="dashboard-metric-card-slot"
-                                sx={{ height: "100%", minHeight: 120, minWidth: 0 }}
-                            >
-                                <OverdueCustomersCard
-                                    count={data.activeCustomers || 0}
-                                    viewMode={viewMode}
-                                />
-                            </Box>
-                            <Box
-                                className="dashboard-metric-card-slot"
-                                sx={{ height: "100%", minHeight: 120, minWidth: 0 }}
-                            >
-                                <OverdueAmountCard
-                                    count={data.overdueAmount || 0}
-                                    currency={currency}
-                                    viewMode={viewMode}
-                                />
-                            </Box>
-                            <Box
-                                className="dashboard-metric-card-slot"
-                                sx={{ height: "100%", minHeight: 120, minWidth: 0 }}
-                            >
-                                <OverdueInvoicesCard
-                                    count={data.overdueInvoices || 0}
-                                />
-                            </Box>
-                            <Box
-                                className="dashboard-metric-card-slot"
-                                sx={{ height: "100%", minHeight: 120, minWidth: 0 }}
-                            >
-                                <TotalCollectedCard
-                                    amount={totalCollectedAmount}
-                                    currency={currency}
-                                />
-                            </Box>
-                        </>
-                    ) : (
-                        // Due Tab
-                        <>
-                            <Box
-                                className="dashboard-metric-card-slot"
-                                sx={{ height: "100%", minHeight: 120, minWidth: 0 }}
-                            >
-                                <TotalDueCard
-                                    count={data.totalDue || 0}
-                                    currency={currency}
-                                />
-                            </Box>
-                            <Box
-                                className="dashboard-metric-card-slot"
-                                sx={{ height: "100%", minHeight: 120, minWidth: 0 }}
-                            >
-                                <DueTodayCard
-                                    count={data.dueToday || 0}
-                                    currency={currency}
-                                />
-                            </Box>
-                            <Box
-                                className="dashboard-metric-card-slot"
-                                sx={{ height: "100%", minHeight: 120, minWidth: 0 }}
-                            >
-                                <DueThisWeekCard
-                                    count={data.dueThisWeek || 0}
-                                    currency={currency}
-                                />
-                            </Box>
-                            <Box
-                                className="dashboard-metric-card-slot"
-                                sx={{ height: "100%", minHeight: 120, minWidth: 0 }}
-                            >
-                                <DueThisMonthCard
-                                    count={data.dueThisMonth || 0}
-                                    currency={currency}
-                                />
-                            </Box>
-                            <Box
-                                className="dashboard-metric-card-slot"
-                                sx={{ height: "100%", minHeight: 120, minWidth: 0 }}
-                            >
-                                <DueNextMonthCard
-                                    count={data.dueNextMonth || 0}
-                                    currency={currency}
-                                />
-                            </Box>
-                        </>
-                    )}
-
                     {/* Receivables Maturity Schedule - Only show on Due tab after page is loaded */}
                     {isDueTab && pageLoaded && (
                         <Box
                             sx={{
-                                gridColumn: { xs: "1 / -1", md: "1 / -1" },
                                 height: "100%",
                                 minHeight: "500px",
                             }}
@@ -205,7 +218,6 @@ const DashboardGrid = ({
                     {isDueTab && pageLoaded && (
                         <Box
                             sx={{
-                                gridColumn: { xs: "1 / -1", md: "1 / -1" },
                                 height: "100%",
                                 minHeight: "400px",
                             }}
@@ -221,10 +233,8 @@ const DashboardGrid = ({
                     {isDueTab && pageLoaded && data?.hasChildBusinessUnits && (
                         <Box
                             sx={{
-                                gridColumn: { xs: "1 / -1", md: "1 / -1" },
                                 height: "100%",
                                 minHeight: "400px",
-                                mt: 2,
                             }}
                         >
                             <AmountByEntityChart
@@ -243,7 +253,6 @@ const DashboardGrid = ({
                     {isOverdueTab && (
                         <Box
                             sx={{
-                                gridColumn: { xs: "1 / -1", md: "1 / -1" },
                                 height: "100%",
                                 minHeight: "500px",
                             }}
@@ -260,7 +269,6 @@ const DashboardGrid = ({
                     {isOverdueTab && (
                         <Box
                             sx={{
-                                gridColumn: { xs: "1 / -1", md: "1 / -1" },
                                 height: "100%",
                                 minHeight: "280px",
                             }}
@@ -285,6 +293,7 @@ const DashboardGrid = ({
                             },
                             gap: 1,
                             alignItems: "start",
+                            minWidth: 0,
                         }}
                     >
                         {/* Collection Efforts Phase - Top Right */}

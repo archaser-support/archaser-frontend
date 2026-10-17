@@ -3,6 +3,7 @@
  * This is a reference implementation showing how Option 1 could be implemented
  */
 
+import { DeleteIcon as Delete } from "@/shared/components/report-icons";
 import React from "react";
 import {
     Autocomplete,
@@ -15,7 +16,7 @@ import {
     Typography,
 } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
-import { Delete } from "@mui/icons-material";
+
 import { useTranslation } from "react-i18next";
 
 // This would replace the filter rendering section (around line 2984-3364)

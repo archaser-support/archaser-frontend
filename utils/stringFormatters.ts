@@ -169,8 +169,8 @@ export function getCurrencySymbol(currencyCode: string | null | undefined): stri
 
 /**
  * Formats a money amount with a currency marker.
- * - style "iso": ISO code (e.g. `USD 1,200` / Hebrew `1,200 USD`)
- * - style "symbol": currency symbol (e.g. `$1,200` / Hebrew `1,200 $`)
+ * - Hebrew: marker before amount (e.g. `₪ 1,200` / `ILS 1,200`)
+ * - English: marker after amount (e.g. `1,200 ₪` / `1,200 USD`)
  * Always shows a currency marker; blank currency falls back to USD.
  */
 export function formatMoney(
@@ -192,21 +192,18 @@ export function formatMoney(
         ? formatAmountWithoutSymbolWhole(safeAmount, locale)
         : formatAmountWithoutSymbol(safeAmount, locale);
     const nbsp = "\u00A0";
+    const ltrMark = "\u200E";
+    const isHebrew =
+        language === "he" || language.startsWith("he-");
+    const marker =
+        style === "symbol"
+            ? getCurrencySymbol(currencyCode) || currencyCode
+            : currencyCode;
 
-    if (style === "symbol") {
-        const symbol = getCurrencySymbol(currencyCode) || currencyCode;
-        return language === "he"
-            ? `${formattedAmount} ${symbol}`
-            : `${symbol}${formattedAmount}`;
+    if (isHebrew) {
+        return `${ltrMark}${marker}${nbsp}${formattedAmount}`;
     }
-
-    // ISO: For Hebrew (RTL), put currency code AFTER the amount.
-    // Use an LTR mark before the number to preserve digit/sign order.
-    if (language === "he") {
-        const ltrMark = "\u200E";
-        return `${ltrMark}${formattedAmount}${nbsp}${currencyCode}`;
-    }
-    return `${currencyCode}${nbsp}${formattedAmount}`;
+    return `${ltrMark}${formattedAmount}${nbsp}${marker}`;
 }
 
 export interface MoneyDualParts {
@@ -285,12 +282,12 @@ export function formatCurrencySymbolWithRTLSupport(
     i18nLanguage: string = "en"
 ): string {
     const formattedAmount = formatAmountWithoutSymbol(amount, locale);
-
-    // For Hebrew (RTL), put currency symbol after amount
-    // For English (LTR), put currency symbol before amount
-    return i18nLanguage === "he"
-        ? `${formattedAmount} ${currencySymbol}`
-        : `${currencySymbol}${formattedAmount}`;
+    const isHebrew =
+        i18nLanguage === "he" || i18nLanguage.startsWith("he-");
+    if (isHebrew) {
+        return `\u200E${currencySymbol}\u00A0${formattedAmount}`;
+    }
+    return `\u200E${formattedAmount}\u00A0${currencySymbol}`;
 }
 
 export interface AmountCurrencyPair {

@@ -3,6 +3,7 @@
 import { Box } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 // Artwork source: archaser-track-runner.svg. SMIL run cycle + track dashes;
 // reduced-motion shows a stationary pose via the embedded stylesheet.
@@ -23,12 +24,16 @@ type ArchaserTrackRunnerProps = {
 /**
  * Animated ARChaser track-runner mark for loading indicators only.
  * Inherits CSS `color`. Brand/navigation logos use `ArchaserLogo`.
+ * Flips horizontally in Hebrew so the runner faces RTL reading direction.
  */
 const ArchaserTrackRunner = ({
     height = ARCHASER_TRACK_RUNNER_HEIGHT_PX,
     title,
     sx,
 }: ArchaserTrackRunnerProps) => {
+    const { i18n } = useTranslation();
+    const isHebrew =
+        i18n.language === "he" || i18n.language.startsWith("he-");
     const width = (height * VIEW.width) / VIEW.height;
     const accessibilityProps = title
         ? { role: "img" as const, "aria-label": title }
@@ -49,6 +54,7 @@ const ArchaserTrackRunner = ({
                     display: "block",
                     flexShrink: 0,
                     overflow: "visible",
+                    ...(isHebrew ? { transform: "scaleX(-1)" } : {}),
                 },
                 ...(Array.isArray(sx) ? sx : [sx]),
             ]}

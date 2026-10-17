@@ -23,6 +23,7 @@ import {
     formatCurrencyFull,
     formatMonthYear,
 } from "./chartFormat";
+import { portfolioMoneyHtmlStyle } from "./formatPortfolioMoney";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
 export type ExposureTrendLinesPoint = {
@@ -195,7 +196,7 @@ function ExposureTooltip({
             name: seriesLabels.total,
             value:
                 row.total != null
-                    ? formatCurrencyFull(row.total, currency)
+                    ? formatCurrencyFull(row.total, currency, language)
                     : "—",
             color: chartColors.marker,
         },
@@ -203,7 +204,7 @@ function ExposureTooltip({
             name: seriesLabels.atRisk,
             value:
                 row.atRisk != null
-                    ? formatCurrencyFull(row.atRisk, currency)
+                    ? formatCurrencyFull(row.atRisk, currency, language)
                     : "—",
             color: chartColors.secondary,
         },
@@ -211,7 +212,7 @@ function ExposureTooltip({
             name: seriesLabels.compliant,
             value:
                 row.compliant != null
-                    ? formatCurrencyFull(row.compliant, currency)
+                    ? formatCurrencyFull(row.compliant, currency, language)
                     : "—",
             color: chartColors.primary,
         },
@@ -284,8 +285,8 @@ function ExposureTooltip({
                         <span
                             style={{
                                 fontWeight: 500,
-                                fontVariantNumeric: "tabular-nums",
                                 color: item.valueColor ?? CPH.ink,
+                                ...portfolioMoneyHtmlStyle,
                             }}
                         >
                             {item.value}
@@ -385,7 +386,11 @@ export function ExposureTrendLinesChart({
                             tickLine={false}
                             width={84}
                             tickFormatter={(v: number) =>
-                                formatCurrencyCompact(v, currencyCode)
+                                formatCurrencyCompact(
+                                    v,
+                                    currencyCode,
+                                    language
+                                )
                             }
                         />
                         <Tooltip

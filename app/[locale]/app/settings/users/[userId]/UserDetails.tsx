@@ -27,7 +27,6 @@ import {
     useTheme,
 } from "@mui/material";
 import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
-import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -3498,7 +3497,17 @@ const UserDetails: React.FC<UserDetailsProps> = ({ userId }) => {
                             </Box>
                         </Box>
 
-                        {isSaving ? <PageLoader /> : null}
+                        {isSaving ? (
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    justifyContent: "center",
+                                    py: 2,
+                                }}
+                            >
+                                <AppSpinner />
+                            </Box>
+                        ) : null}
 
                         {/* Password Change Dialog */}
                         <ChangePasswordModal

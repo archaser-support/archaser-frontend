@@ -1,4 +1,4 @@
-import { Schedule as ScheduleIcon } from "@mui/icons-material";
+import { PortfolioHealthNavIcon } from "@/shared/components/sidebar-icons";
 import {
     Box,
     Table,
@@ -175,10 +175,10 @@ const ReceivablesMaturitySchedule = ({
 
     return (
         <FinancialDashboardChartCard
-            icon={<ScheduleIcon />}
+            icon={<PortfolioHealthNavIcon />}
             iconAccent="receivables"
             title={t("fields.stats_receivables_maturity_schedule")}
-            subtitle={t("fields.stats_maturity_schedule_description")}
+            titleTooltip={t("fields.stats_maturity_schedule_description")}
             minHeight={400}
         >
             <Box sx={{ pt: 0.5, flex: 1, overflow: "hidden" }}>

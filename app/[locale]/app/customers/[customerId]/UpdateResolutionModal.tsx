@@ -2,11 +2,11 @@
 import { apiFetch } from "@/utils/apiFetch";
 
 import {
-    Gavel as GavelIcon,
     Help as HelpIcon,
     Cancel as CancelIcon,
     Error as ErrorIcon,
 } from "@mui/icons-material";
+import { DisputesNavIcon } from "@/shared/components/sidebar-icons";
 import {
     Button,
     TextField,
@@ -300,7 +300,7 @@ const UpdateResolutionModal: React.FC<Props> = ({
                 isCancelMode ? (
                     <CancelIcon aria-hidden="true" />
                 ) : (
-                    <GavelIcon aria-hidden="true" />
+                    <DisputesNavIcon aria-hidden="true" />
                 )
             }
             ariaLabelledBy="resolution-dialog-title"

@@ -116,6 +116,7 @@
         "overdue_follow_ups": "Overdue Follow-ups",
         "activities_per_day": "Activities per Day",
         "activity_type_chart_title": "Activity Type Distribution",
+        "activity_type_chart_description": "Share of activities by channel in the selected date range (SMS, Email, Call, WhatsApp, Internal). Counts respect the agent and business-unit filters.",
         "title": "Title",
         "activity": "Activity",
         "type": "Type",

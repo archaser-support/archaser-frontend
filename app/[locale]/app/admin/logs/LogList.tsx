@@ -1,13 +1,7 @@
 "use client";
+import { CloneIcon as CopyIcon } from "@/shared/components/report-icons";
 import { usePageWheelScrollsTable } from "@/shared/hooks/usePageWheelScrollsTable";
-import {
-    ContentCopy as CopyIcon,
-    Report as CriticalIcon,
-    BugReport as DebugIcon,
-    Error as ErrorIcon,
-    Info as InfoIcon,
-    Warning as WarningIcon,
-} from "@mui/icons-material";
+import {Report as CriticalIcon, BugReport as DebugIcon, Error as ErrorIcon, Info as InfoIcon, Warning as WarningIcon} from "@mui/icons-material";
 import {
     Alert,
     Box,

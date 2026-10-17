@@ -2,12 +2,10 @@
 import { apiFetch } from "@/utils/apiFetch";
 
 import AppDialog from "@/shared/layout-components/modal/AppDialog";
-import {
-    Add as AddIcon,
-    Delete as DeleteIcon,
-    Help as HelpIcon,
-} from "@mui/icons-material";
+import {Add as AddIcon, Help as HelpIcon} from "@mui/icons-material";
 import GavelIcon from "@mui/icons-material/Gavel";
+import { DeleteIcon } from "@/shared/components/report-icons";
+
 import {
     Box,
     Button,
@@ -26,7 +24,6 @@ import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
-
 
 interface DisputeReasonLanguage {
     language: string;

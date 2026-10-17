@@ -1,10 +1,10 @@
-import { Timeline as TimelineIcon } from "@mui/icons-material";
 import { Box, useTheme } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import type { ApexOptions } from "apexcharts";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
+import { ActivitySequencesNavIcon } from "@/shared/components/sidebar-icons";
 import AppUrls from "@/utils/appUrls";
 import { pushFinancialChartDetails } from "@/shared/dashboard/financialChartDetailsTitle";
 import { useDashboardBusinessUnitId } from "@/shared/dashboard/DashboardBusinessUnitContext";
@@ -356,10 +356,10 @@ const AutomatedPhaseSplit = ({
 
     return (
         <FinancialDashboardChartCard
-            icon={<TimelineIcon />}
+            icon={<ActivitySequencesNavIcon />}
             iconAccent="capacity"
             title={t("fields.charts_automated_phase_split_title")}
-            subtitle={t("fields.charts_automated_phase_split_description")}
+            titleTooltip={t("fields.charts_automated_phase_split_description")}
             minHeight={400}
         >
             <Box sx={{ pt: 0.5, height: "100%", minHeight: 280 }}>

@@ -1,15 +1,9 @@
 "use client";
 
+import { CloneIcon as CopyIcon } from "@/shared/components/report-icons";
 // @ts-nocheck
 // React imports
-import {
-    Assessment as AssessmentIcon,
-    Clear as ClearIcon,
-    ContentCopy as CopyIcon,
-    InfoOutlined as InfoOutlinedIcon,
-    PlayArrow as PlayIcon,
-    Schedule as ScheduleIcon,
-} from "@mui/icons-material";
+import {Assessment as AssessmentIcon, Clear as ClearIcon, InfoOutlined as InfoOutlinedIcon, PlayArrow as PlayIcon, Schedule as ScheduleIcon} from "@mui/icons-material";
 import {
     Alert,
     Autocomplete,
@@ -35,7 +29,6 @@ import {
     useTheme,
 } from "@mui/material";
 import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
-import PageLoader from "@/shared/layout-components/spinner/PageLoader";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -872,7 +865,7 @@ const CronJobsPage = () => {
                 alignItems="center"
                 minHeight="400px"
             >
-                <PageLoader />
+                <AppSpinner />
             </Box>
         );
     }

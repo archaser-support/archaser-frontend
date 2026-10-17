@@ -1,11 +1,12 @@
 "use client";
 
 import AddIcon from "@mui/icons-material/Add";
-import DeleteIcon from "@mui/icons-material/Delete";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import PersonIcon from "@mui/icons-material/Person";
 import PublicIcon from "@mui/icons-material/Public";
 import WarningIcon from "@mui/icons-material/Warning";
+import { DeleteIcon } from "@/shared/components/report-icons";
+
 import {
     Box,
     Button,
@@ -17,7 +18,7 @@ import {
     Tooltip,
     Typography,
 } from "@mui/material";
-import PageLoader from "@/shared/layout-components/spinner/PageLoader";
+import AppSpinner from "@/shared/layout-components/spinner/AppSpinner";
 import { useTheme } from "@mui/material/styles";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { GridColDef, GridSortModel } from "@/shared/layout-components/grid/gridColumnTypes";
@@ -215,7 +216,6 @@ function displayMaybe(value: unknown): string {
     }
     return String(displayValue);
 }
-
 
 function resolveLocalizedUrl(rawUrl: string, locale: string): string {
     if (!rawUrl) return `/${locale}/app/settings?tab=creditInsurance`;
@@ -2251,7 +2251,7 @@ export default function CreditInsurancePolicyDetailPage() {
                     minHeight: 320,
                 }}
             >
-                <PageLoader />
+                <AppSpinner />
             </Box>
         );
     }

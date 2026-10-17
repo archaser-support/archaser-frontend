@@ -1,12 +1,7 @@
 "use client";
 import { apiFetch } from "@/utils/apiFetch";
 
-import {
-    AutoAwesome,
-    Category as CategoryIcon,
-    Gavel,
-    Person,
-} from "@mui/icons-material";
+import { Category as CategoryIcon } from "@mui/icons-material";
 import {
     Box,
     Button,
@@ -17,6 +12,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import {
+    ActivitySequencesNavIcon,
+    AgentsNavIcon,
+    LegalNavIcon,
+} from "@/shared/components/sidebar-icons";
 import AppDialog from "@/shared/layout-components/modal/AppDialog";
 import { useToast } from "@/shared/layout-components/toast/ToastProvider";
 
@@ -136,19 +136,19 @@ const ChangeCollectionCategoryModal: React.FC<
             switch (category) {
                 case "Automated":
                     return {
-                        icon: <AutoAwesome sx={{ fontSize: 20 }} />,
+                        icon: <ActivitySequencesNavIcon sx={{ fontSize: 20 }} />,
                         description: t("values.category_automated_description"),
                         color: "primary" as const,
                     };
                 case "Agent":
                     return {
-                        icon: <Person sx={{ fontSize: 20 }} />,
+                        icon: <AgentsNavIcon sx={{ fontSize: 20 }} />,
                         description: t("values.category_agent_description"),
                         color: "secondary" as const,
                     };
                 case "Legal":
                     return {
-                        icon: <Gavel sx={{ fontSize: 20 }} />,
+                        icon: <LegalNavIcon sx={{ fontSize: 20 }} />,
                         description: t("values.category_legal_description"),
                         color: "error" as const,
                     };

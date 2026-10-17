@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit as EditIcon } from "@mui/icons-material";
+import { ActivitySequencesNavIcon } from "@/shared/components/sidebar-icons";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -28,7 +28,7 @@ const ManualActivitiesCard = ({
 
     return (
         <CreditMetricCard
-            icon={<EditIcon />}
+            icon={<ActivitySequencesNavIcon />}
             iconAccent="default"
             label={t("fields.manual_activities", { ns: "activities" })}
             value={count.toLocaleString()}

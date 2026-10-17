@@ -1,6 +1,6 @@
 "use client";
 
-import { TrendingUp as TrendingUpIcon } from "@mui/icons-material";
+import { OperationDashboardNavIcon } from "@/shared/components/sidebar-icons";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -28,7 +28,7 @@ const ActivitySuccessRateCard = ({
 
     return (
         <CreditMetricCard
-            icon={<TrendingUpIcon />}
+            icon={<OperationDashboardNavIcon />}
             iconAccent="compliant"
             label={t("fields.activity_success_rate", { ns: "activities" })}
             value={`${successRate.toFixed(1)}%`}

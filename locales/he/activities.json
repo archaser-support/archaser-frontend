@@ -116,6 +116,7 @@
         "overdue_follow_ups": "מעקבים שפג תוקפם",
         "activities_per_day": "פעילויות ליום",
         "activity_type_chart_title": "התפלגות סוגי פעילויות",
+        "activity_type_chart_description": "חלק הפעילויות לפי ערוץ בטווח התאריכים שנבחר (SMS, אימייל, שיחה, WhatsApp, פנימי). הספירות מכבדות את סינון הסוכן ויחידת העסק.",
         "title": "כותרת",
         "activity": "פעילות",
         "type": "סוג",

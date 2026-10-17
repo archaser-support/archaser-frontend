@@ -1,10 +1,7 @@
 "use client";
 
-import {
-    AccountBalance as BankIcon,
-    CheckCircle as CheckIcon,
-    ContentCopy as CopyIcon,
-} from "@mui/icons-material";
+import { CloneIcon as CopyIcon } from "@/shared/components/report-icons";
+import {AccountBalance as BankIcon, CheckCircle as CheckIcon} from "@mui/icons-material";
 import {
     Box,
     Card,
