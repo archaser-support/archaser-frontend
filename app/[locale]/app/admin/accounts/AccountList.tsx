@@ -562,20 +562,25 @@ const AccountList: React.FC = () => {
                                           )
                                         : t("actions.delete", { ns: "common" })
                                 }
-                                arrow
-                                placement="bottom"
                             >
                                 <span>
                                     <IconButton
                                         size="small"
-                                        disabled={isArchaserAdminAccount(
-                                            params.row.id
-                                        )}
                                         onClick={(e) => {
+                                            if (
+                                                isArchaserAdminAccount(
+                                                    params.row.id
+                                                )
+                                            ) {
+                                                return;
+                                            }
                                             e.stopPropagation();
                                             handleDeleteClick(params.row.raw);
                                         }}
                                         color="primary"
+                                        disabled={isArchaserAdminAccount(
+                                            params.row.id
+                                        )}
                                         sx={{
                                             "&.Mui-disabled": {
                                                 color: "text.disabled",
